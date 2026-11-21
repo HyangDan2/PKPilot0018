@@ -622,7 +622,7 @@ export default function App() {
                 {fmtInt(Math.max(0, ...sheet.columns.map((c) => c.values.length)))} × {sheet.columns.length}
               </span>
               <span className="spacer" />
-              <span className="grid-hint">{t(lang, 'help.dataText').slice(0, 96)}</span>
+              <span className="grid-hint">{t(lang, 'hint.grid')}</span>
             </div>
             <WorksheetGrid
               lang={lang}

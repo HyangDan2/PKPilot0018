@@ -367,6 +367,7 @@ a { color: inherit; }
 .nav-head .spacer { flex: 1 1 auto; }
 .nav-head button { color: var(--text-secondary); display: inline-flex; }
 .nav-head button:hover { color: var(--accent-text); }
+@media (min-width: 1024px) { .nav-head .nav-close { display: none; } }
 
 .nav-list { overflow: auto; padding: 0 8px 10px; }
 

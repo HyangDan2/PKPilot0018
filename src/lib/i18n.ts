@@ -374,6 +374,7 @@ const en: Dict = {
   'help.analysesList':
     'Descriptive statistics (with By groups) · Anderson–Darling normality test with probability plot · 1-sample, 2-sample (Welch/pooled) and paired t-tests · one-way ANOVA with Tukey HSD grouping · multiple linear regression with VIF and four-in-one residual plots · I-MR, Xbar-R and P control charts with the eight Nelson rules · process capability (Cp/Cpk/Pp/Ppk/PPM) · Pareto, histogram, boxplot, scatterplot and time series plots.',
   'help.data': 'Worksheets',
+  'hint.grid': 'Double-click to edit · arrows / Tab / Enter to move · paste a block from Excel',
   'help.dataText':
     'Click a cell to edit. Arrow keys, Tab and Enter move the selection; paste a block from Excel or a CSV file to fill many cells at once. Undo with Ctrl+Z, redo with Ctrl+Shift+Z.',
   'help.shortcuts': 'Keyboard shortcuts',
@@ -768,6 +769,7 @@ const ko: Dict = {
   'help.analysesList':
     '기술통계량(그룹별) · Anderson–Darling 정규성 검정과 정규확률도 · 1표본·2표본(Welch/pooled)·대응 t검정 · 일원배치 분산분석과 Tukey HSD 그룹 문자 · 다중 선형회귀(VIF, 4-in-1 잔차 그림) · I-MR·Xbar-R·P 관리도와 8가지 Nelson 규칙 · 공정능력(Cp/Cpk/Pp/Ppk/PPM) · 파레토·히스토그램·상자그림·산점도·시계열 그림.',
   'help.data': '워크시트',
+  'hint.grid': '더블클릭 편집 · 방향키/Tab/Enter 이동 · Excel 블록 붙여넣기',
   'help.dataText':
     '셀을 클릭해 편집합니다. 방향키·Tab·Enter로 선택을 옮기고, Excel이나 CSV에서 복사한 블록을 붙여넣으면 여러 셀이 한 번에 채워집니다. Ctrl+Z로 되돌리고 Ctrl+Shift+Z로 다시 실행합니다.',
   'help.shortcuts': '키보드 단축키',

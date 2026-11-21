@@ -34,7 +34,7 @@ export function Navigator({
           <span className="panel-count">{outputs.length}</span>
           <span className="spacer" />
           {onClose && (
-            <button type="button" onClick={onClose} aria-label={t(lang, 'close')}><IconX size={14} /></button>
+            <button type="button" className="nav-close" onClick={onClose} aria-label={t(lang, 'close')}><IconX size={14} /></button>
           )}
         </div>
         <div className="nav-list">

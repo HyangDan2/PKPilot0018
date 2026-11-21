@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sigrún — responsive QA frame</title>
+<style>
+  html, body { margin: 0; background: #0B1020; }
+  .frame { display: block; border: 0; background: #FAFAFD; }
+</style>
+</head>
+<body>
+  <!-- Responsive QA aid: renders the live app in an exact-size frame (?w=1440&h=900). Not linked from the UI. -->
+  <iframe class="frame" src="./index.html" title="Sigrún"></iframe>
+  <script>
+    var p = new URLSearchParams(location.search);
+    var f = document.querySelector('iframe');
+    f.style.width = (parseInt(p.get('w'), 10) || 1440) + 'px';
+    f.style.height = (parseInt(p.get('h'), 10) || 900) + 'px';
+  </script>
+</body>
+</html>
