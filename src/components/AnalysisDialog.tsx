@@ -45,18 +45,25 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun }: Pr
   const addColumn = (slotKey: string, ref: string) => {
     const slot = def.slots.find((s) => s.key === slotKey);
     if (!slot) return;
+    const next: Record<string, unknown> = { ...values };
     if (slot.kind === 'col') {
-      setValues((prev) => ({ ...prev, [slotKey]: ref }));
-      setPicked(ref);
+      next[slotKey] = ref;
+    } else if (slot.kind === 'vars') {
+      const current = (values[slotKey] as string[]) ?? [];
+      if (current.includes(ref)) return;
+      next[slotKey] = [...current, ref];
+    } else {
       return;
     }
-    if (slot.kind !== 'vars') return;
-    setValues((prev) => {
-      const current = (prev[slotKey] as string[]) ?? [];
-      if (current.includes(ref)) return prev;
-      return { ...prev, [slotKey]: [...current, ref] };
-    });
+    setValues(next);
     setPicked(ref);
+    const nextEmpty = def.slots.find((candidate) => {
+      if (candidate.key === slotKey || !candidate.required) return false;
+      if (candidate.kind === 'col') return !next[candidate.key];
+      if (candidate.kind === 'vars') return !(next[candidate.key] as string[])?.length;
+      return false;
+    });
+    if (nextEmpty) setActive(nextEmpty.key);
   };
 
   const targetSlot = (): string => {
@@ -102,10 +109,19 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun }: Pr
           <span className="slot-label">{t(lang, slot.label)}{slot.required && <span className="req">*</span>}</span>
           <div
             className={`slot-input${active === slot.key ? ' active' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`${t(lang, slot.label)} — ${t(lang, 'dlg.active')}`}
             onClick={() => setActive(slot.key)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setActive(slot.key);
+              }
+            }}
             data-testid={`slot-${slot.key}`}
           >
-            {refs.length === 0 && <span className="ph">{t(lang, 'dlg.hint')}</span>}
+            {refs.length === 0 && <span className="ph">{t(lang, 'dlg.selectColumn')}</span>}
             {refs.map((ref) => {
               const meta = columnMeta(sheet, ref);
               return (
@@ -127,10 +143,19 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun }: Pr
           <span className="slot-label">{t(lang, slot.label)}{slot.required && <span className="req">*</span>}</span>
           <div
             className={`slot-input${active === slot.key ? ' active' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`${t(lang, slot.label)} — ${t(lang, 'dlg.active')}`}
             onClick={() => setActive(slot.key)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setActive(slot.key);
+              }
+            }}
             data-testid={`slot-${slot.key}`}
           >
-            {!meta && <span className="ph">{t(lang, 'dlg.hint')}</span>}
+            {!meta && <span className="ph">{t(lang, 'dlg.selectColumn')}</span>}
             {meta && (
               <span className="chip">
                 {meta.name || meta.id}
@@ -251,6 +276,12 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun }: Pr
                         type="button"
                         className={`var-row${picked === col.id ? ' selected' : ''}`}
                         onDoubleClick={() => addColumn(targetSlot(), col.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            addColumn(targetSlot(), col.id);
+                          }
+                        }}
                         onClick={() => setPicked(col.id)}
                         data-testid={`var-${col.id}`}
                       >
@@ -281,7 +312,7 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun }: Pr
                   disabled={!picked || !active}
                   data-testid="add-selected"
                 >
-                  <IconPlus size={12} /> {t(lang, 'dlg.active')}
+                  <IconPlus size={12} /> {t(lang, 'dlg.add')}
                 </button>
                 <span className="hint" style={{ fontSize: 10.5, color: 'var(--text-secondary)' }}>{t(lang, 'dlg.hint')}</span>
               </div>
@@ -298,7 +329,7 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun }: Pr
         </div>
 
         <div className="modal-foot">
-          <span className="hint">{t(lang, 'dlg.hint')}</span>
+          <span className="hint">{activeSlot ? `${t(lang, 'dlg.active')}: ${t(lang, activeSlot.label)}` : ''}</span>
           <span className="spacer" />
           <button type="button" className="btn ghost" onClick={onClose}>{t(lang, 'dlg.cancel')}</button>
           <button type="button" className="btn primary" onClick={submit} data-testid="dialog-ok">{t(lang, 'dlg.ok')}</button>

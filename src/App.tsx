@@ -592,7 +592,19 @@ export default function App() {
           onClose={() => setNavOpen(false)}
         />
         {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
-        <div className="splitter" onPointerDown={beginNavDrag} role="separator" aria-orientation="vertical" />
+        <div
+          className="splitter"
+          onPointerDown={beginNavDrag}
+          role="separator"
+          aria-orientation="vertical"
+          tabIndex={0}
+          aria-label={t(lang, 'view.navigator')}
+          aria-valuenow={Math.round(navW)}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') { event.preventDefault(); setNavW((w) => Math.max(180, w - 24)); }
+            if (event.key === 'ArrowRight') { event.preventDefault(); setNavW((w) => Math.min(430, w + 24)); }
+          }}
+        />
 
         <div className="main-panels" style={{ '--output-h': `${outputH}%` } as React.CSSProperties}>
           <section className="panel output-panel" data-hidden={mobileTab !== 'output'}>
@@ -613,7 +625,19 @@ export default function App() {
             />
           </section>
 
-          <div className="splitter horizontal" onPointerDown={beginOutputDrag} role="separator" aria-orientation="horizontal" />
+          <div
+            className="splitter horizontal"
+            onPointerDown={beginOutputDrag}
+            role="separator"
+            aria-orientation="horizontal"
+            tabIndex={0}
+            aria-label={t(lang, 'panel.output')}
+            aria-valuenow={Math.round(outputH)}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowUp') { event.preventDefault(); setOutputH((h) => Math.min(82, h + 4)); }
+              if (event.key === 'ArrowDown') { event.preventDefault(); setOutputH((h) => Math.max(18, h - 4)); }
+            }}
+          />
 
           <section className="panel worksheet-panel" data-hidden={mobileTab !== 'worksheet'}>
             <div className="panel-head">

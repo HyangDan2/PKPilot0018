@@ -301,7 +301,8 @@ a { color: inherit; }
   opacity: 0;
   transition: opacity 120ms;
 }
-.splitter:hover::after, .splitter.dragging::after { opacity: 1; background: var(--accent); }
+.splitter:hover::after, .splitter.dragging::after, .splitter:focus-visible::after { opacity: 1; background: var(--accent); }
+.splitter:focus-visible { box-shadow: none; outline: 2px solid var(--accent); outline-offset: -1px; border-radius: 2px; }
 .splitter.horizontal { flex: 0 0 6px; cursor: row-resize; }
 .splitter.horizontal::after { inset: 2px 0; }
 
@@ -633,6 +634,7 @@ a { color: inherit; }
 }
 .ws-cell.sel { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 .ws-cell.null { color: var(--text-secondary); }
+.ws-cell.num { text-align: right; }
 .ws-cell.editing { padding: 0; }
 .cell-input {
   width: 100%;

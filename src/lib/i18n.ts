@@ -136,6 +136,8 @@ const en: Dict = {
   'dlg.required': 'Select a column for {slot}.',
   'dlg.noColumns': 'This worksheet has no usable columns.',
   'dlg.active': 'Active input',
+  'dlg.add': 'Add',
+  'dlg.selectColumn': 'Select a column',
 
   'slot.variables': 'Variables',
   'slot.variable': 'Variable',
@@ -531,6 +533,8 @@ const ko: Dict = {
   'dlg.required': '{slot}에 열을 선택하세요.',
   'dlg.noColumns': '이 워크시트에는 사용할 수 있는 열이 없습니다.',
   'dlg.active': '활성 입력란',
+  'dlg.add': '추가',
+  'dlg.selectColumn': '열 선택',
 
   'slot.variables': '변수',
   'slot.variable': '변수',
@@ -801,7 +805,8 @@ const ko: Dict = {
 export const DICT: Record<Lang, Dict> = { en, ko };
 
 export function t(lang: Lang, key: string, vars?: Record<string, string | number>): string {
-  const raw = DICT[lang][key] ?? DICT.en[key] ?? key;
+  const clean = key.startsWith('@') ? key.slice(1) : key;
+  const raw = DICT[lang][clean] ?? DICT.en[clean] ?? clean;
   if (!vars) return raw;
   return raw.replace(/\{(\w+)\}/g, (match, name: string) => (name in vars ? String(vars[name]) : match));
 }

@@ -155,7 +155,7 @@ export function WorksheetGrid({
                 return (
                   <td
                     key={col.id}
-                    className={`ws-cell${isSelected(row, index) ? ' sel' : ''}${value === null || value === undefined ? ' null' : ''}${active ? ' editing' : ''}`}
+                    className={`ws-cell${isSelected(row, index) ? ' sel' : ''}${value === null || value === undefined ? ' null' : ''}${typeof value === 'number' ? ' num' : ''}${active ? ' editing' : ''}`}
                     onMouseDown={() => {
                       if (!(selection.row === row && selection.col === index)) move(row, index, false);
                     }}

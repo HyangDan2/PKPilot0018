@@ -200,7 +200,7 @@ export function MenuBar({ lang, canUndo, canRedo, onAction, onAnalysis, onSample
             aria-haspopup="menu"
             aria-expanded={open === index}
             onClick={() => {
-              setOpen(open === index ? null : index);
+              setOpen(index);
               setSub(null);
             }}
             onMouseEnter={() => {
