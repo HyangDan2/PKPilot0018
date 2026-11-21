@@ -998,6 +998,8 @@ kbd {
   .output-panel, .worksheet-panel { height: 100%; flex: 1 1 auto; }
   .output-scroll { padding: 10px 10px 24px; }
   .chart-grid { grid-template-columns: minmax(0, 1fr); }
+  .chart-card { overflow-x: auto; }
+  .chart-card .chart-svg { min-width: 460px; }
   .dlg-grid { grid-template-columns: minmax(0, 1fr); }
   .var-list { max-height: 132px; min-height: 96px; }
   .modal { max-height: 92dvh; }
@@ -1010,6 +1012,9 @@ kbd {
 
 @media (max-width: 560px) {
   .brand-div { display: none; }
+  .tool-btn kbd { display: none; }
+  .tool-btn.primary-sample span { display: inline; }
+  .sheet-pill { display: none; }
   .header-actions .seg button { padding: 3px 6px; }
   .tool-btn span { display: none; }
   .tool-btn.accent span { display: none; }

@@ -10,7 +10,7 @@ import { mean, stdev } from './stats';
 import { fmt } from './format';
 
 const W = 560;
-const FS = 9.5;
+const FS = 10.5;
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
 const C = {

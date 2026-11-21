@@ -31,7 +31,7 @@ export function Toolbar({ lang, sheetName, sheetColumns, canRerun, onSample, onA
   return (
     <div className="toolbar" data-testid="toolbar">
       <div ref={ref} style={{ position: 'relative' }}>
-        <button type="button" className="tool-btn" onClick={() => setSampleOpen((v) => !v)} aria-expanded={sampleOpen} data-testid="sample-button">
+        <button type="button" className="tool-btn primary-sample" onClick={() => setSampleOpen((v) => !v)} aria-expanded={sampleOpen} data-testid="sample-button">
           <IconLayers size={15} /><span>{t(lang, 'tb.sample')}</span><IconChevronDown size={12} />
         </button>
         {sampleOpen && (
