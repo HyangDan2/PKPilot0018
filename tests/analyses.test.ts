@@ -46,9 +46,33 @@ describe('hypothesis tests', () => {
 
   it('runs a paired t on before/after columns', () => {
     const result = run('paired', comparison, { first: 'C4', second: 'C5', testDiff: 0, confidence: 95, alternative: 'two-sided', chart: false });
-    const table = tables(result.blocks)[0];
-    expect(Number(table.rows[0][0])).toBe(40);
+    const [samples, diff] = tables(result.blocks);
+    expect(samples.rows).toHaveLength(2);
+    expect(diff.rows[0][0]).toBe('40');
     expect(result.blocks.some((b) => b.type === 'text')).toBe(true);
+  });
+
+  it('paired t applies the dialog test difference μ₀ and keeps option notes', () => {
+    const zero = run('paired', comparison, { first: 'C4', second: 'C5', testDiff: 0, confidence: 95, alternative: 'two-sided', chart: false });
+    const one = run('paired', comparison, { first: 'C4', second: 'C5', testDiff: 1, confidence: 95, alternative: 'two-sided', chart: false });
+    const diffOf = (result: ReturnType<typeof run>) => Number(tables(result.blocks)[1].rows[0][1]);
+    expect(diffOf(one)).toBeCloseTo(diffOf(zero) - 1, 6);
+    const tOf = (result: ReturnType<typeof run>) => Math.abs(Number(tables(result.blocks)[1].rows[0][5]));
+    expect(tOf(one)).toBeLessThan(tOf(zero));
+    const method = one.blocks.find((b) => b.type === 'text');
+    expect(method && method.type === 'text' ? method.lines.join(' ') : '').toContain('μ_d = 1');
+  });
+
+  it('paired t drops rows with a missing side and keeps the complete pairs', () => {
+    const sheet = makeWorksheet('Pairs', [
+      { name: 'Before', type: 'numeric', values: [10, null, 12, 14, null] },
+      { name: 'After', type: 'numeric', values: [1, 2, null, 3, 5] },
+    ]);
+    const result = run('paired', sheet, { first: 'C1', second: 'C2', testDiff: 0, confidence: 95, alternative: 'two-sided', chart: false });
+    const [samples, diff] = tables(result.blocks);
+    expect(samples.rows[0][1]).toBe('2');
+    expect(diff.rows[0][0]).toBe('2');
+    expect(samples.caption).toBe('@res.pairedNote');
   });
 
   it('runs a Welch 2-sample t', () => {
@@ -72,6 +96,27 @@ describe('ANOVA', () => {
     expect(all[2].rows.length).toBe(3);
     expect(result.blocks.some((b) => b.type === 'chartgrid')).toBe(true);
     expect(result.blocks.some((b) => b.type === 'text')).toBe(true);
+  });
+
+  it('passes the dialog confidence level into the Tukey comparisons', () => {
+    const ninety = run('anova', process, { response: 'C1', factor: 'C2', confidence: 90 });
+    const ninetyFive = run('anova', process, { response: 'C1', factor: 'C2', confidence: 95 });
+    const titleOf = (result: ReturnType<typeof run>) => tables(result.blocks)[2].title ?? '';
+    expect(titleOf(ninety)).toContain('90.0%');
+    expect(titleOf(ninetyFive)).toContain('95.0%');
+    const width = (result: ReturnType<typeof run>) => {
+      const [low, high] = String(tables(result.blocks)[2].rows[0][3]).split('  ').map(Number);
+      return high - low;
+    };
+    expect(width(ninety)).toBeLessThan(width(ninetyFive));
+  });
+
+  it('rejects a factor whose every group has a single value', () => {
+    const sheet = makeWorksheet('Thin', [
+      { name: 'Y', type: 'numeric', values: [1, 2, 3, 4] },
+      { name: 'G', type: 'text', values: ['a', 'b', 'c', 'd'] },
+    ]);
+    expect(() => run('anova', sheet, { response: 'C1', factor: 'C2', confidence: 95 })).toThrow('res.groupTooSmall');
   });
 });
 
@@ -100,12 +145,41 @@ describe('control charts', () => {
     expect(result.blocks.filter((b) => b.type === 'chart')).toHaveLength(2);
   });
 
+  it('notes how fixed row-order subgroups were handled', () => {
+    const sheet = makeWorksheet('XbarR', [
+      { name: 'Value', type: 'numeric', values: [10, 12, null, 16, 11, 13, 15, 17, 12, 14, 11, 13] },
+    ]);
+    const result = run('xbarr', sheet, { variable: 'C1', subgroup: '2' });
+    const text = result.blocks.filter((b) => b.type === 'text').map((b) => (b.type === 'text' ? b.lines.join(' ') : '')).join(' ');
+    expect(text).toContain('Subgroups of 2 keep the original row order');
+    expect(text).toContain('1 skipped');
+  });
+
+  it('refuses Xbar-R when no subgroup has two valid values', () => {
+    const sheet = makeWorksheet('Empty X', [{ name: 'Value', type: 'numeric', values: [null, null, null, null, null, null] }]);
+    expect(() => run('xbarr', sheet, { variable: 'C1', subgroup: '2' })).toThrow('res.insufficient');
+  });
+
   it('renders a P chart from defect counts', () => {
     const sheet = makeWorksheet('P', [
       { name: 'Defectives', type: 'numeric', values: [4, 6, 5, 7, 3, 6, 4, 5] },
       { name: 'Inspected', type: 'numeric', values: [100, 100, 100, 100, 100, 100, 100, 100] },
     ]);
     const result = run('pchart', sheet, { defects: 'C1', sizes: 'C2', sampleSize: '100' });
+    expect(result.blocks.some((b) => b.type === 'chart')).toBe(true);
+  });
+
+  it('names the offending P-chart row instead of dropping it', () => {
+    const sheet = makeWorksheet('Bad P', [
+      { name: 'Defectives', type: 'numeric', values: [4, 120, 5, 7] },
+      { name: 'Inspected', type: 'numeric', values: [100, 100, 100, 100] },
+    ]);
+    expect(() => run('pchart', sheet, { defects: 'C1', sizes: 'C2', sampleSize: '100' })).toThrow(/Sample 2/);
+  });
+
+  it('pastes a constant sample size when no size column is chosen', () => {
+    const sheet = makeWorksheet('Const P', [{ name: 'Defectives', type: 'numeric', values: [4, 6, 5, 7] }]);
+    const result = run('pchart', sheet, { defects: 'C1', sizes: '', sampleSize: '100' });
     expect(result.blocks.some((b) => b.type === 'chart')).toBe(true);
   });
 });
@@ -121,6 +195,52 @@ describe('quality tools', () => {
 
   it('rejects capability without specification limits', () => {
     expect(() => run('capability', process, { variable: 'C1', lsl: '', usl: '', target: '', subgroup: 1 })).toThrow('res.needSpec');
+  });
+
+  it('shows Cpm as a dash with a target hint, and never reports DPMO', () => {
+    const result = run('capability', process, { variable: 'C1', lsl: '9.4', usl: '10.9', target: '', subgroup: 1 });
+    const stats = tables(result.blocks)[1];
+    const cpmRow = stats.rows.find((row) => row[0] === 'Cpm');
+    expect(cpmRow?.[1]).toBe('—');
+    const labels = tables(result.blocks).flatMap((table) => table.rows.map((row) => String(row[0])));
+    expect(labels.some((label) => /DPMO/i.test(label))).toBe(false);
+    expect(labels.filter((label) => /PPM/.test(label)).length).toBeGreaterThanOrEqual(3);
+    const notes = result.blocks.filter((b) => b.type === 'text').map((b) => (b.type === 'text' ? b.lines.join(' ') : '')).join(' ');
+    expect(notes).toContain('Target required for Cpm');
+  });
+
+  it('names the selected sigma-level method in the statistics table', () => {
+    const labelsFor = (sigmaMethod: string) => {
+      const result = run('capability', process, { variable: 'C1', lsl: '9.4', usl: '10.9', target: '10.2', sigmaMethod, subgroup: 1 });
+      const stats = tables(result.blocks)[1];
+      return { label: String(stats.rows[stats.rows.length - 1][0]), value: Number(stats.rows[stats.rows.length - 1][1]), cpk: Number(stats.rows[4][1]) };
+    };
+    const cpk = labelsFor('cpk_shift');
+    expect(cpk.label).toBe('Sigma level (3×Cpk + 1.5)');
+    expect(cpk.value).toBeCloseTo(3 * cpk.cpk + 1.5, 2);
+    expect(labelsFor('z_bench').label).toBe('Sigma level (Z.bench, 0σ shift)');
+    expect(labelsFor('z_bench_shift').label).toBe('Sigma level (Z.bench + 1.5σ)');
+    expect(labelsFor('z_bench_shift').value).toBeCloseTo(labelsFor('z_bench').value + 1.5, 2);
+  });
+
+  it('explains a one-sided specification instead of printing NaN', () => {
+    const result = run('capability', process, { variable: 'C1', lsl: '', usl: '10.9', target: '', subgroup: 1 });
+    const stats = tables(result.blocks)[1];
+    const cpk = stats.rows.find((row) => row[0] === 'Cpk');
+    expect(cpk?.[1]).not.toBe('—');
+    const notes = result.blocks.filter((b) => b.type === 'text').map((b) => (b.type === 'text' ? b.lines.join(' ') : '')).join(' ');
+    expect(notes).toContain('With a single specification limit');
+    expect(result.blocks.some((b) => b.type === 'chart')).toBe(true);
+  });
+
+  it('uses the subgroup size for the within sigma', () => {
+    const result = run('capability', process, { variable: 'C1', lsl: '9.4', usl: '10.9', target: '', subgroup: 5 });
+    const stats = tables(result.blocks)[1];
+    const within = Number(stats.rows[1][1]);
+    const moving = run('capability', process, { variable: 'C1', lsl: '9.4', usl: '10.9', target: '', subgroup: 1 });
+    const movingWithin = Number(tables(moving.blocks)[1].rows[1][1]);
+    expect(within).toBeGreaterThan(0);
+    expect(within).not.toBeCloseTo(movingWithin, 4);
   });
 
   it('orders the Pareto chart descending', () => {
@@ -153,6 +273,50 @@ describe('graphs', () => {
   it('plots a time series with specification limits', () => {
     const result = run('timeseries', process, { variable: 'C1', lsl: '9.4', usl: '10.9', target: '' });
     expect(result.blocks[0].type).toBe('chart');
+  });
+});
+
+describe('awkward data is refused or handled, never crashed', () => {
+  it('refuses a paired t with fewer than two complete pairs', () => {
+    const sheet = makeWorksheet('One pair', [
+      { name: 'A', type: 'numeric', values: [10, 12, null] },
+      { name: 'B', type: 'numeric', values: [1, null, 5] },
+    ]);
+    expect(() => run('paired', sheet, { first: 'C1', second: 'C2', testDiff: 0, confidence: 95, alternative: 'two-sided', chart: false })).toThrow('res.insufficientPairs');
+  });
+
+  it('refuses a t test on a constant column', () => {
+    const sheet = makeWorksheet('Flat', [{ name: 'X', type: 'numeric', values: [4, 4, 4, 4, 4] }]);
+    expect(() => run('t1', sheet, { variable: 'C1', hypMean: 4, confidence: 95, alternative: 'two-sided', chart: false })).toThrow('res.zeroVariance');
+  });
+
+  it('refuses a normality test on too few values', () => {
+    const sheet = makeWorksheet('Short', [{ name: 'X', type: 'numeric', values: [1, 2, 3] }]);
+    expect(() => run('normality', sheet, { variable: 'C1' })).toThrow('res.insufficient');
+  });
+
+  it('reports a collinear regression as singular', () => {
+    const x1 = [1, 2, 3, 4, 5, 6];
+    const sheet = makeWorksheet('Collinear', [
+      { name: 'Y', type: 'numeric', values: [2, 4, 6, 8, 10, 12] },
+      { name: 'X1', type: 'numeric', values: x1 },
+      { name: 'X2', type: 'numeric', values: x1.map((v) => v * 2) },
+    ]);
+    expect(() => run('regression', sheet, { response: 'C1', predictors: ['C2', 'C3'], fourInOne: true })).toThrow('res.singular');
+  });
+
+  it('plots a single value and a constant column', () => {
+    const one = makeWorksheet('One', [{ name: 'X', type: 'numeric', values: [5] }]);
+    expect(run('histogram', one, { variable: 'C1', bins: '', normal: true, lsl: '', usl: '', target: '' }).blocks[0].type).toBe('chart');
+    const flat = makeWorksheet('Flat', [{ name: 'X', type: 'numeric', values: [5, 5, 5, 5] }]);
+    expect(run('histogram', flat, { variable: 'C1', bins: '', normal: true, lsl: '', usl: '', target: '' }).blocks[0].type).toBe('chart');
+    expect(run('boxplot', flat, { variables: ['C1'], by: [] }).blocks[0].type).toBe('chart');
+  });
+
+  it('summarizes a column holding only missing values', () => {
+    const empty = makeWorksheet('Empty', [{ name: 'X', type: 'numeric', values: [null, null, null] }]);
+    const result = run('desc', empty, { variables: ['C1'], by: [] });
+    expect(tables(result.blocks)[0].rows[0][1]).toBe('0');
   });
 });
 

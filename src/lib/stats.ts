@@ -127,6 +127,11 @@ export function adNormality(raw: (number | null)[]): ADResult {
   const m = mean(v);
   const s = stdev(v);
   const sorted = [...v].sort((a, b) => a - b);
+  // A normality test needs at least three values and some variation; without
+  // them every statistic below would be NaN/Infinity, so report that plainly.
+  if (n < 3 || !isFinite(s) || s <= 0) {
+    return { n, mean: m, sd: s, ad: NaN, adAdj: NaN, p: NaN, sorted, cdf: (x: number) => (s > 0 ? normalCdf(x, m, s) : NaN) };
+  }
   let sum = 0;
   for (let i = 1; i <= n; i += 1) {
     const hi = Math.min(1 - 1e-12, Math.max(1e-12, normalCdf(sorted[i - 1], m, s)));
@@ -149,6 +154,8 @@ export function adNormality(raw: (number | null)[]): ADResult {
 export interface TTestResult {
   test: '1-sample' | '2-sample' | 'paired';
   mu0?: number;
+  /** paired test: means computed on the rows that formed a valid pair */
+  pairedCount?: number;
   mean: number;
   meanB?: number;
   difference: number;
@@ -182,8 +189,8 @@ export function tTest1(raw: (number | null)[], mu0 = 0, conf = 0.95, alt: Alt = 
   const n = v.length;
   const m = mean(v);
   const s = stdev(v);
-  const se = s / Math.sqrt(n);
-  const t = (m - mu0) / se;
+  const se = n > 1 ? s / Math.sqrt(n) : NaN;
+  const t = isFinite(se) && se > 0 ? (m - mu0) / se : NaN;
   return {
     test: '1-sample',
     mu0,
@@ -224,14 +231,15 @@ export function tTest2(
     const s1 = va / n1;
     const s2 = vb / n2;
     se = Math.sqrt(s1 + s2);
-    df = (se ** 4) / (s1 ** 2 / (n1 - 1) + s2 ** 2 / (n2 - 1));
+    const denom = s1 ** 2 / (n1 - 1) + s2 ** 2 / (n2 - 1);
+    df = denom > 0 ? (se ** 4) / denom : NaN;
   } else {
     const sp2 = ((n1 - 1) * va + (n2 - 1) * vb) / (n1 + n2 - 2);
     se = Math.sqrt(sp2 * (1 / n1 + 1 / n2));
     df = n1 + n2 - 2;
   }
-  const t = diff / se;
-  const f = va / vb;
+  const t = isFinite(se) && se > 0 ? diff / se : NaN;
+  const f = vb > 0 ? va / vb : NaN;
   const pf = fCdf(f, n1 - 1, n2 - 1);
   return {
     test: '2-sample',
@@ -250,39 +258,57 @@ export function tTest2(
     stdev: Math.sqrt(va),
     stdevB: Math.sqrt(vb),
     method: welch ? 'welch' : 'pooled',
-    varianceTest: { f, p: Math.min(1, 2 * Math.min(pf, 1 - pf)), df1: n1 - 1, df2: n2 - 1 },
+    varianceTest: n1 > 1 && n2 > 1 && vb > 0 && isFinite(f)
+      ? { f, p: Math.min(1, 2 * Math.min(pf, 1 - pf)), df1: n1 - 1, df2: n2 - 1 }
+      : undefined,
   };
 }
 
-export function pairedT(rawA: (number | null)[], rawB: (number | null)[], conf = 0.95, alt: Alt = 'two-sided'): TTestResult {
+/** Row-wise paired t on (A − B) with a hypothesized difference μ₀. */
+export function pairedT(
+  rawA: (number | null)[],
+  rawB: (number | null)[],
+  mu0 = 0,
+  conf = 0.95,
+  alt: Alt = 'two-sided',
+): TTestResult {
   const len = Math.min(rawA.length, rawB.length);
   const diffs: number[] = [];
+  const pairedA: number[] = [];
+  const pairedB: number[] = [];
   for (let i = 0; i < len; i += 1) {
     const a = rawA[i];
     const b = rawB[i];
-    if (typeof a === 'number' && typeof b === 'number' && isFinite(a) && isFinite(b)) diffs.push(a - b);
+    if (typeof a === 'number' && typeof b === 'number' && isFinite(a) && isFinite(b)) {
+      diffs.push(a - b);
+      pairedA.push(a);
+      pairedB.push(b);
+    }
   }
   const n = diffs.length;
   const m = mean(diffs);
   const s = stdev(diffs);
   const se = s / Math.sqrt(n);
-  const t = m / se;
+  const t = se > 0 ? (m - mu0) / se : NaN;
   return {
     test: 'paired',
-    mean: mean(clean(rawA)),
-    meanB: mean(clean(rawB)),
-    difference: m,
+    mu0,
+    pairedCount: n,
+    // Means over the paired rows only, so they line up with the differences.
+    mean: mean(pairedA),
+    meanB: mean(pairedB),
+    difference: m - mu0,
     se,
     df: n - 1,
     t,
     p: pFromCdf(t, (x) => tCdf(x, n - 1), alt),
-    ci: ciMean(m, se, n - 1, conf, alt),
+    ci: ciMean(m - mu0, se, n - 1, conf, alt),
     conf,
     alt,
     n,
     nB: n,
     stdev: s,
-    stdevB: stdev(diffs),
+    stdevB: s,
   };
 }
 
@@ -497,6 +523,12 @@ export function regress(
   const n = rows.length;
   const k = predictors.length;
   if (n <= k + 1) throw new Error('not-enough-data');
+  // A predictor that never changes makes the normal equations singular; say so
+  // instead of failing later inside the solver.
+  for (let j = 0; j < k; j += 1) {
+    const col = rows.map((r) => r.x[j]);
+    if (stdev(col) === 0 || !isFinite(stdev(col))) throw new Error('res.constantPredictor');
+  }
   const X = rows.map((r) => [1, ...r.x]);
   const ys = rows.map((r) => r.y);
   const p = k + 1;
@@ -520,7 +552,7 @@ export function regress(
   const dfErr = n - p;
   const msErr = ssErr / dfErr;
   const msReg = ssReg / dfReg;
-  const f = msReg / msErr;
+  const f = msErr > 0 ? msReg / msErr : NaN;
   const r2 = ssTotal > 0 ? ssReg / ssTotal : 0;
   const r2adj = 1 - (1 - r2) * ((n - 1) / dfErr);
   // predicted R² using PRESS

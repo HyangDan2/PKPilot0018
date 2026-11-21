@@ -10,7 +10,7 @@ import { evaluateFormula } from './calc';
 import { fmt, fmtInt, fmtP } from './format';
 import { t } from './i18n';
 import { generateRandom } from './random';
-import { imrChart, pChart, xbarRCharts } from './spc';
+import { imrChart, pChart, xbarRCharts, SpcValidationError, type SpcIssue } from './spc';
 import {
   adNormality,
   anovaOneWay,
@@ -203,6 +203,7 @@ function runNormality(ctx: RunContext): RunResult {
   const data = numValues(sheet, ref);
   const ad = adNormality(data);
   if (ad.n < 7) throw new Error('res.insufficient');
+  if (!(ad.sd > 0) || !isFinite(ad.sd)) throw new Error('res.zeroVariance');
   const zs = ad.sorted.map((_, i) => normalInvLocal((i + 1 - 0.375) / (ad.n + 0.25)));
   const step = (Math.max(...ad.sorted) - Math.min(...ad.sorted)) / 40 || 1;
   const ci: { x: number; lo: number; hi: number }[] = [];
@@ -261,6 +262,7 @@ function runT1(ctx: RunContext): RunResult {
   const col = findColumn(sheet, ref);
   const data = numValues(sheet, ref);
   if (clean(data).length < 2) throw new Error('res.insufficient');
+  if (!(stdev(clean(data)) > 0)) throw new Error('res.zeroVariance');
   const mu = num(values.hypMean, 0);
   const c = conf(values.confidence);
   const a = alt(values.alternative);
@@ -305,6 +307,7 @@ function runT2(ctx: RunContext): RunResult {
   const a = numValues(sheet, refA);
   const b = numValues(sheet, refB);
   if (clean(a).length < 2 || clean(b).length < 2) throw new Error('res.insufficient');
+  if (!(stdev(clean(a)) > 0) || !(stdev(clean(b)) > 0)) throw new Error('res.zeroVariance');
   const c = conf(values.confidence);
   const alpha = alt(values.alternative);
   const welch = bool(values.welch, true);
@@ -364,26 +367,44 @@ function runPaired(ctx: RunContext): RunResult {
   if (clean(a).length < 2) throw new Error('res.insufficient');
   const c = conf(values.confidence);
   const alpha = alt(values.alternative);
-  const diff = num(values.testDiff, 0);
-  const result = pairedT(a, b, c, alpha);
+  const testDiff = num(values.testDiff, 0);
+  const result = pairedT(a, b, testDiff, c, alpha);
   const level = `${(c * 100).toFixed(1)}%`;
-  const diffs: number[] = [];
+  // Paired rows only: a row missing either side is dropped as a pair.
+  const pairedA: number[] = [];
+  const pairedB: number[] = [];
   for (let i = 0; i < Math.min(a.length, b.length); i += 1) {
     const x = a[i];
     const y = b[i];
-    if (typeof x === 'number' && typeof y === 'number') diffs.push(x - y);
+    if (typeof x === 'number' && typeof y === 'number' && isFinite(x) && isFinite(y)) {
+      pairedA.push(x);
+      pairedB.push(y);
+    }
   }
+  if (result.n < 2) throw new Error('res.insufficientPairs');
+  if (!(result.stdev > 0)) throw new Error('res.zeroVariance');
+  const diffs = pairedA.map((x, i) => x - pairedB[i]);
   const blocks: Block[] = [
     {
       type: 'text',
       lines: [
-        `${colA?.name ?? 'A'} − ${colB?.name ?? 'B'}`,
-        t(lang, 'res.hypOne', { d: fmt(diff), alt: altSymbol(alpha) }),
+        `μ_d: mean of (${colA?.name ?? 'A'} − ${colB?.name ?? 'B'})`,
+        `${t(lang, 'res.method')}: ${t(lang, 'res.pairedMethod', { d: fmt(testDiff), alt: altSymbol(alpha) })}`,
       ],
     },
     {
       type: 'table',
-      headers: ['@th.n', '@th.mean', '@th.stdev', '@th.seMean', `@th.ci ${level}`, '@th.t', '@th.p'],
+      headers: ['@th.variable', '@th.n', '@th.mean', '@th.stdev'],
+      rows: [
+        [colA?.name ?? 'A', fmtInt(result.n), fmt(result.mean), fmt(stdev(pairedA))],
+        [colB?.name ?? 'B', fmtInt(result.n), fmt(result.meanB ?? NaN), fmt(stdev(pairedB))],
+      ],
+      align: ['l', 'r', 'r', 'r'],
+      caption: '@res.pairedNote',
+    },
+    {
+      type: 'table',
+      headers: ['@th.n', '@th.diff', '@th.stdev', '@th.seMean', `@th.ci ${level}`, '@th.t', '@th.p'],
       rows: [[fmtInt(result.n), fmt(result.difference), fmt(result.stdev), fmt(result.se), `${fmt(result.ci[0])}  ${fmt(result.ci[1])}`, fmt(result.t), fmtP(result.p)]],
       align: ['r', 'r', 'r', 'r', 'r', 'r', 'r'],
     },
@@ -414,9 +435,11 @@ function runAnova(ctx: RunContext): RunResult {
   }
   const groups = [...groupsMap.entries()].map(([label, values2]) => ({ label, values: values2 })).filter((g) => g.values.length > 0);
   if (groups.length < 2) throw new Error('res.insufficient');
+  if (groups.some((g) => g.values.length < 2)) throw new Error('res.groupTooSmall');
   const table = anovaOneWay(groups);
-  const tukey = tukeyHSD(table);
+  if (!(table.dfWithin >= 1) || !isFinite(table.msWithin)) throw new Error('res.groupTooSmall');
   const c = conf(values.confidence);
+  const tukey = tukeyHSD(table, c);
   const level = `${(c * 100).toFixed(1)}%`;
   const tCrit = tQuantileLocal(1 - (1 - c) / 2, table.dfWithin);
   const meansRows: (string | number)[][] = groups
@@ -438,8 +461,7 @@ function runAnova(ctx: RunContext): RunResult {
     `${fmt(p.ciLow)}  ${fmt(p.ciHigh)}`,
     fmtP(p.p),
     p.significant ? t(lang, 'yes') : t(lang, 'no'),
-  ]);
-  const letterRows: (string | number)[][] = tukey.letters.map((l) => [l.label, fmtInt(groups.find((g) => g.label === l.label)?.values.length ?? 0), fmt(l.mean), l.letter]);
+  ]);  const letterRows: (string | number)[][] = tukey.letters.map((l) => [l.label, fmtInt(groups.find((g) => g.label === l.label)?.values.length ?? 0), fmt(l.mean), l.letter]);
   const blocks: Block[] = [
     {
       type: 'table',
@@ -457,18 +479,18 @@ function runAnova(ctx: RunContext): RunResult {
     },
     {
       type: 'table',
-      title: tableTitle('res.tukeyTitle'),
-      headers: ['@th.group', '@th.diff', '@th.seCoef', '@th.ci', '@th.p', '@th.value'],
+      title: t(lang, 'res.tukeyTitleLevel', { level }),
+      headers: ['@th.group', '@th.diff', '@th.seCoef', `@th.ci ${level}`, '@th.p', '@th.value'],
       rows: pairRows,
       align: ['l', 'r', 'r', 'r', 'r', 'c'],
     },
     {
       type: 'table',
-      title: tableTitle('res.grouping'),
+      title: t(lang, 'res.groupingLevel', { level }),
       headers: ['@th.level', '@th.n', '@th.mean', '@th.group'],
       rows: letterRows,
       align: ['l', 'r', 'r', 'c'],
-      caption: '@res.tukeyNote',
+      caption: t(lang, 'res.tukeyNoteLevel', { level }),
     },
     { type: 'text', lines: [table.p < 1 - c ? t(lang, 'res.anovaSig', { p: fmtP(table.p) }) : t(lang, 'res.anovaNotSig', { p: fmtP(table.p) })] },
     {
@@ -569,11 +591,18 @@ function runRegression(ctx: RunContext): RunResult {
     .map((c) => ({ name: c.name || c.id, values: c.values.map((v) => (typeof v === 'number' ? v : null)) }));
   if (!response) throw new Error('res.insufficient');
   if (!predictors.length) throw new Error('dlg.required');
-  const result = regress(
-    response.values.map((v) => (typeof v === 'number' ? v : null)),
-    predictors,
-    response.name || response.id,
-  );
+  let result;
+  try {
+    result = regress(
+      response.values.map((v) => (typeof v === 'number' ? v : null)),
+      predictors,
+      response.name || response.id,
+    );
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'res.constantPredictor' || code === 'singular-matrix' || code === 'not-enough-data') throw new Error('res.singular');
+    throw error;
+  }
   const modelRows: (string | number)[][] = [
     ['S', fmt(result.s)],
     ['R²', `${(result.r2 * 100).toFixed(2)}%`],
@@ -685,7 +714,13 @@ function runXbarR(ctx: RunContext): RunResult {
   const subgroup = Math.round(num(values.subgroup, 5));
   const data = numValues(sheet, values.variable);
   if (clean(data).length < (subgroup < 2 ? 5 : subgroup * 3)) throw new Error('res.insufficient');
-  const result = xbarRCharts(data, subgroup);
+  let result;
+  try {
+    result = xbarRCharts(data, subgroup);
+  } catch (error) {
+    if (error instanceof SpcValidationError) throw new Error(spcIssueText(lang, error.issues));
+    throw error;
+  }
   const vRows = violationRows(result.panels);
   const blocks: Block[] = [
     { type: 'table', headers: ['@th.level', 'Center', 'UCL', 'LCL', 'Sigma', 'Signals'], rows: chartRows(result.panels), align: ['l', 'r', 'r', 'r', 'r', 'r'] },
@@ -694,29 +729,74 @@ function runXbarR(ctx: RunContext): RunResult {
   blocks.push(
     { type: 'chart', chart: { kind: 'control', panel: result.panels[0], yLabel: col?.name, xLabel: 'Subgroup' } },
     { type: 'chart', chart: { kind: 'control', panel: result.panels[1], yLabel: 'Range', xLabel: 'Subgroup' } },
-    { type: 'text', lines: [result.rulesHit.length ? t(lang, 'res.rulesHit', { rules: result.rulesHit.join(', ') }) : t(lang, 'res.rulesNone'), `Subgroup size ${subgroup}`] },
+    { type: 'text', lines: [result.rulesHit.length ? t(lang, 'res.rulesHit', { rules: result.rulesHit.join(', ') }) : t(lang, 'res.rulesNone')] },
   );
+  const summary = result.subgroupSummary;
+  if (summary) {
+    blocks.push({
+      type: 'text',
+      lines: [
+        t(lang, 'res.subgroupRule', {
+          n: summary.size,
+          total: summary.total,
+          used: summary.used,
+          skipped: summary.skipped,
+          left: summary.leftoverRows,
+        }),
+      ],
+    });
+  }
   return { subtitle: `${col?.name ?? ''} · n=${subgroup}`, blocks };
+}
+
+/** Readable text for a validated control-chart input problem. */
+function spcIssueText(lang: Lang, issues: SpcIssue[]): string {
+  const parts = issues.slice(0, 3).map((issue) => {
+    const i = (issue.index ?? 0) + 1;
+    switch (issue.code) {
+      case 'empty': return t(lang, 'err.pEmpty');
+      case 'length': return t(lang, 'err.pLength');
+      case 'nonFinite': return t(lang, 'err.pNonFinite', { i });
+      case 'nonInteger': return t(lang, 'err.pNonInteger', { i, d: fmt(issue.defect ?? NaN) });
+      case 'negative': return t(lang, 'err.pNegative', { i, d: fmt(issue.defect ?? NaN) });
+      case 'exceeds': return t(lang, 'err.pExceeds', { i, d: fmt(issue.defect ?? NaN), s: fmt(issue.size ?? NaN) });
+      case 'size': return t(lang, 'err.pSize', { i, s: fmt(issue.size ?? NaN) });
+      case 'sizeNonInteger': return t(lang, 'err.pSizeInteger', { i, s: fmt(issue.size ?? NaN) });
+      case 'noGroups': return t(lang, 'err.xbarNoGroups');
+      default: return t(lang, 'err.spcInvalid');
+    }
+  });
+  if (issues.length > 3) parts.push(t(lang, 'err.moreIssues', { n: issues.length - 3 }));
+  return parts.join(' ');
 }
 
 function runPChart(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
   const defectsCol = findColumn(sheet, values.defects);
   const sizesCol = findColumn(sheet, values.sizes);
+  if (!defectsCol) throw new Error('dlg.required');
   const defects: number[] = [];
   const sizes: number[] = [];
   const rows = rowCount(sheet);
   const constant = num(values.sampleSize, 0);
   for (let r = 0; r < rows; r += 1) {
-    const d = defectsCol?.values[r];
-    if (typeof d !== 'number') continue;
-    const s = sizesCol ? sizesCol.values[r] : constant;
-    if (typeof s !== 'number' || s <= 0) continue;
-    defects.push(d);
-    sizes.push(s);
+    const dv = defectsCol.values[r];
+    const sv = sizesCol ? sizesCol.values[r] : constant;
+    const dEmpty = dv === null || dv === undefined || dv === '';
+    const sEmpty = sizesCol ? sv === null || sv === undefined || sv === '' : false;
+    // A row left completely blank is a skipped row; anything else is checked.
+    if (dEmpty && sEmpty) continue;
+    defects.push(dEmpty ? NaN : Number(dv));
+    sizes.push(sEmpty ? NaN : Number(sv));
   }
   if (defects.length < 3) throw new Error('res.insufficient');
-  const result = pChart(defects, sizes);
+  let result;
+  try {
+    result = pChart(defects, sizes);
+  } catch (error) {
+    if (error instanceof SpcValidationError) throw new Error(spcIssueText(lang, error.issues));
+    throw error;
+  }
   const vRows = violationRows(result.panels);
   const blocks: Block[] = [
     { type: 'table', headers: ['@th.level', 'Center', 'UCL', 'LCL', 'Sigma', 'Signals'], rows: chartRows(result.panels), align: ['l', 'r', 'r', 'r', 'r', 'r'] },
@@ -724,7 +804,7 @@ function runPChart(ctx: RunContext): RunResult {
   if (vRows.length) blocks.push({ type: 'table', headers: ['@th.level', 'Point', 'Value', 'Rules'], rows: vRows, align: ['l', 'r', 'r', 'l'] });
   blocks.push(
     { type: 'chart', chart: { kind: 'control', panel: result.panels[0], yLabel: 'Proportion', xLabel: 'Sample' } },
-    { type: 'text', lines: [result.rulesHit.length ? t(lang, 'res.rulesHit', { rules: result.rulesHit.join(', ') }) : t(lang, 'res.rulesNone')] },
+    { type: 'text', lines: [result.rulesHit.length ? t(lang, 'res.rulesHit', { rules: result.rulesHit.join(', ') }) : t(lang, 'res.rulesNone'), t(lang, 'res.pchartNote')] },
   );
   return { subtitle: defectsCol?.name ?? '', blocks };
 }
@@ -740,24 +820,34 @@ function runCapability(ctx: RunContext): RunResult {
   const uslValue = str(values.usl).trim() === '' ? null : num(values.usl, NaN);
   const targetValue = str(values.target).trim() === '' ? null : num(values.target, NaN);
   if (lslValue === null && uslValue === null) throw new Error('res.needSpec');
+  const methodRaw = str(values.sigmaMethod);
+  const sigmaMethod: 'z_bench_shift' | 'z_bench' | 'cpk_shift' =
+    methodRaw === 'z_bench' || methodRaw === 'cpk_shift' ? methodRaw : 'z_bench_shift';
   const result = capability(data, {
     lsl: lslValue,
     usl: uslValue,
     target: targetValue,
     subgroup: Math.round(num(values.subgroup, 1)),
+    sigmaMethod,
   });
+  const dash = (v: number): string => (Number.isFinite(v) ? fmt(v) : '—');
+  const sigmaLabel = result.sigmaMethod === 'cpk_shift'
+    ? t(lang, 'res.sigmaLevelCpk')
+    : result.sigmaMethod === 'z_bench'
+      ? t(lang, 'res.sigmaLevelZ')
+      : t(lang, 'res.sigmaLevelZShift');
   const statsRows: (string | number)[][] = [
     ['Mean', fmt(result.mean)],
     ['StDev (within)', fmt(result.sdWithin)],
     ['StDev (overall)', fmt(result.sdOverall)],
-    ['Cp', fmt(result.cp)],
-    ['Cpk', fmt(result.cpk)],
-    ['Pp', fmt(result.pp)],
-    ['Ppk', fmt(result.ppk)],
-    ['CPL / CPU', `${fmt(result.cpl)} / ${fmt(result.cpu)}`],
-    ['PPL / PPU', `${fmt(result.ppl)} / ${fmt(result.ppu)}`],
-    ['Cpm', fmt(result.cpm)],
-    ['Sigma level', fmt(result.sigmaLevel)],
+    ['Cp', dash(result.cp)],
+    ['Cpk', dash(result.cpk)],
+    ['Pp', dash(result.pp)],
+    ['Ppk', dash(result.ppk)],
+    ['CPL / CPU', `${dash(result.cpl)} / ${dash(result.cpu)}`],
+    ['PPL / PPU', `${dash(result.ppl)} / ${dash(result.ppu)}`],
+    ['Cpm', dash(result.cpm)],
+    [sigmaLabel, dash(result.sigmaLevel)],
   ];
   const specRows: (string | number)[][] = [
     ['LSL', result.lsl === null ? '—' : fmt(result.lsl)],
@@ -765,13 +855,17 @@ function runCapability(ctx: RunContext): RunResult {
     ['Target', result.target === null ? '—' : fmt(result.target)],
     ['N', fmtInt(result.n)],
   ];
+  // Continuous measurements have no defect opportunities, so no DPMO row:
+  // only the expected (within/overall) and observed PPM belong here.
   const ppmRows: (string | number)[][] = [
     ['Expected PPM (within)', fmtInt(result.ppmWithin)],
     ['Expected PPM (overall)', fmtInt(result.ppmOverall)],
     ['Observed PPM', fmtInt(result.ppmObserved)],
     ['Observed below / above', `${fmtInt(result.observedBelow)} / ${fmtInt(result.observedAbove)}`],
-    ['DPMO', fmtInt(result.ppmOverall)],
   ];
+  const notes: string[] = [t(lang, 'res.capabilityNote')];
+  if (!Number.isFinite(result.cpm)) notes.push(t(lang, 'res.cpmTargetRequired'));
+  if (result.lsl === null || result.usl === null) notes.push(t(lang, 'res.oneSidedNote'));
   return {
     subtitle: col?.name ?? '',
     blocks: [
@@ -779,7 +873,7 @@ function runCapability(ctx: RunContext): RunResult {
       { type: 'chart', chart: { kind: 'capability', result, xLabel: col?.name ?? 'Measurement' } },
       { type: 'table', title: tableTitle('res.capabilityStats'), headers: ['@th.statistic', 'Value'], rows: statsRows, align: ['l', 'r'] },
       { type: 'table', title: tableTitle('res.capabilityPpm'), headers: ['@th.statistic', 'Value'], rows: ppmRows, align: ['l', 'r'] },
-      { type: 'text', lines: [t(lang, 'res.capabilityNote')] },
+      { type: 'text', lines: notes },
     ],
   };
 }
@@ -911,10 +1005,19 @@ function runScatter(ctx: RunContext): RunResult {
     points.push(byCol ? { x, y, g: String(byCol.values[r] ?? '') } : { x, y });
   }
   if (points.length < 2) throw new Error('res.insufficient');
-  const reg = regress(
-    points.map((p) => p.y),
-    [{ name: xCol.name || xCol.id, values: points.map((p) => p.x) }],
-  );
+  const xSpan = stdev(points.map((p) => p.x));
+  const ySpan = stdev(points.map((p) => p.y));
+  if (!(xSpan > 0)) throw new Error('res.constantPredictor');
+  if (!(ySpan > 0)) throw new Error('res.zeroVariance');
+  let reg;
+  try {
+    reg = regress(
+      points.map((p) => p.y),
+      [{ name: xCol.name || xCol.id, values: points.map((p) => p.x) }],
+    );
+  } catch {
+    throw new Error('res.singular');
+  }
   const r = correlation(points.map((p) => p.x), points.map((p) => p.y));
   const groups = byCol ? [...new Set(points.map((p) => p.g ?? ''))] : undefined;
   return {
@@ -1233,6 +1336,18 @@ export const ANALYSES: AnalysisDef[] = [
       { key: 'lsl', label: 'slot.lsl', kind: 'text', group: 'options', defaultValue: '' },
       { key: 'usl', label: 'slot.usl', kind: 'text', group: 'options', defaultValue: '' },
       { key: 'target', label: 'slot.target', kind: 'text', group: 'options', defaultValue: '' },
+      {
+        key: 'sigmaMethod',
+        label: 'slot.sigmaMethod',
+        kind: 'select',
+        group: 'options',
+        defaultValue: 'z_bench_shift',
+        options: [
+          { value: 'z_bench_shift', label: 'sigma.zBenchShift' },
+          { value: 'z_bench', label: 'sigma.zBench' },
+          { value: 'cpk_shift', label: 'sigma.cpkShift' },
+        ],
+      },
       { key: 'subgroup', label: 'slot.subgroup', kind: 'num', group: 'options', defaultValue: 1, min: 1, max: 10, step: 1 },
     ],
     run: runCapability,

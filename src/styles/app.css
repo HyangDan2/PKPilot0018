@@ -519,6 +519,32 @@ a { color: inherit; }
 .chart-card h5 { margin: 0 0 2px 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
 .chart-svg { display: block; width: 100%; max-width: 780px; height: auto; margin-inline: auto; overflow: hidden; }
 
+/* chart editing affordance (P1 #9) */
+.chart-holder { position: relative; }
+.chart-edit-btn {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+.chart-holder:hover .chart-edit-btn,
+.chart-edit-btn:focus-visible { opacity: 1; color: var(--accent-text); border-color: var(--accent); }
+.out-meta { color: var(--text-secondary); }
+.chart-edit-modal, .rename-modal { width: min(460px, 94vw); max-height: min(84vh, 640px); }
+.ws-spacer td { background: transparent; border: 0; }
+
 .chart-legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 2px 4px 0; }
 .chart-legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--text-secondary); }
 .chart-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }

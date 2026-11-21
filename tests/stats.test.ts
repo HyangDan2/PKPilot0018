@@ -112,6 +112,58 @@ describe('t tests', () => {
     expect(result.df).toBe(3);
     expect(result.t).toBeGreaterThan(3);
   });
+
+  it('paired t subtracts the hypothesized difference μ₀', () => {
+    const a = [12, 14, 16, 18];
+    const b = [10, 11, 13, 15];
+    const zero = pairedT(a, b);
+    const one = pairedT(a, b, 1);
+    expect(one.mu0).toBe(1);
+    expect(one.difference).toBeCloseTo(zero.difference - 1, 8);
+    expect(Math.abs(one.t)).toBeLessThan(Math.abs(zero.t));
+    expect(one.ci[0]).toBeLessThan(one.difference);
+    expect(one.ci[1]).toBeGreaterThan(one.difference);
+  });
+
+  it('paired t drops rows where either side is missing', () => {
+    const result = pairedT([10, null, 12, 14], [1, 2, null, 3]);
+    // Only rows 1 and 4 form a complete pair (10−1, 14−3).
+    expect(result.n).toBe(2);
+    expect(result.pairedCount).toBe(2);
+    expect(result.mean).toBe(12);
+    expect(result.meanB).toBe(2);
+    expect(result.difference).toBe(10);
+    expect(result.df).toBe(1);
+  });
+
+  it('paired t refuses to divide by zero on a single pair', () => {
+    const result = pairedT([10, null], [1, null]);
+    expect(result.n).toBe(1);
+    expect(Number.isNaN(result.se)).toBe(true);
+    expect(Number.isNaN(result.t)).toBe(true);
+    expect(result.p).toBeNaN();
+  });
+
+  it('t tests stay finite-safe on constant and single-value columns', () => {
+    const single = tTest1([5]);
+    expect(single.n).toBe(1);
+    expect(Number.isNaN(single.stdev)).toBe(true);
+    expect(Number.isNaN(single.t)).toBe(true);
+    const flat = tTest1([5, 5, 5, 5]);
+    expect(flat.stdev).toBe(0);
+    expect(Number.isNaN(flat.t)).toBe(true);
+    expect(flat.ci[0]).not.toBe(Number.POSITIVE_INFINITY);
+    const empty = summarize([]);
+    expect(empty.n).toBe(0);
+    expect(Number.isNaN(empty.mean)).toBe(true);
+  });
+
+  it('normality test refuses constant data instead of returning Infinity', () => {
+    const ad = adNormality([5, 5, 5, 5, 5]);
+    expect(ad.n).toBe(5);
+    expect(Number.isNaN(ad.p)).toBe(true);
+    expect(Number.isNaN(ad.ad)).toBe(true);
+  });
 });
 
 describe('ANOVA and Tukey', () => {
@@ -176,6 +228,10 @@ describe('regression', () => {
 
   it('throws when there is not enough data', () => {
     expect(() => regress([1, 2], [{ name: 'X', values: [1, 2] }])).toThrow();
+  });
+
+  it('rejects a constant predictor with a readable code', () => {
+    expect(() => regress([1, 2, 3, 4, 5], [{ name: 'X', values: [2, 2, 2, 2, 2] }])).toThrow('res.constantPredictor');
   });
 });
 

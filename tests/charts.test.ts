@@ -1,10 +1,45 @@
 import { describe, expect, it } from 'vitest';
 import { renderChart, ticks } from '../src/lib/charts';
 import { capability } from '../src/lib/capability';
-import { imrChart } from '../src/lib/spc';
+import { imrChart, pChart, xbarRCharts } from '../src/lib/spc';
 import type { ChartSpec } from '../src/types';
 
 const values = [10.1, 9.8, 10.3, 10.0, 9.9, 10.2, 10.4, 9.7, 10.1, 10.0];
+
+/** Deterministic standard-normal sample (Box–Muller on an LCG). */
+function normalSample(n: number, mean = 10, sd = 0.25, seed = 20261122): number[] {
+  let state = seed;
+  const rnd = () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return (state / 2147483648) || 0.5;
+  };
+  const out: number[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const u = rnd();
+    const v = rnd();
+    out.push(mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v));
+  }
+  return out;
+}
+
+/** Every vertical specification guide in a chart: [x, y1, y2]. */
+function specLines(svg: string): { x1: number; y1: number; x2: number; y2: number }[] {
+  return [...svg.matchAll(/<line class="spec-line" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"/g)].map((m) => ({
+    x1: Number(m[1]),
+    y1: Number(m[2]),
+    x2: Number(m[3]),
+    y2: Number(m[4]),
+  }));
+}
+
+/** Bar rectangles of a histogram/capability chart. */
+function bars(svg: string): { x: number; y: number; w: number }[] {
+  return [...svg.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="[\d.]+" fill="var\(--chart-1\)"/g)].map((m) => ({
+    x: Number(m[1]),
+    y: Number(m[2]),
+    w: Number(m[3]),
+  }));
+}
 
 describe('SVG chart renderers', () => {
   const capabilityResult = capability(values, { lsl: 9.4, usl: 10.8, target: 10.1 });
@@ -54,5 +89,150 @@ describe('SVG chart renderers', () => {
     const svg = renderChart({ kind: 'control', panel: unstable.panels[0] });
     expect(svg).toContain('var(--chart-alarm)');
     expect(/<text[^>]*>1<\/text>/.test(svg) || /<text[^>]*>1,2<\/text>/.test(svg)).toBe(true);
+  });
+});
+
+describe('histogram geometry', () => {
+  it('draws LSL, USL and Target as vertical lines across the plot', () => {
+    const svg = renderChart({ kind: 'histogram', values, bins: 8, lsl: 9.4, usl: 10.8, target: 10.1 });
+    const lines = specLines(svg);
+    expect(lines).toHaveLength(3);
+    lines.forEach((line) => {
+      expect(line.x1).toBe(line.x2); // vertical, not horizontal
+      expect(line.y2).toBeGreaterThan(line.y1);
+      expect(line.x1).toBeGreaterThanOrEqual(54);
+      expect(line.x1).toBeLessThanOrEqual(540);
+    });
+    expect(svg).toContain('LSL 9.4');
+    expect(svg).toContain('USL 10.8');
+    expect(svg).toContain('Target 10.1');
+    // LSL < Target < USL, left to right.
+    expect(lines[0].x1).toBeLessThan(lines[1].x1);
+    expect(lines[1].x1).toBeLessThan(lines[2].x1);
+  });
+
+  it('keeps a target outside the data range inside the plot domain', () => {
+    const data = [9.9, 10, 10.05, 10.1, 9.95, 10.02];
+    const svg = renderChart({ kind: 'histogram', values: data, target: 12 });
+    const lines = specLines(svg);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].x1).toBeLessThanOrEqual(540);
+    expect(lines[0].x1).toBeGreaterThan(54 + 0.6 * (540 - 54));
+  });
+
+  it('places bars on their real bin boundaries', () => {
+    const data = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90];
+    const svg = renderChart({ kind: 'histogram', values: data, bins: 9 });
+    const rects = bars(svg);
+    expect(rects).toHaveLength(9);
+    // box.x = 54, plot width 486; the domain is padded 4% of the 0–90 span.
+    const boxX = 54;
+    const boxW = 560 - 74;
+    const lo = -3.6;
+    const hi = 93.6;
+    const sx = (v: number) => boxX + ((v - lo) / (hi - lo)) * boxW;
+    rects.forEach((rect, i) => {
+      expect(rect.x).toBeCloseTo(sx(i * 10) + 0.4, 1);
+      expect(rect.w).toBeCloseTo(sx((i + 1) * 10) - sx(i * 10) - 0.8, 1);
+    });
+  });
+
+  it('scales the normal curve with the real bin width, not the padded domain', () => {
+    // The limits sit far outside the data, so a curve scaled by the domain
+    // width instead of the bin width would tower over the bars.
+    const data = normalSample(1200, 10, 0.12);
+    const svg = renderChart({ kind: 'histogram', values: data, bins: 10, normal: true, lsl: 0, usl: 20 });
+    const rects = bars(svg);
+    expect(rects.length).toBeGreaterThan(5);
+    const barTop = Math.min(...rects.map((r) => r.y));
+    const curve = /<polyline points="([^"]+)" fill="none" stroke="var\(--chart-1\)"[^>]*\/>/.exec(svg);
+    expect(curve).not.toBeNull();
+    const ys = (curve?.[1] ?? '').split(' ').map((p) => Number(p.split(',')[1]));
+    const curveTop = Math.min(...ys);
+    const plotHeight = 250 - 18 - 42;
+    expect(curveTop).toBeLessThan(plotHeight); // in the plot, not above it
+    expect(Math.abs(curveTop - barTop)).toBeLessThan(plotHeight * 0.2);
+  });
+
+  it('renders degenerate samples without NaN', () => {
+    const single = renderChart({ kind: 'histogram', values: [5], normal: true, lsl: 4, usl: 6 });
+    expect(single).not.toContain('NaN');
+    const constant = renderChart({ kind: 'histogram', values: [5, 5, 5, 5], normal: true });
+    expect(constant).not.toContain('NaN');
+    const withNaN = renderChart({ kind: 'histogram', values: [1, 2, Number.NaN, Number.POSITIVE_INFINITY, 3], bins: 4 });
+    expect(withNaN).not.toContain('NaN');
+    const empty = renderChart({ kind: 'histogram', values: [] });
+    expect(empty).toContain('No finite data');
+  });
+});
+
+describe('process capability plot', () => {
+  it('draws LSL, USL, Target and the mean as vertical lines', () => {
+    const result = capability(values, { lsl: 9.4, usl: 10.8, target: 10.1 });
+    const svg = renderChart({ kind: 'capability', result });
+    const lines = specLines(svg);
+    expect(lines).toHaveLength(4);
+    lines.forEach((line) => {
+      expect(line.x1).toBe(line.x2);
+      expect(line.y2).toBeGreaterThan(line.y1);
+    });
+    expect(svg).toContain('LSL 9.4');
+    expect(svg).toContain('USL 10.8');
+    expect(svg).toContain('Target 10.1');
+    expect(svg).toMatch(/μ 10\./);
+  });
+
+  it('draws its bars between the real bin boundaries', () => {
+    const data = normalSample(400, 10, 0.2);
+    const result = capability(data, { lsl: 9, usl: 11 });
+    const svg = renderChart({ kind: 'capability', result });
+    const rects = bars(svg);
+    expect(rects.length).toBeGreaterThan(8);
+    // Consecutive bars of the same histogram differ only by the 0.8px gap the
+    // renderer leaves inside each bin — never by a fixed plot-wide pitch.
+    const gaps = rects.slice(1).map((rect, i) => rect.x - (rects[i].x + rects[i].w));
+    gaps.forEach((gap) => expect(gap).toBeCloseTo(0.8, 0));
+    rects.forEach((rect) => {
+      expect(rect.x).toBeGreaterThanOrEqual(54);
+      expect(rect.x + rect.w).toBeLessThanOrEqual(560 - 20);
+    });
+  });
+
+  it('renders a one-sided capability chart without NaN', () => {
+    const result = capability(values, { lsl: 9.4 });
+    const svg = renderChart({ kind: 'capability', result });
+    expect(svg).not.toContain('NaN');
+    expect(svg).toContain('LSL 9.4');
+    const lines = specLines(svg);
+    expect(lines).toHaveLength(2); // LSL + mean
+  });
+
+  it('survives a single value and constant columns', () => {
+    const one = renderChart({ kind: 'capability', result: capability([10], { lsl: 9, usl: 11 }) });
+    expect(one).not.toContain('NaN');
+    const flat = renderChart({ kind: 'capability', result: capability([10, 10, 10, 10, 10], { lsl: 9, usl: 11 }) });
+    expect(flat).not.toContain('NaN');
+    const none = renderChart({ kind: 'capability', result: capability([], { lsl: 9, usl: 11 }) });
+    expect(none).toContain('Not enough valid data');
+  });
+});
+
+describe('control-chart panels with awkward data', () => {
+  it('renders varying P-chart limits without NaN', () => {
+    const result = pChart([4, 6, 5, 7, 3, 6], [100, 120, 90, 110, 100, 130]);
+    const svg = renderChart({ kind: 'control', panel: result.panels[0] });
+    expect(svg).not.toContain('NaN');
+  });
+
+  it('renders an Xbar-R panel after skipping a thin subgroup', () => {
+    const result = xbarRCharts([10, 12, null, 16, 11, 13, 15, 17], 2);
+    const svg = renderChart({ kind: 'control', panel: result.panels[0] });
+    expect(svg).not.toContain('NaN');
+  });
+
+  it('renders a P chart whose proportion is 0', () => {
+    const result = pChart([0, 0, 0, 0], [50, 50, 50, 50]);
+    const svg = renderChart({ kind: 'control', panel: result.panels[0] });
+    expect(svg).not.toContain('NaN');
   });
 });

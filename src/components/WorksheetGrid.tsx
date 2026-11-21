@@ -19,8 +19,12 @@ interface Props {
   onClear: (range: GridRange) => void;
   onAddColumn: () => void;
   onRenameColumn: (colIndex: number, name: string) => void;
-  onScrollToRow?: number | null;
 }
+
+/** Row pitch of .ws-cell (24px) plus its 1px border, used by the virtual window. */
+const ROW_H = 25;
+const OVERSCAN = 8;
+const HEADER_H = 50;
 
 function typeSuffix(type: string): string {
   return type === 'text' ? '-T' : type === 'date' ? '-D' : '';
@@ -37,6 +41,8 @@ export function WorksheetGrid({
 }: Props) {
   const [editing, setEditing] = useState<GridCell | null>(null);
   const [draft, setDraft] = useState('');
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewport, setViewport] = useState(600);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const maxLen = Math.max(0, ...sheet.columns.map((c) => c.values.length));
   const rows = Math.max(30, maxLen + 6);
@@ -44,6 +50,42 @@ export function WorksheetGrid({
   useEffect(() => {
     setEditing(null);
   }, [sheet.id]);
+
+  useEffect(() => {
+    const node = wrapRef.current;
+    if (!node) return;
+    const measure = () => setViewport(node.clientHeight || 600);
+    measure();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    observer?.observe(node);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  // Virtual window: only the visible rows plus an overscan buffer are in the DOM,
+  // with spacer rows keeping the scroll height of the full sheet.
+  const extra = editing ? editing.row : -1;
+  let first = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
+  let last = Math.min(rows, first + Math.ceil(viewport / ROW_H) + OVERSCAN * 2);
+  if (extra >= 0 && extra < first) first = Math.max(0, extra - OVERSCAN);
+  if (extra >= 0 && extra >= last) last = Math.min(rows, extra + OVERSCAN);
+  const topSpacer = first * ROW_H;
+  const bottomSpacer = Math.max(0, (rows - last) * ROW_H);
+
+  // Keep the selected row inside the viewport when the arrow keys move it.
+  useEffect(() => {
+    const node = wrapRef.current;
+    if (!node) return;
+    const rowTop = HEADER_H + selection.row * ROW_H;
+    const rowBottom = rowTop + ROW_H;
+    const viewTop = node.scrollTop + HEADER_H;
+    const viewBottom = node.scrollTop + node.clientHeight;
+    if (rowTop < viewTop) node.scrollTop = Math.max(0, rowTop - HEADER_H);
+    else if (rowBottom > viewBottom) node.scrollTop = rowBottom - node.clientHeight;
+  }, [selection.row]);
 
   const move = (row: number, col: number, extend: boolean) => {
     const r = Math.max(0, Math.min(rows - 1, row));
@@ -69,11 +111,14 @@ export function WorksheetGrid({
     if (editing) return;
     const { row, col } = selection;
     const extend = event.shiftKey;
+    const page = Math.max(1, Math.floor((viewport - HEADER_H) / ROW_H) - 1);
     switch (event.key) {
       case 'ArrowUp': event.preventDefault(); move(row - 1, col, extend); break;
       case 'ArrowDown': event.preventDefault(); move(row + 1, col, extend); break;
       case 'ArrowLeft': event.preventDefault(); move(row, col - 1, extend); break;
       case 'ArrowRight': event.preventDefault(); move(row, col + 1, extend); break;
+      case 'PageDown': event.preventDefault(); move(row + page, col, false); break;
+      case 'PageUp': event.preventDefault(); move(row - page, col, false); break;
       case 'Tab': event.preventDefault(); move(row, col + (event.shiftKey ? -1 : 1), false); break;
       case 'Enter': event.preventDefault(); beginEdit(row, col); break;
       case 'F2': event.preventDefault(); beginEdit(row, col); break;
@@ -101,6 +146,7 @@ export function WorksheetGrid({
       ref={wrapRef}
       tabIndex={0}
       onKeyDown={onKeyDown}
+      onScroll={(event) => setScrollTop((event.currentTarget as HTMLDivElement).scrollTop)}
       onCopy={(event) => {
         if (editing) return;
         event.preventDefault();
@@ -146,8 +192,13 @@ export function WorksheetGrid({
           </tr>
         </thead>
         <tbody>
-          {Array.from({ length: rows }, (_, row) => (
-            <tr key={row}>
+          {topSpacer > 0 && (
+            <tr aria-hidden="true" className="ws-spacer" data-testid="grid-spacer-top">
+              <td colSpan={Math.max(1, sheet.columns.length + 1)} style={{ height: topSpacer, padding: 0, border: 0 }} />
+            </tr>
+          )}
+          {Array.from({ length: last - first }, (_, offset) => first + offset).map((row) => (
+            <tr key={row} data-row={row + 1}>
               <th className={`ws-rownum${selection.row === row ? ' current' : ''}`}>{row + 1}</th>
               {sheet.columns.map((col, index) => {
                 const value = col.values[row];
@@ -184,6 +235,11 @@ export function WorksheetGrid({
               })}
             </tr>
           ))}
+          {bottomSpacer > 0 && (
+            <tr aria-hidden="true" className="ws-spacer" data-testid="grid-spacer-bottom">
+              <td colSpan={Math.max(1, sheet.columns.length + 1)} style={{ height: bottomSpacer, padding: 0, border: 0 }} />
+            </tr>
+          )}
           <tr>
             <th className="ws-rownum" style={{ color: 'var(--text-secondary)' }}>+</th>
             <td className="ws-addcol" colSpan={Math.max(1, sheet.columns.length)} onClick={onAddColumn} title={t(lang, 'panel.addColumn')}>

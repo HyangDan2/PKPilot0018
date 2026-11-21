@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Lang, OutputDoc, Settings, Theme, Worksheet } from './types';
+import type { AnalysisMeta, Column, Lang, OutputDoc, Settings, Theme, Worksheet } from './types';
 import { Header } from './components/Header';
 import { MenuBar, type MenuAction } from './components/MenuBar';
 import { Toolbar } from './components/Toolbar';
@@ -8,16 +8,31 @@ import { OutputPanel } from './components/OutputPanel';
 import { WorksheetGrid, type GridCell, type GridRange } from './components/WorksheetGrid';
 import { AnalysisDialog } from './components/AnalysisDialog';
 import { HelpModal } from './components/HelpModal';
-import { ANALYSES, findAnalysis, type AnalysisDef } from './lib/analyses';
+import { ANALYSES, findAnalysis, type AnalysisDef, type RunResult } from './lib/analyses';
 import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { loadAutosave, saveAutosave } from './lib/db';
 import { fmtInt } from './lib/format';
 import { t } from './lib/i18n';
-import { csvToWorksheet, downloadFile, makeOutputId, newColumnId, parseProject, pickFile, serializeProject, worksheetToCsv } from './lib/project';
+import {
+  PROJECT_ACCEPT,
+  csvToWorksheet,
+  downloadFile,
+  looksLikeMinitabBinary,
+  makeOutputId,
+  newColumnId,
+  parseCsv,
+  parseNumberCell,
+  parseProject,
+  pickFile,
+  projectFileName,
+  serializeProject,
+  worksheetToCsv,
+} from './lib/project';
 
 const SETTINGS_KEY = 'sigrun.settings.v1';
 const DEFAULT_NAV = 254;
 const DEFAULT_OUTPUT = 52;
+const ENGINE_VERSION = 'sigrun-1.2';
 
 function readSettings(): Settings {
   try {
@@ -40,6 +55,53 @@ interface StoredState {
   settings: Settings;
 }
 
+interface HistorySnapshot { worksheets: Worksheet[]; activeSheetId: string }
+
+function rowCount(sheet: Worksheet): number {
+  return Math.max(0, ...sheet.columns.map((c) => c.values.length));
+}
+
+/** Column ids referenced anywhere in the dialog values (single refs and lists). */
+function referencedColumns(sheet: Worksheet, values: Record<string, unknown>): Column[] {
+  const ids = new Set(sheet.columns.map((c) => c.id));
+  const found = new Set<string>();
+  const walk = (value: unknown) => {
+    if (typeof value === 'string') {
+      if (ids.has(value)) found.add(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (value && typeof value === 'object') Object.values(value as Record<string, unknown>).forEach(walk);
+  };
+  walk(values);
+  return sheet.columns.filter((c) => found.has(c.id));
+}
+
+function copyColumn(column: Column): Column {
+  return { id: column.id, name: column.name, type: column.type, values: [...column.values] };
+}
+
+/** Hidden textarea fallback used when the async Clipboard API is unavailable. */
+function legacyCopy(text: string): boolean {
+  try {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    const ok = typeof document.execCommand === 'function' ? document.execCommand('copy') : false;
+    area.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 export default function App() {
   const boot = useRef<{ worksheets: Worksheet[]; activeSheetId: string } | null>(null);
   if (!boot.current) {
@@ -54,6 +116,7 @@ export default function App() {
   const [dialog, setDialog] = useState<{ def: AnalysisDef; initial?: Record<string, unknown> } | null>(null);
   const [lastDialog, setLastDialog] = useState<{ analysisId: string; values: Record<string, unknown> } | null>(null);
   const [help, setHelp] = useState<'help' | 'about' | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; draft: string } | null>(null);
   const [selection, setSelection] = useState<GridCell>({ row: 0, col: 0 });
   const [range, setRange] = useState<GridRange>({ r0: 0, c0: 0, r1: 0, c1: 0 });
   const [focusedOutput, setFocusedOutput] = useState<string | null>(null);
@@ -66,8 +129,8 @@ export default function App() {
   const [hydrated, setHydrated] = useState(false);
   const [, forceHistory] = useState(0);
 
-  const past = useRef<Worksheet[][]>([]);
-  const future = useRef<Worksheet[][]>([]);
+  const past = useRef<HistorySnapshot[]>([]);
+  const future = useRef<HistorySnapshot[]>([]);
   const sheet = worksheets.find((w) => w.id === activeSheetId) ?? worksheets[0];
   const lang = settings.lang;
 
@@ -115,22 +178,35 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [worksheets, activeSheetId, outputs, settings, hydrated]);
 
-  /* ── worksheet mutations ───────────────────────────────────────────── */
+  /* ── worksheet mutations & history ─────────────────────────────────── */
+
+  /** Record the current sheets AND the active sheet, so sheet-level undo restores focus. */
+  const recordHistory = useCallback(() => {
+    past.current = [...past.current.slice(-49), { worksheets, activeSheetId }];
+    future.current = [];
+    forceHistory((v) => v + 1);
+  }, [worksheets, activeSheetId]);
 
   const applySheets = useCallback((fn: (list: Worksheet[]) => Worksheet[], record = true) => {
     const next = fn(worksheets);
     if (next === worksheets) return;
-    if (record) {
-      past.current = [...past.current.slice(-49), worksheets];
-      future.current = [];
-    }
+    if (record) recordHistory();
     setWorksheets(next);
-    forceHistory((v) => v + 1);
-  }, [worksheets]);
+  }, [worksheets, recordHistory]);
 
   const mutateActiveSheet = useCallback((fn: (ws: Worksheet) => Worksheet, record = true) => {
     applySheets((list) => list.map((ws) => (ws.id === activeSheetId ? fn(ws) : ws)), record);
   }, [applySheets, activeSheetId]);
+
+  const restore = (snapshot: HistorySnapshot) => {
+    const nextSheets = snapshot.worksheets.length ? snapshot.worksheets : worksheets;
+    setWorksheets(nextSheets);
+    const nextActive = nextSheets.some((w) => w.id === snapshot.activeSheetId) ? snapshot.activeSheetId : nextSheets[0].id;
+    setActiveSheetId(nextActive);
+    setSelection({ row: 0, col: 0 });
+    setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
+    forceHistory((v) => v + 1);
+  };
 
   const undo = useCallback(() => {
     const previous = past.current.pop();
@@ -138,10 +214,10 @@ export default function App() {
       toast(t(lang, 'toast.nothingToUndo'));
       return;
     }
-    future.current = [worksheets, ...future.current].slice(0, 50);
-    setWorksheets(previous);
-    forceHistory((v) => v + 1);
-  }, [worksheets, toast, lang]);
+    future.current = [{ worksheets, activeSheetId }, ...future.current].slice(0, 50);
+    restore(previous);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worksheets, activeSheetId, toast, lang]);
 
   const redo = useCallback(() => {
     const next = future.current.shift();
@@ -149,10 +225,10 @@ export default function App() {
       toast(t(lang, 'toast.nothingToRedo'));
       return;
     }
-    past.current = [...past.current.slice(-49), worksheets];
-    setWorksheets(next);
-    forceHistory((v) => v + 1);
-  }, [worksheets, toast, lang]);
+    past.current = [...past.current.slice(-49), { worksheets, activeSheetId }];
+    restore(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worksheets, activeSheetId, toast, lang]);
 
   function pad(values: (number | string | null)[], length: number): (number | string | null)[] {
     return Array.from({ length: Math.max(values.length, length) }, (_, i) => values[i] ?? null);
@@ -162,7 +238,8 @@ export default function App() {
     const column = sheet.columns[col];
     if (!column) return;
     const trimmed = raw.trim();
-    const value: number | string | null = trimmed === '' ? null : column.type === 'numeric' && isFinite(Number(trimmed)) ? Number(trimmed) : raw;
+    const numeric = column.type === 'numeric' ? parseNumberCell(trimmed) : null;
+    const value: number | string | null = trimmed === '' ? null : numeric !== null ? numeric : raw;
     mutateActiveSheet((ws) => ({
       ...ws,
       columns: ws.columns.map((c, index) => {
@@ -174,7 +251,12 @@ export default function App() {
     }));
   };
 
+  // Column renaming records one history step per typing burst, not per keystroke.
+  const renameBurst = useRef<number | null>(null);
   const renameColumn = (col: number, name: string) => {
+    if (renameBurst.current === null) recordHistory();
+    else window.clearTimeout(renameBurst.current);
+    renameBurst.current = window.setTimeout(() => { renameBurst.current = null; }, 600);
     mutateActiveSheet((ws) => ({ ...ws, columns: ws.columns.map((c, i) => (i === col ? { ...c, name } : c)) }), false);
   };
 
@@ -204,19 +286,22 @@ export default function App() {
     toast(t(lang, 'toast.cleared'));
   };
 
+  /**
+   * Paste through the RFC-4180 parser, so quoted commas ("1,200"), quoted line
+   * breaks and tab/semicolon separated blocks all land in the right cells.
+   */
   const pasteCells = (row: number, col: number, text: string) => {
-    const lines = text.replace(/\r/g, '').split('\n').filter((line, index, all) => line.length > 0 || index < all.length - 1);
-    const rows = lines.map((line) => line.split('\t').length > 1 ? line.split('\t') : line.split(','));
+    const rows = parseCsv(text);
     if (!rows.length) return;
     const width = Math.max(...rows.map((r) => r.length));
     mutateActiveSheet((ws) => {
-      const columns = ws.columns.map((c) => ({ ...c }));
+      const columns = ws.columns.map((c) => ({ ...c, values: [...c.values] }));
       const needed = col + width - columns.length;
       for (let i = 0; i < needed; i += 1) {
-        const id = `C${columns.length + 1}`;
-        const probe = rows.map((r) => (r[columns.length - col] ?? '').trim()).filter((v) => v !== '');
-        const numeric = probe.length > 0 && probe.every((v) => isFinite(Number(v)));
-        columns.push({ id, name: '', type: numeric ? 'numeric' : 'text', values: [] });
+        const nextIndex = columns.length - col;
+        const probe = rows.map((r) => (r[nextIndex] ?? '').trim()).filter((v) => v !== '');
+        const numeric = probe.length > 0 && probe.every((v) => parseNumberCell(v) !== null);
+        columns.push({ id: newColumnId({ ...ws, columns }), name: '', type: numeric ? 'numeric' : 'text', values: [] });
       }
       const targetRows = row + rows.length;
       columns.forEach((c) => { c.values = pad(c.values, targetRows); });
@@ -229,7 +314,8 @@ export default function App() {
             target.values[row + r] = null;
             return;
           }
-          target.values[row + r] = target.type !== 'text' && isFinite(Number(trimmed)) ? Number(trimmed) : cell;
+          const numeric = target.type === 'text' ? null : parseNumberCell(trimmed);
+          target.values[row + r] = numeric !== null ? numeric : cell;
         });
       });
       return { ...ws, columns };
@@ -237,7 +323,7 @@ export default function App() {
     toast(t(lang, 'toast.pasted'));
   };
 
-  const copyRange = () => {
+  const copyRange = async () => {
     const r0 = Math.min(range.r0, range.r1);
     const r1 = Math.max(range.r0, range.r1);
     const c0 = Math.min(range.c0, range.c1);
@@ -252,8 +338,14 @@ export default function App() {
       lines.push(cells.join('\t'));
     }
     const text = lines.join('\n');
-    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => toast(t(lang, 'toast.copied'))).catch(() => toast(t(lang, 'toast.copied')));
-    else toast(t(lang, 'toast.copied'));
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('unsupported');
+      await navigator.clipboard.writeText(text);
+      toast(t(lang, 'toast.copied'));
+    } catch {
+      // Report the real outcome: a silent failure must not look like success.
+      toast(t(lang, legacyCopy(text) ? 'toast.copied' : 'toast.copyFailed'));
+    }
   };
 
   const insertRow = () => {
@@ -282,40 +374,92 @@ export default function App() {
 
   /* ── sheets ────────────────────────────────────────────────────────── */
 
+  const uniqueSheetName = (list: Worksheet[], base: string): string => {
+    const names = new Set(list.map((w) => w.name));
+    if (!names.has(base)) return base;
+    let i = 2;
+    while (names.has(`${base} (${i})`)) i += 1;
+    return `${base} (${i})`;
+  };
+
   const addSheet = (ws?: Worksheet) => {
-    setWorksheets((prev) => {
-      const base = ws ?? emptyWorksheet(prev.length + 1);
-      const names = new Set(prev.map((w) => w.name));
-      let name = base.name;
-      let i = 2;
-      while (names.has(name)) {
-        name = `${base.name} (${i})`;
-        i += 1;
-      }
-      const created = { ...base, name };
-      setTimeout(() => setActiveSheetId(created.id), 0);
-      return [...prev, created];
-    });
+    const base = ws ?? emptyWorksheet(worksheets.length + 1);
+    const created: Worksheet = { ...base, id: base.id, name: uniqueSheetName(worksheets, base.name) };
+    applySheets((list) => [...list, created]);
+    setActiveSheetId(created.id);
+    setSelection({ row: 0, col: 0 });
+    setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
     toast(t(lang, 'toast.sheetAdded'));
   };
 
-  const renameSheet = (id: string, name: string) => {
+  const renameSheet = (id: string, name: string): boolean => {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    setWorksheets((prev) => prev.map((ws) => (ws.id === id ? { ...ws, name: trimmed } : ws)));
+    const current = worksheets.find((w) => w.id === id);
+    if (!current) return false;
+    if (!trimmed) {
+      toast(t(lang, 'toast.nameRequired'));
+      return false;
+    }
+    if (worksheets.some((w) => w.id !== id && w.name.toLowerCase() === trimmed.toLowerCase())) {
+      toast(t(lang, 'toast.nameTaken'));
+      return false;
+    }
+    if (trimmed === current.name) return true;
+    applySheets((list) => list.map((w) => (w.id === id ? { ...w, name: trimmed } : w)));
+    return true;
   };
 
   const deleteSheet = (id: string) => {
-    setWorksheets((prev) => {
-      if (prev.length <= 1) return prev;
-      const next = prev.filter((ws) => ws.id !== id);
-      if (activeSheetId === id) setActiveSheetId(next[0].id);
-      return next;
-    });
+    if (worksheets.length <= 1) {
+      toast(t(lang, 'toast.lastSheet'));
+      return;
+    }
+    const next = worksheets.filter((w) => w.id !== id);
+    applySheets(() => next);
+    if (activeSheetId === id) {
+      setActiveSheetId(next[0].id);
+      setSelection({ row: 0, col: 0 });
+      setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
+    }
     toast(t(lang, 'toast.sheetDeleted'));
   };
 
   /* ── analyses ──────────────────────────────────────────────────────── */
+
+  const buildMeta = (def: AnalysisDef, values: Record<string, unknown>, runSheet: Worksheet): AnalysisMeta => ({
+    engine: ENGINE_VERSION,
+    analysisId: def.id,
+    values: { ...values },
+    sheetId: runSheet.id,
+    sheetName: runSheet.name,
+    ranAt: Date.now(),
+    rowCount: rowCount(runSheet),
+    columns: referencedColumns(runSheet, values).map(copyColumn),
+  });
+
+  const makeDoc = (def: AnalysisDef, result: RunResult, meta: AnalysisMeta): OutputDoc => ({
+    id: makeOutputId(),
+    titleKey: def.titleKey,
+    subtitle: result.subtitle,
+    createdAt: Date.now(),
+    collapsed: false,
+    blocks: result.blocks,
+    dialog: { analysisId: def.id, values: meta.values },
+    sheetId: meta.sheetId,
+    meta,
+  });
+
+  const focusDoc = (doc: OutputDoc) => {
+    setOutputs((prev) => [...prev, doc]);
+    setFocusedOutput(doc.id);
+    if (window.matchMedia('(max-width: 1023px)').matches) setMobileTab('output');
+    setTimeout(() => document.getElementById(`card-${doc.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
+  };
+
+  const errorText = (error: unknown): string => {
+    const message = error instanceof Error ? error.message : 'dlg.error';
+    return message.includes('.') ? t(lang, message) : message;
+  };
 
   const execute = (def: AnalysisDef, values: Record<string, unknown>): string | null => {
     try {
@@ -326,31 +470,53 @@ export default function App() {
       }
       if (result.newSheet) {
         const created = result.newSheet;
-        setWorksheets((prev) => [...prev, created]);
+        applySheets((list) => [...list, created]);
         setActiveSheetId(created.id);
       }
-      const doc: OutputDoc = {
-        id: makeOutputId(),
-        titleKey: def.titleKey,
-        subtitle: result.subtitle,
-        createdAt: Date.now(),
-        collapsed: false,
-        blocks: result.blocks,
-        dialog: { analysisId: def.id, values },
-        sheetId: sheet.id,
-      };
-      setOutputs((prev) => [...prev, doc]);
+      const doc = makeDoc(def, result, buildMeta(def, values, sheet));
+      focusDoc(doc);
       setLastDialog({ analysisId: def.id, values });
-      setFocusedOutput(doc.id);
       setDialog(null);
       if (result.toastKey) toast(t(lang, result.toastKey, result.toastVars));
-      if (window.matchMedia('(max-width: 1023px)').matches) setMobileTab('output');
-      setTimeout(() => document.getElementById(`card-${doc.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
       return null;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'dlg.error';
-      return message.includes('.') ? t(lang, message) : message;
+      return errorText(error);
     }
+  };
+
+  /** Re-run an existing card against the data snapshot stored with it. */
+  const reproduce = (output: OutputDoc) => {
+    const meta = output.meta;
+    const def = findAnalysis(meta?.analysisId ?? output.dialog?.analysisId ?? '');
+    if (!meta || !def) {
+      toast(t(lang, 'toast.noSnapshot'));
+      return;
+    }
+    const snapshotSheet: Worksheet = {
+      id: `snapshot-${output.id}`,
+      name: `${meta.sheetName} (${t(lang, 'card.snapshot')})`,
+      columns: meta.columns.map(copyColumn),
+    };
+    try {
+      const result = def.run({ lang, sheet: snapshotSheet, values: { ...meta.values } });
+      // The snapshot is read-only: a transform's sheet patch is not applied here.
+      const doc = makeDoc(def, result, { ...meta, ranAt: Date.now() });
+      focusDoc(doc);
+    } catch (error) {
+      toast(errorText(error));
+    }
+  };
+
+  const rerunWithOptions = (output: OutputDoc) => {
+    const meta = output.meta;
+    const def = findAnalysis(meta?.analysisId ?? output.dialog?.analysisId ?? '');
+    if (!meta || !def) {
+      toast(t(lang, 'toast.noSnapshot'));
+      return;
+    }
+    const target = worksheets.find((w) => w.id === meta.sheetId);
+    if (target) setActiveSheetId(target.id);
+    setDialog({ def, initial: { ...meta.values } });
   };
 
   const openAnalysis = (id: string) => {
@@ -376,7 +542,7 @@ export default function App() {
 
   const saveProject = () => {
     downloadFile(
-      `sigrun-${new Date().toISOString().slice(0, 10)}.mpx.json`,
+      projectFileName(),
       serializeProject({ worksheets, activeSheetId, settings, outputs }),
       'application/json',
     );
@@ -384,10 +550,20 @@ export default function App() {
   };
 
   const openProject = async () => {
-    const file = await pickFile('.json,.mpx,.mpx.json,application/json');
+    const file = await pickFile(PROJECT_ACCEPT);
     if (!file) return;
+    const lower = file.name.toLowerCase();
+    if (lower.endsWith('.mpx')) {
+      // Minitab's native project is a binary container, never our JSON.
+      toast(t(lang, 'file.mpxUnsupported'));
+      return;
+    }
     try {
       const text = await file.text();
+      if (looksLikeMinitabBinary(file.name, text.slice(0, 8))) {
+        toast(t(lang, 'file.mpxUnsupported'));
+        return;
+      }
       const parsed = parseProject(text);
       setWorksheets(parsed.worksheets);
       setActiveSheetId(parsed.activeSheetId);
@@ -428,6 +604,10 @@ export default function App() {
     toast(t(lang, 'toast.sheetAdded'));
   };
 
+  const updateOutputBlocks = (id: string, blocks: OutputDoc['blocks']) => {
+    setOutputs((prev) => prev.map((o) => (o.id === id ? { ...o, blocks } : o)));
+  };
+
   /* ── shortcuts ─────────────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -450,6 +630,11 @@ export default function App() {
         event.preventDefault();
         if (event.shiftKey) redo();
         else undo();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'y') {
+        event.preventDefault();
+        redo();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -507,14 +692,14 @@ export default function App() {
       case 'print': window.print(); break;
       case 'undo': undo(); break;
       case 'redo': redo(); break;
-      case 'copy': copyRange(); break;
-      case 'paste': void navigator.clipboard?.readText?.().then((text) => text && pasteCells(selection.row, selection.col, text)).catch(() => toast(t(lang, 'file.error'))); break;
+      case 'copy': void copyRange(); break;
+      case 'paste': void navigator.clipboard?.readText?.().then((text) => text && pasteCells(selection.row, selection.col, text)).catch(() => toast(t(lang, 'toast.pasteFailed'))); break;
       case 'clear': clearRange(range); break;
       case 'insertRow': insertRow(); break;
       case 'deleteRow': deleteRow(); break;
       case 'addColumn': addColumn(); break;
       case 'newSheet': addSheet(); break;
-      case 'renameSheet': toast(t(lang, 'nav.rename') + ': ' + sheet.name); break;
+      case 'renameSheet': setRenameTarget({ id: sheet.id, draft: sheet.name }); break;
       case 'deleteSheet': deleteSheet(activeSheetId); break;
       case 'help': setHelp('help'); break;
       case 'about': setHelp('about'); break;
@@ -531,6 +716,11 @@ export default function App() {
 
   const lastTitle = lastDialog ? t(lang, (ANALYSES.find((a) => a.id === lastDialog.analysisId)?.titleKey ?? 'status.none')) : t(lang, 'status.none');
   const cellLabel = `${sheet.columns[selection.col]?.id ?? '—'}:${selection.row + 1}`;
+
+  const commitRename = () => {
+    if (!renameTarget) return;
+    if (renameSheet(renameTarget.id, renameTarget.draft)) setRenameTarget(null);
+  };
 
   return (
     <div className="app">
@@ -624,6 +814,9 @@ export default function App() {
               onDelete={(id) => { setOutputs((prev) => prev.filter((o) => o.id !== id)); toast(t(lang, 'toast.outputDeleted')); }}
               onToggleCollapse={(id) => setOutputs((prev) => prev.map((o) => (o.id === id ? { ...o, collapsed: !o.collapsed } : o)))}
               onToast={toast}
+              onRerun={rerunWithOptions}
+              onReproduce={reproduce}
+              onUpdateBlocks={updateOutputBlocks}
             />
           </section>
 
@@ -645,7 +838,7 @@ export default function App() {
             <div className="panel-head">
               <span className="panel-title">{t(lang, 'panel.worksheet')}</span>
               <span className="panel-count">
-                {fmtInt(Math.max(0, ...sheet.columns.map((c) => c.values.length)))} × {sheet.columns.length}
+                {fmtInt(rowCount(sheet))} × {sheet.columns.length}
               </span>
               <span className="spacer" />
               <span className="grid-hint">{t(lang, 'hint.grid')}</span>
@@ -661,7 +854,7 @@ export default function App() {
               }}
               onEdit={editCell}
               onPaste={pasteCells}
-              onCopy={copyRange}
+              onCopy={() => void copyRange()}
               onClear={clearRange}
               onAddColumn={addColumn}
               onRenameColumn={renameColumn}
@@ -673,6 +866,7 @@ export default function App() {
                   type="button"
                   className={`ws-tab${ws.id === sheet.id ? ' current' : ''}`}
                   onClick={() => setActiveSheetId(ws.id)}
+                  onDoubleClick={() => setRenameTarget({ id: ws.id, draft: ws.name })}
                   data-testid={`sheet-tab-${ws.id}`}
                 >
                   {ws.name}
@@ -691,7 +885,7 @@ export default function App() {
               ))}
               <button type="button" className="ws-addtab" onClick={() => addSheet()} aria-label={t(lang, 'nav.addSheet')} data-testid="add-sheet-tab">+</button>
               <span className="grid-hint">
-                {t(lang, 'status.rows', { n: fmtInt(Math.max(0, ...sheet.columns.map((c) => c.values.length))) })} · {t(lang, 'status.cols', { n: sheet.columns.length })}
+                {t(lang, 'status.rows', { n: fmtInt(rowCount(sheet)) })} · {t(lang, 'status.cols', { n: sheet.columns.length })}
               </span>
             </div>
           </section>
@@ -717,6 +911,40 @@ export default function App() {
           onClose={() => setDialog(null)}
           onRun={(values) => execute(dialog.def, values)}
         />
+      )}
+
+      {renameTarget && (
+        <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setRenameTarget(null); }}>
+          <div className="modal rename-modal" role="dialog" aria-modal="true" aria-label={t(lang, 'data.renameSheet')} data-testid="rename-dialog">
+            <div className="modal-head">
+              <div>
+                <h3>{t(lang, 'data.renameSheet')}</h3>
+                <div className="modal-sub">{t(lang, 'rename.current')}: {worksheets.find((w) => w.id === renameTarget.id)?.name ?? ''}</div>
+              </div>
+            </div>
+            <div className="modal-body">
+              <div className="slot">
+                <span className="slot-label">{t(lang, 'rename.newName')}</span>
+                <input
+                  className="text-input"
+                  autoFocus
+                  value={renameTarget.draft}
+                  onChange={(event) => setRenameTarget({ ...renameTarget, draft: event.target.value })}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') { event.preventDefault(); commitRename(); }
+                    if (event.key === 'Escape') setRenameTarget(null);
+                  }}
+                  data-testid="rename-input"
+                />
+              </div>
+            </div>
+            <div className="modal-foot">
+              <span className="spacer" />
+              <button type="button" className="btn ghost" onClick={() => setRenameTarget(null)}>{t(lang, 'dlg.cancel')}</button>
+              <button type="button" className="btn primary" onClick={commitRename} data-testid="rename-ok">{t(lang, 'dlg.ok')}</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {help && <HelpModal lang={lang} initial={help} onClose={() => setHelp(null)} />}

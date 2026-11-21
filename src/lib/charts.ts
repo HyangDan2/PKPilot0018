@@ -117,6 +117,26 @@ function specLine(x1: number, x2: number, yPos: number, label: string, color = C
   );
 }
 
+/**
+ * A specification limit on a horizontal axis is a VERTICAL line at x. Labels sit
+ * at the top of the plot and are staggered so neighbouring limits stay legible.
+ */
+function specVLine(box: Box, x: number, label: string, color = C.guide, slot = 0, dash = '4 3'): string {
+  const xp = Math.min(box.x + box.w - 0.5, Math.max(box.x + 0.5, x));
+  const anchor = xp > box.x + box.w - 70 ? 'end' : 'start';
+  const dx = anchor === 'end' ? -3 : 3;
+  const y = box.y + 8 + (slot % 3) * 10;
+  return (
+    `<line class="spec-line" x1="${xp.toFixed(1)}" y1="${box.y}" x2="${xp.toFixed(1)}" y2="${(box.y + box.h).toFixed(1)}" stroke="${color}" stroke-width="1.2" stroke-dasharray="${dash}" opacity="0.95"/>` +
+    `<text x="${(xp + dx).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}" font-family="${MONO}" font-size="8" fill="${color}">${esc(label)}</text>`
+  );
+}
+
+function emptyChart(w: number, h: number, label: string, message = 'No finite data to plot'): string {
+  return open(w, h, label) +
+    `<text x="${w / 2}" y="${h / 2}" text-anchor="middle" font-size="${FS + 1}" fill="${C.label}">${esc(message)}</text></svg>`;
+}
+
 function histogramBins(values: number[], binCount?: number): { lo: number; hi: number; count: number }[] {
   const [min, max] = extent(values);
   const n = values.length || 1;
@@ -133,13 +153,16 @@ function histogramBins(values: number[], binCount?: number): { lo: number; hi: n
 function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>): string {
   const h = spec.height ?? 250;
   const values = spec.values.filter((v) => isFinite(v));
+  if (!values.length) return emptyChart(W, h, spec.title ?? 'Histogram');
   const box: Box = { x: 54, y: 18, w: W - 74, h: h - 18 - 42 };
   const bins = histogramBins(values, spec.bins);
   const maxCount = Math.max(1, ...bins.map((b) => b.count));
   const [rawMin, rawMax] = extent(values);
-  const xMin = Math.min(rawMin, ...(spec.lsl != null ? [spec.lsl] : []), ...(spec.usl != null ? [spec.usl] : []));
-  const xMax = Math.max(rawMax, ...(spec.lsl != null ? [spec.lsl] : []), ...(spec.usl != null ? [spec.usl] : []));
-  const span = xMax - xMin || 1;
+  const specs = [spec.lsl, spec.usl, spec.target].filter((v): v is number => typeof v === 'number' && isFinite(v));
+  // Target counts too, so no specification line is clipped at the plot edge.
+  const xMin = Math.min(rawMin, ...specs);
+  const xMax = Math.max(rawMax, ...specs);
+  const span = xMax - xMin || Math.max(Math.abs(xMax), 1) * 0.05;
   const lo = xMin - span * 0.04;
   const hi = xMax + span * 0.04;
   const yMax = maxCount * 1.18;
@@ -155,37 +178,43 @@ function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>): string 
     spec.xLabel,
     spec.yLabel ?? 'Frequency',
   );
-  const bw = box.w / bins.length;
-  bins.forEach((b, i) => {
-    const x = box.x + i * bw;
+  // Bars are drawn at their real bin boundaries on the x axis — not at an
+  // evenly divided plot width — so they line up with the ticks.
+  bins.forEach((b) => {
+    if (b.count <= 0) return;
+    const x0 = sx(b.lo);
+    const x1 = sx(b.hi);
     const y = sy(b.count);
-    if (b.count > 0) {
-      g += `<rect x="${(x + 0.8).toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, bw - 1.6).toFixed(1)}" height="${(box.y + box.h - y).toFixed(1)}" fill="${C.series[0]}" opacity="0.72" rx="1.5"/>`;
-    }
+    g += `<rect x="${(x0 + 0.4).toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(0.8, x1 - x0 - 0.8).toFixed(1)}" height="${(box.y + box.h - y).toFixed(1)}" fill="${C.series[0]}" opacity="0.72" rx="1.5"/>`;
   });
   if (spec.normal && values.length > 2) {
     const m = mean(values);
     const s = stdev(values);
-    const binWidth = (hi - lo) / bins.length;
-    const pts: string[] = [];
-    const steps = 120;
-    for (let i = 0; i <= steps; i += 1) {
-      const xv = lo + ((hi - lo) * i) / steps;
-      const yv = normalPdf(xv, m, s) * values.length * binWidth;
-      pts.push(`${sx(xv).toFixed(1)},${sy(Math.min(yMax, yv)).toFixed(1)}`);
+    const binWidth = (rawMax - rawMin) / bins.length || 1;
+    if (isFinite(m) && isFinite(s) && s > 0) {
+      const pts: string[] = [];
+      const steps = 120;
+      for (let i = 0; i <= steps; i += 1) {
+        const xv = rawMin + ((rawMax - rawMin) * i) / steps;
+        const yv = normalPdf(xv, m, s) * values.length * binWidth;
+        pts.push(`${sx(xv).toFixed(1)},${sy(Math.min(yMax, yv)).toFixed(1)}`);
+      }
+      g += `<polyline points="${pts.join(' ')}" fill="none" stroke="${C.series[0]}" stroke-width="2"/>`;
     }
-    g += `<polyline points="${pts.join(' ')}" fill="none" stroke="${C.series[0]}" stroke-width="2"/>`;
   }
-  const lines: string[] = [];
-  if (spec.lsl != null) lines.push(specLine(box.x, box.x + box.w, sy(spec.lsl), `LSL ${fmt(spec.lsl, 3)}`, C.series[5]));
-  if (spec.usl != null) lines.push(specLine(box.x, box.x + box.w, sy(spec.usl), `USL ${fmt(spec.usl, 3)}`, C.series[5]));
-  if (spec.target != null) lines.push(specLine(box.x, box.x + box.w, sy(spec.target), `Target ${fmt(spec.target, 3)}`, C.series[3]));
-  return open(W, h, spec.title ?? 'Histogram') + g + lines.join('') + '</svg>';
+  const limits: { x: number; label: string; color: string }[] = [];
+  if (spec.lsl != null && isFinite(spec.lsl)) limits.push({ x: sx(spec.lsl), label: `LSL ${fmt(spec.lsl, 3)}`, color: C.series[5] });
+  if (spec.usl != null && isFinite(spec.usl)) limits.push({ x: sx(spec.usl), label: `USL ${fmt(spec.usl, 3)}`, color: C.series[5] });
+  if (spec.target != null && isFinite(spec.target)) limits.push({ x: sx(spec.target), label: `Target ${fmt(spec.target, 3)}`, color: C.series[3] });
+  limits.sort((a, b) => a.x - b.x);
+  limits.forEach((limit, i) => { g += specVLine(box, limit.x, limit.label, limit.color, i); });
+  return open(W, h, spec.title ?? 'Histogram') + g + '</svg>';
 }
 
 function drawBoxplot(spec: Extract<ChartSpec, { kind: 'boxplot' }>): string {
   const h = spec.height ?? 250;
   const values = spec.groups.flatMap((g) => g.values).filter((v) => isFinite(v));
+  if (!values.length) return emptyChart(W, h, spec.title ?? 'Boxplot');
   const [rawMin, rawMax] = extent(values);
   const yMin = rawMin - (rawMax - rawMin) * 0.08;
   const yMax = rawMax + (rawMax - rawMin) * 0.08;
@@ -243,6 +272,7 @@ function truncate(text: string, len: number): string {
 function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>): string {
   const h = spec.height ?? 260;
   const box: Box = { x: 58, y: 18, w: W - 80, h: h - 64 };
+  if (!spec.points.length) return emptyChart(W, h, spec.title ?? 'Scatterplot');
   const xs = spec.points.map((p) => p.x);
   const ys = spec.points.map((p) => p.y);
   const [xMin, xMax] = pad(extent(xs), 0.05);
@@ -270,6 +300,7 @@ function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>): string {
 function drawTimeseries(spec: Extract<ChartSpec, { kind: 'timeseries' }>): string {
   const h = spec.height ?? 250;
   const values = spec.values.filter((v) => isFinite(v));
+  if (!values.length) return emptyChart(W, h, spec.title ?? 'Time series plot');
   const box: Box = { x: 58, y: 18, w: W - 80, h: h - 62 };
   const [rawMin, rawMax] = extent(values);
   const yMin = Math.min(rawMin, ...(spec.lsl != null ? [spec.lsl] : []));
@@ -291,6 +322,7 @@ function drawTimeseries(spec: Extract<ChartSpec, { kind: 'timeseries' }>): strin
 function drawNormalProb(spec: Extract<ChartSpec, { kind: 'normalprob' }>): string {
   const h = spec.height ?? 280;
   const box: Box = { x: 58, y: 18, w: W - 80, h: h - 64 };
+  if (!spec.points.length) return emptyChart(W, h, spec.title ?? 'Normal probability plot');
   const xs = spec.points.map((p) => p.x);
   const zs = spec.points.map((p) => p.y);
   const [xMin, xMax] = pad(extent(xs), 0.05);
@@ -343,6 +375,7 @@ function drawControl(spec: Extract<ChartSpec, { kind: 'control' }>): string {
   const limits: number[] = [panel.center, ...values];
   panel.points.forEach((_, i) => { limits.push(uclAt(i), lclAt(i)); });
   const finite = limits.filter((v) => isFinite(v));
+  if (!finite.length) return emptyChart(W, h, panel.key);
   const [lo, hi] = pad(extent(finite), 0.08);
   const box: Box = { x: 60, y: 22, w: W - 84, h: h - 66 };
   const xTicks = ticks(1, Math.max(2, panel.points.length), 6);
@@ -376,6 +409,7 @@ function drawControl(spec: Extract<ChartSpec, { kind: 'control' }>): string {
 
 function drawPareto(spec: Extract<ChartSpec, { kind: 'pareto' }>): string {
   const h = spec.height ?? 270;
+  if (!spec.items.length) return emptyChart(W, h, spec.title ?? 'Pareto chart');
   const items = [...spec.items].sort((a, b) => b.count - a.count);
   const total = items.reduce((a, b) => a + b.count, 0) || 1;
   const box: Box = { x: 54, y: 18, w: W - 88, h: h - 78 };
@@ -417,43 +451,53 @@ function drawCapability(spec: Extract<ChartSpec, { kind: 'capability' }>): strin
   const r = spec.result;
   const values = r.values.filter((v) => isFinite(v));
   const h = spec.height ?? 300;
+  if (!values.length || !isFinite(r.mean)) return emptyChart(W, h, 'Process capability', 'Not enough valid data for a capability plot');
   const box: Box = { x: 54, y: 18, w: W - 74, h: h - 96 };
-  const specs = [r.lsl, r.usl, r.target].filter((v): v is number => typeof v === 'number');
+  const specs = [r.lsl, r.usl, r.target].filter((v): v is number => typeof v === 'number' && isFinite(v));
   const [vMin, vMax] = extent(values);
-  const lo = Math.min(vMin, r.mean - 3.8 * r.sdOverall, ...specs);
-  const hi = Math.max(vMax, r.mean + 3.8 * r.sdOverall, ...specs);
+  const overallSd = isFinite(r.sdOverall) && r.sdOverall > 0 ? r.sdOverall : (vMax - vMin) / 6 || 1;
+  const lo = Math.min(vMin, r.mean - 3.8 * overallSd, ...specs);
+  const hi = Math.max(vMax, r.mean + 3.8 * overallSd, ...specs);
   const binCount = Math.max(8, Math.min(22, Math.ceil(Math.sqrt(values.length)) + 4));
-  const binWidth = (hi - lo) / binCount;
+  const binWidth = (hi - lo) / binCount || 1;
   const counts = new Array<number>(binCount).fill(0);
   values.forEach((v) => {
     const idx = Math.min(binCount - 1, Math.max(0, Math.floor((v - lo) / binWidth)));
     counts[idx] += 1;
   });
   const maxCount = Math.max(1, ...counts);
-  const yMax = Math.max(maxCount, normalPdf(r.mean, r.mean, r.sdWithin) * values.length * binWidth) * 1.16;
+  const withinSd = isFinite(r.sdWithin) && r.sdWithin > 0 ? r.sdWithin : overallSd;
+  const peak = normalPdf(r.mean, r.mean, withinSd) * values.length * binWidth;
+  const yMax = Math.max(maxCount, isFinite(peak) ? peak : 0) * 1.16 || 1;
   const xTicks = ticks(lo, hi, 6);
   const yTicks = ticks(0, yMax, 4);
   const sc = scales(box, lo, hi, 0, yMax);
   let g = axes(box, xTicks, yTicks, niceStep((hi - lo) / 6), niceStep(yMax / 4), spec.xLabel ?? 'Measurement', 'Frequency');
-  const bw = box.w / binCount;
+  // Bars sit on their real bin edges in x, matching the curve and ticks.
   counts.forEach((count, i) => {
     if (!count) return;
-    const x = box.x + i * bw;
+    const binLo = lo + i * binWidth;
+    const binHi = binLo + binWidth;
     const y = sc.sy(count);
-    g += `<rect x="${(x + 0.8).toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, bw - 1.6).toFixed(1)}" height="${(box.y + box.h - y).toFixed(1)}" fill="${C.series[0]}" opacity="0.3" rx="1.5"/>`;
+    g += `<rect x="${(sc.sx(binLo) + 0.4).toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(0.8, sc.sx(binHi) - sc.sx(binLo) - 0.8).toFixed(1)}" height="${(box.y + box.h - y).toFixed(1)}" fill="${C.series[0]}" opacity="0.3" rx="1.5"/>`;
   });
   const curve: string[] = [];
   for (let i = 0; i <= 160; i += 1) {
     const xv = lo + ((hi - lo) * i) / 160;
-    const yv = normalPdf(xv, r.mean, r.sdWithin) * values.length * binWidth;
+    const yv = normalPdf(xv, r.mean, withinSd) * values.length * binWidth;
     curve.push(`${sc.sx(xv).toFixed(1)},${sc.sy(Math.min(yMax, yv)).toFixed(1)}`);
   }
   g += `<polyline points="${curve.join(' ')}" fill="none" stroke="${C.series[0]}" stroke-width="2"/>`;
-  if (r.lsl !== null) g += specLine(box.x, box.x + box.w, sc.sy(r.lsl), `LSL ${fmt(r.lsl, 3)}`, C.alarm);
-  if (r.usl !== null) g += specLine(box.x, box.x + box.w, sc.sy(r.usl), `USL ${fmt(r.usl, 3)}`, C.alarm);
-  if (r.target !== null) g += specLine(box.x, box.x + box.w, sc.sy(r.target), `Target ${fmt(r.target, 3)}`, C.series[3]);
-  g += specLine(box.x, box.x + box.w, sc.sy(r.mean), `\u03bc ${fmt(r.mean, 3)}`, C.series[4]);
-  const stats = [`Cp ${fmt(r.cp, 3)}`, `Cpk ${fmt(r.cpk, 3)}`, `Pp ${fmt(r.pp, 3)}`, `Ppk ${fmt(r.ppk, 3)}`, `PPM ${fmt(r.ppmOverall, 0)}`];
+  const limits: { x: number; label: string; color: string; dash: string }[] = [];
+  if (r.lsl !== null) limits.push({ x: sc.sx(r.lsl), label: `LSL ${fmt(r.lsl, 3)}`, color: C.alarm, dash: '4 3' });
+  if (r.usl !== null) limits.push({ x: sc.sx(r.usl), label: `USL ${fmt(r.usl, 3)}`, color: C.alarm, dash: '4 3' });
+  if (r.target !== null) limits.push({ x: sc.sx(r.target), label: `Target ${fmt(r.target, 3)}`, color: C.series[3], dash: '4 3' });
+  limits.sort((a, b) => a.x - b.x);
+  limits.forEach((limit, i) => { g += specVLine(box, limit.x, limit.label, limit.color, i, limit.dash); });
+  g += specVLine(box, sc.sx(r.mean), `μ ${fmt(r.mean, 3)}`, C.series[4], limits.length, '6 4');
+  const stats = [
+    `Cp ${fmt(r.cp, 3)}`, `Cpk ${fmt(r.cpk, 3)}`, `Pp ${fmt(r.pp, 3)}`, `Ppk ${fmt(r.ppk, 3)}`, `Cpm ${fmt(r.cpm, 3)}`, `PPM ${fmt(r.ppmOverall, 0)}`,
+  ];
   g += `<text x="${box.x}" y="${box.y + box.h + 34}" font-family="${MONO}" font-size="9" fill="${C.label}">${esc(stats.join('   '))}</text>`;
   g += `<text x="${box.x}" y="${box.y + box.h + 46}" font-family="${MONO}" font-size="9" fill="${C.label}">Within \u03c3 ${fmt(r.sdWithin, 4)}   Overall \u03c3 ${fmt(r.sdOverall, 4)}   n ${r.n}</text>`;
   return open(W, h, 'Process capability') + g + '</svg>';
@@ -463,6 +507,7 @@ function drawInterval(spec: Extract<ChartSpec, { kind: 'interval' }>): string {
   const h = spec.height ?? 240;
   const box: Box = { x: 62, y: 18, w: W - 86, h: h - 64 };
   const all = spec.groups.flatMap((g) => [g.lo, g.hi, g.mean]).filter((v) => isFinite(v));
+  if (!all.length) return emptyChart(W, h, 'Interval plot');
   const [lo, hi] = pad(extent(all), 0.12);
   const yTicks = ticks(lo, hi, 5);
   const yStep = niceStep((hi - lo) / 5);

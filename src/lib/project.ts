@@ -1,5 +1,7 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — project files (.mpx.json) and CSV interchange
+   Sigrún — project files (.sigrun.json) and CSV interchange
+   Legacy .mpx.json projects still load; Minitab's native binary .mpx is
+   explicitly rejected with an explanation.
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { Column, ColType, ProjectFile, Settings, OutputDoc, Worksheet } from '../types';
@@ -27,6 +29,22 @@ export function buildProject(state: ProjectState): ProjectFile {
 
 export function serializeProject(state: ProjectState): string {
   return JSON.stringify(buildProject(state), null, 2);
+}
+
+export function projectFileName(date = new Date()): string {
+  return `sigrun-${date.toISOString().slice(0, 10)}.sigrun.json`;
+}
+
+/** The picker accepts new, legacy and plain JSON projects, plus a native .mpx
+ *  so the file can be rejected with a readable explanation instead of failing
+ *  silently outside the picker. */
+export const PROJECT_ACCEPT = '.sigrun.json,.mpx.json,.json,.mpx,application/json';
+
+/** Minitab's native project is a ZIP/binary container, not our JSON text. */
+export function looksLikeMinitabBinary(name: string, head: string): boolean {
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.mpx')) return true;
+  return head.startsWith('PK\u0003\u0004') || head.startsWith('\u0000\u0000') || head.startsWith('MPX');
 }
 
 function isColumn(value: unknown): value is Column {
@@ -74,8 +92,7 @@ export function worksheetToCsv(ws: Worksheet): string {
 
 export function parseCsv(text: string): string[][] {
   const clean = text.replace(/^\uFEFF/, '');
-  const firstLine = clean.split(/\r?\n/)[0] ?? '';
-  const delimiter = firstLine.includes('\t') ? '\t' : firstLine.split(';').length > firstLine.split(',').length ? ';' : ',';
+  const delimiter = detectDelimiter(clean);
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -105,7 +122,38 @@ export function parseCsv(text: string): string[][] {
     row.push(field.replace(/\r$/, ''));
     rows.push(row);
   }
-  return rows.filter((r) => r.some((cell) => cell.trim() !== ''));
+  // Drop trailing blank rows only; a blank row in the middle still holds its place.
+  while (rows.length && rows[rows.length - 1].every((cell) => cell.trim() === '')) rows.pop();
+  return rows;
+}
+
+/** Tell TSV, semicolon and comma apart by counting separators outside quotes. */
+export function detectDelimiter(text: string): string {
+  let inQuotes = false;
+  let firstRecord = '';
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQuotes && text[i + 1] === '"') i += 1;
+      else inQuotes = !inQuotes;
+    } else if (ch === '\n' && !inQuotes) {
+      break;
+    } else if (!inQuotes) {
+      firstRecord += ch;
+    }
+  }
+  const count = (needle: string) => firstRecord.split(needle).length - 1;
+  if (count('\t') > 0) return '\t';
+  if (count(';') > count(',')) return ';';
+  return ',';
+}
+
+/** Parse a clipboard/CSV cell into a number when it really is one. */
+export function parseNumberCell(raw: string): number | null {
+  const text = raw.trim();
+  if (!text || !/^[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][-+]?\d+)?$/.test(text)) return null;
+  const value = Number(text.replace(/,/g, ''));
+  return isFinite(value) ? value : null;
 }
 
 function inferType(values: string[]): ColType {
@@ -139,6 +187,17 @@ export function csvToWorksheet(text: string, name = 'Imported'): Worksheet {
 
 export function downloadFile(filename: string, content: string, mime: string): void {
   const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+export function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

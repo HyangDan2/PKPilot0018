@@ -22,6 +22,44 @@ export interface SpcResult {
   sigmaWithin: number;
   outOfControl: number;
   rulesHit: number[];
+  /** Xbar-R only: how the fixed row-order subgroup boundaries were handled. */
+  subgroupSummary?: {
+    size: number;
+    total: number;
+    used: number;
+    /** subgroups dropped because fewer than two valid values remained */
+    skipped: number;
+    /** rows at the end that did not fill a whole subgroup */
+    leftoverRows: number;
+  };
+}
+
+export type SpcIssueCode =
+  | 'empty'
+  | 'length'
+  | 'nonFinite'
+  | 'nonInteger'
+  | 'negative'
+  | 'exceeds'
+  | 'size'
+  | 'sizeNonInteger'
+  | 'noGroups';
+
+export interface SpcIssue {
+  index?: number;
+  code: SpcIssueCode;
+  defect?: number;
+  size?: number;
+}
+
+/** A validated input problem that the UI shows as a readable message. */
+export class SpcValidationError extends Error {
+  issues: SpcIssue[];
+  constructor(issues: SpcIssue[]) {
+    super('spc.invalid');
+    this.name = 'SpcValidationError';
+    this.issues = issues;
+  }
 }
 
 export const XBAR_CONSTANTS: Record<number, { A2: number; d2: number; d3: number; D3: number; D4: number }> = {
@@ -173,9 +211,22 @@ export function imrChart(values: number[]): SpcResult {
 export function xbarRCharts(values: (number | null)[], subgroup: number): SpcResult {
   const n = Math.max(2, Math.min(10, Math.round(subgroup)));
   const constants = XBAR_CONSTANTS[n];
-  const clean: number[] = values.filter((x): x is number => typeof x === 'number' && isFinite(x));
+  // Subgroup boundaries follow the ORIGINAL row order. Missing values are
+  // dropped inside each finished subgroup only, so later subgroups never shift.
   const groups: number[][] = [];
-  for (let i = 0; i + n <= clean.length; i += n) groups.push(clean.slice(i, i + n));
+  let skipped = 0;
+  for (let start = 0; start + n <= values.length; start += n) {
+    const chunk = values
+      .slice(start, start + n)
+      .filter((x): x is number => typeof x === 'number' && isFinite(x));
+    if (chunk.length < 2) {
+      skipped += 1;
+      continue;
+    }
+    groups.push(chunk);
+  }
+  const totalGroups = Math.floor(values.length / n);
+  if (!groups.length) throw new SpcValidationError([{ code: 'noGroups' }]);
   const means = groups.map((g) => g.reduce((a, b) => a + b, 0) / g.length);
   const ranges = groups.map((g) => Math.max(...g) - Math.min(...g));
   const grand = means.reduce((a, b) => a + b, 0) / means.length;
@@ -205,16 +256,52 @@ export function xbarRCharts(values: (number | null)[], subgroup: number): SpcRes
       violations: violationsFrom(rFlags),
     },
   ];
-  return summarizePanels(panels, sigma);
+  const result = summarizePanels(panels, sigma);
+  result.subgroupSummary = {
+    size: n,
+    total: totalGroups,
+    used: groups.length,
+    skipped,
+    leftoverRows: values.length % n,
+  };
+  return result;
 }
 
+/**
+ * P chart with strict input validation: a bad defect count or sample size is
+ * reported instead of silently dropped, and a zero-variance p̄ never divides
+ * by zero.
+ */
 export function pChart(defects: number[], sizes: number[]): SpcResult {
+  const issues: SpcIssue[] = [];
+  if (!defects.length || !sizes.length) throw new SpcValidationError([{ code: 'empty' }]);
+  if (defects.length !== sizes.length) issues.push({ code: 'length', defect: defects.length, size: sizes.length });
+  const len = Math.min(defects.length, sizes.length);
+  for (let i = 0; i < len; i += 1) {
+    const d = defects[i];
+    const s = sizes[i];
+    if (!Number.isFinite(d)) {
+      issues.push({ index: i, code: 'nonFinite', defect: d });
+      continue;
+    }
+    if (!Number.isInteger(d)) issues.push({ index: i, code: 'nonInteger', defect: d });
+    if (d < 0) issues.push({ index: i, code: 'negative', defect: d });
+    if (!Number.isFinite(s) || s <= 0) {
+      issues.push({ index: i, code: 'size', size: s });
+      continue;
+    }
+    if (!Number.isInteger(s)) issues.push({ index: i, code: 'sizeNonInteger', size: s });
+    if (Number.isFinite(d) && d > s) issues.push({ index: i, code: 'exceeds', defect: d, size: s });
+  }
+  if (issues.length) throw new SpcValidationError(issues);
   const totalDefects = defects.reduce((a, b) => a + b, 0);
   const totalSize = sizes.reduce((a, b) => a + b, 0);
-  const pBar = totalDefects / totalSize;
+  const pBar = totalSize > 0 ? totalDefects / totalSize : NaN;
+  if (!isFinite(pBar)) throw new SpcValidationError([{ code: 'size', size: totalSize }]);
   const proportions = defects.map((d, i) => d / sizes[i]);
   const sigmas = sizes.map((s) => Math.sqrt((pBar * (1 - pBar)) / s));
-  const z = proportions.map((p, i) => (p - pBar) / sigmas[i]);
+  // p̄ = 0 or 1 makes every sigma zero: the chart is flat at the centre line.
+  const z = proportions.map((p, i) => (sigmas[i] > 0 ? (p - pBar) / sigmas[i] : 0));
   const flags = nelsonRules(z, 0, 1);
   const ucl = sigmas.map((s) => Math.min(1, pBar + 3 * s));
   const lcl = sigmas.map((s) => Math.max(0, pBar - 3 * s));

@@ -1,19 +1,33 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Sigrún — process capability
    Cp / Cpk / Pp / Ppk with within (short-term) and overall (long-term)
-   sigma, expected and observed PPM, and sigma level.
+   sigma, expected and observed PPM, Cpm and sigma level.
+
+   Conventions
+   · Cp / Pp need two-sided specifications; with one limit they are NaN.
+   · Cpk / Ppk fall back to the single available side (Cpl/Ppl or Cpu/Ppu).
+   · Cpm uses the OVERALL (sample, n−1) standard deviation and requires an
+     explicit target; without a target it is NaN instead of guessing the
+     midpoint of the specification limits.
+   · Sigma level is derived from the chosen method (see SigmaMethod).
+   · Within sigma is the average moving range for individuals, and the pooled
+     within-subgroup standard deviation when a subgroup size above 1 is given.
    ───────────────────────────────────────────────────────────────────────── */
 
-import { normalCdf } from './dist';
+import { normalCdf, normalInv } from './dist';
 import { clean, mean, stdev } from './stats';
+
+export type SigmaMethod = 'z_bench_shift' | 'z_bench' | 'cpk_shift';
 
 export interface CapabilityOptions {
   lsl?: number | null;
   usl?: number | null;
   target?: number | null;
   subgroup?: number;
-  /** overall sigma from a sample of consecutive individuals (moving range) */
+  /** force the consecutive-individual (moving range) estimate even with subgroups */
   useMovingRange?: boolean;
+  /** how the reported sigma level (Z) is derived */
+  sigmaMethod?: SigmaMethod;
 }
 
 export interface CapabilityResult {
@@ -40,27 +54,42 @@ export interface CapabilityResult {
   observedBelow: number;
   observedAbove: number;
   sigmaLevel: number;
+  sigmaMethod: SigmaMethod;
+}
+
+/** Division that never returns ±Infinity: a non-positive or non-finite denominator is NaN. */
+function ratio(numerator: number, denominator: number): number {
+  if (!isFinite(numerator) || !isFinite(denominator) || denominator === 0) return NaN;
+  return numerator / denominator;
 }
 
 export function movingRangeSigma(values: number[]): number {
   if (values.length < 2) return NaN;
   let sum = 0;
   for (let i = 1; i < values.length; i += 1) sum += Math.abs(values[i] - values[i - 1]);
-  return sum / (values.length - 1) / 1.128;
+  return ratio(sum / (values.length - 1), 1.128);
 }
 
-export function withinSubgroupSigma(values: number[], subgroup: number): number {
+/**
+ * Pooled within-subgroup sigma. Subgroup boundaries follow the ORIGINAL row
+ * order — the array is sliced at [0..n-1], [n..2n-1], … and missing values are
+ * removed only inside each slice, so a missing row never shifts later groups.
+ * Subgroups with fewer than two valid values contribute no degrees of freedom.
+ */
+export function withinSubgroupSigma(values: (number | null)[], subgroup: number): number {
   const n = Math.round(subgroup);
-  if (n < 2) return movingRangeSigma(values);
+  if (!isFinite(n) || n < 2) return movingRangeSigma(clean(values));
   let ss = 0;
   let df = 0;
-  for (let i = 0; i + n <= values.length; i += n) {
-    const chunk = values.slice(i, i + n);
+  for (let start = 0; start < values.length; start += n) {
+    const chunk = clean(values.slice(start, start + n));
+    if (chunk.length < 2) continue;
     const m = mean(chunk);
     ss += chunk.reduce((a, b) => a + (b - m) ** 2, 0);
-    df += n - 1;
+    df += chunk.length - 1;
   }
-  return df > 0 ? Math.sqrt(ss / df) : movingRangeSigma(values);
+  if (df <= 0) return movingRangeSigma(clean(values));
+  return Math.sqrt(ss / df);
 }
 
 export function capability(raw: (number | null)[], options: CapabilityOptions = {}): CapabilityResult {
@@ -69,32 +98,48 @@ export function capability(raw: (number | null)[], options: CapabilityOptions = 
   const m = mean(v);
   const sdOverall = stdev(v);
   const subgroup = options.subgroup ?? 1;
-  const sdWithin = options.useMovingRange === false && subgroup > 1 ? withinSubgroupSigma(v, subgroup) : movingRangeSigma(v);
+  // Subgroups asked for by the caller give the pooled within-subgroup sigma;
+  // individuals (subgroup 1) always use the moving-range estimate.
+  const sdWithin = options.useMovingRange === true || !(subgroup > 1)
+    ? movingRangeSigma(v)
+    : withinSubgroupSigma(raw, subgroup);
   const lsl = typeof options.lsl === 'number' && isFinite(options.lsl) ? options.lsl : null;
   const usl = typeof options.usl === 'number' && isFinite(options.usl) ? options.usl : null;
   const target = typeof options.target === 'number' && isFinite(options.target) ? options.target : null;
-  const tol = lsl !== null && usl !== null ? usl - lsl : NaN;
-  const cp = tol / (6 * sdWithin);
-  const pp = tol / (6 * sdOverall);
-  const cpl = lsl !== null ? (m - lsl) / (3 * sdWithin) : NaN;
-  const cpu = usl !== null ? (usl - m) / (3 * sdWithin) : NaN;
-  const ppl = lsl !== null ? (m - lsl) / (3 * sdOverall) : NaN;
-  const ppu = usl !== null ? (usl - m) / (3 * sdOverall) : NaN;
-  const cpk = Math.min(cpl, cpu);
-  const ppk = Math.min(ppl, ppu);
-  const cpmTarget = target ?? (lsl !== null && usl !== null ? (lsl + usl) / 2 : m);
-  const cpm = tol / (6 * Math.sqrt(sdWithin ** 2 + (m - cpmTarget) ** 2));
+  const twoSided = lsl !== null && usl !== null;
+  const tol = twoSided ? (usl as number) - (lsl as number) : NaN;
 
-  const belowWithin = lsl !== null ? normalCdf((lsl - m) / sdWithin) : 0;
-  const aboveWithin = usl !== null ? 1 - normalCdf((usl - m) / sdWithin) : 0;
-  const belowOverall = lsl !== null ? normalCdf((lsl - m) / sdOverall) : 0;
-  const aboveOverall = usl !== null ? 1 - normalCdf((usl - m) / sdOverall) : 0;
+  const cp = twoSided ? ratio(tol, 6 * sdWithin) : NaN;
+  const pp = twoSided ? ratio(tol, 6 * sdOverall) : NaN;
+  const cpl = lsl !== null ? ratio(m - lsl, 3 * sdWithin) : NaN;
+  const cpu = usl !== null ? ratio((usl as number) - m, 3 * sdWithin) : NaN;
+  const ppl = lsl !== null ? ratio(m - lsl, 3 * sdOverall) : NaN;
+  const ppu = usl !== null ? ratio((usl as number) - m, 3 * sdOverall) : NaN;
+
+  // One-sided specifications report the single available index, never NaN.
+  const cpk = lsl !== null && usl !== null ? Math.min(cpl, cpu) : lsl !== null ? cpl : usl !== null ? cpu : NaN;
+  const ppk = lsl !== null && usl !== null ? Math.min(ppl, ppu) : lsl !== null ? ppl : usl !== null ? ppu : NaN;
+
+  // Cpm: overall sigma, and only with an explicit target and two-sided tolerance.
+  const cpm = twoSided && target !== null
+    ? ratio(tol, 6 * Math.sqrt(sdOverall ** 2 + (m - target) ** 2))
+    : NaN;
+
+  const withinOk = isFinite(sdWithin) && sdWithin > 0;
+  const overallOk = isFinite(sdOverall) && sdOverall > 0;
+  const belowWithin = lsl !== null && withinOk ? normalCdf((lsl - m) / sdWithin) : 0;
+  const aboveWithin = usl !== null && withinOk ? 1 - normalCdf((usl - m) / sdWithin) : 0;
+  const belowOverall = lsl !== null && overallOk ? normalCdf((lsl - m) / sdOverall) : 0;
+  const aboveOverall = usl !== null && overallOk ? 1 - normalCdf((usl - m) / sdOverall) : 0;
   const observedBelow = lsl !== null ? v.filter((x) => x < lsl).length : 0;
   const observedAbove = usl !== null ? v.filter((x) => x > usl).length : 0;
 
-  const ppmWithin = (belowWithin + aboveWithin) * 1e6;
-  const ppmOverall = (belowOverall + aboveOverall) * 1e6;
-  const ppmObserved = ((observedBelow + observedAbove) / n) * 1e6;
+  const ppmWithin = withinOk ? (belowWithin + aboveWithin) * 1e6 : NaN;
+  const ppmOverall = overallOk ? (belowOverall + aboveOverall) * 1e6 : NaN;
+  const ppmObserved = n > 0 ? ((observedBelow + observedAbove) / n) * 1e6 : NaN;
+
+  const sigmaMethod: SigmaMethod = options.sigmaMethod ?? 'z_bench_shift';
+  const sigmaLevel = sigmaLevelOf(sigmaMethod, ppmOverall, cpk);
 
   return {
     n,
@@ -119,6 +164,22 @@ export function capability(raw: (number | null)[], options: CapabilityOptions = 
     ppmObserved,
     observedBelow,
     observedAbove,
-    sigmaLevel: 3 * cpk + 1.5,
+    sigmaLevel,
+    sigmaMethod,
   };
+}
+
+/**
+ * Z.bench is the standard-normal quantile of the observed/expected total
+ * defect rate. `z_bench_shift` adds the classic 1.5σ long-term shift,
+ * `z_bench` reports the unshifted value, `cpk_shift` uses the short-term
+ * approximation 3 × Cpk + 1.5.
+ */
+export function sigmaLevelOf(method: SigmaMethod, ppmOverall: number, cpk: number): number {
+  if (method === 'cpk_shift') return isFinite(cpk) ? 3 * cpk + 1.5 : NaN;
+  if (!isFinite(ppmOverall)) return NaN;
+  const p = Math.min(1 - 1e-12, Math.max(1e-12, ppmOverall / 1e6));
+  const z = normalInv(1 - p);
+  if (!isFinite(z)) return NaN;
+  return method === 'z_bench' ? z : z + 1.5;
 }

@@ -96,6 +96,22 @@ export interface DialogSnapshot {
   values: Record<string, unknown>;
 }
 
+/**
+ * Everything needed to reproduce an analysis after the worksheet has changed:
+ * the options, the referenced column data at run time, the sheet identity and
+ * the engine version.
+ */
+export interface AnalysisMeta {
+  engine: string;
+  analysisId: string;
+  values: Record<string, unknown>;
+  sheetId: string;
+  sheetName: string;
+  ranAt: number;
+  rowCount: number;
+  columns: ColumnPayload[];
+}
+
 export interface OutputDoc {
   id: string;
   titleKey: string;
@@ -106,6 +122,7 @@ export interface OutputDoc {
   blocks: Block[];
   dialog?: DialogSnapshot;
   sheetId?: string;
+  meta?: AnalysisMeta;
 }
 
 export type Theme = 'light' | 'dark';
