@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>HD2Lab Sigrún — Statistical Workspace</title>
+    <meta
+      name="description"
+      content="Sigrún is HD2Lab's pure-browser statistical and quality workspace: descriptive statistics, hypothesis tests, ANOVA with Tukey, regression with residual diagnostics, control charts with Nelson rules, process capability, Pareto, and interactive SVG charts. No backend, no install."
+    />
+    <meta name="author" content="HD2Lab" />
+    <meta name="theme-color" content="#FAFAFD" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./og-image.png" />
+    <link rel="manifest" href="./manifest.json" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="HD2Lab" />
+    <meta property="og:title" content="HD2Lab Sigrún — Statistical Workspace" />
+    <meta
+      property="og:description"
+      content="A precision statistical workspace in the browser — descriptive statistics, t-tests, ANOVA + Tukey, regression, control charts, process capability and Pareto charts, all computed locally."
+    />
+    <meta property="og:url" content="https://hyangdan2.github.io/PKPilot0018/" />
+    <meta property="og:image" content="https://hyangdan2.github.io/PKPilot0018/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="HD2Lab Sigrún — statistical workspace" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="ko_KR" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="HD2Lab Sigrún — Statistical Workspace" />
+    <meta
+      name="twitter:description"
+      content="Descriptive statistics, t-tests, ANOVA + Tukey, regression, control charts, process capability and Pareto charts — 100% in your browser."
+    />
+    <meta name="twitter:image" content="https://hyangdan2.github.io/PKPilot0018/og-image.png" />
+
+    <script>
+      try {
+        var saved = JSON.parse(localStorage.getItem('sigrun.settings.v1') || 'null');
+        if (saved && saved.theme) document.documentElement.dataset.theme = saved.theme;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Sigrún needs JavaScript to run its statistical engine in your browser.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

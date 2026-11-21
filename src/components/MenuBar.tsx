@@ -1,0 +1,265 @@
+import { useEffect, useRef, useState } from 'react';
+import type { Lang } from '../types';
+import { t } from '../lib/i18n';
+import { DATASETS } from '../lib/datasets';
+import { IconChevron } from './Icons';
+
+export type MenuAction =
+  | 'new' | 'save' | 'open' | 'importCsv' | 'exportCsv' | 'print' | 'undo' | 'redo' | 'copy' | 'paste'
+  | 'clear' | 'insertRow' | 'deleteRow' | 'addColumn' | 'newSheet' | 'renameSheet' | 'deleteSheet'
+  | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout';
+
+interface MenuLeaf {
+  labelKey: string;
+  action?: MenuAction;
+  analysis?: string;
+  sample?: string;
+  kbd?: string;
+  separatorBefore?: boolean;
+  disabled?: boolean;
+  children?: MenuLeaf[];
+}
+
+interface MenuDef {
+  labelKey: string;
+  items: MenuLeaf[];
+}
+
+interface Props {
+  lang: Lang;
+  canUndo: boolean;
+  canRedo: boolean;
+  onAction: (action: MenuAction) => void;
+  onAnalysis: (id: string) => void;
+  onSample: (id: string) => void;
+}
+
+function buildMenus(canUndo: boolean, canRedo: boolean): MenuDef[] {
+  return [
+    {
+      labelKey: 'menu.file',
+      items: [
+        { labelKey: 'file.new', action: 'new' },
+        { labelKey: 'file.open', action: 'open' },
+        { labelKey: 'file.save', action: 'save', kbd: 'JSON' },
+        { labelKey: 'file.importCsv', action: 'importCsv' },
+        { labelKey: 'file.exportCsv', action: 'exportCsv' },
+        { labelKey: 'file.print', action: 'print', separatorBefore: true, kbd: 'PDF' },
+        {
+          labelKey: 'file.samples',
+          separatorBefore: true,
+          children: DATASETS.map((ds) => ({ labelKey: ds.nameKey, sample: ds.id })),
+        },
+        { labelKey: 'file.help', action: 'help', separatorBefore: true, kbd: '?' },
+      ],
+    },
+    {
+      labelKey: 'menu.edit',
+      items: [
+        { labelKey: 'edit.undo', action: 'undo', kbd: '⌘Z', disabled: !canUndo },
+        { labelKey: 'edit.redo', action: 'redo', kbd: '⇧⌘Z', disabled: !canRedo },
+        { labelKey: 'edit.copy', action: 'copy', separatorBefore: true, kbd: '⌘C' },
+        { labelKey: 'edit.paste', action: 'paste', kbd: '⌘V' },
+        { labelKey: 'edit.clear', action: 'clear', kbd: 'Del' },
+        { labelKey: 'edit.insertRow', action: 'insertRow', separatorBefore: true },
+        { labelKey: 'edit.deleteRow', action: 'deleteRow' },
+      ],
+    },
+    {
+      labelKey: 'menu.data',
+      items: [
+        { labelKey: 'data.sort', analysis: 'sort' },
+        { labelKey: 'data.standardize', analysis: 'standardize' },
+        { labelKey: 'data.recode', analysis: 'recode' },
+        { labelKey: 'edit.addColumn', action: 'addColumn', separatorBefore: true },
+        { labelKey: 'data.newSheet', action: 'newSheet' },
+        { labelKey: 'data.renameSheet', action: 'renameSheet' },
+        { labelKey: 'data.deleteSheet', action: 'deleteSheet' },
+      ],
+    },
+    {
+      labelKey: 'menu.calc',
+      items: [
+        { labelKey: 'calc.calculator', analysis: 'calculator', kbd: 'ƒ' },
+        { labelKey: 'calc.random', analysis: 'random' },
+      ],
+    },
+    {
+      labelKey: 'menu.stat',
+      items: [
+        {
+          labelKey: 'stat.basic',
+          children: [
+            { labelKey: 'stat.desc', analysis: 'desc' },
+            { labelKey: 'stat.normality', analysis: 'normality' },
+            { labelKey: 'stat.t1', analysis: 't1' },
+            { labelKey: 'stat.t2', analysis: 't2' },
+            { labelKey: 'stat.paired', analysis: 'paired' },
+          ],
+        },
+        { labelKey: 'stat.anova', children: [{ labelKey: 'stat.anova1', analysis: 'anova' }] },
+        { labelKey: 'stat.regression', children: [{ labelKey: 'stat.fitRegression', analysis: 'regression' }] },
+        {
+          labelKey: 'stat.control',
+          children: [
+            { labelKey: 'stat.imr', analysis: 'imr' },
+            { labelKey: 'stat.xbarr', analysis: 'xbarr' },
+            { labelKey: 'stat.pchart', analysis: 'pchart' },
+          ],
+        },
+        {
+          labelKey: 'stat.quality',
+          children: [
+            { labelKey: 'stat.capability', analysis: 'capability' },
+            { labelKey: 'stat.pareto', analysis: 'pareto' },
+          ],
+        },
+      ],
+    },
+    {
+      labelKey: 'menu.graph',
+      items: [
+        { labelKey: 'graph.histogram', analysis: 'histogram' },
+        { labelKey: 'graph.boxplot', analysis: 'boxplot' },
+        { labelKey: 'graph.scatter', analysis: 'scatter' },
+        { labelKey: 'graph.timeseries', analysis: 'timeseries' },
+      ],
+    },
+    {
+      labelKey: 'menu.view',
+      items: [
+        { labelKey: 'view.theme', action: 'theme' },
+        {
+          labelKey: 'view.language',
+          children: [
+            { labelKey: 'view.english', action: 'langEn' },
+            { labelKey: 'view.korean', action: 'langKo' },
+          ],
+        },
+        { labelKey: 'view.resetLayout', action: 'resetLayout', separatorBefore: true },
+      ],
+    },
+    {
+      labelKey: 'menu.help',
+      items: [
+        { labelKey: 'help.help', action: 'help', kbd: '?' },
+        { labelKey: 'help.about', action: 'about', separatorBefore: true },
+      ],
+    },
+  ];
+}
+
+export function MenuBar({ lang, canUndo, canRedo, onAction, onAnalysis, onSample }: Props) {
+  const [open, setOpen] = useState<number | null>(null);
+  const [sub, setSub] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const menus = buildMenus(canUndo, canRedo);
+
+  useEffect(() => {
+    const onDown = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) {
+        setOpen(null);
+        setSub(null);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(null);
+        setSub(null);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  const close = () => {
+    setOpen(null);
+    setSub(null);
+  };
+
+  const pick = (leaf: MenuLeaf) => {
+    if (leaf.disabled) return;
+    if (leaf.children) return;
+    close();
+    if (leaf.analysis) onAnalysis(leaf.analysis);
+    else if (leaf.sample) onSample(leaf.sample);
+    else if (leaf.action) onAction(leaf.action);
+  };
+
+  return (
+    <div className="menubar" ref={ref} role="menubar" data-testid="menubar">
+      {menus.map((menu, index) => (
+        <div className="menu-root" key={menu.labelKey}>
+          <button
+            type="button"
+            className={`menu-btn${open === index ? ' open' : ''}`}
+            aria-haspopup="menu"
+            aria-expanded={open === index}
+            onClick={() => {
+              setOpen(open === index ? null : index);
+              setSub(null);
+            }}
+            onMouseEnter={() => {
+              if (open !== null && open !== index) {
+                setOpen(index);
+                setSub(null);
+              }
+            }}
+            data-testid={`menu-${menu.labelKey.replace('menu.', '')}`}
+          >
+            {t(lang, menu.labelKey)}
+          </button>
+
+          {open === index && (
+            <div className="menu-pop" role="menu">
+              {menu.items.map((item, itemIndex) => (
+                <div
+                  className="menu-row"
+                  key={`${item.labelKey}-${itemIndex}`}
+                  onMouseEnter={() => setSub(item.children ? item.labelKey : null)}
+                >
+                  {item.separatorBefore && <span className="menu-sep" />}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`menu-item${sub === item.labelKey && item.children ? ' active' : ''}`}
+                    disabled={item.disabled}
+                    onClick={() => (item.children ? setSub(sub === item.labelKey ? null : item.labelKey) : pick(item))}
+                  >
+                    <span className="mi-label">{t(lang, item.labelKey)}</span>
+                    {item.kbd && <span className="mi-kbd">{item.kbd}</span>}
+                    {item.children && <span className="mi-arrow"><IconChevron size={12} /></span>}
+                  </button>
+
+                  {item.children && sub === item.labelKey && (
+                    <div className="submenu" role="menu">
+                      {item.children.map((child, childIndex) => (
+                        <div key={`${child.labelKey}-${childIndex}`}>
+                          {child.separatorBefore && <span className="menu-sep" />}
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="menu-item"
+                            onClick={() => pick(child)}
+                            data-testid={`menu-item-${child.analysis ?? child.action ?? child.sample ?? ''}`}
+                          >
+                            <span className="mi-label">{t(lang, child.labelKey)}</span>
+                            {child.kbd && <span className="mi-kbd">{child.kbd}</span>}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}

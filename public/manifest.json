@@ -1,0 +1,27 @@
+{
+  "name": "HD2Lab Sigrún — Statistical Workspace",
+  "short_name": "Sigrún",
+  "description": "Pure-browser statistical and quality workspace: descriptive statistics, hypothesis tests, ANOVA, regression, control charts and process capability.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FAFAFD",
+  "theme_color": "#8B6CE8",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities", "education"],
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   HD2Lab Sigrún — design tokens
+   The single place a skin is defined. Values mirror HD2's Diary
+   (hyangdan2.github.io/diary) so Sigrún inherits the same design language:
+   Soft Iris (light, default) and Navy & Lavender (dark).
+   Every colour, radius, shadow, type and chart series used by the app is a
+   variable here — swap this file to re-skin the whole workspace.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* ── surface & ink ─────────────────────────────────────────────── */
+  --background: #fafafd;
+  --surface: #ffffff;
+  --surface-2: #f4f1fc;
+  --panel-raised: #f4f1fc;
+  --surface-sunken: #f7f5fd;
+  --border: #e8e4f2;
+  --border-soft: #efebf7;
+  --line-strong: #d4cce8;
+
+  --text: #1d192b;
+  --text-body: #544e68;
+  --muted: #68627a;
+  --text-secondary: #7c7690;
+
+  --accent: #8b6ce8;
+  --accent-hover: #6b4cd6;
+  --accent-text: #6b4cd6;
+  --accent-soft: #f1ecfe;
+  --on-accent: #ffffff;
+
+  /* ── status ────────────────────────────────────────────────────── */
+  --ok: #0f9d76;
+  --ok-soft: #e6f7f0;
+  --warn: #b8760a;
+  --warn-soft: #fdf3df;
+  --danger: #e0395c;
+  --danger-soft: #fdecf0;
+  --info: #2f6fe4;
+  --info-soft: #eaf1fe;
+
+  /* ── chart series (violet · emerald · blue · amber · rose · teal) ── */
+  --chart-1: #8b6ce8;
+  --chart-2: #10b981;
+  --chart-3: #3b82f6;
+  --chart-4: #f59e0b;
+  --chart-5: #f43f5e;
+  --chart-6: #14b8a6;
+  --chart-grid: #efebf7;
+  --chart-axis: #cfc7e2;
+  --chart-label: #7c7690;
+  --chart-guide: #8b6ce8;
+  --chart-band: rgba(139, 108, 232, 0.1);
+  --chart-alarm: #f43f5e;
+  --chart-surface: #ffffff;
+
+  /* ── glass header ──────────────────────────────────────────────── */
+  --header-bg: rgb(250 250 253 / 90%);
+  --header-border: #e8e4f2;
+  --overlay: rgb(29 25 43 / 38%);
+
+  /* ── type ──────────────────────────────────────────────────────── */
+  --sans: system-ui, -apple-system, BlinkMacSystemFont, 'Pretendard', 'Segoe UI', Roboto,
+    'Apple SD Gothic Neo', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* ── geometry & depth ──────────────────────────────────────────── */
+  --radius-xs: 5px;
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgb(29 25 43 / 5%);
+  --shadow-card: 0 1px 2px rgb(29 25 43 / 4%), 0 8px 22px rgb(29 25 43 / 5%);
+  --shadow-float: 0 18px 44px rgb(29 25 43 / 10%);
+  --shadow-modal: 0 28px 70px rgb(29 25 43 / 20%);
+
+  --focus-ring: 0 0 0 3px rgb(139 108 232 / 28%);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --background: #0b1020;
+  --surface: #12192e;
+  --surface-2: #1a2340;
+  --panel-raised: #1a2340;
+  --surface-sunken: #0e1528;
+  --border: #253154;
+  --border-soft: #1e2947;
+  --line-strong: #344472;
+
+  --text: #eef2ff;
+  --text-body: #c6d0e9;
+  --muted: #94a3c4;
+  --text-secondary: #8494b6;
+
+  --accent: #a78bfa;
+  --accent-hover: #c4b5fd;
+  --accent-text: #c4b5fd;
+  --accent-soft: rgb(167 139 250 / 14%);
+  --on-accent: #160f2b;
+
+  --ok: #6ee7a8;
+  --ok-soft: rgb(110 231 168 / 12%);
+  --warn: #f0c069;
+  --warn-soft: rgb(240 192 105 / 12%);
+  --danger: #fb7185;
+  --danger-soft: rgb(251 113 133 / 14%);
+  --info: #93c5fd;
+  --info-soft: rgb(147 197 253 / 14%);
+
+  --chart-1: #a78bfa;
+  --chart-2: #6ee7a8;
+  --chart-3: #93c5fd;
+  --chart-4: #f0c069;
+  --chart-5: #fb7185;
+  --chart-6: #5eead4;
+  --chart-grid: rgb(148 163 196 / 14%);
+  --chart-axis: rgb(148 163 196 / 38%);
+  --chart-label: #94a3c4;
+  --chart-guide: #a78bfa;
+  --chart-band: rgb(167 139 250 / 14%);
+  --chart-alarm: #fb7185;
+  --chart-surface: #12192e;
+
+  --header-bg: rgb(11 16 32 / 90%);
+  --header-border: #253154;
+  --overlay: rgb(3 6 16 / 62%);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 22px rgb(0 0 0 / 26%);
+  --shadow-float: 0 18px 44px rgb(0 0 0 / 45%);
+  --shadow-modal: 0 28px 70px rgb(0 0 0 / 60%);
+
+  --focus-ring: 0 0 0 3px rgb(167 139 250 / 32%);
+}

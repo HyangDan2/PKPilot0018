@@ -1,0 +1,574 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Sigrún — statistical engine
+   Descriptive statistics, Anderson–Darling normality, t-tests, one-way
+   ANOVA with Tukey HSD, and ordinary least squares regression with VIF.
+   ───────────────────────────────────────────────────────────────────────── */
+
+import { fCdf, normalCdf, normalInv, rangeCdf, rangeInv, tCdf, tInv } from './dist';
+
+export type Alt = 'two-sided' | 'less' | 'greater';
+
+export function clean(values: (number | null)[]): number[] {
+  return values.filter((v): v is number => typeof v === 'number' && isFinite(v));
+}
+
+export function mean(v: number[]): number {
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN;
+}
+
+export function variance(v: number[]): number {
+  if (v.length < 2) return NaN;
+  const m = mean(v);
+  return v.reduce((a, b) => a + (b - m) ** 2, 0) / (v.length - 1);
+}
+
+export function stdev(v: number[]): number {
+  return Math.sqrt(variance(v));
+}
+
+/** Type-6 (Minitab / Excel R-7 style) quantile of an ascending array. */
+export function quantile(sorted: number[], p: number): number {
+  const n = sorted.length;
+  if (!n) return NaN;
+  if (n === 1) return sorted[0];
+  const h = (n + 1) * p;
+  if (h <= 1) return sorted[0];
+  if (h >= n) return sorted[n - 1];
+  const lo = Math.floor(h);
+  const frac = h - lo;
+  return sorted[lo - 1] + frac * (sorted[lo] - sorted[lo - 1]);
+}
+
+export interface Summary {
+  n: number;
+  nStar: number;
+  sum: number;
+  mean: number;
+  seMean: number;
+  stdev: number;
+  variance: number;
+  coefVar: number;
+  min: number;
+  q1: number;
+  median: number;
+  q3: number;
+  max: number;
+  iqr: number;
+  range: number;
+  skewness: number;
+  kurtosis: number;
+  sorted: number[];
+}
+
+export function summarize(raw: (number | null)[]): Summary {
+  const v = clean(raw);
+  const n = v.length;
+  const sorted = [...v].sort((a, b) => a - b);
+  const m = n ? mean(v) : NaN;
+  const s = n > 1 ? stdev(v) : NaN;
+  const q1 = quantile(sorted, 0.25);
+  const q3 = quantile(sorted, 0.75);
+  let skewness = NaN;
+  let kurtosis = NaN;
+  if (n > 2 && s > 0) {
+    const m3 = v.reduce((a, b) => a + ((b - m) / s) ** 3, 0);
+    skewness = (n / ((n - 1) * (n - 2))) * m3;
+  }
+  if (n > 3 && s > 0) {
+    const m4 = v.reduce((a, b) => a + ((b - m) / s) ** 4, 0);
+    kurtosis = ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * m4 - (3 * (n - 1) ** 2) / ((n - 2) * (n - 3));
+  }
+  return {
+    n,
+    nStar: raw.length - n,
+    sum: n ? v.reduce((a, b) => a + b, 0) : NaN,
+    mean: m,
+    seMean: n > 1 ? s / Math.sqrt(n) : NaN,
+    stdev: s,
+    variance: n > 1 ? s * s : NaN,
+    coefVar: n > 1 && m !== 0 ? (s / Math.abs(m)) * 100 : NaN,
+    min: n ? sorted[0] : NaN,
+    q1,
+    median: quantile(sorted, 0.5),
+    q3,
+    max: n ? sorted[n - 1] : NaN,
+    iqr: n ? q3 - q1 : NaN,
+    range: n ? sorted[n - 1] - sorted[0] : NaN,
+    skewness,
+    kurtosis,
+    sorted,
+  };
+}
+
+/** Two-sided p-value helper for a symmetric statistic distribution. */
+function pFromCdf(stat: number, cdf: (t: number) => number, alt: Alt): number {
+  if (alt === 'less') return Math.min(1, Math.max(0, cdf(stat)));
+  if (alt === 'greater') return Math.min(1, Math.max(0, 1 - cdf(stat)));
+  const p = cdf(-Math.abs(stat));
+  return Math.min(1, Math.max(0, 2 * p));
+}
+
+/* ── Anderson–Darling normality ───────────────────────────────────────── */
+
+export interface ADResult {
+  n: number;
+  mean: number;
+  sd: number;
+  ad: number;
+  adAdj: number;
+  p: number;
+  sorted: number[];
+  cdf: (x: number) => number;
+}
+
+export function adNormality(raw: (number | null)[]): ADResult {
+  const v = clean(raw);
+  const n = v.length;
+  const m = mean(v);
+  const s = stdev(v);
+  const sorted = [...v].sort((a, b) => a - b);
+  let sum = 0;
+  for (let i = 1; i <= n; i += 1) {
+    const hi = Math.min(1 - 1e-12, Math.max(1e-12, normalCdf(sorted[i - 1], m, s)));
+    const lo = Math.min(1 - 1e-12, Math.max(1e-12, normalCdf(sorted[n - i], m, s)));
+    sum += (2 * i - 1) * (Math.log(hi) + Math.log(1 - lo));
+  }
+  const a2 = -n - sum / n;
+  const adj = a2 * (1 + 0.75 / n + 2.25 / (n * n));
+  let p: number;
+  if (adj < 0.2) p = 1 - Math.exp(-13.436 + 101.14 * adj - 7.246 * adj * adj);
+  else if (adj < 0.34) p = 1 - Math.exp(-8.318 + 42.796 * adj - 59.938 * adj * adj);
+  else if (adj < 0.6) p = Math.exp(0.9177 - 4.279 * adj - 1.38 * adj * adj);
+  else p = Math.exp(1.2937 - 5.709 * adj + 0.0186 * adj * adj);
+  p = Math.min(1, Math.max(0, p));
+  return { n, mean: m, sd: s, ad: a2, adAdj: adj, p, sorted, cdf: (x: number) => normalCdf(x, m, s) };
+}
+
+/* ── t tests ──────────────────────────────────────────────────────────── */
+
+export interface TTestResult {
+  test: '1-sample' | '2-sample' | 'paired';
+  mu0?: number;
+  mean: number;
+  meanB?: number;
+  difference: number;
+  se: number;
+  df: number;
+  t: number;
+  p: number;
+  ci: [number, number];
+  conf: number;
+  alt: Alt;
+  n: number;
+  nB?: number;
+  stdev: number;
+  stdevB?: number;
+  method?: 'welch' | 'pooled';
+  varianceTest?: { f: number; p: number; df1: number; df2: number };
+}
+
+function ciMean(est: number, se: number, df: number, conf: number, alt: Alt): [number, number] {
+  const alpha = 1 - conf;
+  if (alt === 'two-sided') {
+    const t = tInv(1 - alpha / 2, df);
+    return [est - t * se, est + t * se];
+  }
+  const t = tInv(1 - alpha, df);
+  return alt === 'less' ? [-Infinity, est + t * se] : [est - t * se, Infinity];
+}
+
+export function tTest1(raw: (number | null)[], mu0 = 0, conf = 0.95, alt: Alt = 'two-sided'): TTestResult {
+  const v = clean(raw);
+  const n = v.length;
+  const m = mean(v);
+  const s = stdev(v);
+  const se = s / Math.sqrt(n);
+  const t = (m - mu0) / se;
+  return {
+    test: '1-sample',
+    mu0,
+    mean: m,
+    difference: m - mu0,
+    se,
+    df: n - 1,
+    t,
+    p: pFromCdf(t, (x) => tCdf(x, n - 1), alt),
+    ci: ciMean(m, se, n - 1, conf, alt),
+    conf,
+    alt,
+    n,
+    stdev: s,
+  };
+}
+
+export function tTest2(
+  rawA: (number | null)[],
+  rawB: (number | null)[],
+  options: { welch?: boolean; conf?: number; alt?: Alt } = {},
+): TTestResult {
+  const welch = options.welch ?? true;
+  const conf = options.conf ?? 0.95;
+  const alt = options.alt ?? 'two-sided';
+  const a = clean(rawA);
+  const b = clean(rawB);
+  const n1 = a.length;
+  const n2 = b.length;
+  const ma = mean(a);
+  const mb = mean(b);
+  const va = variance(a);
+  const vb = variance(b);
+  const diff = ma - mb;
+  let se: number;
+  let df: number;
+  if (welch) {
+    const s1 = va / n1;
+    const s2 = vb / n2;
+    se = Math.sqrt(s1 + s2);
+    df = (se ** 4) / (s1 ** 2 / (n1 - 1) + s2 ** 2 / (n2 - 1));
+  } else {
+    const sp2 = ((n1 - 1) * va + (n2 - 1) * vb) / (n1 + n2 - 2);
+    se = Math.sqrt(sp2 * (1 / n1 + 1 / n2));
+    df = n1 + n2 - 2;
+  }
+  const t = diff / se;
+  const f = va / vb;
+  const pf = fCdf(f, n1 - 1, n2 - 1);
+  return {
+    test: '2-sample',
+    mean: ma,
+    meanB: mb,
+    difference: diff,
+    se,
+    df,
+    t,
+    p: pFromCdf(t, (x) => tCdf(x, df), alt),
+    ci: ciMean(diff, se, df, conf, alt),
+    conf,
+    alt,
+    n: n1,
+    nB: n2,
+    stdev: Math.sqrt(va),
+    stdevB: Math.sqrt(vb),
+    method: welch ? 'welch' : 'pooled',
+    varianceTest: { f, p: Math.min(1, 2 * Math.min(pf, 1 - pf)), df1: n1 - 1, df2: n2 - 1 },
+  };
+}
+
+export function pairedT(rawA: (number | null)[], rawB: (number | null)[], conf = 0.95, alt: Alt = 'two-sided'): TTestResult {
+  const len = Math.min(rawA.length, rawB.length);
+  const diffs: number[] = [];
+  for (let i = 0; i < len; i += 1) {
+    const a = rawA[i];
+    const b = rawB[i];
+    if (typeof a === 'number' && typeof b === 'number' && isFinite(a) && isFinite(b)) diffs.push(a - b);
+  }
+  const n = diffs.length;
+  const m = mean(diffs);
+  const s = stdev(diffs);
+  const se = s / Math.sqrt(n);
+  const t = m / se;
+  return {
+    test: 'paired',
+    mean: mean(clean(rawA)),
+    meanB: mean(clean(rawB)),
+    difference: m,
+    se,
+    df: n - 1,
+    t,
+    p: pFromCdf(t, (x) => tCdf(x, n - 1), alt),
+    ci: ciMean(m, se, n - 1, conf, alt),
+    conf,
+    alt,
+    n,
+    nB: n,
+    stdev: s,
+    stdevB: stdev(diffs),
+  };
+}
+
+/* ── one-way ANOVA + Tukey ────────────────────────────────────────────── */
+
+export interface Group {
+  label: string;
+  values: number[];
+}
+
+export interface AnovaTable {
+  dfBetween: number;
+  dfWithin: number;
+  ssBetween: number;
+  ssWithin: number;
+  msBetween: number;
+  msWithin: number;
+  f: number;
+  p: number;
+  groups: Group[];
+  /** pooled within-group standard deviation */
+  sPooled: number;
+}
+
+export function anovaOneWay(groups: Group[]): AnovaTable {
+  const k = groups.length;
+  const all = groups.flatMap((g) => g.values);
+  const nTotal = all.length;
+  const grand = mean(all);
+  let ssBetween = 0;
+  let ssWithin = 0;
+  groups.forEach((g) => {
+    const m = mean(g.values);
+    ssBetween += g.values.length * (m - grand) ** 2;
+    ssWithin += g.values.reduce((a, b) => a + (b - m) ** 2, 0);
+  });
+  const dfBetween = k - 1;
+  const dfWithin = nTotal - k;
+  const msBetween = ssBetween / dfBetween;
+  const msWithin = ssWithin / dfWithin;
+  const f = msBetween / msWithin;
+  return {
+    dfBetween,
+    dfWithin,
+    ssBetween,
+    ssWithin,
+    msBetween,
+    msWithin,
+    f,
+    p: 1 - fCdf(f, dfBetween, dfWithin),
+    groups,
+    sPooled: Math.sqrt(msWithin),
+  };
+}
+
+export interface TukeyPair {
+  a: string;
+  b: string;
+  diff: number;
+  se: number;
+  ciLow: number;
+  ciHigh: number;
+  p: number;
+  significant: boolean;
+}
+
+export interface TukeyResult {
+  q: number;
+  pairs: TukeyPair[];
+  letters: { label: string; mean: number; letter: string }[];
+}
+
+export function tukeyHSD(table: AnovaTable, conf = 0.95): TukeyResult {
+  const k = table.groups.length;
+  const q = rangeInv(conf, k, table.dfWithin);
+  const pairs: TukeyPair[] = [];
+  for (let i = 0; i < k; i += 1) {
+    for (let j = i + 1; j < k; j += 1) {
+      const gi = table.groups[i];
+      const gj = table.groups[j];
+      const diff = mean(gi.values) - mean(gj.values);
+      const se = Math.sqrt(table.msWithin * (1 / gi.values.length + 1 / gj.values.length));
+      const half = (q / Math.SQRT2) * se;
+      const p = 1 - rangeCdf(Math.SQRT2 * Math.abs(diff) / se, k, table.dfWithin);
+      pairs.push({
+        a: gi.label,
+        b: gj.label,
+        diff,
+        se,
+        ciLow: diff - half,
+        ciHigh: diff + half,
+        p: Math.min(1, Math.max(0, p)),
+        significant: Math.abs(diff) > half,
+      });
+    }
+  }
+  return { q, pairs, letters: groupingLetters(table, conf) };
+}
+
+/** Compact-letter display: means sharing a letter are not significantly different. */
+export function groupingLetters(table: AnovaTable, conf = 0.95): { label: string; mean: number; letter: string }[] {
+  const k = table.groups.length;
+  const q = rangeInv(conf, k, table.dfWithin);
+  const items = table.groups
+    .map((g) => ({ label: g.label, mean: mean(g.values), n: g.values.length }))
+    .sort((a, b) => b.mean - a.mean);
+  const same = (i: number, j: number): boolean => {
+    const a = items[i];
+    const b = items[j];
+    const se = Math.sqrt(table.msWithin * (1 / a.n + 1 / b.n));
+    return Math.abs(a.mean - b.mean) <= (q / Math.SQRT2) * se;
+  };
+  const buckets: number[][] = [];
+  items.forEach((_, idx) => {
+    let placed = false;
+    for (const bucket of buckets) {
+      if (bucket.every((member) => same(member, idx))) {
+        bucket.push(idx);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) buckets.push([idx]);
+  });
+  const letters = new Array<string>(items.length).fill('');
+  buckets.forEach((bucket, bi) => {
+    const letter = String.fromCharCode(65 + bi);
+    bucket.forEach((idx) => {
+      letters[idx] += letter;
+    });
+  });
+  return items.map((item, idx) => ({ label: item.label, mean: item.mean, letter: letters[idx] }));
+}
+
+/* ── ordinary least squares regression ────────────────────────────────── */
+
+export interface RegressionCoefficient {
+  term: string;
+  coef: number;
+  se: number;
+  t: number;
+  p: number;
+  vif: number;
+}
+
+export interface RegressionResult {
+  coefficients: RegressionCoefficient[];
+  anova: { dfReg: number; dfErr: number; ssReg: number; ssErr: number; ssTotal: number; msReg: number; msErr: number; f: number; p: number };
+  r2: number;
+  r2adj: number;
+  r2pred: number;
+  s: number;
+  n: number;
+  residuals: number[];
+  fits: number[];
+  order: number[];
+  yName: string;
+  xNames: string[];
+}
+
+function solve(A: number[][], b: number[]): number[] {
+  const n = A.length;
+  const M = A.map((row, i) => [...row, b[i]]);
+  for (let col = 0; col < n; col += 1) {
+    let pivot = col;
+    for (let r = col + 1; r < n; r += 1) if (Math.abs(M[r][col]) > Math.abs(M[pivot][col])) pivot = r;
+    if (Math.abs(M[pivot][col]) < 1e-12) throw new Error('singular-matrix');
+    [M[col], M[pivot]] = [M[pivot], M[col]];
+    for (let r = col + 1; r < n; r += 1) {
+      const factor = M[r][col] / M[col][col];
+      for (let c = col; c <= n; c += 1) M[r][c] -= factor * M[col][c];
+    }
+  }
+  const x = new Array<number>(n).fill(0);
+  for (let r = n - 1; r >= 0; r -= 1) {
+    let sum = M[r][n];
+    for (let c = r + 1; c < n; c += 1) sum -= M[r][c] * x[c];
+    x[r] = sum / M[r][r];
+  }
+  return x;
+}
+
+function invert(A: number[][]): number[][] {
+  const n = A.length;
+  const cols: number[][] = [];
+  for (let j = 0; j < n; j += 1) {
+    const e = new Array<number>(n).fill(0);
+    e[j] = 1;
+    cols.push(solve(A, e));
+  }
+  return A.map((_, i) => cols.map((col) => col[i]));
+}
+
+export function regress(
+  yRaw: (number | null)[],
+  predictors: { name: string; values: (number | null)[] }[],
+  yName = 'Y',
+): RegressionResult {
+  const rows: { y: number; x: number[] }[] = [];
+  for (let i = 0; i < yRaw.length; i += 1) {
+    const y = yRaw[i];
+    if (typeof y !== 'number' || !isFinite(y)) continue;
+    const xs: number[] = [];
+    let ok = true;
+    for (const p of predictors) {
+      const v = p.values[i];
+      if (typeof v !== 'number' || !isFinite(v)) { ok = false; break; }
+      xs.push(v);
+    }
+    if (ok) rows.push({ y, x: xs });
+  }
+  const n = rows.length;
+  const k = predictors.length;
+  if (n <= k + 1) throw new Error('not-enough-data');
+  const X = rows.map((r) => [1, ...r.x]);
+  const ys = rows.map((r) => r.y);
+  const p = k + 1;
+  const xtx: number[][] = Array.from({ length: p }, () => new Array<number>(p).fill(0));
+  const xty: number[] = new Array<number>(p).fill(0);
+  for (let r = 0; r < n; r += 1) {
+    for (let i = 0; i < p; i += 1) {
+      xty[i] += X[r][i] * ys[r];
+      for (let j = 0; j < p; j += 1) xtx[i][j] += X[r][i] * X[r][j];
+    }
+  }
+  const beta = solve(xtx, xty);
+  const inv = invert(xtx);
+  const fits = X.map((row) => row.reduce((a, b, i) => a + b * beta[i], 0));
+  const residuals = ys.map((y, i) => y - fits[i]);
+  const ybar = mean(ys);
+  const ssTotal = ys.reduce((a, y) => a + (y - ybar) ** 2, 0);
+  const ssErr = residuals.reduce((a, r) => a + r * r, 0);
+  const ssReg = ssTotal - ssErr;
+  const dfReg = k;
+  const dfErr = n - p;
+  const msErr = ssErr / dfErr;
+  const msReg = ssReg / dfReg;
+  const f = msReg / msErr;
+  const r2 = ssTotal > 0 ? ssReg / ssTotal : 0;
+  const r2adj = 1 - (1 - r2) * ((n - 1) / dfErr);
+  // predicted R² using PRESS
+  let press = 0;
+  for (let i = 0; i < n; i += 1) {
+    const h = X[i].reduce((a, xi, a1) => a + xi * X[i].reduce((b, xj, b1) => b + xj * inv[a1][b1], 0), 0);
+    const e = residuals[i] / Math.max(1e-9, 1 - h);
+    press += e * e;
+  }
+  const r2pred = ssTotal > 0 ? 1 - press / ssTotal : 0;
+  const s = Math.sqrt(msErr);
+  const coefficients: RegressionCoefficient[] = [
+    { term: 'Constant', coef: beta[0], se: Math.sqrt(msErr * inv[0][0]), t: beta[0] / Math.sqrt(msErr * inv[0][0]), p: 0, vif: NaN },
+  ];
+  // VIF per predictor
+  const vifs: number[] = [];
+  for (let j = 0; j < k; j += 1) {
+    if (k === 1) { vifs.push(1); continue; }
+    const others = predictors.filter((_, idx) => idx !== j).map((pr) => ({ name: pr.name, values: pr.values }));
+    const sub = regress(predictors[j].values, others, predictors[j].name);
+    vifs.push(1 / Math.max(1e-9, 1 - sub.r2));
+  }
+  for (let j = 0; j < k; j += 1) {
+    const se = Math.sqrt(msErr * inv[j + 1][j + 1]);
+    const coef = beta[j + 1];
+    const t = coef / se;
+    coefficients.push({ term: predictors[j].name, coef, se, t, p: 2 * (1 - tCdf(Math.abs(t), dfErr)), vif: vifs[j] });
+  }
+  coefficients[0].p = 2 * (1 - tCdf(Math.abs(coefficients[0].t), dfErr));
+  return {
+    coefficients,
+    anova: { dfReg, dfErr, ssReg, ssErr, ssTotal, msReg, msErr, f, p: 1 - fCdf(f, dfReg, dfErr) },
+    r2,
+    r2adj,
+    r2pred,
+    s,
+    n,
+    residuals,
+    fits,
+    order: residuals.map((_, i) => i + 1),
+    yName,
+    xNames: predictors.map((pr) => pr.name),
+  };
+}
+
+/** Two-sided normal-plot positions (Blom) used for residual probability plots. */
+export function normalScores(n: number): number[] {
+  const out: number[] = [];
+  for (let i = 1; i <= n; i += 1) out.push(normalInv((i - 0.375) / (n + 0.25)));
+  return out;
+}
