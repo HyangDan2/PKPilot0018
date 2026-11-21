@@ -190,7 +190,7 @@ function runDescriptive(ctx: RunContext): RunResult {
   const by = byCols.map((c) => c.name || c.id).join(', ');
   return {
     subtitle: by ? t(lang, 'res.descriptiveBy', { vars, by }) : t(lang, 'res.descriptive', { vars }),
-    blocks: [{ type: 'table', headers, rows, align: ['l', ...byCols.map(() => 'l' as const), ...Array(14).fill('r')] }],
+    blocks: [{ type: 'table', headers, rows, align: ['l', ...byCols.map(() => 'l' as const), ...Array(15).fill('r')] }],
   };
 }
 

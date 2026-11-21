@@ -460,6 +460,7 @@ export default function App() {
   /* ── drag splitters ────────────────────────────────────────────────── */
 
   const beginNavDrag = (event: React.PointerEvent) => {
+    (event.currentTarget as HTMLElement).focus();
     event.preventDefault();
     const startX = event.clientX;
     const startW = navW;
@@ -475,6 +476,7 @@ export default function App() {
   };
 
   const beginOutputDrag = (event: React.PointerEvent) => {
+    (event.currentTarget as HTMLElement).focus();
     event.preventDefault();
     const container = (event.currentTarget as HTMLElement).parentElement;
     if (!container) return;
