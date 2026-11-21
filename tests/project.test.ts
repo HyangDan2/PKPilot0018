@@ -54,8 +54,9 @@ describe('project files', () => {
   });
 
   it('names saved projects with the dedicated .sigrun.json extension', () => {
-    expect(projectFileName(new Date('2026-11-22T05:00:00Z'))).toBe('sigrun-2026-11-22.sigrun.json');
-    expect(projectFileName(new Date('2026-01-02T05:00:00Z')).endsWith('.sigrun.json')).toBe(true);
+    expect(projectFileName(new Date(2026, 10, 22, 8, 0))).toBe('sigrun-2026-11-22.sigrun.json');
+    expect(projectFileName(new Date(2026, 0, 2, 23, 30))).toBe('sigrun-2026-01-02.sigrun.json');
+    expect(projectFileName().endsWith('.sigrun.json')).toBe(true);
   });
 
   it('still offers legacy .mpx.json files in the picker next to the new extension', () => {

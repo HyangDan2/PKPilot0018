@@ -32,7 +32,12 @@ export function serializeProject(state: ProjectState): string {
 }
 
 export function projectFileName(date = new Date()): string {
-  return `sigrun-${date.toISOString().slice(0, 10)}.sigrun.json`;
+  // The file name follows the user's own calendar day, not UTC: at 08:00 in
+  // Seoul a UTC stamp would still name yesterday's project.
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `sigrun-${y}-${m}-${d}.sigrun.json`;
 }
 
 /** The picker accepts new, legacy and plain JSON projects, plus a native .mpx
