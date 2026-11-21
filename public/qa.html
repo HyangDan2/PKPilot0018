@@ -17,6 +17,7 @@
     var f = document.querySelector('iframe');
     f.style.width = (parseInt(p.get('w'), 10) || 1440) + 'px';
     f.style.height = (parseInt(p.get('h'), 10) || 900) + 'px';
+    f.src = './index.html?qa=' + Date.now();
   </script>
 </body>
 </html>
