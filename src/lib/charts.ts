@@ -498,8 +498,8 @@ function drawCapability(spec: Extract<ChartSpec, { kind: 'capability' }>): strin
   const stats = [
     `Cp ${fmt(r.cp, 3)}`, `Cpk ${fmt(r.cpk, 3)}`, `Pp ${fmt(r.pp, 3)}`, `Ppk ${fmt(r.ppk, 3)}`, `Cpm ${fmt(r.cpm, 3)}`, `PPM ${fmt(r.ppmOverall, 0)}`,
   ];
-  g += `<text x="${box.x}" y="${box.y + box.h + 34}" font-family="${MONO}" font-size="9" fill="${C.label}">${esc(stats.join('   '))}</text>`;
-  g += `<text x="${box.x}" y="${box.y + box.h + 46}" font-family="${MONO}" font-size="9" fill="${C.label}">Within \u03c3 ${fmt(r.sdWithin, 4)}   Overall \u03c3 ${fmt(r.sdOverall, 4)}   n ${r.n}</text>`;
+  g += `<text x="${box.x}" y="${box.y + box.h + 46}" font-family="${MONO}" font-size="9" fill="${C.label}">${esc(stats.join('   '))}</text>`;
+  g += `<text x="${box.x}" y="${box.y + box.h + 58}" font-family="${MONO}" font-size="9" fill="${C.label}">Within \u03c3 ${fmt(r.sdWithin, 4)}   Overall \u03c3 ${fmt(r.sdOverall, 4)}   n ${r.n}</text>`;
   return open(W, h, 'Process capability') + g + '</svg>';
 }
 

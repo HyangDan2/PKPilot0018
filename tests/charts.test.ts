@@ -182,6 +182,20 @@ describe('process capability plot', () => {
     expect(svg).toMatch(/μ 10\./);
   });
 
+  it('keeps the capability statistics clear of the x-axis label', () => {
+    const result = capability(values, { lsl: 9.4, usl: 10.8, target: 10.1 });
+    const svg = renderChart({ kind: 'capability', result, xLabel: 'Thickness' });
+    const texts = [...svg.matchAll(/<text x="([\d.]+)" y="([\d.]+)"[^>]*>([^<]*)<\/text>/g)]
+      .map((m) => ({ x: Number(m[1]), y: Number(m[2]), text: m[3] }));
+    const label = texts.find((t) => t.text === 'Thickness');
+    const stats = texts.find((t) => t.text.includes('Cp ') && t.text.includes('Cpk '));
+    expect(label).toBeTruthy();
+    expect(stats).toBeTruthy();
+    expect(stats!.y - label!.y).toBeGreaterThanOrEqual(12);
+    const height = Number(/viewBox="0 0 [\d.]+ ([\d.]+)"/.exec(svg)![1]);
+    texts.forEach((t) => expect(t.y).toBeLessThanOrEqual(height - 6));
+  });
+
   it('draws its bars between the real bin boundaries', () => {
     const data = normalSample(400, 10, 0.2);
     const result = capability(data, { lsl: 9, usl: 11 });
