@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderChart } from '../src/lib/charts';
+import { renderChart, ticks } from '../src/lib/charts';
 import { capability } from '../src/lib/capability';
 import { imrChart } from '../src/lib/spc';
 import type { ChartSpec } from '../src/types';
@@ -38,6 +38,15 @@ describe('SVG chart renderers', () => {
     expect(svg).not.toContain('NaN');
     expect(svg).not.toContain('undefined');
     expect((svg.match(/<svg/g) ?? []).length).toBe(1);
+  });
+
+  it('brackets every domain so spec limits stay inside the plot', () => {
+    const cases: [number, number][] = [[9.487, 10.916], [0, 0.7555], [-12.4, 3.2], [0.001, 0.999]];
+    cases.forEach(([min, max]) => {
+      const t = ticks(min, max, 5);
+      expect(t[0]).toBeLessThanOrEqual(min + 1e-9);
+      expect(t[t.length - 1]).toBeGreaterThanOrEqual(max - 1e-9);
+    });
   });
 
   it('marks out-of-control points with the rule number', () => {

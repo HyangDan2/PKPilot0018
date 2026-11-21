@@ -43,10 +43,13 @@ export function ticks(min: number, max: number, count = 5): number[] {
   if (!isFinite(min) || !isFinite(max)) return [0];
   if (min === max) { min -= 0.5; max += 0.5; }
   const step = niceStep((max - min) / count);
-  const start = Math.ceil(min / step) * step;
+  // Bracket the domain: the first and last tick must sit outside [min, max] so
+  // every plotted value (spec limits included) stays inside the plot area.
+  const start = Math.floor(min / step + 1e-9) * step;
+  const end = Math.ceil(max / step - 1e-9) * step;
   const out: number[] = [];
-  for (let v = start; v <= max + step * 1e-6; v += step) out.push(Math.abs(v) < step * 1e-6 ? 0 : v);
-  return out.length ? out : [min, max];
+  for (let v = start; v <= end + step * 1e-6; v += step) out.push(Math.abs(v) < step * 1e-6 ? 0 : Number(v.toFixed(10)));
+  return out.length > 1 ? out : [min, max];
 }
 
 function tickLabel(v: number, step: number): string {
