@@ -954,7 +954,8 @@ kbd {
 
 @media (max-width: 1023px) {
   body { overflow: auto; }
-  .app { grid-template-rows: auto auto auto minmax(0, 1fr) auto; height: 100dvh; }
+  /* header · menubar · toolbar · mobile tabs · workspace · status */
+  .app { grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; height: 100dvh; }
   .app-header { height: 50px; padding: 0 12px; }
   .brand-name { font-size: 15px; }
   .brand-app { font-size: 13.5px; }
