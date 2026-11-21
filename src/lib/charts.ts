@@ -9,7 +9,7 @@ import { normalInv, normalPdf } from './dist';
 import { mean, stdev } from './stats';
 import { fmt } from './format';
 
-const W = 560;
+let W = 560;
 const FS = 10.5;
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
@@ -481,7 +481,8 @@ function drawInterval(spec: Extract<ChartSpec, { kind: 'interval' }>): string {
   return open(W, h, 'Interval plot') + g + '</svg>';
 }
 
-export function renderChart(spec: ChartSpec): string {
+export function renderChart(spec: ChartSpec, width?: number): string {
+  W = width && width > 260 ? width : 560;
   switch (spec.kind) {
     case 'histogram': return drawHistogram(spec);
     case 'boxplot': return drawBoxplot(spec);

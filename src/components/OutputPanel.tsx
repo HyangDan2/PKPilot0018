@@ -165,6 +165,7 @@ export function OutputPanel({ lang, outputs, focusedOutput, onFocus, onDelete, o
 }
 
 function BlockView({ block, lang }: { block: Block; lang: Lang }) {
+  const compact = typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
   if (block.type === 'text') {
     return (
       <div className="out-text">
@@ -178,7 +179,7 @@ function BlockView({ block, lang }: { block: Block; lang: Lang }) {
     return (
       <div className="chart-card">
         {block.caption && <h5>{resolveLabel(lang, block.caption)}</h5>}
-        <div dangerouslySetInnerHTML={{ __html: renderChart(block.chart) }} />
+        <div dangerouslySetInnerHTML={{ __html: renderChart(block.chart, compact ? 380 : undefined) }} />
       </div>
     );
   }
@@ -188,7 +189,7 @@ function BlockView({ block, lang }: { block: Block; lang: Lang }) {
         {block.charts.map((item, i) => (
           <div className="chart-card" key={i}>
             <h5>{resolveLabel(lang, item.title)}</h5>
-            <div dangerouslySetInnerHTML={{ __html: renderChart(item.chart) }} />
+            <div dangerouslySetInnerHTML={{ __html: renderChart(item.chart, compact ? 380 : undefined) }} />
           </div>
         ))}
       </div>

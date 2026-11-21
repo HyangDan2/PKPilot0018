@@ -998,8 +998,6 @@ kbd {
   .output-panel, .worksheet-panel { height: 100%; flex: 1 1 auto; }
   .output-scroll { padding: 10px 10px 24px; }
   .chart-grid { grid-template-columns: minmax(0, 1fr); }
-  .chart-card { overflow-x: auto; }
-  .chart-card .chart-svg { min-width: 460px; }
   .dlg-grid { grid-template-columns: minmax(0, 1fr); }
   .var-list { max-height: 132px; min-height: 96px; }
   .modal { max-height: 92dvh; }
