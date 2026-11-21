@@ -343,8 +343,8 @@ a { color: inherit; }
   background: var(--surface-2);
 }
 
-.output-panel { flex: 1 1 auto; height: var(--output-h, 52%); }
-.worksheet-panel { flex: 1 1 auto; }
+.output-panel { flex: 0 0 var(--output-h, 52%); min-height: 0; }
+.worksheet-panel { flex: 1 1 auto; min-height: 0; }
 
 .output-scroll {
   flex: 1 1 auto;
