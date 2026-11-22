@@ -5,6 +5,8 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 **Live:** https://hyangdan2.github.io/PKPilot0018/
 
+**Correctness review:** [docs/CODE_REVIEW_REMEDIATION_REPORT.md](docs/CODE_REVIEW_REMEDIATION_REPORT.md) — P0/P1/GLM-DOE-RSM fixes with their SciPy/statsmodels references and the QA-01…QA-15 matrix.
+
 ## What is inside
 
 | Area | Capability |

@@ -349,3 +349,93 @@ describe('worksheet transforms', () => {
     expect(z.reduce((a, b) => a + b, 0)).toBeCloseTo(0, 8);
   });
 });
+
+/* ── review fixes as they appear in the rendered output (P0 / P1) ────── */
+
+function textOf(result: ReturnType<typeof run>): string {
+  return result.blocks
+    .filter((b): b is Extract<Block, { type: 'text' }> => b.type === 'text')
+    .map((b) => b.lines.join(' '))
+    .join(' | ');
+}
+
+describe('correctness-review output', () => {
+  it('Weibull shows the AD basis, the Kaplan–Meier check and the lognormal comparison', () => {
+    const rows = [42, 58, 71, 84, 96, 103, 118, 126, 141, 155, 168, 183, 197, 214, 236, 258, 281, 305, 342, 388, 120, 175, 240, 300, 360];
+    const sheet = makeWorksheet('Weib', [
+      { name: 'Time', type: 'numeric', values: rows },
+      { name: 'Censored', type: 'numeric', values: rows.map((_, i) => (i >= 20 ? 1 : 0)) },
+    ]);
+    const result = run('weibull', sheet, { time: 'C1', censor: 'C2', confidence: 95, censorCode: '1=censored' });
+    const [params, ad] = tables(result.blocks);
+    expect(params.title).toContain('95%');
+    // MTTF CI present at the analysed confidence level
+    const mttfRow = params.rows.find((r) => r[0] === 'MTTF');
+    expect(String(mttfRow?.[3])).toMatch(/\d/);
+    const labels = ad.rows.map((r) => String(r[0]));
+    expect(labels).toContain('AD evaluation');
+    expect(labels).toContain('KM max deviation');
+    expect(labels).toContain('AD*');
+    // censored AD is labelled as a failures-only evaluation with a caveat
+    expect(String(ad.rows[labels.indexOf('AD evaluation')][1])).toMatch(/failure times only/);
+    expect(String(ad.caption)).toMatch(/approximate|Kaplan/i);
+    const fitTable = tables(result.blocks).find((t) => t.title === '@res.lognormalFit');
+    expect(fitTable).toBeDefined();
+    expect(fitTable!.rows.map((r) => String(r[0]))).toEqual(expect.arrayContaining(['μ (ln)', 'σ (ln)', 'MTTF']));
+  });
+
+  it('Sixpack with subgroup 12 runs Xbar-S and says so', () => {
+    const values = Array.from({ length: 36 }, (_, i) => 10 + 0.1 * Math.sin(i / 2) + 0.05 * (i % 3));
+    const sheet = makeWorksheet('Six', [{ name: 'Value', type: 'numeric', values }]);
+    const result = run('sixpack', sheet, { variable: 'C1', subgroup: 12, lsl: '9.6', usl: '10.4', target: '' });
+    expect(textOf(result)).toMatch(/Xbar-S/);
+    const charts = result.blocks.filter((b) => b.type === 'chartgrid');
+    expect(charts.length).toBe(1);
+  });
+
+  it('non-normal capability reports the excluded non-positive values', () => {
+    const sheet = makeWorksheet('NonN', [{ name: 'Life', type: 'numeric', values: [0, -1, 42, 58, 71, 84, 96, 103, 118, 126, 141, 155] }]);
+    const result = run('capnonnormal', sheet, { variable: 'C1', distribution: 'weibull', lsl: '20', usl: '180', target: '' });
+    expect(textOf(result)).toMatch(/excluded/i);
+    const fitTable = tables(result.blocks)[0];
+    expect(fitTable.rows.map((r) => String(r[0]))).toContain('Excluded (≤ 0)');
+  });
+
+  it('Xbar-R explains the point-wise limits when a subgroup lost a value', () => {
+    const values: (number | null)[] = [10.1, 10.4, 9.9, null, 10.3, 10.0, 10.5, 10.1, 9.8, 10.2, 10.0, 10.3, 10.4, 10.1, 10.2, 10.6];
+    const sheet = makeWorksheet('XR', [{ name: 'Thickness', type: 'numeric', values }]);
+    const result = run('xbarr', sheet, { variable: 'C1', subgroup: 4 });
+    expect(textOf(result)).toMatch(/missing/i);
+    expect(textOf(result)).toMatch(/point by point|own valid/i);
+  });
+
+  it('paired t shows the observed mean difference and the tested μ₀ separately', () => {
+    const sheet = makeWorksheet('Pairs', [
+      { name: 'Before', type: 'numeric', values: [13, 15, 17, 19] },
+      { name: 'After', type: 'numeric', values: [10, 12, 14, 16] },
+    ]);
+    const result = run('paired', sheet, { first: 'C1', second: 'C2', testDiff: 3, confidence: 95, alternative: 'two-sided', chart: false });
+    const text = textOf(result);
+    expect(text).toContain('Mean difference: Before − After = 3');
+    expect(text).toContain('Test of μ_d: μ_d = 3');
+    const diffTable = tables(result.blocks)[1];
+    expect(diffTable.headers[1]).toBe('@th.meanDiff');
+    expect(diffTable.caption).toContain('μ₀ = 3');
+    expect(String(diffTable.rows[0][4])).toContain('3');
+  });
+
+  it('RSM warns when the stationary point lies outside the design region', () => {
+    const design: [number, number][] = [[-1, -1], [-1, 1], [1, -1], [1, 1], [1.414, 0], [-1.414, 0], [0, 1.414], [0, -1.414], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]];
+    const y = design.map(([a, b]) => 70 - 6 * a - 5 * b + 0.5 * a * a + 0.5 * b * b + 0.3 * a * b);
+    const sheet = makeWorksheet('RSM', [
+      { name: 'A', type: 'numeric', values: design.map((d) => d[0]) },
+      { name: 'B', type: 'numeric', values: design.map((d) => d[1]) },
+      { name: 'Y', type: 'numeric', values: y },
+    ]);
+    const result = run('rsmanalyze', sheet, { response: 'C3', factors: ['C1', 'C2'], confidence: 95 });
+    const stationary = tables(result.blocks).find((t) => t.title === '@res.stationary');
+    expect(stationary).toBeDefined();
+    expect(stationary?.caption).toMatch(/outside the experimental region/i);
+    expect(stationary!.rows.map((r) => String(r[0]))).toContain('Design region');
+  });
+});
