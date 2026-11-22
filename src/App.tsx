@@ -8,6 +8,7 @@ import { OutputPanel } from './components/OutputPanel';
 import { WorksheetGrid, type GridCell, type GridRange } from './components/WorksheetGrid';
 import { AnalysisDialog } from './components/AnalysisDialog';
 import { HelpModal } from './components/HelpModal';
+import { ImportDialog, type PreviewSheet } from './components/ImportDialog';
 import { ANALYSES, defaultValues as defaultDialogValues, findAnalysis, type AnalysisDef, type RunResult } from './lib/analyses';
 import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { loadAutosave, saveAutosave } from './lib/db';
@@ -29,7 +30,7 @@ import {
   serializeProject,
   worksheetToCsv,
 } from './lib/project';
-import { XLSX_ACCEPT, readXlsx, writeXlsx, xlsxFileName } from './lib/xlsx';
+import { XLSX_ACCEPT, readXlsxRows, workbookToWorksheets, writeXlsx, xlsxFileName } from './lib/xlsx';
 
 const SETTINGS_KEY = 'sigrun.settings.v1';
 const DEFAULT_NAV = 254;
@@ -118,6 +119,14 @@ export default function App() {
   const [dialog, setDialog] = useState<{ def: AnalysisDef; initial?: Record<string, unknown> } | null>(null);
   const [lastDialog, setLastDialog] = useState<{ analysisId: string; values: Record<string, unknown> } | null>(null);
   const [help, setHelp] = useState<'help' | 'about' | null>(null);
+  const [pendingImport, setPendingImport] = useState<null | {
+    kind: 'csv' | 'xlsx';
+    fileName: string;
+    name: string;
+    text?: string;
+    sheets: PreviewSheet[];
+    autoHeader: boolean;
+  }>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; draft: string } | null>(null);
   const [selection, setSelection] = useState<GridCell>({ row: 0, col: 0 });
   const [range, setRange] = useState<GridRange>({ r0: 0, c0: 0, r1: 0, c1: 0 });
@@ -584,8 +593,46 @@ export default function App() {
     if (!file) return;
     try {
       const text = await file.text();
-      const ws = csvToWorksheet(text, file.name.replace(/\.[^.]+$/, ''));
-      addSheet(ws);
+      const rows = parseCsv(text);
+      if (!rows.length) {
+        toast(t(lang, 'file.error'));
+        return;
+      }
+      // Never guess silently: the dialog shows the rows and asks about row 1.
+      setPendingImport({
+        kind: 'csv',
+        fileName: file.name,
+        text,
+        name: file.name.replace(/\.[^.]+$/, ''),
+        sheets: [{ name: file.name.replace(/\.[^.]+$/, ''), rows }],
+        autoHeader: rows[0].every((cell) => cell.trim() !== '' && !isFinite(Number(cell.replace(/,/g, '')))),
+      });
+    } catch {
+      toast(t(lang, 'file.error'));
+    }
+  };
+
+  const confirmImport = (header: boolean) => {
+    const pending = pendingImport;
+    if (!pending) return;
+    setPendingImport(null);
+    try {
+      if (pending.kind === 'csv') {
+        const ws = csvToWorksheet(pending.text ?? '', pending.name, { header });
+        addSheet(ws);
+        return;
+      }
+      const imported = workbookToWorksheets(pending.sheets.map((s) => ({ name: s.name, rows: s.rows as never })), { header });
+      if (!imported.length) {
+        toast(t(lang, 'file.error'));
+        return;
+      }
+      const named = imported.map((ws) => ({ ...ws, name: uniqueSheetName(worksheets, ws.name) }));
+      applySheets((list) => [...list, ...named]);
+      setActiveSheetId(named[0].id);
+      setSelection({ row: 0, col: 0 });
+      setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
+      toast(t(lang, 'file.xlsxImported', { n: imported.length }));
     } catch {
       toast(t(lang, 'file.error'));
     }
@@ -600,17 +647,21 @@ export default function App() {
     const file = await pickFile(XLSX_ACCEPT);
     if (!file) return;
     try {
-      const imported = await readXlsx(file);
-      if (!imported.length) {
+      const sheets = await readXlsxRows(file);
+      if (!sheets.length) {
         toast(t(lang, 'file.error'));
         return;
       }
-      const named = imported.map((ws) => ({ ...ws, name: uniqueSheetName(worksheets, ws.name) }));
-      applySheets((list) => [...list, ...named]);
-      setActiveSheetId(named[0].id);
-      setSelection({ row: 0, col: 0 });
-      setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
-      toast(t(lang, 'file.xlsxImported', { n: imported.length }));
+      const first = sheets[0].rows[0] ?? [];
+      const headerLike = first.length > 0
+        && first.every((cell) => (cell instanceof Date ? false : typeof cell === 'string' && cell.trim() !== ''));
+      setPendingImport({
+        kind: 'xlsx',
+        fileName: file.name,
+        name: file.name.replace(/\.[^.]+$/, ''),
+        sheets: sheets as PreviewSheet[],
+        autoHeader: headerLike,
+      });
     } catch {
       toast(t(lang, 'file.error'));
     }
@@ -986,6 +1037,18 @@ export default function App() {
       )}
 
       {help && <HelpModal lang={lang} initial={help} onClose={() => setHelp(null)} />}
+
+      {pendingImport && (
+        <ImportDialog
+          lang={lang}
+          kind={pendingImport.kind}
+          fileName={pendingImport.fileName}
+          sheets={pendingImport.sheets}
+          autoHeader={pendingImport.autoHeader}
+          onCancel={() => setPendingImport(null)}
+          onConfirm={confirmImport}
+        />
+      )}
 
       <div className="toast-wrap">
         {toasts.map((item) => <div className="toast" key={item.id}>{item.text}</div>)}

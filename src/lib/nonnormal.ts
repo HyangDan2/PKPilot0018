@@ -35,6 +35,8 @@ export interface NonnormalFit {
   dist: NonnormalDist;
   params: FitParams;
   n: number;
+  /** non-positive (≤ 0) observations left out of the fit — reported, never silent */
+  excluded: number;
   ad: number;
   adAdjusted: number;
   /** critical values at 10 %, 5 %, 1 % for estimated parameters */
@@ -102,7 +104,7 @@ function fitLognormal(values: number[]): FitParams {
   const logs = values.map((v) => Math.log(v));
   const mu = mean(logs);
   const sigma = Math.sqrt(logs.reduce((a, v) => a + (v - mu) ** 2, 0) / logs.length);
-  const logLik = logs.reduce((a, v) => a + (-Math.log(v) - Math.log(sigma) - 0.5 * Math.log(2 * Math.PI) - ((v - mu) ** 2) / (2 * sigma * sigma)), 0);
+  const logLik = logs.reduce((a, v) => a + (-v - Math.log(sigma) - 0.5 * Math.log(2 * Math.PI) - ((v - mu) ** 2) / (2 * sigma * sigma)), 0);
   return { shape: sigma, scale: mu, logLik };
 }
 
@@ -149,7 +151,13 @@ function trigammaLocal(x: number): number {
 }
 
 export function fitNonnormal(raw: (number | null)[], dist: NonnormalDist): NonnormalFit {
-  const values = clean(raw).filter((v) => v > 0);
+  const all = clean(raw);
+  const values = all.filter((v) => v > 0);
+  const excluded = all.length - values.length;
+  // A Weibull / lognormal / gamma support is (0, ∞): zero and negative values
+  // cannot enter the likelihood. They are counted and reported to the user; a
+  // sample with no usable value is an error, not an empty fit.
+  if (!values.length) throw new Error('nonnormal.invalidData');
   if (values.length < 5) throw new Error('res.insufficient');
   const params = dist === 'weibull' ? fitWeibull(values)
     : dist === 'lognormal' ? fitLognormal(values)
@@ -189,12 +197,14 @@ export function fitNonnormal(raw: (number | null)[], dist: NonnormalDist): Nonno
         ? 'between01and05'
         : 'below01';
   void logGamma;
-  return { dist, params, n, ad, adAdjusted, critical, band, cdf, pdf, quantile };
+  return { dist, params, n, excluded, ad, adAdjusted, critical, band, cdf, pdf, quantile };
 }
 
 export interface NonnormalCapability {
   fit: NonnormalFit;
   n: number;
+  /** non-positive observations excluded from the fit (reported in the output) */
+  excluded: number;
   lsl: number | null;
   usl: number | null;
   target: number | null;
@@ -216,8 +226,9 @@ export function nonnormalCapability(
   dist: NonnormalDist,
   specs: { lsl?: number | null; usl?: number | null; target?: number | null } = {},
 ): NonnormalCapability {
-  const values = clean(raw).filter((v) => v > 0);
-  const fit = fitNonnormal(values, dist);
+  const all = clean(raw);
+  const fit = fitNonnormal(all, dist);
+  const values = all.filter((v) => v > 0);
   const lsl = typeof specs.lsl === 'number' && isFinite(specs.lsl) ? specs.lsl : null;
   const usl = typeof specs.usl === 'number' && isFinite(specs.usl) ? specs.usl : null;
   const target = typeof specs.target === 'number' && isFinite(specs.target) ? specs.target : null;
@@ -236,6 +247,7 @@ export function nonnormalCapability(
   return {
     fit,
     n: values.length,
+    excluded: fit.excluded,
     lsl,
     usl,
     target,

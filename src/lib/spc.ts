@@ -33,6 +33,10 @@ export interface SpcResult {
     skipped: number;
     /** rows at the end that did not fill a whole subgroup */
     leftoverRows: number;
+    /** subgroups that contained at least one missing value (limits use their own nᵢ) */
+    missingSubgroups?: number;
+    /** true when the valid subgroup sizes nᵢ are not all equal */
+    varying?: boolean;
   };
 }
 
@@ -212,39 +216,58 @@ export function imrChart(values: number[]): SpcResult {
 
 export function xbarRCharts(values: (number | null)[], subgroup: number): SpcResult {
   const n = Math.max(2, Math.min(10, Math.round(subgroup)));
-  const constants = XBAR_CONSTANTS[n];
   // Subgroup boundaries follow the ORIGINAL row order. Missing values are
   // dropped inside each finished subgroup only, so later subgroups never shift.
-  const groups: number[][] = [];
+  // A subgroup with missing values keeps its own valid size nᵢ, and its limits
+  // use the constants A₂(nᵢ), D₃(nᵢ), D₄(nᵢ) and d₂(nᵢ) — using the nominal n
+  // for a shorter subgroup made its limits too narrow.
+  const groups: { values: number[]; ni: number; missing: boolean }[] = [];
   let skipped = 0;
   for (let start = 0; start + n <= values.length; start += n) {
-    const chunk = values
-      .slice(start, start + n)
-      .filter((x): x is number => typeof x === 'number' && isFinite(x));
+    const slice = values.slice(start, start + n);
+    const chunk = slice.filter((x): x is number => typeof x === 'number' && isFinite(x));
     if (chunk.length < 2) {
       skipped += 1;
       continue;
     }
-    groups.push(chunk);
+    groups.push({ values: chunk, ni: chunk.length, missing: chunk.length < slice.length });
   }
   const totalGroups = Math.floor(values.length / n);
   if (!groups.length) throw new SpcValidationError([{ code: 'noGroups' }]);
-  const means = groups.map((g) => g.reduce((a, b) => a + b, 0) / g.length);
-  const ranges = groups.map((g) => Math.max(...g) - Math.min(...g));
+  const means = groups.map((g) => g.values.reduce((a, b) => a + b, 0) / g.ni);
+  const ranges = groups.map((g) => Math.max(...g.values) - Math.min(...g.values));
   const grand = means.reduce((a, b) => a + b, 0) / means.length;
-  const rBar = ranges.reduce((a, b) => a + b, 0) / ranges.length;
-  const sigma = rBar / constants.d2;
-  const xFlags = nelsonRules(means, grand, sigma / Math.sqrt(n));
-  const rFlags = nelsonRules(ranges, rBar, constants.d3 * sigma);
+  // Weighted within-subgroup sigma: (ni−1)/Σ(ni−1) on each R̃ᵢ = Rᵢ/d₂(nᵢ).
+  // With equal nᵢ this is exactly R̄/d₂(n), so the classical table values hold.
+  const weights = groups.reduce((a, g) => a + (g.ni - 1), 0);
+  const sigma = weights > 0
+    ? groups.reduce((a, g, i) => a + ((g.ni - 1) / weights) * (ranges[i] / XBAR_CONSTANTS[g.ni].d2), 0)
+    : NaN;
+  const d2Bar = groups.reduce((a, g) => a + ((g.ni - 1) / weights) * XBAR_CONSTANTS[g.ni].d2, 0);
+  const rBar = sigma * d2Bar;
+  const xbarSigma = groups.map((g) => sigma / Math.sqrt(g.ni));
+  const rSigma = groups.map((g) => XBAR_CONSTANTS[g.ni].d3 * sigma);
+  const xbarUcl = groups.map((g) => grand + 3 * (sigma / Math.sqrt(g.ni)));
+  const xbarLcl = groups.map((g) => grand - 3 * (sigma / Math.sqrt(g.ni)));
+  const rUcl = groups.map((g) => {
+    const c = XBAR_CONSTANTS[g.ni];
+    return c.D4 * c.d2 * sigma;
+  });
+  const rLcl = groups.map((g) => {
+    const c = XBAR_CONSTANTS[g.ni];
+    return Math.max(0, c.D3 * c.d2 * sigma);
+  });
+  const xFlags = nelsonRules(means, grand, xbarSigma);
+  const rFlags = nelsonRules(ranges, rBar, rSigma);
   const panels: SpcPanel[] = [
     {
       key: 'xbar',
       titleKey: '@chart.xbarchart',
       points: means,
       center: grand,
-      ucl: grand + constants.A2 * rBar,
-      lcl: grand - constants.A2 * rBar,
-      sigma: sigma / Math.sqrt(n),
+      ucl: xbarUcl,
+      lcl: xbarLcl,
+      sigma: xbarSigma,
       violations: violationsFrom(xFlags),
     },
     {
@@ -252,9 +275,9 @@ export function xbarRCharts(values: (number | null)[], subgroup: number): SpcRes
       titleKey: '@chart.rchart',
       points: ranges,
       center: rBar,
-      ucl: constants.D4 * rBar,
-      lcl: constants.D3 * rBar,
-      sigma: constants.d3 * sigma,
+      ucl: rUcl,
+      lcl: rLcl,
+      sigma: rSigma,
       violations: violationsFrom(rFlags),
     },
   ];
@@ -265,6 +288,8 @@ export function xbarRCharts(values: (number | null)[], subgroup: number): SpcRes
     used: groups.length,
     skipped,
     leftoverRows: values.length % n,
+    missingSubgroups: groups.filter((g) => g.missing).length,
+    varying: groups.some((g) => g.ni !== n),
   };
   return result;
 }

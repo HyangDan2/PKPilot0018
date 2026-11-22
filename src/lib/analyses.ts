@@ -17,7 +17,7 @@ import { t } from './i18n';
 import { nonnormalCapability, type NonnormalDist } from './nonnormal';
 import { powerCurve, solvePower, type PowerMethod, type PowerSpec } from './power';
 import { generateRandom } from './random';
-import { fitWeibull, type WeibullInput } from './reliability';
+import { fitLognormalReliability, fitWeibull, type LognormalReliability, type WeibullInput } from './reliability';
 import { capabilitySixpack } from './sixpack';
 import {
   cChart,
@@ -402,14 +402,15 @@ function runPaired(ctx: RunContext): RunResult {
     }
   }
   if (result.n < 2) throw new Error('res.insufficientPairs');
-  if (!(result.stdev > 0)) throw new Error('res.zeroVariance');
+  // Zero variance is no longer refused: with every difference equal, t is 0
+  // (all equal to μ₀) or ±∞, both of which are reportable answers.
   const diffs = pairedA.map((x, i) => x - pairedB[i]);
   const blocks: Block[] = [
     {
       type: 'text',
       lines: [
-        `μ_d: mean of (${colA?.name ?? 'A'} − ${colB?.name ?? 'B'})`,
-        `${t(lang, 'res.method')}: ${t(lang, 'res.pairedMethod', { d: fmt(testDiff), alt: altSymbol(alpha) })}`,
+        `${t(lang, 'res.meanDifference')}: ${colA?.name ?? 'A'} − ${colB?.name ?? 'B'} = ${fmt(result.difference)}`,
+        `${t(lang, 'res.testOfMu')}: μ_d = ${fmt(testDiff)} · ${t(lang, 'res.pairedMethod', { d: fmt(testDiff), alt: altSymbol(alpha) })}`,
       ],
     },
     {
@@ -424,9 +425,10 @@ function runPaired(ctx: RunContext): RunResult {
     },
     {
       type: 'table',
-      headers: ['@th.n', '@th.diff', '@th.stdev', '@th.seMean', `@th.ci ${level}`, '@th.t', '@th.p'],
+      headers: ['@th.n', `@th.meanDiff`, '@th.stdev', '@th.seMean', `@th.ci ${level}`, '@th.t', '@th.p'],
       rows: [[fmtInt(result.n), fmt(result.difference), fmt(result.stdev), fmt(result.se), `${fmt(result.ci[0])}  ${fmt(result.ci[1])}`, fmt(result.t), fmtP(result.p)]],
       align: ['r', 'r', 'r', 'r', 'r', 'r', 'r'],
+      caption: t(lang, 'res.pairedCiNote', { d: fmt(testDiff) }),
     },
     { type: 'text', lines: [result.p < 1 - c ? t(lang, 'res.reject') : t(lang, 'res.fail')] },
   ];
@@ -763,6 +765,10 @@ function runXbarR(ctx: RunContext): RunResult {
           skipped: summary.skipped,
           left: summary.leftoverRows,
         }),
+        ...(summary.missingSubgroups && summary.missingSubgroups > 0
+          ? [t(lang, 'res.subgroupMissing', { n: summary.missingSubgroups })]
+          : []),
+        ...(summary.varying ? [t(lang, 'res.subgroupVarying')] : []),
       ],
     });
   }
@@ -1342,6 +1348,7 @@ function runGageRR(ctx: RunContext): RunResult {
         `${t(lang, 'res.grrNdc', { ndc: result.ndc })}`,
         toleranceRaw === '' ? t(lang, 'res.grrNoTolerance') : t(lang, 'res.grrTolerance', { tol: fmt(tolerance) }),
         result.note === 'interactionPooled' ? t(lang, 'res.grrPooled') : '',
+        result.negativeComponents.length ? t(lang, 'res.grrNegative', { names: result.negativeComponents.join(', ') }) : '',
       ].filter(Boolean),
     },
     {
@@ -1482,6 +1489,7 @@ function runSixpack(ctx: RunContext): RunResult {
   };
   const statsRows = capabilitySummaryRows(result.capability);
   const cap = result.capability;
+  const chartLabel = result.chart === 'imr' ? t(lang, '@chart.ichart') : result.chart === 'xbar-r' ? t(lang, '@chart.xbarchart') : t(lang, '@chart.xbarschart');
   const indexItems = [
     { label: 'Cp', value: cap.cp, color: 0 },
     { label: 'Cpk', value: cap.cpk, color: 1 },
@@ -1495,14 +1503,16 @@ function runSixpack(ctx: RunContext): RunResult {
       type: 'text',
       lines: [
         t(lang, 'res.sixpackInfo', {
-          chart: subgroup > 1 ? t(lang, '@chart.xbarchart') : t(lang, '@chart.ichart'),
+          chart: chartLabel,
           n: subgroup,
           rows: values2.length,
         }),
+        subgroup > 10 ? t(lang, 'res.sixpackXbarS') : '',
+        result.missingSubgroups > 0 ? t(lang, 'res.sixpackMissing', { n: result.missingSubgroups }) : '',
         Number.isFinite(adResult.p)
           ? t(lang, adResult.p >= 0.05 ? 'res.normal' : 'res.notNormal')
           : t(lang, 'res.insufficient'),
-      ],
+      ].filter(Boolean),
     },
     {
       type: 'table',
@@ -1528,7 +1538,7 @@ function runSixpack(ctx: RunContext): RunResult {
       type: 'chartgrid',
       charts: [
         { title: '@chart.location', chart: { kind: 'control', panel: result.primary, yLabel: col?.name ?? 'Value', xLabel: subgroup > 1 ? 'Subgroup' : 'Observation', height: 210 } },
-        { title: '@chart.dispersion', chart: { kind: 'control', panel: result.secondary, yLabel: subgroup > 1 ? 'Range' : 'Moving range', xLabel: subgroup > 1 ? 'Subgroup' : 'Observation', height: 210 } },
+        { title: '@chart.dispersion', chart: { kind: 'control', panel: result.secondary, yLabel: subgroup > 1 ? (result.chart === 'xbar-s' ? 'StDev' : 'Range') : 'Moving range', xLabel: subgroup > 1 ? 'Subgroup' : 'Observation', height: 210 } },
         { title: '@chart.last25', chart: { kind: 'control', panel: result.last, yLabel: col?.name ?? 'Value', xLabel: t(lang, 'res.lastRuns'), height: 210 } },
         {
           title: '@chart.caphist',
@@ -1576,7 +1586,11 @@ function runNonnormal(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
   const col = findColumn(sheet, values.variable);
   const data = numValues(sheet, values.variable);
-  if (clean(data).filter((v) => v > 0).length < 5) throw new Error('res.insufficient');
+  const validCount = clean(data).filter((v) => v > 0).length;
+  // Weibull / lognormal / gamma live on (0, ∞): a zero or negative value cannot
+  // be fitted, so it is excluded AND counted, never dropped in silence.
+  if (!validCount) throw new Error('nonnormal.invalidData');
+  if (validCount < 5) throw new Error('res.insufficient');
   const raw = str(values.distribution);
   const dist: NonnormalDist = raw === 'lognormal' || raw === 'gamma' ? raw : 'weibull';
   const lslValue = str(values.lsl).trim() === '' ? null : num(values.lsl, NaN);
@@ -1596,6 +1610,7 @@ function runNonnormal(ctx: RunContext): RunResult {
     [shapeLabel, fmt(fit.params.shape, 5)],
     [scaleLabel, fmt(fit.params.scale, 5)],
     ['N', fmtInt(fit.n)],
+    ...(result.excluded > 0 ? [[t(lang, 'res.excludedCount'), fmtInt(result.excluded)] as (string | number)[]] : []),
     ['Log-likelihood', fmt(fit.params.logLik, 3)],
     ['AD', fmt(fit.ad, 4)],
     ['AD*', fmt(fit.adAdjusted, 4)],
@@ -1644,6 +1659,7 @@ function runNonnormal(ctx: RunContext): RunResult {
       lines: [
         t(lang, 'res.nonnormalInfo', { dist: t(lang, `dist.${dist}`), n }),
         t(lang, 'res.nonnormalMethod'),
+        ...(result.excluded > 0 ? [t(lang, 'res.excludedWarning', { n: result.excluded })] : []),
       ],
     },
     { type: 'table', title: tableTitle('res.distributionFit'), headers: ['@th.parameter', '@th.estimate'], rows: fitRows, align: ['l', 'r'] },
@@ -1834,6 +1850,13 @@ function runWeibull(ctx: RunContext): RunResult {
     rows.push({ time, censored });
   }
   const result = fitWeibull(rows, conf(values.confidence));
+  // Lognormal alternative on the same right-censored sample, for comparison.
+  let lognormal: LognormalReliability | null = null;
+  try {
+    lognormal = fitLognormalReliability(rows);
+  } catch {
+    lognormal = null;
+  }
   const z = normalInv((1 + conf(values.confidence)) / 2);
   const bandText = {
     above10: t(lang, 'res.adAbove10'),
@@ -1853,10 +1876,11 @@ function runWeibull(ctx: RunContext): RunResult {
   const xLo = Math.min(...result.points.map((p) => p.x));
   const xHi = Math.max(...result.points.map((p) => p.x));
   const ticks = logTicks(Math.exp(xLo), Math.exp(xHi));
+  const bandLevel = conf(values.confidence);
   const ciPoints: { x: number; lo: number; hi: number }[] = [];
   for (let i = 0; i <= 30; i += 1) {
     const x = xLo + ((xHi - xLo) * i) / 30;
-    const band = result.band95(x);
+    const band = result.ciBand(x, bandLevel);
     ciPoints.push({ x, lo: band[0], hi: band[1] });
   }
   const maxTime = Math.max(...rows.map((r) => r.time));
@@ -1891,9 +1915,16 @@ function runWeibull(ctx: RunContext): RunResult {
         ['AD*', fmt(result.adAdjusted, 4)],
         [t(lang, 'res.adCritical'), '0.637 / 0.757 / 1.038'],
         [t(lang, 'res.adConclusion'), bandText],
+        [t(lang, 'res.adBasis'), t(lang, result.adBasis === 'complete' ? 'res.adBasisComplete' : 'res.adBasisFailures')],
+        ...(result.adBasis === 'failures'
+          ? [
+            [t(lang, 'res.kmDev'), `${fmt(result.kmDev, 4)}  (${t(lang, 'res.kmCritical')} ${fmt(result.kmCritical05, 4)})`],
+          ]
+          : []),
         ['Log-likelihood', fmt(result.logLik, 3)],
       ],
       align: ['l', 'r'],
+      caption: result.adBasis === 'failures' ? t(lang, 'res.adCensoredNote') : undefined,
     },
     {
       type: 'chart',
@@ -1905,10 +1936,27 @@ function runWeibull(ctx: RunContext): RunResult {
         xLabel: `ln(${timeCol.name || timeCol.id})`,
         yLabel: t(lang, 'res.percent'),
         xTicks: ticks,
-        note: `β = ${fmt(result.shape, 3)}   η = ${fmt(result.scale, 3)}`,
+        note: `β = ${fmt(result.shape, 3)}   η = ${fmt(result.scale, 3)}   ${(bandLevel * 100).toFixed(0)}% band`,
         height: 300,
       },
     },
+    ...(lognormal
+      ? [{
+        type: 'table' as const,
+        title: tableTitle('res.lognormalFit'),
+        headers: ['@th.parameter', '@th.estimate'],
+        rows: [
+          ['μ (ln)', fmt(lognormal.mu, 5)],
+          ['σ (ln)', fmt(lognormal.sigma, 5)],
+          [t(lang, 'res.medianLife'), fmt(lognormal.median, 5)],
+          ['MTTF', fmt(lognormal.mttf, 5)],
+          [t(lang, 'res.failuresCount'), fmtInt(lognormal.failures)],
+          [t(lang, 'res.censoredCount'), `${fmtInt(lognormal.censored)}  (${fmt(lognormal.censoredPct, 1)}%)`],
+          ['Log-likelihood', fmt(lognormal.logLik, 3)],
+        ],
+        caption: t(lang, 'res.lognormalFitNote'),
+      }]
+      : []),
     {
       type: 'chartgrid',
       charts: [
@@ -2081,11 +2129,13 @@ function runGlm(ctx: RunContext): RunResult {
 /* ── P2: DOE ──────────────────────────────────────────────────────────── */
 
 function designTable(runs: { std: number; run: number; ptType: string; levels: number[] }[], names: string[]): Block {
+  // Shown in RUN order, matching the worksheet the design was written to.
+  const ordered = [...runs].sort((a, b) => a.run - b.run);
   return {
     type: 'table',
     title: tableTitle('res.designMatrix'),
     headers: ['StdOrder', 'RunOrder', 'PtType', ...names],
-    rows: runs.map((run) => [fmtInt(run.std), fmtInt(run.run), run.ptType, ...run.levels.map((v) => fmt(v, 2))]),
+    rows: ordered.map((run) => [fmtInt(run.std), fmtInt(run.run), run.ptType, ...run.levels.map((v) => fmt(v, 2))]),
     align: ['r', 'r', 'l', ...names.map(() => ('r' as const))],
   };
 }
@@ -2276,13 +2326,20 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
   const coefRows = glm.labels.map((label, i) => [
     label,
     fmt(glm.beta[i], 5),
-    Number.isFinite(glm.se[i]) ? fmt(glm.se[i], 5) : '—',
+    Number.isFinite(glm.se[i]) ? fmt(glm.se[i], 5) : t(lang, 'res.aliased'),
     Number.isFinite(glm.t[i]) ? fmt(glm.t[i], 3) : '—',
     Number.isFinite(glm.p[i]) ? fmtP(glm.p[i]) : '—',
   ]);
   const grid = contourGrid(glm, factors, 0, 1, 41);
   const blocks: Block[] = [
-    { type: 'text', lines: [t(lang, 'res.rsmInfo', { response: response.name || response.id, factors: factors.map((f) => f.name).join(', '), n: glm.n }), t(lang, 'res.rsmModelNote')] },
+    {
+      type: 'text',
+      lines: [
+        t(lang, 'res.rsmInfo', { response: response.name || response.id, factors: factors.map((f) => f.name).join(', '), n: glm.n }),
+        t(lang, 'res.rsmModelNote'),
+        ...(glm.aliased.length ? [t(lang, 'res.aliasNote', { terms: glm.aliased.join(', ') })] : []),
+      ],
+    },
     { type: 'table', title: tableTitle('res.anovaTable'), headers: ['@th.source', '@th.df', '@th.ssTypeI', '@th.ssTypeIII', '@th.ms', '@th.f', '@th.p'], rows: anovaRows, align: ['l', 'r', 'r', 'r', 'r', 'r', 'r'] },
     {
       type: 'table',
@@ -2297,15 +2354,18 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
       title: tableTitle('res.stationary'),
       headers: ['@th.parameter', '@th.value'],
       rows: analysis.stationary
-        ? [
+        ? ([
           ...analysis.stationary.point.map((v, i) => [factors[i].name, fmt(v, 4)] as (string | number)[]),
           [t(lang, 'res.predictedResponse'), fmt(analysis.stationary.response, 4)],
           [t(lang, 'res.stationaryKind'), t(lang, `res.stationary_${analysis.stationary.kind}`)],
           [t(lang, 'res.eigenvalues'), analysis.stationary.eigenvalues.map((v) => fmt(v, 4)).join(', ')],
-        ]
+          ...(analysis.stationary.outsideRegion
+            ? [[t(lang, 'res.stationaryOutside'), t(lang, 'res.stationaryOutsideValue', { x: fmt(analysis.stationary.maxAbs, 3) })] as (string | number)[]]
+            : []),
+        ] as (string | number)[][])
         : [[t(lang, 'res.stationaryKind'), t(lang, 'res.stationaryNone')]],
       align: ['l', 'r'],
-      caption: t(lang, 'res.stationaryNote'),
+      caption: analysis.stationary?.outsideRegion ? t(lang, 'res.stationaryOutsideWarn') : t(lang, 'res.stationaryNote'),
     },
     {
       type: 'chart',
@@ -2352,9 +2412,11 @@ function runPowerAnalysis(ctx: RunContext, method: PowerMethod): RunResult {
   const targetPower = powerText === '' ? 0.9 : Math.min(0.9999, Math.max(0.01, Number(powerText) / 100));
   spec.power = targetPower;
   const diffText = str(values.difference).trim();
-  const baseDifference = isProp ? Math.abs(p2 - p1) : num(values.difference, 1);
+  const baseDifference = isProp ? p2 - p1 : num(values.difference, 1);
   if (solveFor !== 'difference') {
-    if (diffText !== '') spec.difference = Math.abs(Number(diffText));
+    // The SIGN is evidence about the alternative: a negative δ under 'greater'
+    // must not be silently mirrored into the high-power positive case.
+    if (diffText !== '') spec.difference = Number(diffText);
     else if (isProp) spec.difference = baseDifference;
     else if (diffText === '') throw new Error('res.powerNeedDifference');
   }
@@ -2364,7 +2426,9 @@ function runPowerAnalysis(ctx: RunContext, method: PowerMethod): RunResult {
   let solution;
   try {
     solution = solvePower(spec);
-  } catch {
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'power.unreachable') throw new Error('res.powerUnreachable');
     throw new Error('res.powerFailed');
   }
   const difference = solution.difference;
@@ -2375,8 +2439,10 @@ function runPowerAnalysis(ctx: RunContext, method: PowerMethod): RunResult {
   const notes: string[] = [t(lang, 'res.powerMethod', { method: t(lang, `power.${method}`) })];
   if (isProp) {
     notes.push(t(lang, 'res.powerPropApprox'));
-    notes.push(t(lang, 'res.powerProportions', { p1: fmt(p1, 3), p2: fmt(p1 + (p1 + difference <= 1 ? difference : -difference), 3) }));
+    const comparison = p1 + difference;
+    notes.push(t(lang, 'res.powerProportions', { p1: fmt(p1, 3), p2: fmt(comparison, 3) }));
   }
+  if (solution.power < alpha + 1e-12 && solveFor === 'power') notes.push(t(lang, 'res.powerBelowAlpha'));
   if (method === 'anova') notes.push(t(lang, 'res.powerAnovaAssumption', { groups: spec.groups ?? 2 }));
   if (method === 'twoT') notes.push(t(lang, 'res.powerTwoSampleNote'));
   if (method === 'paired') notes.push(t(lang, 'res.powerPairedNote'));

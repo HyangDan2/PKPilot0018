@@ -8,7 +8,7 @@
    interval on the log scale through the delta method.
    ───────────────────────────────────────────────────────────────────────── */
 
-import { logGamma, normalInv } from './dist';
+import { logGamma, normalCdf, normalInv } from './dist';
 
 export interface WeibullPoint {
   time: number;
@@ -38,12 +38,32 @@ export interface WeibullResult {
   percentile: (p: number) => number;
   survival: (t: number) => number;
   hazard: (t: number) => number;
+  /** Anderson–Darling A², computed against the FITTED Weibull CDF (never the
+   *  empirical plotting positions). With right censoring it uses the failure
+   *  times only — see `adBasis`. */
   ad: number;
+  /** Stephens' small-sample correction A* = A²(1 + 0.2/√n). */
   adAdjusted: number;
   band: 'above10' | 'between05and10' | 'between01and05' | 'below01';
+  /** which observations the AD statistic was evaluated on */
+  adBasis: 'complete' | 'failures';
+  /** largest |F̂_fitted(t) − F̂_Kaplan–Meier(t)| over the failure times */
+  kmDev: number;
+  /** 5 % Kolmogorov critical value 1.36/√k for that deviation (k = failures) */
+  kmCritical05: number;
+  kmBand: 'above05' | 'below05';
   points: WeibullPoint[];
   cov: { bb: number; ba: number; aa: number };
-  /** 95 % band on the fitted line, in the transformed (extreme value) scale */
+  /** confidence level the intervals were computed at */
+  conf: number;
+  /**
+   * Confidence band on the fitted line in the transformed (extreme value)
+   * scale w(x) = β(x − ln η). Var(w) = β²·cov.aa + (x−a)²·cov.bb − 2β(x−a)·cov.ba,
+   * the delta method on w with respect to (β, a). `level` defaults to the
+   * fit's own confidence level.
+   */
+  ciBand: (x: number, level?: number) => [number, number];
+  /** convenience: the band at the fit's own confidence level */
   band95: (x: number) => [number, number];
 }
 
@@ -194,11 +214,14 @@ export function fitWeibull(rows: WeibullInput[], conf = 0.95): WeibullResult {
   const scaleLo = scale * Math.exp(-z * (seScale / scale));
   const scaleHi = scale * Math.exp(z * (seScale / scale));
   const percentile = (p: number): number => (p <= 0 ? 0 : p >= 1 ? Infinity : scale * Math.pow(-Math.log(1 - p), 1 / shape));
-  // Γ(1+1/β) with its own delta-method variance.
+  // MTTF = η·Γ(1 + 1/β). With g(β, a) = a + ln Γ(1 + 1/β):
+  //   ∂g/∂a = 1,  ∂g/∂β = −ψ(1 + 1/β)/β²
+  // so Var(ln MTTF) = cov.aa + (ψ/β²)² cov.bb − 2(ψ/β²) cov.ba.
   const gammaArg = 1 + 1 / shape;
   const mttf = scale * Math.exp(logGamma(gammaArg));
   const dGamma = derivativeLogGamma(gammaArg);
-  const varLnMttf = cov.aa + (dGamma / (shape * shape)) ** 2 * cov.bb + 2 * (dGamma / shape) * cov.ba;
+  const dMttfBeta = -dGamma / (shape * shape);
+  const varLnMttf = cov.aa + dMttfBeta ** 2 * cov.bb + 2 * dMttfBeta * cov.ba;
   const seLnMttf = Math.sqrt(Math.max(0, varLnMttf));
   const mttfLo = mttf * Math.exp(-z * seLnMttf);
   const mttfHi = mttf * Math.exp(z * seLnMttf);
@@ -219,14 +242,25 @@ export function fitWeibull(rows: WeibullInput[], conf = 0.95): WeibullResult {
     points.push({ time: row.time, f, x: Math.log(row.time), y: Math.log(-Math.log(1 - f)) });
   });
   const nFail = points.length;
-  const ad = points.length
-    ? -nFail - (1 / nFail) * points.reduce((acc, point, i) => {
-      const hi = Math.min(1 - 1e-12, Math.max(1e-12, point.f));
-      const lo = Math.min(1 - 1e-12, Math.max(1e-12, points[nFail - 1 - i].f));
-      return acc + (2 * (i + 1) - 1) * (Math.log(hi) + Math.log(1 - lo));
-    }, 0)
+  // Anderson–Darling is evaluated against the FITTED CDF F(t) = 1 − e^{−(t/η)^β},
+  // not the empirical/KM plotting position: the plotting positions are the data
+  // being tested and using them shrinks A² toward zero. Complete data use every
+  // observation; with right censoring only the failure times can be ranked, so
+  // the statistic is the failures-only approximation and the KM deviation below
+  // carries the censoring information.
+  const adSample = data.filter((r) => !r.censored);
+  const adCdf = adSample.map((r) => 1 - Math.exp(-Math.pow(r.time / scale, shape)));
+  const ad = adStatistic(adCdf);
+  const adBasis: WeibullResult['adBasis'] = data.some((r) => r.censored) ? 'failures' : 'complete';
+  const adN = adBasis === 'complete' ? n : nFail;
+  const adAdjusted = ad * (1 + 0.2 / Math.sqrt(Math.max(1, adN)));
+  // Kaplan–Meier sanity check: the parametric CDF must track the nonparametric
+  // one. 1.36/√k is the asymptotic 5 % Kolmogorov bound (the fitted parameters
+  // make it a little conservative; it is reported as guidance, not a p-value).
+  const kmDev = points.length
+    ? Math.max(...points.map((p) => Math.abs(p.f - (1 - Math.exp(-Math.pow(p.time / scale, shape))))))
     : NaN;
-  const adAdjusted = ad * (1 + 0.2 / Math.sqrt(Math.max(1, nFail)));
+  const kmCritical05 = nFail > 0 ? 1.36 / Math.sqrt(nFail) : NaN;
   const band: WeibullResult['band'] = adAdjusted <= WEIBULL_AD_CRITICAL[0]
     ? 'above10'
     : adAdjusted <= WEIBULL_AD_CRITICAL[1]
@@ -257,14 +291,42 @@ export function fitWeibull(rows: WeibullInput[], conf = 0.95): WeibullResult {
     ad,
     adAdjusted,
     band,
+    adBasis,
+    kmDev,
+    kmCritical05,
+    kmBand: kmDev <= kmCritical05 ? 'above05' : 'below05',
     points,
     cov,
+    conf,
+    // Delta method on w = β(x − a): ∂w/∂β = x − a, ∂w/∂a = −β.
+    ciBand: (x: number, level = conf) => {
+      const a = Math.log(scale);
+      const dx = x - a;
+      const w = shape * dx;
+      const se = Math.sqrt(Math.max(0, shape * shape * cov.aa + dx * dx * cov.bb - 2 * shape * dx * cov.ba));
+      const zc = level === conf ? z : normalInv((1 + Math.min(0.999999, Math.max(0.5, level))) / 2);
+      return [w - zc * se, w + zc * se];
+    },
     band95: (x: number) => {
-      const w = shape * (x - Math.log(scale));
-      const se = Math.sqrt(Math.max(0, cov.aa + (x - Math.log(scale)) ** 2 * cov.bb - 2 * (x - Math.log(scale)) * cov.ba));
+      const a = Math.log(scale);
+      const dx = x - a;
+      const w = shape * dx;
+      const se = Math.sqrt(Math.max(0, shape * shape * cov.aa + dx * dx * cov.bb - 2 * shape * dx * cov.ba));
       return [w - z * se, w + z * se];
     },
   };
+}
+
+/** A² = −n − (1/n) Σ (2i−1)[ln F(x_(i)) + ln(1 − F(x_(n+1−i)))]. */
+function adStatistic(cdfValues: number[]): number {
+  const n = cdfValues.length;
+  if (!n) return NaN;
+  const f = cdfValues.map((v) => Math.min(1 - 1e-12, Math.max(1e-12, v))).sort((a, b) => a - b);
+  let sum = 0;
+  for (let i = 0; i < n; i += 1) {
+    sum += (2 * (i + 1) - 1) * (Math.log(f[i]) + Math.log(1 - f[n - 1 - i]));
+  }
+  return -n - sum / n;
 }
 
 function derivativeLogGamma(x: number): number {
@@ -278,11 +340,148 @@ function derivativeLogGamma(x: number): number {
   return r;
 }
 
-/** Lognormal parametric fit (MLE on ln t, right censoring ignored for the mean). */
-export function fitLognormalReliability(rows: WeibullInput[]): { mu: number; sigma: number; median: number } {
-  const logs = rows.filter((r) => !r.censored && r.time > 0).map((r) => Math.log(r.time));
-  if (logs.length < 2) throw new Error('rel.needFailures');
-  const mu = logs.reduce((a, b) => a + b, 0) / logs.length;
-  const sigma = Math.sqrt(logs.reduce((a, b) => a + (b - mu) ** 2, 0) / logs.length);
-  return { mu, sigma, median: Math.exp(mu) };
+/** Lognormal parametric fit by maximum likelihood, right censoring included. */
+export interface LognormalReliability {
+  mu: number;
+  sigma: number;
+  median: number;
+  /** E[T] = exp(μ + σ²/2) */
+  mttf: number;
+  logLik: number;
+  n: number;
+  failures: number;
+  censored: number;
+  /** share of the sample that is right-censored, in percent */
+  censoredPct: number;
+  seMu: number;
+  seSigma: number;
+  /** true when the closed-form complete-data MLE was used (no censoring) */
+  closedForm: boolean;
+}
+
+/**
+ * Lognormal MLE with right-censored observations. The likelihood is
+ *
+ *   Σ_fail [−ln(σ t_i) − ½ln(2π) − (ln t_i − μ)²/(2σ²)]
+ * + Σ_cens  ln[1 − Φ((ln t_j − μ)/σ)]
+ *
+ * maximised over (μ, ln σ) by a deterministic Nelder–Mead simplex; with no
+ * censoring it reduces to the closed-form (mean, population sd) of ln t.
+ */
+export function fitLognormalReliability(rows: WeibullInput[], tolConf = 0.95): LognormalReliability {
+  const data = rows.filter((r) => isFinite(r.time) && r.time > 0);
+  const n = data.length;
+  const failures = data.filter((r) => !r.censored).length;
+  const censored = n - failures;
+  if (n < 2 || failures < 2) throw new Error('rel.needFailures');
+  const logT = data.map((r) => Math.log(r.time));
+  const failLog = data.filter((r) => !r.censored).map((r) => Math.log(r.time));
+  const completeCases = failures === n;
+  const closedMu = failLog.reduce((a, b) => a + b, 0) / failLog.length;
+  const closedSigma = Math.sqrt(failLog.reduce((a, v) => a + (v - closedMu) ** 2, 0) / failLog.length);
+
+  const logLik = (mu: number, sigma: number): number => {
+    if (!(sigma > 0) || !isFinite(sigma)) return -Infinity;
+    let sum = 0;
+    for (let i = 0; i < n; i += 1) {
+      const z = (logT[i] - mu) / sigma;
+      if (data[i].censored) {
+        const tail = 1 - normalCdf(z);
+        sum += Math.log(Math.max(1e-300, tail));
+      } else {
+        sum += -Math.log(sigma) - logT[i] - 0.5 * Math.log(2 * Math.PI) - 0.5 * z * z;
+      }
+    }
+    return sum;
+  };
+
+  let mu = closedMu;
+  let sigma = closedSigma > 1e-9 ? closedSigma : 1;
+  let best = logLik(mu, sigma);
+  if (!completeCases) {
+    // Nelder–Mead on (μ, ln σ): no derivatives, no divergence on flat ridges.
+    const objective = (p: number[]): number => -logLik(p[0], Math.exp(p[1]));
+    let simplex = [
+      [mu, Math.log(sigma)],
+      [mu + 1, Math.log(sigma)],
+      [mu, Math.log(sigma) + 1],
+    ].map((p) => ({ p, f: objective(p) }));
+    const stepOf = (scale: number) => scale;
+    for (let iter = 0; iter < 4000; iter += 1) {
+      simplex = simplex.slice().sort((a, b) => a.f - b.f);
+      const [b, g, w] = simplex;
+      const spread = Math.max(...simplex.map((s) => s.f)) - b.f;
+      if (spread < 1e-13 && iter > 50) break;
+      const centroid = [0, 1].map((k) => (b.p[k] + g.p[k]) / 2);
+      const along = (factor: number) => centroid.map((c, k) => c + factor * (w.p[k] - c));
+      const shrunk = (s: { p: number[]; f: number }) => ({ p: s.p.map((v, k) => b.p[k] + 0.5 * (v - b.p[k])), f: NaN });
+      const r = along(-1);
+      const fr = objective(r);
+      let next: { p: number[]; f: number }[];
+      if (fr < b.f) {
+        const e = along(-2);
+        const fe = objective(e);
+        next = [b, fe < fr ? { p: e, f: fe } : { p: r, f: fr }, g];
+      } else if (fr < g.f) {
+        next = [b, { p: r, f: fr }, g];
+      } else {
+        const c = along(-0.5);
+        const fc = objective(c);
+        if (fc < w.f) {
+          next = [b, g, { p: c, f: fc }];
+        } else {
+          const s1 = shrunk(g);
+          s1.f = objective(s1.p);
+          const s2 = shrunk(w);
+          s2.f = objective(s2.p);
+          next = [b, s1, s2];
+          void stepOf;
+        }
+      }
+      simplex = next;
+    }
+    simplex.sort((a, b) => a.f - b.f);
+    mu = simplex[0].p[0];
+    sigma = Math.exp(simplex[0].p[1]);
+    best = logLik(mu, sigma);
+  }
+
+  // Observed information (numerical Hessian in μ, ln σ) for the standard errors.
+  const h = 1e-5;
+  const f = (q: number[]) => logLik(q[0], Math.exp(q[1]));
+  const p0 = [mu, Math.log(sigma)];
+  const hess: number[][] = [[0, 0], [0, 0]];
+  for (let i = 0; i < 2; i += 1) {
+    for (let j = 0; j < 2; j += 1) {
+      const plus = [...p0]; plus[i] += h; plus[j] += h;
+      const minus = [...p0]; minus[i] -= h; minus[j] -= h;
+      const mixed = [...p0]; mixed[i] += h; mixed[j] -= h;
+      const other = [...p0]; other[i] -= h; other[j] += h;
+      hess[i][j] = (f(plus) - f(mixed) - f(other) + f(minus)) / (4 * h * h);
+    }
+  }
+  const det = hess[0][0] * hess[1][1] - hess[0][1] * hess[1][0];
+  let seMu = NaN;
+  let seSigma = NaN;
+  if (Math.abs(det) > 1e-18) {
+    const covMu = -hess[1][1] / det;
+    const covLs = -hess[0][0] / det;
+    seMu = Math.sqrt(Math.max(0, covMu));
+    seSigma = sigma * Math.sqrt(Math.max(0, covLs));
+  }
+  void tolConf;
+  return {
+    mu,
+    sigma,
+    median: Math.exp(mu),
+    mttf: Math.exp(mu + (sigma * sigma) / 2),
+    logLik: best,
+    n,
+    failures,
+    censored,
+    censoredPct: n ? (censored / n) * 100 : NaN,
+    seMu,
+    seSigma,
+    closedForm: completeCases,
+  };
 }

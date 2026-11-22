@@ -150,15 +150,18 @@ describe('GLM', () => {
     expect(() => fitGlm(rows.map((r) => r.y), [{ name: 'A', kind: 'categorical', values: rows.map((r) => r.a) }], [{ name: 'A', factors: ['A'] }])).toThrow('glm.noDf');
   });
 
-  it('labels categorical coefficients against the reference level', () => {
+  it('labels categorical coefficients with sum-to-zero coding (last level = −1)', () => {
     const rows = [
       ...['a', 'a', 'a'].map((a, i) => ({ a, y: 10 + i })),
       ...['b', 'b', 'b'].map((a, i) => ({ a, y: 12 + i })),
     ];
     const glm = fitGlm(rows.map((r) => r.y), [{ name: 'F', kind: 'categorical', values: rows.map((r) => r.a) }], [{ name: 'F', factors: ['F'] }]);
-    expect(glm.labels).toContain('F[b]');
-    const coef = glm.beta[1];
-    expect(coef).toBeCloseTo(2, 10);
+    // L−1 = 1 contrast column; the LAST level is the implied −1 reference.
+    expect(glm.labels).toEqual(['Constant', 'F[a]']);
+    expect(glm.beta[1]).toBeCloseTo(-1, 10);
+    // Predictions still reproduce both group means (11 and 13).
+    expect(glm.fitted[0]).toBeCloseTo(11, 10);
+    expect(glm.fitted[3]).toBeCloseTo(13, 10);
   });
 });
 

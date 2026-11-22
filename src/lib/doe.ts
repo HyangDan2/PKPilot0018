@@ -95,13 +95,17 @@ export function boxBehnkenDesign(centers: number, randomize: boolean, seed = 202
   return finish(rows, randomize, seed);
 }
 
-/** Turn runs into a worksheet with StdOrder / RunOrder / PtType, factors and a Y column. */
+/** Turn runs into a worksheet with StdOrder / RunOrder / PtType, factors and a Y column.
+ *  Rows follow the RUN order (the order the trials are made); StdOrder keeps the
+ *  original standard-order number, so the two columns are always a permutation
+ *  of each other that the run row can be read against. */
 export function designWorksheet(runs: DesignRun[], names: string[], title: string): Worksheet {
+  const ordered = [...runs].sort((a, b) => a.run - b.run);
   const std: number[] = [];
   const run: number[] = [];
   const pt: string[] = [];
   const factors: number[][] = names.map(() => []);
-  runs.forEach((entry) => {
+  ordered.forEach((entry) => {
     std.push(entry.std);
     run.push(entry.run);
     pt.push(entry.ptType);
@@ -112,7 +116,8 @@ export function designWorksheet(runs: DesignRun[], names: string[], title: strin
     { name: 'RunOrder', type: 'numeric', values: run },
     { name: 'PtType', type: 'text', values: pt },
     ...names.map((name, i) => ({ name, type: 'numeric' as const, values: factors[i] })),
-    { name: 'Y', type: 'numeric', values: names.map(() => null) },
+    // One empty Y cell per RUN — not per factor name.
+    { name: 'Y', type: 'numeric', values: ordered.map(() => null) },
   ];
   return makeWorksheet(title, columns);
 }
@@ -182,7 +187,16 @@ export interface RsmAnalysis {
   interaction: { df: number; ss: number };
   pureError?: { df: number; ss: number; ms: number };
   lackOfFit?: { df: number; ss: number; ms: number; f: number; p: number };
-  stationary?: { point: number[]; response: number; eigenvalues: number[]; kind: 'maximum' | 'minimum' | 'saddle' };
+  stationary?: {
+    point: number[];
+    response: number;
+    eigenvalues: number[];
+    kind: 'maximum' | 'minimum' | 'saddle';
+    /** max |x*| over the factors, in coded units */
+    maxAbs: number;
+    /** true when the stationary point lies outside the design region */
+    outsideRegion: boolean;
+  };
   quadratic: { name: string; coef: number }[];
 }
 
@@ -238,7 +252,7 @@ function invertSmall(matrix: number[][]): number[][] | null {
   return M.map((row) => row.slice(n));
 }
 
-export function analyzeRsm(y: (number | null)[], factors: ModelFactor[]): RsmAnalysis {
+export function analyzeRsm(y: (number | null)[], factors: ModelFactor[], options: { alpha?: number } = {}): RsmAnalysis {
   const names = factors.map((f) => f.name);
   const squares: ModelFactor[] = factors.map((f) => ({
     name: `${f.name}²`,
@@ -318,7 +332,11 @@ export function analyzeRsm(y: (number | null)[], factors: ModelFactor[]): RsmAna
       : eigenvalues.every((v) => v > 1e-9)
         ? 'minimum'
         : 'saddle';
-    stationary = { point, response, eigenvalues, kind };
+    // Stationary point outside the experimental region: the fitted optimum is an
+    // extrapolation, so the reading must carry that warning.
+    const maxAbs = Math.max(...point.map((v) => Math.abs(v)));
+    const limit = options.alpha && isFinite(options.alpha) ? Math.abs(options.alpha) : 1;
+    stationary = { point, response, eigenvalues, kind, maxAbs, outsideRegion: maxAbs > limit + 1e-9 };
   }
   return {
     glm,

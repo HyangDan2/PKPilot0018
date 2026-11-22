@@ -26,7 +26,12 @@ export function dateToIso(date: Date): string {
 function columnType(values: Cell[]): ColType {
   const present = values.filter((v) => v !== null && v !== undefined && v !== '');
   if (!present.length) return 'numeric';
-  if (present.some((v) => v instanceof Date)) return 'date';
+  // A date column must be dates ALL the way down. A single Date cell in a
+  // column of serial numbers used to force 'date', which turned every number
+  // into an invalid date and lost the data; mixed content is kept as text so
+  // nothing is reinterpreted.
+  const dateLike = (v: Cell): boolean => v instanceof Date || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.trim()));
+  if (present.every(dateLike)) return 'date';
   const numeric = present.every((v) => (typeof v === 'number' && isFinite(v)) || (typeof v === 'string' && v.trim() !== '' && isFinite(Number(v))));
   if (numeric) return 'numeric';
   return 'text';
@@ -60,12 +65,19 @@ export interface WorkbookSheet {
   rows: Cell[][];
 }
 
-/** Rows (header first) → worksheet with inferred column types. */
-export function rowsToWorksheet(rows: Cell[][], name: string): Worksheet {
+/** Rows → worksheet with inferred column types. */
+export interface ImportOptions {
+  /** first row holds the column names (default true). With false the first row
+   *  stays a data row and the columns are named C1, C2, … */
+  header?: boolean;
+}
+
+export function rowsToWorksheet(rows: Cell[][], name: string, options: ImportOptions = {}): Worksheet {
   const width = rows.reduce((a, row) => Math.max(a, row.length), 0);
   if (!width) throw new Error('xlsx.empty');
-  const body = rows.length > 1 ? rows.slice(1) : [];
-  const header = rows[0] ?? [];
+  const useHeader = options.header !== false;
+  const body = useHeader ? rows.slice(1) : rows;
+  const header = useHeader ? rows[0] ?? [] : [];
   const columns: Omit<Column, 'id'>[] = [];
   for (let c = 0; c < width; c += 1) {
     const raw = body.map((row) => normalizeCell(row[c] ?? null));
@@ -81,25 +93,29 @@ export function rowsToWorksheet(rows: Cell[][], name: string): Worksheet {
       }
       return v;
     });
-    columns.push({ name: headerText, type, values });
+    columns.push({ name: headerText || `C${c + 1}`, type, values });
   }
   return makeWorksheet(name, columns);
 }
 
-export function workbookToWorksheets(book: WorkbookSheet[]): Worksheet[] {
+export function workbookToWorksheets(book: WorkbookSheet[], options: ImportOptions = {}): Worksheet[] {
   const sheets = book.filter((sheet) => sheet.rows.some((row) => row.some((cell) => cell !== null && cell !== '')));
   if (!sheets.length) throw new Error('xlsx.empty');
-  return sheets.map((sheet) => rowsToWorksheet(sheet.rows, sheet.name));
+  return sheets.map((sheet) => rowsToWorksheet(sheet.rows, sheet.name, options));
+}
+
+/** Raw rows of every sheet, for the import preview dialog (no header assumption). */
+export async function readXlsxRows(input: Blob | ArrayBuffer): Promise<WorkbookSheet[]> {
+  const sheets = await readXlsxFile(input);
+  return sheets.map((sheet) => ({
+    name: sheet.sheet,
+    rows: (sheet.data as Cell[][]).map((row) => row.map((cell) => cell ?? null)),
+  })).filter((sheet) => sheet.rows.some((row) => row.some((cell) => cell !== null && cell !== '')));
 }
 
 /** Read every sheet of an .xlsx file (File / Blob / ArrayBuffer). */
-export async function readXlsx(input: Blob | ArrayBuffer): Promise<Worksheet[]> {
-  const sheets = await readXlsxFile(input);
-  const book: WorkbookSheet[] = sheets.map((sheet) => ({
-    name: sheet.sheet,
-    rows: (sheet.data as Cell[][]).map((row) => row.map((cell) => cell ?? null)),
-  }));
-  return workbookToWorksheets(book);
+export async function readXlsx(input: Blob | ArrayBuffer, options: ImportOptions = {}): Promise<Worksheet[]> {
+  return workbookToWorksheets(await readXlsxRows(input), options);
 }
 
 /** yyyy-mm-dd → local Date (avoids the UTC shift of `new Date(string)`). */

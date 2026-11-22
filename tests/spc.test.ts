@@ -70,7 +70,7 @@ describe('Xbar-R chart', () => {
     const result = xbarRCharts(values, 2);
     // (10,12) · (null,16 → skipped) · (11,13) · (15,17): later groups never shift.
     expect(result.panels[0].points.map((v) => Math.round(v))).toEqual([11, 12, 16]);
-    expect(result.subgroupSummary).toEqual({ size: 2, total: 4, used: 3, skipped: 1, leftoverRows: 0 });
+    expect(result.subgroupSummary).toMatchObject({ size: 2, total: 4, used: 3, skipped: 1, leftoverRows: 0 });
     expect(result.panels[1].points.map((v) => Math.round(v))).toEqual([2, 2, 2]);
   });
 

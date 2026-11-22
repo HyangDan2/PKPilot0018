@@ -351,7 +351,10 @@ describe('multi-factor ANOVA Type I / Type III (full-vs-reduced reference)', () 
   //   A2B1 [11,12,13,14]  A2B2 [15,16]
   //   A3B1 [9,10]  A3B2 [14,15,16]
   // Type I  : A 9.9375, B 41.18571428571428, A×B 9.814285714285717
-  // Type III: A 12.5, B 2.700000000000001, A×B 9.814285714285717, SSE 10.5
+  // Type III (SUM-TO-ZERO coding, SAS / Minitab — statsmodels C(f, Sum) + typ=3):
+  //   A 14.314285714285669, B 41.379310344827566, A×B 9.814285714285685, SSE 10.5
+  // (Treatment coding returns a different A/B split — 12.5 / 2.7 — which is NOT
+  //  the Type III SS SAS and Minitab print for a model with interactions.)
   // R² 0.8530183727034121, s 1.02469507659596
   const cells: [string, string, number[]][] = [
     ['A1', 'B1', [10, 11, 12]],
@@ -378,9 +381,9 @@ describe('multi-factor ANOVA Type I / Type III (full-vs-reduced reference)', () 
     expect(term('A')?.ssSeq).toBeCloseTo(9.9375, 9);
     expect(term('B')?.ssSeq).toBeCloseTo(41.18571428571428, 9);
     expect(term('A×B')?.ssSeq).toBeCloseTo(9.814285714285717, 9);
-    expect(term('A')?.ssAdj).toBeCloseTo(12.5, 9);
-    expect(term('B')?.ssAdj).toBeCloseTo(2.700000000000001, 9);
-    expect(term('A×B')?.ssAdj).toBeCloseTo(9.814285714285717, 9);
+    expect(term('A')?.ssAdj).toBeCloseTo(14.314285714285669, 9);
+    expect(term('B')?.ssAdj).toBeCloseTo(41.379310344827566, 9);
+    expect(term('A×B')?.ssAdj).toBeCloseTo(9.814285714285685, 9);
     expect(glm.sse).toBeCloseTo(10.5, 9);
     expect(glm.r2).toBeCloseTo(0.8530183727034121, 9);
     expect(glm.s).toBeCloseTo(1.02469507659596, 9);

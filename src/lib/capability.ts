@@ -26,6 +26,8 @@ export interface CapabilityOptions {
   subgroup?: number;
   /** force the consecutive-individual (moving range) estimate even with subgroups */
   useMovingRange?: boolean;
+  /** pre-computed within sigma (e.g. the S̄/c₄ estimate of an Xbar-S chart) */
+  sdWithin?: number;
   /** how the reported sigma level (Z) is derived */
   sigmaMethod?: SigmaMethod;
 }
@@ -99,10 +101,16 @@ export function capability(raw: (number | null)[], options: CapabilityOptions = 
   const sdOverall = stdev(v);
   const subgroup = options.subgroup ?? 1;
   // Subgroups asked for by the caller give the pooled within-subgroup sigma;
-  // individuals (subgroup 1) always use the moving-range estimate.
-  const sdWithin = options.useMovingRange === true || !(subgroup > 1)
-    ? movingRangeSigma(v)
-    : withinSubgroupSigma(raw, subgroup);
+  // individuals (subgroup 1) always use the moving-range estimate. A caller
+  // that already owns the within-sigma estimator for the SAME subgroups (the
+  // Xbar-S Sixpack: S̄/c₄) passes it in so the chart and the indices cannot
+  // disagree about which variability they describe.
+  const override = options.sdWithin;
+  const sdWithin = typeof override === 'number' && isFinite(override) && override > 0
+    ? override
+    : options.useMovingRange === true || !(subgroup > 1)
+      ? movingRangeSigma(v)
+      : withinSubgroupSigma(raw, subgroup);
   const lsl = typeof options.lsl === 'number' && isFinite(options.lsl) ? options.lsl : null;
   const usl = typeof options.usl === 'number' && isFinite(options.usl) ? options.usl : null;
   const target = typeof options.target === 'number' && isFinite(options.target) ? options.target : null;

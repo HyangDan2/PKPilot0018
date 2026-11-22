@@ -113,16 +113,20 @@ describe('t tests', () => {
     expect(result.t).toBeGreaterThan(3);
   });
 
-  it('paired t subtracts the hypothesized difference μ₀', () => {
+  it('paired t keeps the CI on the observed mean difference and tests against μ₀', () => {
     const a = [12, 14, 16, 18];
     const b = [10, 11, 13, 15];
     const zero = pairedT(a, b);
     const one = pairedT(a, b, 1);
     expect(one.mu0).toBe(1);
-    expect(one.difference).toBeCloseTo(zero.difference - 1, 8);
+    // The estimate is μ_d = mean(A − B) = 2.75 in both runs; μ₀ only moves t.
+    expect(one.difference).toBeCloseTo(zero.difference, 12);
+    expect(one.differenceVsMu0).toBeCloseTo(zero.difference - 1, 8);
     expect(Math.abs(one.t)).toBeLessThan(Math.abs(zero.t));
+    // CI brackets the OBSERVED difference, never (m − μ₀).
     expect(one.ci[0]).toBeLessThan(one.difference);
     expect(one.ci[1]).toBeGreaterThan(one.difference);
+    expect((one.ci[0] + one.ci[1]) / 2).toBeCloseTo(one.difference, 10);
   });
 
   it('paired t drops rows where either side is missing', () => {

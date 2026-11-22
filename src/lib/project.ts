@@ -169,12 +169,23 @@ function inferType(values: string[]): ColType {
   return 'text';
 }
 
-export function csvToWorksheet(text: string, name = 'Imported'): Worksheet {
+export interface CsvImportOptions {
+  /** true = first row is the header, false = it is data (C1, C2… names),
+   *  undefined = auto-detect from the content (the legacy behaviour) */
+  header?: boolean;
+}
+
+export function csvToWorksheet(text: string, name = 'Imported', options: CsvImportOptions = {}): Worksheet {
   const rows = parseCsv(text);
   if (!rows.length) throw new Error('file.error');
   const width = Math.max(...rows.map((r) => r.length));
   const first = rows[0];
-  const hasHeader = first.every((cell) => cell.trim() !== '' && !isFinite(Number(cell.replace(/,/g, ''))));
+  // Auto-detect only when the caller does not say: a first row is treated as a
+  // header when every cell is non-empty and non-numeric. The import dialog
+  // always passes an explicit choice so a headerless text file keeps row 1.
+  const hasHeader = options.header === undefined
+    ? first.every((cell) => cell.trim() !== '' && !isFinite(Number(cell.replace(/,/g, ''))))
+    : options.header;
   const names = hasHeader ? first : new Array(width).fill('');
   const body = hasHeader ? rows.slice(1) : rows;
   const columns = Array.from({ length: width }, (_, c) => {

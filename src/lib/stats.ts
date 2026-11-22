@@ -158,7 +158,10 @@ export interface TTestResult {
   pairedCount?: number;
   mean: number;
   meanB?: number;
+  /** observed difference of the means (paired: mean of A − B; 2-sample: x̄₁ − x̄₂) */
   difference: number;
+  /** paired test: mean difference minus the hypothesized μ₀ (the tested quantity) */
+  differenceVsMu0?: number;
   se: number;
   df: number;
   t: number;
@@ -289,7 +292,15 @@ export function pairedT(
   const m = mean(diffs);
   const s = stdev(diffs);
   const se = s / Math.sqrt(n);
-  const t = se > 0 ? (m - mu0) / se : NaN;
+  // se = 0 (identical differences) is not undefined: t is 0 when they all equal
+  // μ₀ and ±∞ otherwise, which is exactly what the t statistic means there.
+  const t = !isFinite(se)
+    ? NaN
+    : se > 0
+      ? (m - mu0) / se
+      : Math.abs(m - mu0) <= 1e-12 * Math.max(1, Math.abs(mu0))
+        ? 0
+        : (m > mu0 ? Infinity : -Infinity);
   return {
     test: 'paired',
     mu0,
@@ -297,12 +308,16 @@ export function pairedT(
     // Means over the paired rows only, so they line up with the differences.
     mean: mean(pairedA),
     meanB: mean(pairedB),
-    difference: m - mu0,
+    // The interval describes the observed mean difference m; μ₀ only enters the
+    // test statistic and p-value. Centring the interval on (m − μ₀) shifted it
+    // away from the estimate it is supposed to bracket.
+    difference: m,
+    differenceVsMu0: m - mu0,
     se,
     df: n - 1,
     t,
     p: pFromCdf(t, (x) => tCdf(x, n - 1), alt),
-    ci: ciMean(m - mu0, se, n - 1, conf, alt),
+    ci: ciMean(m, se, n - 1, conf, alt),
     conf,
     alt,
     n,

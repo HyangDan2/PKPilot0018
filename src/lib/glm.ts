@@ -1,15 +1,16 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Sigrún — general linear model engine
    One least-squares core shared by multi-way ANOVA, factorial DOE and
-   response-surface analysis. Categorical factors use reference (treatment)
-   coding with the first level as baseline; the adjusted (Type III) SS are the
-   drop-term sums of squares in that parameterisation, which reproduces the
-   SAS/Minitab tables (verified against statsmodels anova_lm typ=3).
-   Type I SS are the sequential (model-order) sums of squares.
+   response-surface analysis. Categorical factors use SUM-TO-ZERO (deviation)
+   coding — level i = 1, last level = −1 — because the adjusted (Type III) SS
+   are the drop-term sums of squares in that parameterisation, which reproduces
+   the SAS/Minitab tables (verified against statsmodels anova_lm typ=3 with
+   C(f, Sum)). Type I SS are the sequential (model-order) sums of squares.
 
-   Rank-deficient designs (aliased terms, empty cells) are handled by a
-   rank-revealing elimination that leaves dependent columns at zero instead of
-   failing: those terms are reported as aliased with df 0.
+   Least squares runs on a column-pivoted Householder QR of X itself, never on
+   the normal equations X'X (whose condition number is the square of X's).
+   Rank-deficient designs (aliased terms, empty cells) leave dependent columns
+   at zero instead of failing: those terms are reported as aliased with df 0.
    ───────────────────────────────────────────────────────────────────────── */
 
 import { fCdf } from './dist';
@@ -40,36 +41,39 @@ export interface LstsqResult {
   xtxInv: number[][];
 }
 
-/** In-place Gauss-Jordan inverse of a small square matrix (null if singular). */
-function invertSquare(A: number[][]): number[][] | null {
-  const n = A.length;
-  const M = A.map((row, i) => [...row, ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))]);
-  for (let col = 0; col < n; col += 1) {
-    let pivot = col;
-    for (let r = col + 1; r < n; r += 1) if (Math.abs(M[r][col]) > Math.abs(M[pivot][col])) pivot = r;
-    if (Math.abs(M[pivot][col]) < 1e-12) return null;
-    [M[col], M[pivot]] = [M[pivot], M[col]];
-    const pv = M[col][col];
-    for (let c = 0; c < 2 * n; c += 1) M[col][c] /= pv;
-    for (let r = 0; r < n; r += 1) {
-      if (r === col) continue;
-      const factor = M[r][col];
-      if (factor === 0) continue;
-      for (let c = 0; c < 2 * n; c += 1) M[r][c] -= factor * M[col][c];
+/** Inverse of a small upper-triangular matrix by back substitution. */
+function invertUpper(R: number[][]): number[][] | null {
+  const r = R.length;
+  const inv = Array.from({ length: r }, () => new Array<number>(r).fill(0));
+  for (let i = r - 1; i >= 0; i -= 1) {
+    if (Math.abs(R[i][i]) < 1e-300) return null;
+    inv[i][i] = 1 / R[i][i];
+    for (let j = i + 1; j < r; j += 1) {
+      let sum = 0;
+      for (let k = i + 1; k <= j; k += 1) sum += R[i][k] * inv[k][j];
+      inv[i][j] = -sum / R[i][i];
     }
   }
-  return M.map((row) => row.slice(n));
+  return inv;
 }
 
 /**
- * Least squares through the normal equations with scaled columns and a
- * rank-revealing pivot order. Dependent columns are dropped (β = 0) instead of
- * producing NaN, so aliased DOE terms and empty ANOVA cells still fit.
+ * Least squares by Householder QR with column pivoting.
+ *
+ * Forming X'X squares the condition number (κ(X'X) = κ(X)²) and destroys the
+ * last digits of a nearly collinear polynomial / RSM / multi-factor design. The
+ * QR factorisation works on X itself, pivots the largest remaining column into
+ * each step (so the rank decision is made on residual column norms rather than
+ * on a differenced Gram matrix), and returns
+ *   · β from R z = Q'y (aliased columns set to 0),
+ *   · rank and the aliased column list,
+ *   · (X'X)⁻¹ on the estimable columns as R⁻¹R⁻ᵀ, zeros elsewhere.
  */
 export function lstsq(X: number[][], y: number[]): LstsqResult {
   const n = X.length;
   const p = n ? X[0].length : 0;
   if (!n || !p) return { beta: new Array(p).fill(0), rank: 0, aliased: [], xtxInv: [] };
+  // Column scaling keeps the pivoting decision scale-free.
   const scale = new Array(p).fill(1);
   for (let j = 0; j < p; j += 1) {
     let norm = 0;
@@ -77,55 +81,83 @@ export function lstsq(X: number[][], y: number[]): LstsqResult {
     norm = Math.sqrt(norm);
     scale[j] = norm > 0 ? norm : 1;
   }
-  const xtx: number[][] = Array.from({ length: p }, () => new Array<number>(p).fill(0));
-  const xty: number[] = new Array(p).fill(0);
-  for (let i = 0; i < n; i += 1) {
-    for (let a = 0; a < p; a += 1) {
-      const xa = X[i][a] / scale[a];
-      if (xa === 0) continue;
-      xty[a] += xa * y[i];
-      for (let b = a; b < p; b += 1) xtx[a][b] += xa * (X[i][b] / scale[b]);
-    }
-  }
-  for (let a = 0; a < p; a += 1) for (let b = 0; b < a; b += 1) xtx[a][b] = xtx[b][a];
-  const diagMax = Math.max(1, ...xtx.map((row, i) => Math.abs(row[i])));
-  const tol = 1e-8 * diagMax;
-  // Greedy pivot selection over the symmetric matrix, re-checking the residual
-  // diagonal after each accepted column (Cholesky-style rank revelation).
-  const retained: number[] = [];
-  const work = xtx.map((row) => [...row]);
-  const candidates = new Set(Array.from({ length: p }, (_, i) => i));
-  while (candidates.size) {
+  const A: number[][] = X.map((row) => row.map((v, j) => v / scale[j]));
+  const b: number[] = [...y];
+  const perm = Array.from({ length: p }, (_, i) => i);
+  const minDim = Math.min(n, p);
+  const tol = 1e-10;
+  let rank = 0;
+  for (let k = 0; k < minDim; k += 1) {
     let best = -1;
-    let bestValue = tol;
-    candidates.forEach((j) => {
-      if (Math.abs(work[j][j]) > bestValue) {
-        bestValue = Math.abs(work[j][j]);
-        best = j;
+    let bestNorm = 0;
+    for (let j = k; j < p; j += 1) {
+      let norm = 0;
+      for (let i = k; i < n; i += 1) norm += A[i][j] * A[i][j];
+      norm = Math.sqrt(norm);
+      if (norm > bestNorm) { bestNorm = norm; best = j; }
+    }
+    if (best < 0 || bestNorm <= tol) break;
+    if (best !== k) {
+      for (let i = 0; i < n; i += 1) {
+        const tmp = A[i][k];
+        A[i][k] = A[i][best];
+        A[i][best] = tmp;
       }
-    });
-    if (best < 0) break;
-    retained.push(best);
-    candidates.delete(best);
-    const pv = work[best][best];
-    candidates.forEach((j) => {
-      const f = work[j][best] / pv;
-      for (const k of candidates) work[j][k] -= f * work[best][k];
-    });
+      const tmp = perm[k];
+      perm[k] = perm[best];
+      perm[best] = tmp;
+    }
+    // Householder reflection zeroing A[k+1.., k].
+    const v = new Array<number>(n).fill(0);
+    let vtv = 0;
+    for (let i = k; i < n; i += 1) { v[i] = A[i][k]; vtv += v[i] * v[i]; }
+    const alpha = A[k][k] >= 0 ? -Math.sqrt(vtv) : Math.sqrt(vtv);
+    v[k] -= alpha;
+    vtv = 0;
+    for (let i = k; i < n; i += 1) vtv += v[i] * v[i];
+    if (vtv > 0) {
+      for (let j = k; j < p; j += 1) {
+        let s = 0;
+        for (let i = k; i < n; i += 1) s += v[i] * A[i][j];
+        const f = (2 * s) / vtv;
+        if (f === 0) continue;
+        for (let i = k; i < n; i += 1) A[i][j] -= f * v[i];
+      }
+      let sb = 0;
+      for (let i = k; i < n; i += 1) sb += v[i] * b[i];
+      const fb = (2 * sb) / vtv;
+      if (fb !== 0) for (let i = k; i < n; i += 1) b[i] -= fb * v[i];
+    }
+    A[k][k] = alpha;
+    for (let i = k + 1; i < n; i += 1) A[i][k] = 0;
+    rank += 1;
   }
-  retained.sort((a, b) => a - b);
-  const aliased = Array.from({ length: p }, (_, i) => i).filter((i) => !retained.includes(i));
-  if (!retained.length) return { beta: new Array(p).fill(0), rank: 0, aliased, xtxInv: Array.from({ length: p }, () => new Array<number>(p).fill(0)) };
-  const sub = retained.map((i) => retained.map((j) => xtx[i][j]));
-  const inv = invertSquare(sub);
   const beta = new Array(p).fill(0);
   const xtxInv = Array.from({ length: p }, () => new Array<number>(p).fill(0));
-  if (!inv) return { beta, rank: 0, aliased: Array.from({ length: p }, (_, i) => i), xtxInv };
-  retained.forEach((i, a) => {
-    beta[i] = inv[a].reduce((sum, value, b) => sum + value * xty[retained[b]], 0) / scale[i];
-    retained.forEach((j, b) => { xtxInv[i][j] = inv[a][b] / (scale[i] * scale[j]); });
-  });
-  return { beta, rank: retained.length, aliased, xtxInv };
+  if (!rank) {
+    return { beta, rank: 0, aliased: Array.from({ length: p }, (_, i) => i), xtxInv };
+  }
+  const R = Array.from({ length: rank }, (_, i) => Array.from({ length: rank }, (_, j) => (j >= i ? A[i][j] : 0)));
+  const z = new Array<number>(rank).fill(0);
+  for (let i = rank - 1; i >= 0; i -= 1) {
+    let sum = b[i];
+    for (let j = i + 1; j < rank; j += 1) sum -= R[i][j] * z[j];
+    z[i] = Math.abs(R[i][i]) > 1e-300 ? sum / R[i][i] : 0;
+  }
+  for (let i = 0; i < rank; i += 1) beta[perm[i]] = z[i] / scale[perm[i]];
+  const rInv = invertUpper(R);
+  if (rInv) {
+    for (let i = 0; i < rank; i += 1) {
+      for (let j = 0; j < rank; j += 1) {
+        let sum = 0;
+        for (let k = 0; k < rank; k += 1) sum += rInv[i][k] * rInv[j][k];
+        xtxInv[perm[i]][perm[j]] = sum / (scale[perm[i]] * scale[perm[j]]);
+      }
+    }
+  }
+  const retained = perm.slice(0, rank).sort((a, b2) => a - b2);
+  const aliased = Array.from({ length: p }, (_, i) => i).filter((i) => !retained.includes(i));
+  return { beta, rank, aliased, xtxInv };
 }
 
 /* ── design matrix ───────────────────────────────────────────────────── */
@@ -206,14 +238,20 @@ export function buildDesign(y: (number | null)[], factors: ModelFactor[], terms:
     if (f.kind === 'categorical') {
       const lv = sortedLevels(f.values);
       levels[name] = lv;
-      // Reference (treatment) coding with the first level as the baseline:
-      // dropping a term's own columns from this parameterisation reproduces the
-      // SAS/Minitab Type III sums of squares (verified against statsmodels).
+      // Sum-to-zero (deviation / effects) coding: L−1 columns where level i gets
+      // 1, the LAST level gets −1 and every other level 0. These contrasts are
+      // orthogonal to the intercept, so dropping a term's block and refitting
+      // yields the SAS / Minitab Type III (adjusted) sum of squares. Treatment
+      // (dummy) coding gives different adjusted SS once interactions are present.
       const cols: number[][] = [];
-      for (let j = 1; j < lv.length; j += 1) {
-        cols.push(rows.map((r) => (String(f.values[r] ?? '') === lv[j] ? 1 : 0)));
+      const last = lv[lv.length - 1];
+      for (let j = 0; j < lv.length - 1; j += 1) {
+        cols.push(rows.map((r) => {
+          const value = String(f.values[r] ?? '');
+          return value === lv[j] ? 1 : value === last ? -1 : 0;
+        }));
       }
-      factorColumns.set(name, { labels: lv.slice(1).map((l) => `${name}[${l}]`), values: cols });
+      factorColumns.set(name, { labels: lv.slice(0, -1).map((l) => `${name}[${l}]`), values: cols });
     } else {
       factorColumns.set(name, { labels: [name], values: [rows.map((r) => numericOf(f.values[r]) ?? 0)] });
     }
@@ -297,7 +335,6 @@ function sse(X: number[][], y: number[], colLimit: number): number {
     return a + (v - pred) ** 2;
   }, 0);
 }
-
 export function fitGlm(y: (number | null)[], factors: ModelFactor[], terms: ModelTerm[]): GlmResult {
   const design = buildDesign(y, factors, terms);
   const { X, y: ys, n, blockSizes, blockStart } = design;

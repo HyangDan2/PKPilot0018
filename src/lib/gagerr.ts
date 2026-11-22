@@ -56,6 +56,8 @@ export interface GrrResult {
   studyVar: number;
   ndc: number;
   note?: 'interactionPooled' | 'unbalanced';
+  /** components whose raw ANOVA estimate was negative (reported signed, additive) */
+  negativeComponents: string[];
 }
 
 function component(
@@ -80,8 +82,17 @@ function component(
   };
 }
 
-export interface GrrOptions {
-  /** tolerance width USL − LSL, optional */
+/**
+ * Negative variance components: Minitab reports the raw (negative) estimate and
+ * a zero standard deviation, keeping the components additive so that
+ * total = GRR + part-to-part and the %Contribution column sums to 100 %. This
+ * helper only names them for the output note; nothing is clamped or dropped.
+ */
+function negativeOf(values: Record<string, number>): string[] {
+  return Object.entries(values).filter(([, v]) => v < 0).map(([name]) => name);
+}
+
+export interface GrrOptions {  /** tolerance width USL − LSL, optional */
   tolerance?: number;
   /** study-variation multiplier, default 6 */
   studyVar?: number;
@@ -132,6 +143,10 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
     if (cellCounts.size !== p * o) throw new Error('grr.missingCells');
     if (!balanced) throw new Error('grr.unbalanced');
     const n = replicates;
+    // Crossed ANOVA needs repeatability degrees of freedom po(n−1); with a
+    // single replicate per part × operator cell that is 0 (MS_error undefined),
+    // so the study cannot be analysed instead of returning NaN components.
+    if (!(n >= 2)) throw new Error('grr.needReplicates');
     const ssPart = o * n * parts.reduce((a, part) => a + ((partMeans.get(part)?.m ?? grand) - grand) ** 2, 0);
     const ssOper = p * n * operators.reduce((a, op) => a + ((opMeans.get(op)?.m ?? grand) - grand) ** 2, 0);
     const ssCell = n * [...cellMeans.values()].reduce((a, cell) => a + (cell.m - grand) ** 2, 0);
@@ -196,6 +211,7 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
         studyVar,
         ndc: distinctCategories(varPart, varGrr),
         note: 'interactionPooled',
+        negativeComponents: negativeOf({ repeat: varRepeat, reproducibility: varOper, operator: varOper, partToPart: varPart, grr: varGrr, total: varTotal }),
       };
     }
     const varRepeat = msRepeat;
@@ -228,6 +244,7 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
       studyVar,
       ndc: distinctCategories(varPart, varGrr) || Math.max(1, Math.floor(1.41 * (sdPart / Math.max(1e-12, sdGrr)))),
       note,
+      negativeComponents: negativeOf({ repeat: varRepeat, reproducibility: varInt + varOper, operator: varOper, partToPart: varPart, grr: varGrr, total: varTotal }),
     };
   }
 
@@ -245,8 +262,29 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
     partsPerOp.set(r.operator, set);
   });
   const partsCount = [...partsPerOp.values()].map((set) => set.size);
-  const partsPerOperator = Math.round(partsCount.reduce((a, b) => a + b, 0) / partsCount.length);
-  const n = Math.round([...opPartCounts.values()].reduce((a, b) => a + b, 0) / opPartCounts.size);
+  // Nested designs must be balanced for the ANOVA estimators below: the same
+  // number of parts under every operator, the same replicate count in every
+  // operator × part cell, and at least two replicates. Anything else is refused
+  // explicitly — averaging the counts with Math.round would fabricate SS/df.
+  const sharedParts = (() => {
+    const owners = new Map<string, Set<string>>();
+    rows.forEach((r) => {
+      const set = owners.get(r.part) ?? new Set<string>();
+      set.add(r.operator);
+      owners.set(r.part, set);
+    });
+    return [...owners.values()].some((set) => set.size > 1);
+  })();
+  if (sharedParts) throw new Error('grr.nestedPartShared');
+  const cellCountsList = [...opPartCounts.values()];
+  const balancedNested = cellCountsList.length === o * Math.max(...partsCount, 1)
+    && partsCount.every((c) => c === partsCount[0])
+    && cellCountsList.every((c) => c === cellCountsList[0])
+    && !sharedParts;
+  if (!balancedNested) throw new Error('grr.unbalancedNested');
+  const partsPerOperator = partsCount[0];
+  const n = cellCountsList[0];
+  if (!(n >= 2)) throw new Error('grr.needReplicates');
   const ssOper = partsPerOperator * n * operators.reduce((a, op) => a + ((opMeans.get(op)?.m ?? grand) - grand) ** 2, 0);
   let ssPartOp = 0;
   operators.forEach((op) => {
@@ -297,6 +335,7 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
     totalVariance: varTotal,
     studyVar,
     ndc: distinctCategories(varPart, varGrr) || Math.max(1, Math.floor(1.41 * (sdPart / Math.max(1e-12, sdGrr)))),
+    negativeComponents: negativeOf({ repeat: varRepeat, reproducibility: varOper, operator: varOper, partToPart: varPart, grr: varGrr, total: varTotal }),
   };
 }
 

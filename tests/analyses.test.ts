@@ -56,11 +56,12 @@ describe('hypothesis tests', () => {
     const zero = run('paired', comparison, { first: 'C4', second: 'C5', testDiff: 0, confidence: 95, alternative: 'two-sided', chart: false });
     const one = run('paired', comparison, { first: 'C4', second: 'C5', testDiff: 1, confidence: 95, alternative: 'two-sided', chart: false });
     const diffOf = (result: ReturnType<typeof run>) => Number(tables(result.blocks)[1].rows[0][1]);
-    expect(diffOf(one)).toBeCloseTo(diffOf(zero) - 1, 6);
+    // Difference column = observed mean difference in BOTH runs; μ₀ changes t/p only.
+    expect(diffOf(one)).toBeCloseTo(diffOf(zero), 6);
     const tOf = (result: ReturnType<typeof run>) => Math.abs(Number(tables(result.blocks)[1].rows[0][5]));
     expect(tOf(one)).toBeLessThan(tOf(zero));
     const method = one.blocks.find((b) => b.type === 'text');
-    expect(method && method.type === 'text' ? method.lines.join(' ') : '').toContain('μ_d = 1');
+    expect(method && method.type === 'text' ? method.lines.join(' ') : '').toContain('Test of μ_d: μ_d = 1');
   });
 
   it('paired t drops rows with a missing side and keeps the complete pairs', () => {
