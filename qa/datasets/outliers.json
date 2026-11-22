@@ -5,7 +5,6 @@
  "generator": "numpy.random.default_rng(11006).normal with rows 4 and 17 overwritten",
  "python": "3.12.16",
  "numpy": "2.5.4",
- "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
  "columns": {
   "x": [
    29.9727151514,

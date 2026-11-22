@@ -5,7 +5,6 @@
  "generator": "numpy.random.default_rng(11023): smallest lifetime kept, the other 19 censored at 55",
  "python": "3.12.16",
  "numpy": "2.5.4",
- "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
  "columns": {
   "time": [
    80.0041362508,

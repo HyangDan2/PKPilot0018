@@ -5,7 +5,6 @@
  "generator": "literal values, no RNG — segments A..G concatenated (rule 7, 2, 3, 4, 5, 6, 1)",
  "python": "3.12.16",
  "numpy": "2.5.4",
- "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
  "columns": {
   "x": [
    9.6,

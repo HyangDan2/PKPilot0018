@@ -5,7 +5,6 @@
  "generator": "numpy.random.default_rng(11021).normal effects added to a 10.0 nominal",
  "python": "3.12.16",
  "numpy": "2.5.4",
- "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
  "columns": {
   "part": [
    "P1",

@@ -5,7 +5,6 @@
  "generator": "numpy.random.default_rng(11010).normal; one cell reduced to one replicate",
  "python": "3.12.16",
  "numpy": "2.5.4",
- "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
  "columns": {
   "part": [
    "P1",

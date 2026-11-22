@@ -5,7 +5,6 @@
  "generator": "numpy.random.default_rng(11016).normal; one hole at row 17 of the n=5 series",
  "python": "3.12.16",
  "numpy": "2.5.4",
- "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
  "columns": {
   "v5": [
    101.769335622,

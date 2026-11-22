@@ -5,7 +5,6 @@
  "generator": "literal values (no RNG) — exercises variance 0 and the (0, inf) support guards",
  "python": "3.12.16",
  "numpy": "2.5.4",
- "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
  "columns": {
   "flat": [
    5.0,

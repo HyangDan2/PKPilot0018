@@ -28,7 +28,6 @@ from __future__ import annotations
 import json
 import math
 import os
-import platform
 import sys
 
 import numpy as np
@@ -65,7 +64,10 @@ def write(name: str, description: str, seed, method: str, columns: dict, extra: 
         "generator": method,
         "python": sys.version.split()[0],
         "numpy": np.__version__,
-        "platform": platform.platform(),
+        # No platform string: it differs between the developer machine and CI
+        # while the numbers do not, and the run must be able to prove byte
+        # equality of the golden files on both.
+
         "columns": {k: round_list(v) for k, v in columns.items()},
     }
     if extra:
