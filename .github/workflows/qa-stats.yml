@@ -1,0 +1,52 @@
+name: Statistics QA (independent reference)
+
+# Runs the Python reference engine, the shipped TypeScript engine and the
+# comparator on every pull request and on main. Fails the job when any case is
+# FAIL or ERROR. Coexists with deploy.yml: this job never publishes anything,
+# it only uploads the report as an artifact.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-stats-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install the pinned reference stack
+        run: pip install -r qa/reference/requirements.txt
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run the independent statistics QA
+        run: npm run qa:stats
+
+      - name: Upload the QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-stats-report
+          path: |
+            qa/reports/latest.html
+            qa/reports/latest.json
+          retention-days: 30
+          if-no-files-found: warn
