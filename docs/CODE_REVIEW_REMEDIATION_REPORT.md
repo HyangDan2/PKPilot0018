@@ -3,10 +3,10 @@
 > **Component**: `HD2Lab Sigrún` — pure-browser statistical & quality workspace  
 > **Repository**: [`HyangDan2/PKPilot0018`](https://github.com/HyangDan2/PKPilot0018)  
 > **Review baseline**: `bab8f0d` (the commit the external review read)  
-> **Remediated HEAD**: `f39dd08` (first fix commit `c8346ee`)  
-> **Live build**: <https://hyangdan2.github.io/PKPilot0018/> · bundle `index-ikDql5ib.js` · css `index-BH3mxGMQ.css`  
-> **CI**: GitHub Actions run [44973412984](https://github.com/HyangDan2/PKPilot0018/actions/runs/44973412984) — `typecheck` → `vitest` → `build` → Pages deploy, all **success**  
-> **Test suite**: **239 passed / 10 files** (baseline 200) · `npx tsc --noEmit` 0 errors  
+> **Remediated HEAD**: `a531e46` (follow-up commit; earlier fixes `c8346ee`, `f39dd08`)  
+> **Live build**: <https://hyangdan2.github.io/PKPilot0018/> · bundle `index-BShM3WxV.js` · css `index-BH3mxGMQ.css`  
+> **CI**: GitHub Actions run [44986377776](https://github.com/HyangDan2/PKPilot0018/actions/runs/44986377776) — `typecheck` → `vitest` → `build` → Pages deploy, all **success**  
+> **Test suite**: **253 passed / 10 files** (baseline 200) · `npx tsc --noEmit` 0 errors  
 > **Independent references**: SciPy 1.18.1, NumPy 2.5.4, statsmodels 0.15.0 (Python 3.12)
 
 This report records what was actually changed and what was actually measured. Every reference value in the tables was produced outside Sigrún (SciPy / statsmodels / NumPy / Montgomery's tables) and is asserted in `tests/qa-review.test.ts` with the QA id of the original review.
@@ -21,7 +21,8 @@ This report records what was actually changed and what was actually measured. Ev
 | P1 — data integrity and UX | 8 | All 8 fixed | QA-10 … QA-14, plus output-level tests in `tests/analyses.test.ts` |
 | GLM / DOE / RSM design audit | 5 | All 5 closed | QA-15 and the numerical-stability test (κ = 3.4e3 polynomial) |
 | Regression suite | 15 | QA-01 … QA-15 implemented | 33 test cases in `tests/qa-review.test.ts`, all green |
-| Deployment | — | 2 commits, 2 successful Pages runs | bundle hash matches the local build |
+| Follow-up re-review of `492484f` (Section 6) | 3 | All 3 fixed (F-01 P0, F-02 P1, F-03 P1) | F-01 … F-03 in `tests/qa-review.test.ts` — 13 new cases; the file now holds 46 |
+| Deployment | — | 3 commits, 3 successful Pages runs | bundle hash matches the local build |
 | Live E2E | — | import, Weibull, power, DOE, project round-trip verified in Chromium | `downloads/sigrun_qa_*.png` |
 
 **Headline numbers that changed meaning**
@@ -398,4 +399,166 @@ Screenshots (each reviewed by eye):
 
 ---
 
-*Report generated from the actual repository state at `f39dd08`; every number in the tables is asserted by the test suite or was read from the deployed build.*
+## Section 6 — Follow-up Re-review Remediation (Post-`492484f`)
+
+A second external review read `492484f` and raised three items. All three were reproduced in the running engine before anything was changed, then fixed, then re-verified against independent references. Nothing else in the report above was disturbed: every QA-01 … QA-15 assertion still passes unchanged apart from the two expectations listed at the end of this section, each of which was asserting the exact defect that item F-03 removes.
+
+| Item | Severity | File(s) | Status |
+|---|---|---|---|
+| F-01 two-sided proportion effect search used an invalid, mirrored range | P0 | `src/lib/power.ts` | fixed |
+| F-02 censored Weibull printed complete-data AD thresholds as a verdict | P1 | `src/lib/reliability.ts`, `src/lib/analyses.ts`, `src/lib/i18n.ts` | fixed |
+| F-03 Sixpack Cp/Cpk used a different within-σ than the chart for n = 2 … 10 | P1 | `src/lib/sixpack.ts`, `src/lib/analyses.ts`, `src/lib/i18n.ts` | fixed |
+
+Commit: `a531e46`. Tests: 14 new cases (13 in `tests/qa-review.test.ts`, 1 output-level case in `tests/analyses.test.ts`), whole suite 253 passed / 10 files, `tsc --noEmit` 0 errors.
+
+### 6-① F-01 — two-sided proportion effect: real range, per-direction search
+
+**Cause.** `differenceRange()` built the two-sided range by mirroring the wider side: `return [-Math.max(-lower, upper), Math.max(-lower, upper)]`. For p₀ = 0.2 the valid effects are −0.2 … +0.8, but the function returned ±0.8, so the lower endpoint meant p_a = −0.6. `powerOfProp1()` correctly refuses a proportion outside (0, 1) and returns `NaN`, and `solveDifference()` treated the non-finite endpoint as fatal and threw `power.unreachable`. The practical effect was that **every** `solveFor = 'difference'` request on a two-sided proportion test failed, whatever the data, because the range itself was invalid.
+
+**Fix.**
+
+1. `differenceRange()` returns the true valid interval `[−(p − ε), 1 − p − ε]` for `oneProp` and `twoProp`. One-sided alternatives keep their single admissible half; t / ANOVA methods keep the symmetric ±20σ bound.
+2. `solveDifference()` solves a two-sided test as **two independent one-direction problems**. Each branch is scanned on a 200-point grid and then bisected, because the proportion power curve is not monotone all the way to the edge of (0, 1): as p_a → 0 or 1 the alternative standard error collapses and the power falls back toward 0, so an endpoint-only test both misses reachable interior solutions and accepts unreachable branches.
+3. The smaller |d| becomes `difference`; when the other direction also reaches the target with a **different** magnitude, its signed threshold is exposed as `PowerSolution.oppositeDifference` and printed as a note. `power.unreachable` is thrown only when neither direction can reach the target.
+4. Symmetric cases (two-sided t, two-sided ANOVA, any p₀ = 0.5 proportion) return the same |d| twice; the mirror is not repeated as an "opposite direction".
+
+**Behaviour, before → after** (α = 0.05, target power 90 %, `solveFor = difference`):
+
+| Case | `492484f` | After | Independent reference (SciPy / NumPy) |
+|---|---|---|---|
+| oneProp p₀ = 0.2, n = 50 | `power.unreachable` | d = **−0.15027** (decrease), opposite **+0.19965** | −0.1502708587 / +0.1996462360 |
+| oneProp p₀ = 0.8, n = 50 | `power.unreachable` | d = **+0.15027**, opposite **−0.19965** | +0.1502708587 / −0.1996462360 |
+| oneProp p₀ = 0.15, n = 50 | `power.unreachable` | d = **−0.12645**, opposite **+0.18448** | −0.1264543316 / +0.1844791403 |
+| oneProp p₀ = 0.15, n = 20 | `power.unreachable` | d = **+0.29901** only (the decrease direction peaks at 0.235 power, so it reports no opposite threshold) | 0.2990121023 |
+| twoProp p₁ = 0.2, n = 100 | `power.unreachable` | d = **−0.15004**, opposite **+0.20877** | −0.1500361118 / +0.2087655613 |
+| twoProp p₁ = 0.2, n = 5 | `power.unreachable` | `power.unreachable` (neither direction exceeds 90 %) | max power < 0.90 both ways |
+
+p₀ = 0.2 and p₀ = 0.8 mirror each other exactly (`|d|` 0.15027 both ways), which is the symmetry check the review asked for. The reported |d| is the minimum: at 0.999 × |d| the power is 0.8988, below the 0.90 target, and `powerAt(spec, n, d)` is ≥ target at the returned value for every case above.
+
+**Live output** (1-Proportion, p₀ = 0.2, N = 50, target 90 %, two-sided):
+
+```
+Method: 1 Proportion.
+Proportions use the normal approximation (Minitab uses an exact method, so small-n results can differ slightly).
+Baseline p = 0.2, comparison p = 0.05.
+A two-sided test also reaches 90.0% in the opposite direction at difference +0.1996 (p₂ = 0.4);
+  the table reports the smaller |difference|.
+Solved for the smallest difference that reaches the target power.
+
+N    Power     Difference   Alpha
+50   90.00%    -0.1503      5.00%
+```
+
+### 6-② F-02 — censored Weibull: reference-only AD, censoring-aware bootstrap p
+
+**Cause.** `analyses.ts` printed the AD table for right-censored fits with the complete-data critical values `0.637 / 0.757 / 1.038` and derived a p-range verdict from them. With censoring, A² is computed on the failure times only against the fitted CDF; its null distribution is **not** the complete-data one, so those thresholds do not apply. On the sample used throughout the suite (20 failures + 5 right-censored) the old display said `0.01 < p < 0.05` — a rejection at 5 % — for a sample the bootstrap now puts at p ≈ 0.070.
+
+**Fix.**
+
+1. `fitWeibull()` keeps `ad` and `adAdjusted`, and labels them for what they are: `adBasis: 'failures'`, reported as approximate reference values.
+2. New deterministic parametric bootstrap, `adBootstrapP` + `adBootstrapReps`:
+   - Mulberry32 PRNG with a fixed seed (`0x51e62f1a`), so the same sample always reports the same p-value;
+   - each replicate draws n lifetimes from Weibull(β̂, η̂), keeps the observed failure/censoring **share**, and redraws every censoring time from the empirical distribution of the observed censoring times (`min(life, c)`, censored when `c < life`);
+   - a replicate that yields fewer than two failures has its two earliest observations read as failures instead, so the failure rate stays intact instead of the replicate being dropped;
+   - each replicate is refitted by 1-D profile maximum likelihood (one pass per shape evaluation, because Σ(t/η)^β = r at the profiled scale) and its failures-only A* is compared with the observed A*;
+   - `p = (hits + 1) / (B + 1)` with B = 300 — the add-one form, so the reported p can never be exactly 0.
+3. `analyses.ts` splits the table by basis:
+   - complete data → AD, AD*, the `0.637 / 0.757 / 1.038` critical values, the p-range conclusion (unchanged);
+   - right-censored data → `AD (failures-only, ref.)`, `AD* (failures-only, ref.)`, `Bootstrap p-value (B=300)`, `KM max deviation` against `1.36/√k`, the AD evaluation basis and the log-likelihood. The critical values and the p-range conclusion are **not** printed.
+4. The caption (`res.adCensoredNote`, EN + KO) states that the complete-data critical values are not applied, that A²/A* are approximations, and that the bootstrap p-value and the Kaplan–Meier deviation are the checks that do apply.
+
+**Measured behaviour:**
+
+| Sample | AD (ref.) | AD* (ref.) | Bootstrap p (B = 300) | Before (`492484f` display) | Independent reference |
+|---|---|---|---|---|---|
+| 20 failures + 5 censored (Weibull) | 0.8596 | 0.8981 | **0.0698** | `0.01 < p < 0.05` — reject at 5 % | SciPy/NumPy replicate: p 0.0598 / 0.0698 (two seeds) |
+| 24 failures + 6 censored from a lognormal (σ = 1.2) | 1.62 | 1.7579 | **0.0033** | `p < 0.01` | SciPy/NumPy replicate: p 0.0033 |
+| 20 complete lives | 0.6899 | 0.7207 | not computed (`reps = 0`, `p = NaN`) — tabulated thresholds apply | `5 % < p < 10 %` | unchanged |
+
+Runtime of the whole 300-replicate bootstrap: **≈ 16 ms** in Node for the 25-observation sample (the test asserts < 200 ms), and the result is byte-identical between runs because of the fixed seed.
+
+### 6-③ F-03 — one within-σ for the whole Sixpack
+
+**Cause.** `capabilitySixpack()` passed `spc.sigmaWithin` to `capability()` only for Xbar-S (n ≥ 11). For n = 2 … 10 the limits were drawn on `R̄/d₂(n)` while Cp/Cpk were computed on the pooled within-subgroup `s = √(SS_within/df)`. Two different variability estimates described the same process, and the indices could disagree with the chart that sat next to them.
+
+**Fix.**
+
+1. `capabilitySixpack()` hands the chart estimate to `capability()` at **every** subgroup size — `MR̄/d₂(2)` for I-MR, `R̄/d₂(n)` for Xbar-R, `S̄/c₄(n)` for Xbar-S — so `sigmaWithin === capability.sdWithin` exactly.
+2. `SixpackResult` now carries `sigmaBasis` (`'MRbar/d2' | 'Rbar/d2' | 'Sbar/c4'`) and `withinMethodLabel` (`MR̄/d₂(2)`, `R̄/d₂(5)`, `S̄/c₄(12)`, …) so callers and the UI can state where the number came from.
+3. The result card gained a **"Sigma estimates and their basis"** table — chart within σ, capability within σ (Cp/Cpk), overall σ — each with the value and its basis, plus a caption. The header line of the card also names the shared estimator.
+4. The standalone `capability()` function keeps its own pooled / moving-range estimation; only the Sixpack, which owns the chart, overrides it.
+
+**Reference dataset** (60 measurements, 5 groups of 12 → divisible by 2, 5, 10 and 12; LSL 9.5, USL 10.8; mean 10.0885, s = 0.140639):
+
+| n | chart | chart within σ | capability within σ before | after | Cp before → after | Cpk before → after | Pp | Ppk | independent reference σ |
+|---|---|---|---|---|---|---|---|---|---|
+| 2 | Xbar-R | 0.105792 (`R̄/d₂(2)`) | 0.111496 | **0.105792** | 1.9433 → **2.04804** | 1.7595 → **1.85437** | 1.54059 | 1.39490 | 0.10579196217494075 |
+| 5 | Xbar-R | 0.127938 (`R̄/d₂(5)`) | 0.128719 | **0.127938** | 1.6832 → **1.69353** | 1.5241 → **1.53338** | 1.54059 | 1.39490 | 0.1279378045285181 |
+| 10 | Xbar-R | 0.123078 (`R̄/d₂(10)`) | 0.127600 | **0.123078** | 1.6980 → **1.76040** | 1.5374 → **1.59393** | 1.54059 | 1.39490 | 0.12307775611869187 |
+| 12 | Xbar-S | 0.127597 (`S̄/c₄(12)`) | 0.127883 | **0.127597** | 1.6943 → **1.69806** | 1.5340 → **1.53748** | 1.54059 | 1.39490 | 0.12759679590767828 |
+
+The reference column comes from NumPy (`range` and `s` per subgroup, Montgomery Table VI d₂, c₄(12) = 0.9775593518547718) and matches the engine to < 1e-14; the tests assert 1e-8. Pp/Ppk are identical across subgroup sizes because they use the overall sample s, which is the point of keeping the two families separate.
+
+**Live output** (n = 10, same data):
+
+```
+Sixpack on 60 observations · Xbar chart with subgroup size 10
+The control limits and Cp/Cpk both use the chart estimate R̄/d₂(10) — the same variability,
+  not two competing ones.
+
+SIGMA ESTIMATES AND THEIR BASIS
+ESTIMATE                        VALUE      BASIS
+Chart within σ                  0.123078   R̄/d₂(10)
+Capability within σ (Cp/Cpk)    0.123078   R̄/d₂(10)
+Overall σ                       0.140639   s (n − 1)
+```
+
+### Changed expectations in the existing suite
+
+| Test | Old expectation | New expectation | Why |
+|---|---|---|---|
+| `tests/p2.test.ts` Sixpack n = 4 | `capability.sdWithin = 0.20371548787463356` | `0.2234094220495385` (= R̄ 0.46 / d₂(4) 2.059) plus `sigmaWithin === capability.sdWithin` | the old number was the pooled within-subgroup s the indices used while the limits used R̄/d₂ — exactly the defect F-03 removes (comment in the test records the Python value) |
+| `tests/analyses.test.ts` censored Weibull card | labels contain `AD*` | labels contain `AD* (failures-only, ref.)`, `Bootstrap p-value (B=300)`; and must **not** contain `AD* critical values` or `Conclusion` | the censored card no longer judges with complete-data thresholds |
+
+### Verification for Section 6
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | 0 errors |
+| `npx vitest run` | **253 passed / 10 files** (analyses 45, qa-review 46, benchmark 29, p2 28, stats 24, charts 24, project 23, spc 23, calc 7, i18n 4) |
+| New cases | F-01 ×6 (range, p₀ = 0.2, p₀ = 0.8 mirror, one-reachable-direction, twoProp, still-unreachable), F-02 ×3 (bootstrap present/absent, non-Weibull rejection, speed + determinism), F-03 ×4 (`it.each` n = 2, 5, 10, 12), sigma-basis output table ×1 |
+| Python cross-check | SciPy 1.18.1 / NumPy 2.5.4: power roots (seeds above), censored Weibull MLE + A* + bootstrap, Sixpack σ/Cp/Cpk/Pp/Ppk — all reproduced outside the app |
+| Actions | run [44986377776](https://github.com/HyangDan2/PKPilot0018/actions/runs/44986377776) — typecheck, vitest, build, Pages deploy: **success** |
+| Live bundle | `index-BShM3WxV.js` (666.63 kB) + `index-BH3mxGMQ.css`, identical to the local `npm run build` output |
+| Repository state | `git status -sb` clean on `main` at `a531e46` (no temporary files in the work tree) |
+
+### Live E2E against <https://hyangdan2.github.io/PKPilot0018/>
+
+| Flow | What was checked | Result |
+|---|---|---|
+| CSV import → Capability Sixpack, 60 values, subgroup 10, LSL 9.5 / USL 10.8 | header line names `R̄/d₂(10)`; sigma table 0.123078 / 0.123078 / 0.140639 with bases; Cp 1.76, Cpk 1.594, Pp 1.541, Ppk 1.395 | PASS |
+| CSV import → Weibull distribution analysis, 25 times (20 failures + 5 censored, code 1 = censored) | AD / AD* labelled "failures-only, ref.", bootstrap p = 0.0698 (B = 300), KM deviation 0.0793 vs 0.3041, no `AD* critical values` row, no `Conclusion` row, caption explains the change | PASS |
+| Power and Sample Size — 1 Proportion, p₀ = 0.2, N = 50, target 90 %, two-sided, solve for difference | difference −0.1503 at 90.00 %, opposite-direction note +0.1996 (p₂ = 0.4) | PASS |
+| Browser console / network | 0 script errors and 0 failed resource requests (4 requests: the page, the JS bundle, the CSS, favicon) after a full re-run of the power card with listeners installed | PASS |
+
+Screenshots (each reviewed by eye):
+
+| File | Content |
+|---|---|
+| `downloads/sigrun_rereview_sixpack.png` | Sixpack card, sigma-estimate table with both within-σ values identical and their basis, plus the caption |
+| `downloads/sigrun_rereview_sixpack_note.png` | the card header line naming `R̄/d₂(10)` as the shared estimator |
+| `downloads/sigrun_rereview_weibull.png` | censored AD table: reference labels, bootstrap p-value, KM deviation, the explanatory caption — no complete-data thresholds |
+| `downloads/sigrun_rereview_power.png` | 1-Proportion card: opposite-direction note and the −0.1503 / 90.00 % row |
+
+### Boundaries of Section 6
+
+1. **The bootstrap p-value is a Monte Carlo estimate.** With B = 300 its resolution is 1/301 ≈ 0.0033, and a different seed or replicate count moves a p of ≈ 0.07 by roughly ±0.015. The seed is fixed so that a given sample always reports one number; the figure is a calibrated approximation, not an exact p-value, and the caption calls it a bootstrap p-value rather than an exact one.
+2. **The censoring mechanism is modelled as observed.** Replicates keep the failure share and draw censoring times from the empirical censoring-time distribution. That is the right null for administrative (Type I) or random censoring; with censoring that carries information about the failure time, no parametric bootstrap of this form is exact, and the Kaplan–Meier deviation beside it stays the distribution-free check.
+3. **Complete-data thresholds remain unavailable for censored data.** No tabulated critical values exist for the estimated-parameter, censored case; the report therefore removes the verdict rather than substituting a threshold that was never derived.
+4. **Proportion power is still the normal approximation.** That is the app's documented method (and Minitab's exact method will differ slightly in small samples); the fix changed the fitted root of that same power function, not the approximation.
+5. **Two-sided symmetric tests show no opposite-direction note.** For a t or ANOVA effect the two directions reach the target at the same |d|, so repeating the mirror would add noise rather than information; the field is populated only when the two magnitudes genuinely differ.
+6. **The menu-overlap quirk noted in Section 5 is unchanged.** Submenus still sit over the following rows, so pointer-driven navigation through `Stat → Quality Tools` can open the neighbouring `DOE` submenu. Keyboard navigation (Tab + Enter) reaches every item and was used for this verification; the behaviour is outside the three review items and was left as is.
+
+---
+
+*Report generated from the actual repository state at `a531e46`; every number in the tables is asserted by the test suite or was read from the deployed build. Section 6 was written after the follow-up review of `492484f` and carries the same rule.*
