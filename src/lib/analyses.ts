@@ -2759,7 +2759,9 @@ export const ANALYSES: AnalysisDef[] = [
     titleKey: 'an.sixpack',
     slots: [
       { key: 'variable', label: 'slot.variable', kind: 'col', required: true },
-      { key: 'subgroup', label: 'slot.subgroup', kind: 'num', group: 'options', defaultValue: 1, min: 1, max: 10, step: 1 },
+      // Above 10 the Sixpack switches to Xbar-S (exact c₄ constants), so the
+      // input is no longer capped at the Xbar-R table's range.
+      { key: 'subgroup', label: 'slot.subgroup', kind: 'num', group: 'options', defaultValue: 1, min: 1, max: 25, step: 1 },
       { key: 'lsl', label: 'slot.lsl', kind: 'text', group: 'options', defaultValue: '' },
       { key: 'usl', label: 'slot.usl', kind: 'text', group: 'options', defaultValue: '' },
       { key: 'target', label: 'slot.target', kind: 'text', group: 'options', defaultValue: '' },
