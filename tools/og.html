@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<title>Sigrún — OG card (HD2Lab standard)</title>
 <style>
+  /* HTML twin of tools/make_og.py — same geometry, same tokens. The PNG that
+     ships is rendered by the Python tool; this page is the readable spec. */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1200px; height: 630px; }
   body {
@@ -12,147 +15,165 @@
     position: relative;
     overflow: hidden;
   }
-  .glow-a {
-    position: absolute; width: 780px; height: 780px; left: -240px; top: -360px;
-    background: radial-gradient(circle at center, rgba(139,108,232,0.20), rgba(139,108,232,0) 62%);
+  /* faint 40px lavender grid */
+  body::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(139,108,232,0.024) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(139,108,232,0.024) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
-  .glow-b {
-    position: absolute; width: 820px; height: 820px; right: -280px; bottom: -420px;
-    background: radial-gradient(circle at center, rgba(167,139,250,0.22), rgba(167,139,250,0) 64%);
-  }
-  .frame { position: absolute; inset: 0; padding: 60px 64px 52px; display: flex; gap: 44px; }
-  .left { width: 600px; display: flex; flex-direction: column; }
-  .brand { display: flex; align-items: center; gap: 12px; }
-  .mark { position: relative; display: inline-block; width: 24px; height: 32px; border: 4px solid #8B6CE8; transform: skewY(-23deg); }
-  .mark::after { content: ""; position: absolute; inset: 6px -12px -9px 6px; border: 3px solid #8B6CE8; }
-  .h2 { font-size: 25px; font-weight: 800; letter-spacing: -0.02em; }
-  .div { width: 1px; height: 26px; background: #D4CCE8; }
-  .app { font-size: 22px; font-weight: 700; color: #6B4CD6; }
-  h1 { font-size: 62px; line-height: 1.02; letter-spacing: -0.035em; font-weight: 800; margin-top: 42px; }
-  h1 span { color: #6B4CD6; }
-  .sub { margin-top: 18px; font-size: 18.5px; line-height: 1.55; color: #544E68; max-width: 560px; }
-  .chips { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 8px; max-width: 560px; }
-  .chip {
-    font-family: "Liberation Mono", monospace; font-size: 12px; letter-spacing: .04em;
-    color: #6B4CD6; background: #F1ECFE; border: 1px solid #E8E4F2;
-    padding: 6px 11px; border-radius: 999px;
-  }
-  .foot { margin-top: auto; display: flex; align-items: center; gap: 12px; font-family: "Liberation Mono", monospace; font-size: 12.5px; color: #7C7690; letter-spacing: .03em; }
-  .foot b { color: #6B4CD6; font-weight: 700; }
+  .wash { position: absolute; width: 900px; height: 740px; left: -320px; top: -420px;
+          background: radial-gradient(circle at center, rgba(255,255,255,0.72), rgba(255,255,255,0) 62%); }
+  .glow { position: absolute; width: 700px; height: 720px; right: -140px; bottom: -320px;
+          background: radial-gradient(circle at center, rgba(167,139,250,0.16), rgba(167,139,250,0) 64%); }
 
-  .right { flex: 1; display: flex; align-items: center; justify-content: center; }
-  .dash {
-    width: 440px; background: #FFFFFF; border: 1px solid #E8E4F2; border-radius: 14px;
-    box-shadow: 0 26px 64px rgba(29,25,43,0.14);
-    padding: 18px 18px 16px;
-  }
-  .dash-head { display: flex; align-items: baseline; gap: 8px; }
-  .dash-title { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
-  .dash-sub { font-family: "Liberation Mono", monospace; font-size: 9.5px; letter-spacing: .14em; color: #7C7690; text-transform: uppercase; margin-left: auto; }
-  .dash svg { display: block; width: 100%; height: auto; margin-top: 10px; }
-  .kpis { display: flex; gap: 8px; margin-top: 12px; }
-  .kpi { flex: 1; background: #FAFAFD; border: 1px solid #EFEBF7; border-radius: 8px; padding: 8px 9px; }
-  .kpi small { display: block; font-family: "Liberation Mono", monospace; font-size: 8.5px; letter-spacing: .12em; color: #7C7690; text-transform: uppercase; }
-  .kpi b { display: block; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin-top: 2px; font-variant-numeric: tabular-nums; }
-  .kpi.ok b { color: #0F9D76; }
+  .frame { position: absolute; inset: 0; }
+
+  /* brand lockup */
+  .brand { position: absolute; left: 64px; top: 54px; display: flex; align-items: center; }
+  .mark { position: relative; width: 19px; height: 27px; border: 3.2px solid #8B6CE8; transform: skewY(-23deg); margin: 6px 12px 6px 2px; }
+  .mark::after { content: ""; position: absolute; left: 6px; top: 4px; width: 18px; height: 26px; border: 3px solid #8B6CE8; }
+  .brand-name { font-size: 36px; font-weight: 800; letter-spacing: -0.02em; margin-left: 6px; }
+  .brand-div { width: 1px; height: 27px; background: #D4CCE8; margin: 0 13px; }
+  .brand-app { font-size: 15px; color: #544E68; }
+
+  /* eyebrow */
+  .eyebrow { position: absolute; left: 64px; top: 184px; display: flex; align-items: center;
+             font-family: "Liberation Mono", monospace; font-size: 13.5px; letter-spacing: 2.5px; color: #7C7690; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #8B6CE8; margin-right: 11px; }
+
+  /* headline */
+  h1 { position: absolute; left: 64px; top: 212px; font-size: 74px; line-height: 76px; font-weight: 800; letter-spacing: -0.025em; }
+  h1 span { display: block; color: #8B6CE8; }
+
+  .sub { position: absolute; left: 64px; top: 408px; font-size: 18.5px; line-height: 30px; color: #544E68; }
+
+  /* pills */
+  .chips { position: absolute; left: 64px; top: 514px; display: flex; gap: 10px; }
+  .chip { font-size: 14.5px; color: #544E68; background: #FFFFFF; border: 1px solid #E8E4F2;
+          border-radius: 999px; padding: 6px 15px; }
+
+  /* footer */
+  .foot { position: absolute; right: 64px; top: 556px; font-family: "Liberation Mono", monospace; font-size: 13.5px; color: #7C7690; }
+  .foot b { color: #6B4CD6; }
+
+  /* capability card */
+  .card { position: absolute; left: 754px; top: 150px; width: 380px; height: 334px;
+          background: #FFFFFF; border: 1px solid #E8E4F2; border-radius: 14px;
+          box-shadow: 0 14px 40px rgba(29,25,43,0.14); padding: 18px; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between;
+               font-family: "Liberation Mono", monospace; font-size: 9.5px; letter-spacing: 1.5px; color: #8B6CE8; }
+  .card-head span:last-child { letter-spacing: 0; color: #7C7690; }
+  .card svg { display: block; margin-top: 4px; }
+  .kpis { display: flex; gap: 8px; }
+  .kpi { flex: 1; background: #FAFAFD; border: 1px solid #EFEBF7; border-radius: 8px; padding: 8px 9px 7px; }
+  .kpi small { display: block; font-family: "Liberation Mono", monospace; font-size: 8.5px; color: #7C7690; }
+  .kpi b { display: block; font-size: 19px; font-weight: 700; margin-top: 2px; letter-spacing: -0.01em; }
+  .kpi .tag { display: block; font-family: "Liberation Mono", monospace; font-size: 8.5px; color: #7C7690; margin-top: 2px; }
   .kpi.acc b { color: #6B4CD6; }
-  .kpi .tag { font-size: 9px; color: #7C7690; font-family: "Liberation Mono", monospace; }
-  .rule { height: 1px; background: #EFEBF7; margin: 14px 0 12px; }
-  .imr { display: flex; align-items: center; gap: 10px; }
-  .imr svg { margin-top: 0; width: 250px; }
-  .imr-note { font-size: 11.5px; color: #544E68; line-height: 1.5; }
-  .imr-note b { color: #E0395C; }
+  .kpi.ok b { color: #0F9D76; }
+  .rule { height: 1px; background: #EFEBF7; margin: 12px 0 10px; }
+  .imr { display: flex; align-items: flex-start; gap: 12px; }
+  .imr-note { font-size: 11.5px; line-height: 19px; color: #544E68; }
+  .imr-note b { color: #E0395C; display: block; }
+  .imr-note i { font-style: normal; font-family: "Liberation Mono", monospace; font-size: 9px; color: #7C7690; }
 </style>
 </head>
 <body>
-  <div class="glow-a"></div>
-  <div class="glow-b"></div>
+  <div class="wash"></div>
+  <div class="glow"></div>
   <div class="frame">
-    <div class="left">
-      <div class="brand">
-        <span class="mark"></span>
-        <span class="h2">HD2Lab</span>
-        <span class="div"></span>
-        <span class="app">Sigrún</span>
-      </div>
-      <h1>Statistical<br><span>Workspace</span></h1>
-      <p class="sub">Descriptive statistics, hypothesis tests, ANOVA with Tukey, regression, control charts and process capability — computed entirely in your browser.</p>
-      <div class="chips">
-        <span class="chip">DESCRIPTIVE</span>
-        <span class="chip">T-TESTS</span>
-        <span class="chip">ANOVA · TUKEY</span>
-        <span class="chip">REGRESSION</span>
-        <span class="chip">SPC · NELSON</span>
-        <span class="chip">CAPABILITY</span>
-        <span class="chip">PARETO</span>
-      </div>
-      <div class="foot">
-        <b>hyangdan2.github.io/PKPilot0018</b>
-        <span>·</span>
-        <span>NO BACKEND · NO UPLOAD</span>
-      </div>
+    <div class="brand">
+      <span class="mark"></span>
+      <span class="brand-name">HD2Lab</span>
+      <span class="brand-div"></span>
+      <span class="brand-app">Sigrún</span>
     </div>
 
-    <div class="right">
-      <div class="dash">
-        <div class="dash-head">
-          <span class="dash-title">Capability · Thickness</span>
-          <span class="dash-sub">C1 · N 60</span>
-        </div>
-        <svg viewBox="0 0 404 168" xmlns="http://www.w3.org/2000/svg">
+    <div class="eyebrow"><span class="dot"></span>PKPILOT 0018 · SIGRÚN</div>
+
+    <h1>Statistical<span>Workspace</span></h1>
+
+    <p class="sub">
+      Descriptive statistics, hypothesis tests, ANOVA with Tukey, regression,<br>
+      control charts and process capability — all computed in your browser.
+    </p>
+
+    <div class="chips">
+      <span class="chip">100% browser</span>
+      <span class="chip">No upload</span>
+      <span class="chip">Nelson rules</span>
+    </div>
+
+    <div class="foot">hyangdan2.github.io/<b>PKPilot0018</b></div>
+
+    <div class="card">
+      <div class="card-head"><span>CAPABILITY · THICKNESS</span><span>C1 · N 60</span></div>
+
+      <!-- measurement axis 9.6 … 10.4, spec limits as VERTICAL dashed lines -->
+      <svg viewBox="0 0 344 118" width="344" height="118" xmlns="http://www.w3.org/2000/svg">
+        <g stroke="#EFEBF7" stroke-width="1">
+          <line x1="14" y1="4" x2="344" y2="4"/><line x1="14" y1="30" x2="344" y2="30"/>
+          <line x1="14" y1="56" x2="344" y2="56"/><line x1="14" y1="82" x2="344" y2="82"/>
+        </g>
+        <g fill="#8B6CE8" opacity="0.38">
+          <rect x="15" y="94" width="30" height="10" rx="2.5"/>
+          <rect x="48" y="88" width="30" height="16" rx="2.5"/>
+          <rect x="81" y="78" width="30" height="26" rx="2.5"/>
+          <rect x="114" y="52" width="30" height="52" rx="2.5"/>
+          <rect x="147" y="30" width="30" height="74" rx="2.5"/>
+          <rect x="180" y="34" width="30" height="70" rx="2.5"/>
+          <rect x="213" y="44" width="30" height="60" rx="2.5"/>
+          <rect x="246" y="68" width="30" height="36" rx="2.5"/>
+          <rect x="279" y="88" width="30" height="16" rx="2.5"/>
+          <rect x="312" y="94" width="30" height="10" rx="2.5"/>
+        </g>
+        <path d="M14 104 C 70 104, 96 16, 172 16 S 260 104, 344 104" fill="none" stroke="#8B6CE8" stroke-width="2.2"/>
+        <line x1="90.75" y1="4" x2="90.75" y2="104" stroke="#E0395C" stroke-width="1.2" stroke-dasharray="4 3"/>
+        <line x1="239.25" y1="4" x2="239.25" y2="104" stroke="#E0395C" stroke-width="1.2" stroke-dasharray="4 3"/>
+        <text x="90.75" y="2" text-anchor="middle" font-family="Liberation Mono, monospace" font-size="8.5" fill="#E0395C">LSL</text>
+        <text x="239.25" y="2" text-anchor="middle" font-family="Liberation Mono, monospace" font-size="8.5" fill="#E0395C">USL</text>
+        <line x1="14" y1="104" x2="344" y2="104" stroke="#D4CCE8" stroke-width="1"/>
+        <g font-family="Liberation Mono, monospace" font-size="8.5" fill="#7C7690">
+          <text x="14" y="116" text-anchor="middle">9.6</text>
+          <text x="96.5" y="116" text-anchor="middle">9.8</text>
+          <text x="179" y="116" text-anchor="middle">10.0</text>
+          <text x="261.5" y="116" text-anchor="middle">10.2</text>
+          <text x="344" y="116" text-anchor="middle">10.4</text>
+        </g>
+      </svg>
+
+      <div class="kpis">
+        <div class="kpi acc"><small>Cp</small><b>1.42</b><span class="tag">within σ</span></div>
+        <div class="kpi ok"><small>Cpk</small><b>1.31</b><span class="tag">capable</span></div>
+        <div class="kpi"><small>PPM</small><b>42</b><span class="tag">expected</span></div>
+      </div>
+
+      <div class="rule"></div>
+
+      <div class="imr">
+        <svg viewBox="0 0 220 66" width="220" height="66" xmlns="http://www.w3.org/2000/svg">
           <g stroke="#EFEBF7" stroke-width="1">
-            <line x1="34" y1="16" x2="398" y2="16"/><line x1="34" y1="52" x2="398" y2="52"/>
-            <line x1="34" y1="88" x2="398" y2="88"/><line x1="34" y1="124" x2="398" y2="124"/>
+            <line x1="2" y1="14" x2="218" y2="14"/><line x1="2" y1="33" x2="218" y2="33"/>
+            <line x1="2" y1="52" x2="218" y2="52"/>
           </g>
-          <g fill="#8B6CE8" opacity="0.30">
-            <rect x="44" y="112" width="15" height="12" rx="1.5"/>
-            <rect x="63" y="88" width="15" height="36" rx="1.5"/>
-            <rect x="82" y="58" width="15" height="66" rx="1.5"/>
-            <rect x="101" y="38" width="15" height="86" rx="1.5"/>
-            <rect x="120" y="26" width="15" height="98" rx="1.5"/>
-            <rect x="139" y="32" width="15" height="92" rx="1.5"/>
-            <rect x="158" y="46" width="15" height="78" rx="1.5"/>
-            <rect x="177" y="72" width="15" height="52" rx="1.5"/>
-            <rect x="196" y="96" width="15" height="28" rx="1.5"/>
-            <rect x="215" y="112" width="15" height="12" rx="1.5"/>
+          <line x1="2" y1="33" x2="218" y2="33" stroke="#8B6CE8" stroke-width="1"/>
+          <line x1="2" y1="12" x2="218" y2="12" stroke="#E0395C" stroke-width="1" stroke-dasharray="4 3"/>
+          <line x1="2" y1="56" x2="218" y2="56" stroke="#E0395C" stroke-width="1" stroke-dasharray="4 3"/>
+          <polyline points="4,30 18,40 32,27 46,37 60,34 74,43 88,29 102,38 116,32 130,35 144,31 158,41 172,34 186,6 200,37 214,32"
+                    fill="none" stroke="#D4CCE8" stroke-width="1.4"/>
+          <g fill="#A78BFA">
+            <circle cx="4" cy="30" r="2.3"/><circle cx="18" cy="40" r="2.3"/><circle cx="32" cy="27" r="2.3"/>
+            <circle cx="46" cy="37" r="2.3"/><circle cx="60" cy="34" r="2.3"/><circle cx="74" cy="43" r="2.3"/>
+            <circle cx="88" cy="29" r="2.3"/><circle cx="102" cy="38" r="2.3"/><circle cx="116" cy="32" r="2.3"/>
+            <circle cx="130" cy="35" r="2.3"/><circle cx="144" cy="31" r="2.3"/><circle cx="158" cy="41" r="2.3"/>
+            <circle cx="172" cy="34" r="2.3"/><circle cx="200" cy="37" r="2.3"/><circle cx="214" cy="32" r="2.3"/>
           </g>
-          <path d="M44 128 C 90 128, 96 30, 140 30 S 196 118, 250 118 S 300 124, 398 124" fill="none" stroke="#8B6CE8" stroke-width="2.2"/>
-          <line x1="34" y1="74" x2="398" y2="74" stroke="#E0395C" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.75"/>
-          <line x1="34" y1="34" x2="398" y2="34" stroke="#E0395C" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.75"/>
-          <text x="392" y="30" text-anchor="end" font-family="Liberation Mono, monospace" font-size="8.5" fill="#E0395C">USL</text>
-          <text x="392" y="84" text-anchor="end" font-family="Liberation Mono, monospace" font-size="8.5" fill="#E0395C">LSL</text>
-          <g stroke="#D4CCE8" stroke-width="1"><line x1="34" y1="144" x2="398" y2="144"/><line x1="34" y1="10" x2="34" y2="144"/></g>
-          <g font-family="Liberation Mono, monospace" font-size="8.5" fill="#7C7690">
-            <text x="30" y="147" text-anchor="end">9.6</text><text x="30" y="91" text-anchor="end">10.0</text>
-            <text x="30" y="37" text-anchor="end">10.4</text>
-            <text x="120" y="158" text-anchor="middle">10.0</text><text x="240" y="158" text-anchor="middle">10.2</text>
-            <text x="360" y="158" text-anchor="middle">10.4</text>
-          </g>
+          <circle cx="186" cy="6" r="4.2" fill="#E0395C"/>
+          <text x="186" y="4" text-anchor="middle" font-family="Liberation Mono, monospace" font-size="7.5" fill="#E0395C">1</text>
         </svg>
-        <div class="kpis">
-          <div class="kpi acc"><small>Cp</small><b>1.42</b><span class="tag">within σ</span></div>
-          <div class="kpi ok"><small>Cpk</small><b>1.31</b><span class="tag">capable</span></div>
-          <div class="kpi"><small>PPM</small><b>42</b><span class="tag">expected</span></div>
-        </div>
-        <div class="rule"></div>
-        <div class="imr">
-          <svg viewBox="0 0 250 86" xmlns="http://www.w3.org/2000/svg">
-            <g stroke="#EFEBF7" stroke-width="1"><line x1="2" y1="18" x2="248" y2="18"/><line x1="2" y1="44" x2="248" y2="44"/><line x1="2" y1="70" x2="248" y2="70"/></g>
-            <line x1="2" y1="44" x2="248" y2="44" stroke="#8B6CE8" stroke-width="1"/>
-            <line x1="2" y1="16" x2="248" y2="16" stroke="#E0395C" stroke-width="1" stroke-dasharray="4 3" opacity="0.6"/>
-            <line x1="2" y1="72" x2="248" y2="72" stroke="#E0395C" stroke-width="1" stroke-dasharray="4 3" opacity="0.6"/>
-            <polyline points="4,40 20,52 36,36 52,48 68,44 84,56 100,38 116,50 132,42 148,46 164,40 180,54 196,44 212,10 228,48 246,42" fill="none" stroke="#D4CCE8" stroke-width="1.4"/>
-            <g fill="#A78BFA">
-              <circle cx="4" cy="40" r="2.6"/><circle cx="20" cy="52" r="2.6"/><circle cx="36" cy="36" r="2.6"/><circle cx="52" cy="48" r="2.6"/>
-              <circle cx="68" cy="44" r="2.6"/><circle cx="84" cy="56" r="2.6"/><circle cx="100" cy="38" r="2.6"/><circle cx="116" cy="50" r="2.6"/>
-              <circle cx="132" cy="42" r="2.6"/><circle cx="148" cy="46" r="2.6"/><circle cx="164" cy="40" r="2.6"/><circle cx="180" cy="54" r="2.6"/>
-              <circle cx="196" cy="44" r="2.6"/><circle cx="228" cy="48" r="2.6"/><circle cx="246" cy="42" r="2.6"/>
-            </g>
-            <circle cx="212" cy="10" r="4.4" fill="#E0395C"/>
-            <text x="208" y="6" text-anchor="middle" font-family="Liberation Mono, monospace" font-size="7.5" fill="#E0395C">1</text>
-          </svg>
-          <div class="imr-note">I-MR chart<br><b>Nelson rule 1</b><br><span style="color:#7C7690">beyond 3σ</span></div>
-        </div>
+        <div class="imr-note">I-MR chart<b>Nelson rule 1</b><i>beyond 3σ</i></div>
       </div>
     </div>
   </div>

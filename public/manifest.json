@@ -1,5 +1,5 @@
 {
-  "name": "HD2Lab Sigrún — Statistical Workspace",
+  "name": "Sigrún — HD2Lab Statistical Workspace",
   "short_name": "Sigrún",
   "description": "Pure-browser statistical and quality workspace: descriptive statistics, hypothesis tests, ANOVA, regression, control charts and process capability.",
   "start_url": "./",
@@ -18,8 +18,14 @@
       "purpose": "any"
     },
     {
-      "src": "./og-image.png",
-      "sizes": "1200x630",
+      "src": "./favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     }

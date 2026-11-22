@@ -67,12 +67,12 @@ a { color: inherit; }
 
 .brand { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
 
-.brand-mark { display: inline-flex; align-items: center; justify-content: center; width: 20px; }
+.brand-mark { display: inline-flex; align-items: center; justify-content: center; width: 25px; }
 
 .mark {
   display: inline-block;
-  width: 15px;
-  height: 20px;
+  width: 17px;
+  height: 22px;
   border: 3px solid var(--accent);
   transform: skewY(-23deg);
   position: relative;
@@ -81,7 +81,7 @@ a { color: inherit; }
 .mark::after {
   content: '';
   position: absolute;
-  inset: 4px -8px -6px 4px;
+  inset: 4px -8px -7px 4px;
   border: 2px solid var(--accent);
 }
 
