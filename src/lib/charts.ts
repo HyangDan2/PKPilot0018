@@ -676,19 +676,26 @@ function drawContour(spec: Extract<ChartSpec, { kind: 'contour' }>): string {
   const zMax = Math.max(...flat);
   const span = zMax - zMin || 1;
   let g = '';
-  // Heat cells: one rect per grid cell, opacity keyed to the fitted response.
+  // Heat map: cells are merged into one path per band so neighbouring cells of
+  // the same band never show a seam (overlapping rects double the opacity).
+  const bands = 10;
+  const paths: string[][] = Array.from({ length: bands }, () => []);
   for (let j = 0; j < ys.length - 1; j += 1) {
     for (let i = 0; i < xs.length - 1; i += 1) {
       const value = (z[j][i] + z[j][i + 1] + z[j + 1][i] + z[j + 1][i + 1]) / 4;
       if (!isFinite(value)) continue;
-      const level = (value - zMin) / span;
-      const x0 = sx(xs[i]);
-      const x1 = sx(xs[i + 1]);
-      const y0 = sy(ys[j + 1]);
-      const y1 = sy(ys[j]);
-      g += `<rect x="${(x0 - 0.3).toFixed(1)}" y="${(y0 - 0.3).toFixed(1)}" width="${Math.max(0.8, x1 - x0 + 0.6).toFixed(1)}" height="${Math.max(0.8, y1 - y0 + 0.6).toFixed(1)}" fill="${C.series[0]}" opacity="${(0.06 + 0.62 * level).toFixed(3)}"/>`;
+      const band = Math.min(bands - 1, Math.max(0, Math.floor(((value - zMin) / span) * bands)));
+      const x0 = sx(xs[i]).toFixed(1);
+      const x1 = sx(xs[i + 1]).toFixed(1);
+      const y0 = sy(ys[j + 1]).toFixed(1);
+      const y1 = sy(ys[j]).toFixed(1);
+      paths[band].push(`M${x0} ${y0}h${(Number(x1) - Number(x0)).toFixed(1)}v${(Number(y1) - Number(y0)).toFixed(1)}h${(Number(x0) - Number(x1)).toFixed(1)}Z`);
     }
   }
+  paths.forEach((commands, index) => {
+    if (!commands.length) return;
+    g += `<path d="${commands.join(' ')}" fill="${C.series[0]}" opacity="${(0.07 + (0.6 * index) / (bands - 1)).toFixed(3)}"/>`;
+  });
   // Iso-lines through marching squares on the cell corners.
   const levels = Math.max(2, Math.min(8, spec.levels ?? 6));
   for (let k = 1; k < levels; k += 1) {
