@@ -472,7 +472,7 @@ N    Power     Difference   Alpha
 | Sample | AD (ref.) | AD* (ref.) | Bootstrap p (B = 300) | Before (`492484f` display) | Independent reference |
 |---|---|---|---|---|---|
 | 20 failures + 5 censored (Weibull) | 0.8596 | 0.8981 | **0.0698** | `0.01 < p < 0.05` — reject at 5 % | SciPy/NumPy replicate: p 0.0598 / 0.0698 (two seeds) |
-| 24 failures + 6 censored from a lognormal (σ = 1.2) | 1.62 | 1.7579 | **0.0033** | `p < 0.01` | SciPy/NumPy replicate: p 0.0033 |
+| 24 failures + 6 censored from a lognormal (σ = 1.2) | 1.6889 | 1.7579 | **0.0033** | `p < 0.01` | SciPy/NumPy replicate: p 0.0033 |
 | 20 complete lives | 0.6899 | 0.7207 | not computed (`reps = 0`, `p = NaN`) — tabulated thresholds apply | `5 % < p < 10 %` | unchanged |
 
 Runtime of the whole 300-replicate bootstrap: **≈ 16 ms** in Node for the 25-observation sample (the test asserts < 200 ms), and the result is byte-identical between runs because of the fixed seed.
