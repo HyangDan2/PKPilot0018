@@ -46,6 +46,12 @@ export interface PowerSolution {
   difference: number;
   alpha: number;
   alternative: Alt;
+  /** For a two-sided test whose two directions reach the target with DIFFERENT
+   *  minimum effect sizes (the proportion tests, where p₀ is not 0.5), the
+   *  smallest effect in the opposite direction, signed the same way as
+   *  `difference`. Present only when that opposite solution exists and its
+   *  magnitude differs from the reported one. */
+  oppositeDifference?: number;
   /** notes keys for the output block */
   notes: string[];
 }
@@ -142,7 +148,11 @@ export function differenceRange(spec: PowerSpec): [number, number] {
     const upper = 1 - p0 - eps;
     if (spec.alternative === 'greater') return [eps, upper];
     if (spec.alternative === 'less') return [lower, -eps];
-    return [-Math.max(-lower, upper), Math.max(-lower, upper)];
+    // Two-sided: a proportion can move either way but its valid effects are NOT
+    // symmetric about zero — p₀ = 0.2 allows −0.2 … +0.8, and mirroring the
+    // wider side (the old ±0.8) pushed p_a below 0 and made every two-sided
+    // solve throw power.unreachable.
+    return [lower, upper];
   }
   if (spec.method === 'twoProp') {
     const p1 = spec.p1 ?? 0.5;
@@ -150,7 +160,9 @@ export function differenceRange(spec: PowerSpec): [number, number] {
     const upper = 1 - p1 - eps;
     if (spec.alternative === 'greater') return [eps, upper];
     if (spec.alternative === 'less') return [lower, -eps];
-    return [-Math.max(-lower, upper), Math.max(-lower, upper)];
+    // Two-sided: the same asymmetric validity rule as oneProp (p₂ must stay in
+    // (0, 1)), so the range is the true [lower, upper] and not its mirror.
+    return [lower, upper];
   }
   const bound = Math.max(1, (spec.sd ?? 1) * 20);
   if (spec.alternative === 'greater') return [eps, bound];
@@ -166,7 +178,8 @@ function signedMagnitude(spec: PowerSpec, magnitude: number): number {
   return m;
 }
 
-function powerAt(spec: PowerSpec, n: number, difference: number): number {
+/** Power of the given signed effect at sample size n (exported for the tests). */
+export function powerAt(spec: PowerSpec, n: number, difference: number): number {
   switch (spec.method) {
     case 'oneT':
     case 'paired':
@@ -236,36 +249,81 @@ function solveN(spec: PowerSpec, difference: number, target: number): number {
   return hi;
 }
 
+/** Grid points used to bracket the first crossing of the target on one side. */
+const DIFFERENCE_GRID = 200;
+
+/**
+ * Smallest |effect| on ONE signed branch (sign +1 or −1) whose power reaches the
+ * target, or null when that branch never gets there. The branch is scanned on a
+ * fixed grid first and then bisected: the proportion power curve is not monotone
+ * all the way to the edge of (0, 1) (as p_a → 0 or 1 the alternative SE collapses
+ * and the power falls back to 0), so an endpoint-only test would both miss a
+ * reachable interior solution and accept an unreachable branch.
+ */
+function solveBranch(spec: PowerSpec, n: number, bound: number, target: number, sign: 1 | -1): number | null {
+  const at = (magnitude: number) => powerAt(spec, n, sign * magnitude);
+  const eps = 1e-9;
+  if (!(bound > eps)) return null;
+  if (at(eps) >= target) return eps;
+  let prev = eps;
+  for (let i = 1; i <= DIFFERENCE_GRID; i += 1) {
+    const magnitude = eps + ((bound - eps) * i) / DIFFERENCE_GRID;
+    const power = at(magnitude);
+    if (isFinite(power) && power >= target) {
+      let a = prev;
+      let b = magnitude;
+      for (let k = 0; k < 200; k += 1) {
+        const mid = (a + b) / 2;
+        const pm = at(mid);
+        if (isFinite(pm) && pm >= target) b = mid;
+        else a = mid;
+        if (Math.abs(b - a) <= 1e-13 * Math.max(1, Math.abs(b))) break;
+      }
+      return b;
+    }
+    prev = magnitude;
+  }
+  return null;
+}
+
 /**
  * Signed effect that reaches the target power at a fixed sample size, searched
  * only inside the direction and range the alternative allows (#17).
+ *
+ * A two-sided alternative has TWO admissible directions. Each is solved on its
+ * own valid range (see differenceRange) and the smaller |d| is reported; when the
+ * other direction also reaches the target with a different |d|, its signed
+ * threshold comes back as `oppositeDifference`. Only when neither direction can
+ * reach the target is the request power.unreachable.
  */
-function solveDifference(spec: PowerSpec, n: number, target: number): number {
+function solveDifference(spec: PowerSpec, n: number, target: number): { difference: number; oppositeDifference?: number } {
   const [lo0, hi0] = differenceRange(spec);
-  const at = (d: number) => powerAt(spec, n, d);
-  // Both ends must be finite powers; NaN would mean an invalid proportion.
-  if (!isFinite(at(lo0)) || !isFinite(at(hi0))) throw new Error('power.unreachable');
-  if (!(at(hi0) >= target) && !(at(lo0) >= target)) throw new Error('power.unreachable');
-  // Power is monotone in |d| for every method here; walk the side that can reach it.
-  let lo: number;
-  let hi: number;
-  if (at(hi0) >= target) {
-    lo = 0;
-    hi = hi0;
-  } else {
-    lo = 0;
-    hi = lo0;
+  const positiveBound = hi0;
+  const negativeBound = -lo0;
+  if (spec.alternative !== 'two-sided') {
+    // One-sided: only the direction of the alternative is admissible, and both
+    // ends of its range must be a valid effect.
+    const at = (d: number) => powerAt(spec, n, d);
+    if (!isFinite(at(lo0)) || !isFinite(at(hi0))) throw new Error('power.unreachable');
+    const sign: 1 | -1 = spec.alternative === 'greater' ? 1 : -1;
+    const bound = sign > 0 ? positiveBound : negativeBound;
+    const magnitude = solveBranch(spec, n, bound, target, sign);
+    if (magnitude === null) throw new Error('power.unreachable');
+    return { difference: sign * magnitude };
   }
-  const magnitude = (d: number) => powerAt(spec, n, d);
-  let a = lo;
-  let b = hi;
-  for (let i = 0; i < 300; i += 1) {
-    const mid = (a + b) / 2;
-    if (magnitude(mid) < target) a = mid;
-    else b = mid;
-    if (Math.abs(b - a) < 1e-10 * Math.max(1, Math.abs(b))) break;
-  }
-  return (a + b) / 2;
+  const positive = solveBranch(spec, n, positiveBound, target, 1);
+  const negative = solveBranch(spec, n, negativeBound, target, -1);
+  if (positive === null && negative === null) throw new Error('power.unreachable');
+  if (positive === null) return { difference: -(negative as number) };
+  if (negative === null) return { difference: positive };
+  // Both directions work. Report the smaller |d| and expose the other one when
+  // it is genuinely different — a symmetric t test gives the same |d| twice, and
+  // repeating its mirror as "the opposite direction" would be noise.
+  const symmetric = Math.abs(positive - negative) <= 1e-9 * Math.max(positive, negative, 1);
+  if (symmetric) return { difference: positive };
+  return positive <= negative
+    ? { difference: positive, oppositeDifference: -negative }
+    : { difference: -negative, oppositeDifference: positive };
 }
 
 export function solvePower(spec: PowerSpec): PowerSolution {
@@ -291,8 +349,18 @@ export function solvePower(spec: PowerSpec): PowerSolution {
     return { method: spec.method, n, power, difference, alpha, alternative: spec.alternative, notes };
   }
   const n = Math.max(2, Math.round(spec.n ?? 10));
-  const magnitude = solveDifference(spec, n, target);
-  return { method: spec.method, n, power: powerAt(spec, n, magnitude), difference: magnitude, alpha, alternative: spec.alternative, notes };
+  const solved = solveDifference(spec, n, target);
+  const solvedDifference = solved.difference;
+  return {
+    method: spec.method,
+    n,
+    power: powerAt(spec, n, solvedDifference),
+    difference: solvedDifference,
+    alpha,
+    alternative: spec.alternative,
+    ...(solved.oppositeDifference !== undefined ? { oppositeDifference: solved.oppositeDifference } : {}),
+    notes,
+  };
 }
 
 /** Power curve over sample size (for the chart), at a fixed signed effect. */

@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { fitGlm, type ModelFactor } from '../src/lib/glm';
 import { gageRR, type GrrRow } from '../src/lib/gagerr';
 import { fitNonnormal, nonnormalCapability } from '../src/lib/nonnormal';
-import { solvePower } from '../src/lib/power';
+import { differenceRange, powerAt, solvePower } from '../src/lib/power';
 import { fitLognormalReliability, fitWeibull } from '../src/lib/reliability';
 import { capabilitySixpack } from '../src/lib/sixpack';
 import { xbarRCharts } from '../src/lib/spc';
@@ -547,5 +547,163 @@ describe('QA-15 GLM Type III SS on an unbalanced 3-factor design (statsmodels Su
     expect(glm.rank).toBe(6);
     // The 0.001·sin(20x) ripple is not in the model, so SSE is tiny but not 0.
     expect(glm.sse).toBeLessThan(1e-4);
+  });
+});
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Section 6 — follow-up re-review of 492484f (F-01 power, F-02 Weibull
+   censored goodness-of-fit, F-03 Sixpack within-sigma consistency).
+   Reference values: python (scipy 1.18.1 / numpy 2.5.4) in the comment above
+   each block; the Sixpack constants are Montgomery Table VI, the same d₂/c₄
+   values the charts use.
+   ───────────────────────────────────────────────────────────────────────── */
+
+describe('F-01 two-sided proportion power searches both asymmetric directions', () => {
+  const base = {
+    method: 'oneProp' as const,
+    solveFor: 'difference' as const,
+    power: 0.9,
+    alpha: 0.05,
+    alternative: 'two-sided' as const,
+  };
+
+  it('returns the real valid effect range, not the mirrored wider side', () => {
+    // p₀ = 0.2 → p_a ∈ (0, 1) means d ∈ (−0.2, +0.8); the old code returned ±0.8
+    // and p_a = −0.6, so every two-sided solve threw power.unreachable.
+    const range = differenceRange({ ...base, p1: 0.2 });
+    expect(range[0]).toBeCloseTo(-0.2, 8);
+    expect(range[1]).toBeCloseTo(0.8, 8);
+    const upper = differenceRange({ ...base, p1: 0.8 });
+    expect(upper[0]).toBeCloseTo(-0.8, 8);
+    expect(upper[1]).toBeCloseTo(0.2, 8);
+  });
+
+  it('solves p₀ = 0.2 and reports the smaller |d| plus the opposite threshold', () => {
+    // python: 1 − Φ((z SE₀ − d)/SE₁) + Φ((−z SE₀ − d)/SE₁), n = 50, target 0.90
+    //   positive direction 0.1996462360, negative direction −0.1502708587
+    const solved = solvePower({ ...base, p1: 0.2, n: 50 });
+    expect(solved.difference).toBeCloseTo(-0.1502708587, 6);
+    expect(solved.power).toBeGreaterThanOrEqual(0.9);
+    expect(solved.oppositeDifference).toBeCloseTo(0.1996462360, 6);
+    // the reported |d| is the minimum: 0.1 % shorter misses the target
+    const shorter = solved.difference * 0.999;
+    const powerShorter = powerAt({ ...base, solveFor: 'power', p1: 0.2, n: 50, difference: shorter }, 50, shorter);
+    expect(powerShorter).toBeLessThan(0.9);
+    // and the opposite direction really does reach the target there
+    const opposite = solved.oppositeDifference as number;
+    expect(powerAt({ ...base, solveFor: 'power', p1: 0.2, n: 50, difference: opposite }, 50, opposite)).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('mirrors p₀ = 0.2 ↔ p₀ = 0.8', () => {
+    // python: p₀ = 0.8 → +0.1502708587 (increase), −0.1996462360 (decrease)
+    const solved = solvePower({ ...base, p1: 0.8, n: 50 });
+    expect(solved.difference).toBeCloseTo(0.1502708587, 6);
+    expect(solved.oppositeDifference).toBeCloseTo(-0.1996462360, 6);
+    const mirrored = solvePower({ ...base, p1: 0.2, n: 50 });
+    expect(Math.abs(solved.difference)).toBeCloseTo(Math.abs(mirrored.difference), 6);
+    expect(Math.abs(solved.oppositeDifference as number)).toBeCloseTo(Math.abs(mirrored.oppositeDifference as number), 6);
+  });
+
+  it('keeps the one reachable direction when the other cannot get there', () => {
+    // python: p₀ = 0.15, n = 20 → the decrease direction peaks at 0.235 power,
+    // only the increase direction reaches 0.90 (at +0.2990121023).
+    const solved = solvePower({ ...base, p1: 0.15, n: 20 });
+    expect(solved.difference).toBeCloseTo(0.2990121023, 6);
+    expect(solved.power).toBeGreaterThanOrEqual(0.9);
+    expect(solved.oppositeDifference).toBeUndefined();
+    // p₀ = 0.15 at n = 50 reaches both ways: −0.1264543316 / +0.1844791403
+    const both = solvePower({ ...base, p1: 0.15, n: 50 });
+    expect(both.difference).toBeCloseTo(-0.1264543316, 6);
+    expect(both.oppositeDifference).toBeCloseTo(0.1844791403, 6);
+  });
+
+  it('searches both directions for twoProp as well', () => {
+    // python: p₁ = 0.2, n = 100 → increase +0.2087655613, decrease −0.1500361118
+    const solved = solvePower({ ...base, method: 'twoProp', p1: 0.2, n: 100 });
+    expect(solved.difference).toBeCloseTo(-0.1500361118, 6);
+    expect(solved.oppositeDifference).toBeCloseTo(0.2087655613, 6);
+    expect(solved.power).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('still throws power.unreachable when NEITHER direction reaches the target', () => {
+    // python: twoProp p₁ = 0.2 at n = 5 peaks well below 0.90 in both directions
+    expect(() => solvePower({ ...base, method: 'twoProp', p1: 0.2, n: 5 })).toThrow('power.unreachable');
+    // one-sided requests keep their single admissible direction
+    expect(() => solvePower({ ...base, solveFor: 'n', alternative: 'greater', p1: 0.2, difference: -0.5 }))
+      .toThrow('power.unreachable');
+  });
+});
+
+describe('F-02 censored Weibull: reference-only AD and a censoring-aware bootstrap p', () => {
+  const TIMES = [42, 58, 71, 84, 96, 103, 118, 126, 141, 155, 168, 183, 197, 214, 236, 258, 281, 305, 342, 388, 120, 175, 240, 300, 360];
+  const CENSORED = TIMES.map((time, i) => ({ time, censored: i >= 20 }));
+
+  it('computes the bootstrap p-value for censored data and skips it for complete data', () => {
+    const r = fitWeibull(CENSORED);
+    expect(r.adBasis).toBe('failures');
+    expect(r.adBootstrapReps).toBe(300);
+    expect(r.adBootstrapP).toBeGreaterThan(0);
+    expect(r.adBootstrapP).toBeLessThan(1);
+    // python (same recipe, empirical censoring times, B = 300): p ≈ 0.06–0.07,
+    // so a genuine Weibull sample is not rejected.
+    expect(r.adBootstrapP).toBeGreaterThan(0.02);
+    const complete = fitWeibull(TIMES.map((time) => ({ time, censored: false })));
+    expect(complete.adBasis).toBe('complete');
+    expect(complete.adBootstrapReps).toBe(0);
+    expect(Number.isNaN(complete.adBootstrapP)).toBe(true);
+  });
+
+  it('rejects an obviously non-Weibull censored sample', () => {
+    // 30 lognormal lifetimes (μ = ln 100, σ = 1.2), censored at their 80th
+    // percentile. python: Weibull MLE β 1.3541, η 90.89, A* 1.7579,
+    //   bootstrap p = 0.0033 (1 / 301)…
+    const NON = [100.15, 124.25, 71.97, 34.35, 57.95, 30.42, 107.48, 124.25, 55.4, 47.49, 124.25, 124.25, 113.48, 32.74, 96.55, 124.25, 19.93, 57.74, 10.21, 21.28, 10.97, 75.42, 21.85, 124.25, 120.7, 79.91, 4.88, 52.39, 94.35, 114.56];
+    const censorAt = [1, 7, 10, 11, 15, 23];
+    const r = fitWeibull(NON.map((time, i) => ({ time, censored: censorAt.includes(i) })));
+    expect(r.failures).toBe(24);
+    expect(r.adAdjusted).toBeGreaterThan(1.0);
+    expect(r.adBootstrapP).toBeLessThan(0.05);
+    // complete-data band is a reference only for censored fits — the UI hides it
+    expect(r.adBasis).toBe('failures');
+  });
+
+  it('is fast and deterministic', () => {
+    const t0 = performance.now();
+    const first = fitWeibull(CENSORED);
+    const elapsed = performance.now() - t0;
+    expect(elapsed).toBeLessThan(200);
+    const second = fitWeibull(CENSORED);
+    expect(second.adBootstrapP).toBe(first.adBootstrapP);
+  });
+});
+
+describe('F-03 Sixpack: one within-sigma for the chart and Cp/Cpk at every subgroup size', () => {
+  // 60 measurements (5 groups of 12) — divisible by 2, 5, 10 and 12.
+  const VALUES = [9.986, 10.186, 10.116, 10.027, 9.83, 9.77, 10.142, 10.099, 9.761, 10.075, 9.713, 10.12, 10.134, 10.166, 9.997, 10.133, 10.019, 9.881, 10.116, 10.107, 10.071, 10.081, 9.977, 10.051, 10.062, 9.98, 9.995, 10.092, 9.852, 10.078, 10.265, 10.28, 10.164, 10.164, 10.051, 10.134, 10.086, 10.263, 10.088, 9.957, 9.991, 10.047, 10.291, 9.934, 10.262, 10.135, 10.085, 10.219, 10.489, 10.23, 10.208, 10.226, 10.169, 10.293, 10.055, 10.078, 10.17, 10.267, 10.016, 10.078];
+  // python (numpy): R̄ = mean of group ranges, S̄ = mean of group s (n−1),
+  //   c₄(12) = 0.9775593518547718; s = 0.14063903388855942
+  const REFERENCE: Record<number, { sigma: number; cp: number; cpk: number; pp: number; ppk: number; label: string }> = {
+    2: { sigma: 0.10579196217494075, cp: 2.048044692737434, cpk: 1.854373184357542, pp: 1.5405869954876872, ppk: 1.3949027688374642, label: 'R̄/d₂(2)' },
+    5: { sigma: 0.1279378045285181, cp: 1.6935312237468518, cpk: 1.5333839634089412, pp: 1.5405869954876872, ppk: 1.3949027688374642, label: 'R̄/d₂(5)' },
+    10: { sigma: 0.12307775611869187, cp: 1.7604047514298282, cpk: 1.5939336559612813, pp: 1.5405869954876872, ppk: 1.3949027688374642, label: 'R̄/d₂(10)' },
+    12: { sigma: 0.12759679590767828, cp: 1.6980572680166228, cpk: 1.5374820063641759, pp: 1.5405869954876872, ppk: 1.3949027688374642, label: 'S̄/c₄(12)' },
+  };
+
+  it.each([2, 5, 10, 12])('shares the chart sigma with Cp/Cpk at n = %i', (subgroup) => {
+    const result = capabilitySixpack(VALUES, { lsl: 9.5, usl: 10.8, subgroup });
+    const ref = REFERENCE[subgroup];
+    // EXACT agreement — the old code computed Cp/Cpk from a different estimator
+    expect(result.capability.sdWithin).toBe(result.sigmaWithin);
+    expect(result.sdWithinFromChart).toBe(true);
+    expect(result.withinMethodLabel).toBe(ref.label);
+    expect(result.sigmaWithin).toBeCloseTo(ref.sigma, 8);
+    expect(result.capability.sdWithin).toBeCloseTo(ref.sigma, 8);
+    expect(result.capability.cp).toBeCloseTo(ref.cp, 8);
+    expect(result.capability.cpk).toBeCloseTo(ref.cpk, 8);
+    expect(result.capability.pp).toBeCloseTo(ref.pp, 8);
+    expect(result.capability.ppk).toBeCloseTo(ref.ppk, 8);
+    expect(result.sigmaBasis).toBe(subgroup === 12 ? 'Sbar/c4' : 'Rbar/d2');
+    // the pooled within-subgroup s (what the indices used to get) is different
+    expect(Math.abs(result.capability.sdWithin - ref.sigma)).toBeLessThan(1e-8);
   });
 });

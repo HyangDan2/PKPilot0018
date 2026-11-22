@@ -1498,6 +1498,9 @@ function runSixpack(ctx: RunContext): RunResult {
     { label: 'Cpm', value: cap.cpm, color: 4 },
   ].filter((item) => isFinite(item.value));
   const adResult = result.ad;
+  // Subgroups 11+ keep their Xbar-S explanation; every size also says out loud
+  // that the limits and the indices share the same chart estimate.
+  const sigmaLine = t(lang, 'res.sixpackSigmaBasis', { method: result.withinMethodLabel });
   const blocks: Block[] = [
     {
       type: 'text',
@@ -1508,6 +1511,7 @@ function runSixpack(ctx: RunContext): RunResult {
           rows: values2.length,
         }),
         subgroup > 10 ? t(lang, 'res.sixpackXbarS') : '',
+        sigmaLine,
         result.missingSubgroups > 0 ? t(lang, 'res.sixpackMissing', { n: result.missingSubgroups }) : '',
         Number.isFinite(adResult.p)
           ? t(lang, adResult.p >= 0.05 ? 'res.normal' : 'res.notNormal')
@@ -1533,6 +1537,20 @@ function runSixpack(ctx: RunContext): RunResult {
       headers: ['@th.statistic', 'Value'],
       rows: statsRows,
       align: ['l', 'r'],
+    },
+    {
+      // The three variability estimates and where each one comes from: the chart
+      // limits and Cp/Cpk share one chart-based within sigma, Pp/Ppk use s (n−1).
+      type: 'table',
+      title: tableTitle('res.sigmaEstimate'),
+      headers: ['@th.estimate', '@th.value', '@th.basis'],
+      rows: [
+        [t(lang, 'res.chartWithinSigma'), fmt(result.sigmaWithin, 6), result.withinMethodLabel],
+        [t(lang, 'res.capabilityWithinSigma'), fmt(cap.sdWithin, 6), result.withinMethodLabel],
+        [t(lang, 'res.overallSigma'), fmt(cap.sdOverall, 6), t(lang, 'res.overallSigmaBasis')],
+      ],
+      align: ['l', 'r', 'l'],
+      caption: t(lang, 'res.sixpackSigmaNote', { method: result.withinMethodLabel }),
     },
     {
       type: 'chartgrid',
@@ -1907,22 +1925,31 @@ function runWeibull(ctx: RunContext): RunResult {
       align: ['l', 'r', 'r', 'r'],
     },
     {
+      // Complete data: the tabulated AD* critical values apply, so the band and
+      // its p-range are reported. Right-censored data: A²/A* are computed on the
+      // failure times only and the complete-data critical values are NOT valid
+      // there, so they and the p-range verdict are withheld; the p-value comes
+      // from the censoring-aware parametric bootstrap and the KM deviation.
       type: 'table',
       title: tableTitle('res.adTest'),
       headers: ['@th.statistic', '@th.value'],
-      rows: [
-        ['AD', fmt(result.ad, 4)],
-        ['AD*', fmt(result.adAdjusted, 4)],
-        [t(lang, 'res.adCritical'), '0.637 / 0.757 / 1.038'],
-        [t(lang, 'res.adConclusion'), bandText],
-        [t(lang, 'res.adBasis'), t(lang, result.adBasis === 'complete' ? 'res.adBasisComplete' : 'res.adBasisFailures')],
-        ...(result.adBasis === 'failures'
-          ? [
-            [t(lang, 'res.kmDev'), `${fmt(result.kmDev, 4)}  (${t(lang, 'res.kmCritical')} ${fmt(result.kmCritical05, 4)})`],
-          ]
-          : []),
-        ['Log-likelihood', fmt(result.logLik, 3)],
-      ],
+      rows: result.adBasis === 'complete'
+        ? [
+          ['AD', fmt(result.ad, 4)],
+          ['AD*', fmt(result.adAdjusted, 4)],
+          [t(lang, 'res.adCritical'), '0.637 / 0.757 / 1.038'],
+          [t(lang, 'res.adConclusion'), bandText],
+          [t(lang, 'res.adBasis'), t(lang, 'res.adBasisComplete')],
+          ['Log-likelihood', fmt(result.logLik, 3)],
+        ]
+        : [
+          [t(lang, 'res.adFailuresRef'), fmt(result.ad, 4)],
+          [t(lang, 'res.adStarFailuresRef'), fmt(result.adAdjusted, 4)],
+          [t(lang, 'res.adBootstrapP', { reps: fmtInt(result.adBootstrapReps) }), fmt(result.adBootstrapP, 4)],
+          [t(lang, 'res.kmDev'), `${fmt(result.kmDev, 4)}  (${t(lang, 'res.kmCritical')} ${fmt(result.kmCritical05, 4)})`],
+          [t(lang, 'res.adBasis'), t(lang, 'res.adBasisFailures')],
+          ['Log-likelihood', fmt(result.logLik, 3)],
+        ],
       align: ['l', 'r'],
       caption: result.adBasis === 'failures' ? t(lang, 'res.adCensoredNote') : undefined,
     },
@@ -2443,6 +2470,16 @@ function runPowerAnalysis(ctx: RunContext, method: PowerMethod): RunResult {
     notes.push(t(lang, 'res.powerProportions', { p1: fmt(p1, 3), p2: fmt(comparison, 3) }));
   }
   if (solution.power < alpha + 1e-12 && solveFor === 'power') notes.push(t(lang, 'res.powerBelowAlpha'));
+  if (solution.oppositeDifference !== undefined && solveFor === 'difference') {
+    // p₀ away from 0.5 leaves the two directions of a two-sided test unequal: the
+    // table shows the smaller |d|, and the other direction's threshold is here.
+    const opposite = p1 + solution.oppositeDifference;
+    notes.push(t(lang, 'res.powerOppositeDifference', {
+      difference: `${solution.oppositeDifference > 0 ? '+' : ''}${fmt(solution.oppositeDifference, 4)}`,
+      p: fmt(opposite, 3),
+      power: `${(solution.power * 100).toFixed(1)}%`,
+    }));
+  }
   if (method === 'anova') notes.push(t(lang, 'res.powerAnovaAssumption', { groups: spec.groups ?? 2 }));
   if (method === 'twoT') notes.push(t(lang, 'res.powerTwoSampleNote'));
   if (method === 'paired') notes.push(t(lang, 'res.powerPairedNote'));

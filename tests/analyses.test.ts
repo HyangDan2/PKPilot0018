@@ -375,10 +375,16 @@ describe('correctness-review output', () => {
     const labels = ad.rows.map((r) => String(r[0]));
     expect(labels).toContain('AD evaluation');
     expect(labels).toContain('KM max deviation');
-    expect(labels).toContain('AD*');
-    // censored AD is labelled as a failures-only evaluation with a caveat
+    // Censored AD is a failures-only REFERENCE statistic: the complete-data
+    // critical values and their p-range verdict must not be printed.
+    expect(labels).toContain('AD (failures-only, ref.)');
+    expect(labels).toContain('AD* (failures-only, ref.)');
+    expect(labels).toContain('Bootstrap p-value (B=300)');
+    expect(labels).not.toContain('AD* critical values');
+    expect(labels).not.toContain('Conclusion');
     expect(String(ad.rows[labels.indexOf('AD evaluation')][1])).toMatch(/failure times only/);
     expect(String(ad.caption)).toMatch(/approximate|Kaplan/i);
+    expect(String(ad.caption)).toMatch(/bootstrap/i);
     const fitTable = tables(result.blocks).find((t) => t.title === '@res.lognormalFit');
     expect(fitTable).toBeDefined();
     expect(fitTable!.rows.map((r) => String(r[0]))).toEqual(expect.arrayContaining(['μ (ln)', 'σ (ln)', 'MTTF']));
@@ -391,6 +397,30 @@ describe('correctness-review output', () => {
     expect(textOf(result)).toMatch(/Xbar-S/);
     const charts = result.blocks.filter((b) => b.type === 'chartgrid');
     expect(charts.length).toBe(1);
+  });
+
+  it('Sixpack prints the sigma basis and the same within-sigma at n = 2, 5, 10, 12', () => {
+    const values = [9.986, 10.186, 10.116, 10.027, 9.83, 9.77, 10.142, 10.099, 9.761, 10.075, 9.713, 10.12, 10.134, 10.166, 9.997, 10.133, 10.019, 9.881, 10.116, 10.107, 10.071, 10.081, 9.977, 10.051, 10.062, 9.98, 9.995, 10.092, 9.852, 10.078, 10.265, 10.28, 10.164, 10.164, 10.051, 10.134, 10.086, 10.263, 10.088, 9.957, 9.991, 10.047, 10.291, 9.934, 10.262, 10.135, 10.085, 10.219, 10.489, 10.23, 10.208, 10.226, 10.169, 10.293, 10.055, 10.078, 10.17, 10.267, 10.016, 10.078];
+    const sheet = makeWorksheet('Six', [{ name: 'Value', type: 'numeric', values }]);
+    const expected: Record<number, string> = { 2: 'R̄/d₂(2)', 5: 'R̄/d₂(5)', 10: 'R̄/d₂(10)', 12: 'S̄/c₄(12)' };
+    [2, 5, 10, 12].forEach((subgroup) => {
+      const result = run('sixpack', sheet, { variable: 'C1', subgroup, lsl: '9.5', usl: '10.8', target: '' });
+      const sigmaTable = tables(result.blocks).find((table) => table.title === '@res.sigmaEstimate');
+      expect(sigmaTable, `n=${subgroup}`).toBeDefined();
+      const rows = sigmaTable!.rows.map((row) => row.map(String));
+      const chartRow = rows.find((row) => row[0] === 'Chart within σ')!;
+      const capRow = rows.find((row) => row[0] === 'Capability within σ (Cp/Cpk)')!;
+      const overallRow = rows.find((row) => row[0] === 'Overall σ')!;
+      // both within-sigma cells print the SAME number, with the chart basis beside them
+      expect(chartRow[1]).toBe(capRow[1]);
+      expect(chartRow[2]).toBe(expected[subgroup]);
+      expect(capRow[2]).toBe(expected[subgroup]);
+      expect(Number(chartRow[1])).toBeGreaterThan(0);
+      expect(overallRow[2]).toBe('s (n − 1)');
+      // the basis is also named in the note above the charts and in the caption
+      expect(textOf(result)).toContain(expected[subgroup]);
+      expect(String(sigmaTable!.caption)).toContain(expected[subgroup]);
+    });
   });
 
   it('non-normal capability reports the excluded non-positive values', () => {

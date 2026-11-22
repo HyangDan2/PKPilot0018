@@ -47,6 +47,13 @@ export interface WeibullResult {
   band: 'above10' | 'between05and10' | 'between01and05' | 'below01';
   /** which observations the AD statistic was evaluated on */
   adBasis: 'complete' | 'failures';
+  /** Parametric-bootstrap p-value of the failures-only A* under the fitted
+   *  Weibull with the observed right-censoring pattern (NaN for complete data,
+   *  where the tabulated critical values apply and no bootstrap is needed).
+   *  (hits + 1) / (reps + 1), so it can never be exactly 0. */
+  adBootstrapP: number;
+  /** bootstrap replicates used for adBootstrapP (0 when not computed) */
+  adBootstrapReps: number;
   /** largest |F̂_fitted(t) − F̂_Kaplan–Meier(t)| over the failure times */
   kmDev: number;
   /** 5 % Kolmogorov critical value 1.36/√k for that deviation (k = failures) */
@@ -68,6 +75,136 @@ export interface WeibullResult {
 }
 
 const WEIBULL_AD_CRITICAL: [number, number, number] = [0.637, 0.757, 1.038];
+
+/** Replicates of the censored-data AD bootstrap (fixed for reproducibility). */
+export const WEIBULL_AD_BOOTSTRAP_REPS = 300;
+/** Fixed seed — the same sample always reports the same bootstrap p-value. */
+const WEIBULL_AD_BOOTSTRAP_SEED = 0x51e6_2f1a;
+
+/** Mulberry32: 32-bit deterministic PRNG, enough for a bootstrap and reproducible. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Profile log-likelihood of the 2-parameter Weibull at a fixed shape. Uses
+ * Σ(t/η)^β = r at the profiled scale, so one pass over the times is enough —
+ * this is what keeps 300 bootstrap refits cheap.
+ */
+function profileLogLikFast(times: number[], logTimeSumFailed: number, failures: number, shape: number): number {
+  let sumT = 0;
+  for (let i = 0; i < times.length; i += 1) sumT += Math.pow(times[i], shape);
+  if (!(sumT > 0) || !isFinite(sumT)) return -Infinity;
+  const lnScale = Math.log(sumT / failures) / shape;
+  return failures * Math.log(shape) - failures * shape * lnScale + (shape - 1) * logTimeSumFailed - failures;
+}
+
+/** Shape (and its profiled scale) of one bootstrap sample, golden-section on ln β. */
+function profileFit(times: number[], logTimeSumFailed: number, failures: number): { shape: number; scale: number } | null {
+  if (failures < 2 || times.length < 3) return null;
+  const phi = (Math.sqrt(5) - 1) / 2;
+  let a = Math.log(0.02);
+  let b = Math.log(200);
+  let c = b - phi * (b - a);
+  let d = a + phi * (b - a);
+  let fc = profileLogLikFast(times, logTimeSumFailed, failures, Math.exp(c));
+  let fd = profileLogLikFast(times, logTimeSumFailed, failures, Math.exp(d));
+  for (let i = 0; i < 70; i += 1) {
+    if (fc > fd) {
+      b = d;
+      d = c;
+      fd = fc;
+      c = b - phi * (b - a);
+      fc = profileLogLikFast(times, logTimeSumFailed, failures, Math.exp(c));
+    } else {
+      a = c;
+      c = d;
+      fc = fd;
+      d = a + phi * (b - a);
+      fd = profileLogLikFast(times, logTimeSumFailed, failures, Math.exp(d));
+    }
+  }
+  const shape = Math.exp((a + b) / 2);
+  let sumT = 0;
+  for (let i = 0; i < times.length; i += 1) sumT += Math.pow(times[i], shape);
+  if (!(sumT > 0) || !isFinite(sumT)) return null;
+  return { shape, scale: Math.pow(sumT / failures, 1 / shape) };
+}
+
+/** A* = A²(1 + 0.2/√k) on the failure times against the fitted Weibull CDF. */
+function failuresAdAdjusted(rows: WeibullInput[], shape: number, scale: number): number {
+  const failed = rows.filter((r) => !r.censored);
+  if (failed.length < 2) return NaN;
+  const cdf = failed.map((r) => 1 - Math.exp(-Math.pow(r.time / scale, shape)));
+  const ad = adStatistic(cdf);
+  return ad * (1 + 0.2 / Math.sqrt(Math.max(1, failed.length)));
+}
+
+/**
+ * Parametric-bootstrap null distribution of the censored-data A*.
+ *
+ * Under H₀ (the fitted Weibull is the truth) each replicate draws n lifetimes
+ * from Weibull(shape, scale) and applies the SAME right-censoring mechanism the
+ * sample shows: the failure/censoring share is kept, and each censoring time is
+ * redrawn from the empirical distribution of the observed censoring times. A
+ * replicate that happens to produce fewer than two failures has its two earliest
+ * observations read as failures instead (a fit needs two), which keeps the failure
+ * rate intact instead of dropping the replicate. The replicate is refitted and
+ * its failures-only A* compared with the observed one; p = (hits + 1)/(B + 1).
+ */
+function bootstrapAdP(
+  data: WeibullInput[],
+  shape: number,
+  scale: number,
+  observedAdjusted: number,
+  reps = WEIBULL_AD_BOOTSTRAP_REPS,
+): number {
+  const n = data.length;
+  const censTimes = data.filter((r) => r.censored).map((r) => r.time);
+  if (!censTimes.length || !(observedAdjusted >= 0)) return NaN;
+  const censShare = censTimes.length / n;
+  const rand = mulberry32(WEIBULL_AD_BOOTSTRAP_SEED);
+  let hits = 0;
+  for (let b = 0; b < reps; b += 1) {
+    const sample: WeibullInput[] = [];
+    for (let i = 0; i < n; i += 1) {
+      const u = Math.min(1 - 1e-12, Math.max(1e-12, rand()));
+      const life = scale * Math.pow(-Math.log(u), 1 / shape);
+      const isCensored = censShare > 0 && rand() < censShare;
+      if (isCensored) {
+        const c = censTimes[Math.min(censTimes.length - 1, Math.floor(rand() * censTimes.length))];
+        if (c < life) {
+          sample.push({ time: c, censored: true });
+          continue;
+        }
+      }
+      sample.push({ time: life, censored: false });
+    }
+    let failed = sample.filter((r) => !r.censored);
+    if (failed.length < 2) {
+      const earliest = [...sample].sort((x, y) => x.time - y.time).slice(0, 2);
+      earliest.forEach((row) => { row.censored = false; });
+      failed = sample.filter((r) => !r.censored);
+    }
+    const times = sample.map((r) => r.time);
+    const logTimeSumFailed = failed.reduce((acc, r) => acc + Math.log(r.time), 0);
+    const fit = profileFit(times, logTimeSumFailed, failed.length);
+    if (!fit) {
+      hits += 1;
+      continue;
+    }
+    const replicateAdjusted = failuresAdAdjusted(sample, fit.shape, fit.scale);
+    if (!(replicateAdjusted < observedAdjusted)) hits += 1;
+  }
+  return (hits + 1) / (reps + 1);
+}
 
 export interface WeibullInput {
   time: number;
@@ -268,6 +405,13 @@ export function fitWeibull(rows: WeibullInput[], conf = 0.95): WeibullResult {
       : adAdjusted <= WEIBULL_AD_CRITICAL[2]
         ? 'between01and05'
         : 'below01';
+  // The table's critical values are for COMPLETE data. With right censoring the
+  // failures-only A* has no tabulated null distribution, so its p-value comes
+  // from a parametric bootstrap that reproduces the censoring pattern instead.
+  const adBootstrapReps = adBasis === 'failures' ? WEIBULL_AD_BOOTSTRAP_REPS : 0;
+  const adBootstrapP = adBasis === 'failures'
+    ? bootstrapAdP(data, shape, scale, adAdjusted, adBootstrapReps)
+    : NaN;
   return {
     shape,
     scale,
@@ -292,6 +436,8 @@ export function fitWeibull(rows: WeibullInput[], conf = 0.95): WeibullResult {
     adAdjusted,
     band,
     adBasis,
+    adBootstrapP,
+    adBootstrapReps,
     kmDev,
     kmCritical05,
     kmBand: kmDev <= kmCritical05 ? 'above05' : 'below05',

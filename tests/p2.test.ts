@@ -77,10 +77,20 @@ describe('Capability Sixpack', () => {
     expect(individuals.subgroup).toBe(1);
     expect(individuals.primary.key).toBe('i');
     expect(individuals.secondary.key).toBe('mr');
+    expect(individuals.sigmaBasis).toBe('MRbar/d2');
+    expect(individuals.capability.sdWithin).toBe(individuals.sigmaWithin);
     const grouped = capabilitySixpack(values, { lsl: 9.5, usl: 10.8, subgroup: 4 });
     expect(grouped.primary.key).toBe('xbar');
     expect(grouped.secondary.key).toBe('r');
-    expect(grouped.capability.sdWithin).toBeCloseTo(0.20371548787463356, 10);
+    // The chart and Cp/Cpk now share ONE within sigma: R̄/d₂(4) = 0.46/2.059.
+    // (The old expectation 0.20371548787463356 was the pooled within-subgroup s
+    // the capability used while the limits were drawn on R̄/d₂ — the mismatch
+    // this follow-up fixes. python: R̄ = 0.46, 0.46/2.059 = 0.2234094220495385.)
+    expect(grouped.capability.sdWithin).toBeCloseTo(0.2234094220495385, 12);
+    expect(grouped.capability.sdWithin).toBe(grouped.sigmaWithin);
+    expect(grouped.sigmaBasis).toBe('Rbar/d2');
+    expect(grouped.withinMethodLabel).toBe('R̄/d₂(4)');
+    expect(grouped.sdWithinFromChart).toBe(true);
   });
 
   it('keeps the last panel to 25 points with re-indexed signals', () => {

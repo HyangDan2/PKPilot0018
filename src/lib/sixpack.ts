@@ -39,9 +39,16 @@ export interface SixpackResult {
   says: { within: number; overall: number };
   /** subgroups that contained a missing value (handled with their own nᵢ) */
   missingSubgroups: number;
-  /** true when the within sigma of the indices came from the S̄/c₄ chart estimate */
+  /** true when the within sigma of the indices came from the chart estimate (always) */
   sdWithinFromChart: boolean;
+  /** which chart estimator produced the shared within sigma */
+  sigmaBasis: SixpackSigmaBasis;
+  /** e.g. `R̄/d₂(5)` — the basis with its subgroup size spelled out */
+  withinMethodLabel: string;
 }
+
+/** The chart estimator that supplies BOTH the limits and Cp/Cpk. */
+export type SixpackSigmaBasis = 'MRbar/d2' | 'Rbar/d2' | 'Sbar/c4';
 
 /** Largest subgroup size the Xbar-R constant table (A₂, d₂, d₃, D₃, D₄) covers. */
 export const XBAR_R_MAX = 10;
@@ -71,17 +78,25 @@ export function capabilitySixpack(raw: (number | null)[], options: SixpackOption
     : chart === 'xbar-r'
       ? xbarRCharts(raw, subgroup)
       : xbarSCharts(raw, { size: subgroup });
-  // The indices must use the same within-sigma as the dispersion chart when the
-  // estimator is the S̄/c₄ one (Xbar-S); for Xbar-R and I-MR the capability
-  // keeps its pooled/moving-range estimate, which is what Minitab reports.
-  const sdWithinFromChart = chart === 'xbar-s';
+  // ONE within-sigma for the whole sixpack: the chart's own estimator (MR̄/d₂(2)
+  // for I-MR, R̄/d₂(n) for Xbar-R, S̄/c₄(n) for Xbar-S) is also what Cp/Cpk use.
+  // Only Xbar-S used to hand its estimate over, so with subgroups of 2, 5 or 10
+  // the limits were drawn on R̄/d₂ while Cp/Cpk were computed on the pooled
+  // within-subgroup s — two different variability estimates for one process.
+  const sdWithinFromChart = true;
+  const sigmaBasis: SixpackSigmaBasis = chart === 'imr' ? 'MRbar/d2' : chart === 'xbar-r' ? 'Rbar/d2' : 'Sbar/c4';
+  const withinMethodLabel = chart === 'imr'
+    ? 'MR̄/d₂(2)'
+    : chart === 'xbar-r'
+      ? `R̄/d₂(${subgroup})`
+      : `S̄/c₄(${subgroup})`;
   const cap = capability(raw, {
     lsl: options.lsl ?? null,
     usl: options.usl ?? null,
     target: options.target ?? null,
     subgroup,
     sigmaMethod: options.sigmaMethod ?? 'z_bench_shift',
-    ...(sdWithinFromChart ? { sdWithin: spc.sigmaWithin } : {}),
+    sdWithin: spc.sigmaWithin,
   });
   const ad = adNormality(values);
   const lastCount = options.lastCount ?? 25;
@@ -106,5 +121,7 @@ export function capabilitySixpack(raw: (number | null)[], options: SixpackOption
       ? (spc.subgroupSummary as { missingSubgroups?: number }).missingSubgroups ?? 0
       : 0,
     sdWithinFromChart,
+    sigmaBasis,
+    withinMethodLabel,
   };
 }
