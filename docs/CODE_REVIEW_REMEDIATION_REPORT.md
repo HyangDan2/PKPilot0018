@@ -537,6 +537,7 @@ Overall σ                       0.140639   s (n − 1)
 | Flow | What was checked | Result |
 |---|---|---|
 | CSV import → Capability Sixpack, 60 values, subgroup 10, LSL 9.5 / USL 10.8 | header line names `R̄/d₂(10)`; sigma table 0.123078 / 0.123078 / 0.140639 with bases; Cp 1.76, Cpk 1.594, Pp 1.541, Ppk 1.395 | PASS |
+| Same sheet → Capability Sixpack, subgroup 12 (Xbar-S path) | `Xbar-S chart with subgroup size 12` plus the Xbar-S note; sigma table 0.127597 / 0.127597 (`S̄/c₄(12)`) / 0.140639; Cp 1.698, Cpk 1.537 | PASS |
 | CSV import → Weibull distribution analysis, 25 times (20 failures + 5 censored, code 1 = censored) | AD / AD* labelled "failures-only, ref.", bootstrap p = 0.0698 (B = 300), KM deviation 0.0793 vs 0.3041, no `AD* critical values` row, no `Conclusion` row, caption explains the change | PASS |
 | Power and Sample Size — 1 Proportion, p₀ = 0.2, N = 50, target 90 %, two-sided, solve for difference | difference −0.1503 at 90.00 %, opposite-direction note +0.1996 (p₂ = 0.4) | PASS |
 | Browser console / network | 0 script errors and 0 failed resource requests (4 requests: the page, the JS bundle, the CSS, favicon) after a full re-run of the power card with listeners installed | PASS |
@@ -547,6 +548,7 @@ Screenshots (each reviewed by eye):
 |---|---|
 | `downloads/sigrun_rereview_sixpack.png` | Sixpack card, sigma-estimate table with both within-σ values identical and their basis, plus the caption |
 | `downloads/sigrun_rereview_sixpack_note.png` | the card header line naming `R̄/d₂(10)` as the shared estimator |
+| `downloads/sigrun_rereview_sixpack12.png` | the same table at subgroup 12: both within-σ values equal at 0.127597 with basis `S̄/c₄(12)` |
 | `downloads/sigrun_rereview_weibull.png` | censored AD table: reference labels, bootstrap p-value, KM deviation, the explanatory caption — no complete-data thresholds |
 | `downloads/sigrun_rereview_power.png` | 1-Proportion card: opposite-direction note and the −0.1503 / 90.00 % row |
 
