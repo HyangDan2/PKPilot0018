@@ -563,4 +563,241 @@ Screenshots (each reviewed by eye):
 
 ---
 
-*Report generated from the actual repository state at `a531e46`; every number in the tables is asserted by the test suite or was read from the deployed build. Section 6 was written after the follow-up review of `492484f` and carries the same rule.*
+## Section 7 — Follow-up QA: REVIEW 3 & UNVERIFIED 9 Resolution and Weibull Bootstrap Calibration
+
+The independent QA harness (`npm run qa:stats`) closed this follow-up at
+**156 cases: PASS 156 · FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0** (pass
+rate 100 %). The three REVIEW items and nine UNVERIFIED items left after
+Section 6 are all resolved; a large-scale calibration experiment quantifies
+the error rates of the censored-data Weibull AD test.
+
+Commit: `a132e5b`. Suite: **280 tests passed / 12 files** (17 new regression
+cases in `tests/followup-qa.test.ts`, plus two updated QA-12 expectations that
+were pinning the removed 0 / ±∞ convention). `tsc --noEmit`: 0 errors.
+CI: GitHub Actions run [45083176303](https://github.com/HyangDan2/PKPilot0018/actions/runs/45083176303) — `Statistics QA (independent reference)`, **success**; run [45083176294](https://github.com/HyangDan2/PKPilot0018/actions/runs/45083176294) — `Deploy Sigrún to GitHub Pages`, **success** (bundle `index-CmXEUg1_.js`).
+Live verification: <https://hyangdan2.github.io/PKPilot0018/> returns HTTP 200, and a Chromium run against the deployed build loaded the sample data, executed Pareto through the shipped runner (31 SVG charts, 0 console errors).
+
+| Item | Area | Resolution |
+|---|---|---|
+| QA-B-06 GLM rank-deficient mixed model | REVIEW | re-specified to the model invariants that are invariant across generalised inverses; PASS |
+| QA-X-04 1-sample t, constant column (s = 0) | REVIEW | unified se = 0 convention (undefined, NaN); PASS |
+| QA-X-05 2-sample t, both variances 0 | REVIEW | same convention; reference documents the scipy divergence; PASS |
+| QA-U-01 … QA-U-09 charts and sheet transforms | UNVERIFIED | verified through the shipped runners against an independent Python reference; all PASS |
+| Weibull AD bootstrap | calibration | 3 scenarios × 2–3 truths × 1 000 simulations, α = 1 / 5 / 10 % — `qa/reports/calibration_weibull.json` |
+
+### 7-① QA-X-04 / QA-X-05 / QA-X-06 — one se = 0 convention
+
+**Cause.** The three t-test variants disagreed about a zero-variance sample:
+`tTest1` / `tTest2` returned t = NaN, while `pairedT` returned 0 when the mean
+difference matched μ₀ and ±∞ otherwise, and the reference engine mirrored that
+split. SciPy is not a tiebreaker here either: `ttest_1samp` returns NaN for a
+constant sample but `ttest_ind` returns p = 0.0 when both variances are 0
+(its internal t is ±∞).
+
+**Convention adopted.** With s = 0 the data carry no information about
+variation around μ₀, so **t and p are undefined (NaN)** — never 0 (that would
+claim perfect agreement with H₀) and never ±∞ (that would claim certainty
+about the direction). The degenerate confidence interval still brackets the
+estimate (`[m, m]` two-sided). Applied uniformly to `tTest1`, `tTest2` and
+`pairedT`; the reference engine implements the same rule with an explicit
+guard, documented where scipy's raw output differs.
+
+**UI behaviour.** The 1-sample and 2-sample dialogs already refused constant
+columns with `res.zeroVariance` (kept unchanged). The paired dialog no longer
+poses a constant-difference sample as a significant result: the runner now
+prints a new explanatory note (`res.constantTest` — EN and KO) whenever
+se = 0, while the table shows t / p as undefined.
+
+**Evidence (new case QA-X-06, paired `flat` vs `zeros`, μ₀ = 5 — every
+difference equals μ₀ exactly, the case where the old rule answered t = 0):**
+
+| Field | Sigrún | Reference | Note |
+|---|---|---|---|
+| t | NaN | NaN | old paired rule returned 0 here |
+| p | NaN | NaN | old paired rule returned 1 here |
+| se | 0 | 0 | |
+| difference / difference_vs_mu0 | 5 / 0 | 5 / 0 | exact boundary case |
+
+Regression tests: `tests/followup-qa.test.ts` "QA-X se = 0 convention"
+(4 cases, including the finite-sample sanity check t = −0.7745966692,
+p = 0.4950253461 for [1, 2, 3, 4] vs μ₀ = 3, SciPy agreement).
+
+### 7-② QA-B-06 — rank-deficient GLM judged on the model invariants
+
+**Cause.** Declaring the DOE factor B categorical gives it three levels
+(−1 / 0 / +1), and the two centre points (A = 0, B = 0) make the design
+matrix rank-deficient: the single linear dependency is
+**A − A·B[−1] + 2·A·B[0] = 0** (equivalently A·B[0] = (A·B[−1] − A)/2).
+Which column a solver bills the alias to is a property of the generalised
+inverse: the engine's column-pivoted QR dropped a column attributed to A
+(term A: df 0), statsmodels' pinv dropped one attributed to A×B (A: df 1,
+A×B: df 2) — so term-level df / SS / F / p could never agree. The quantities
+that **are** invariant are the model-level ones: every least-squares solution
+projects y onto the same column space.
+
+**Resolution.** QA-B-06 now verifies the model invariants — n, dfe, sse,
+mse, s, ss_total, ss_model, r2, r2_adj, rank, `aliased_count` (columns − rank,
+identical: 6 − 5 = 1 on both sides), plus all 10 fitted values and 10
+residuals — and explicitly does **not** compare term-level SS for this
+degenerate design; full-rank term-level verification stays with QA-B-02…04.
+The case note spells out the dependency and the reason. The adapter and the
+reference engine now both emit `aliased_count`, `fitted[i]` and
+`residuals[i]`.
+
+**UI.** `runGlm` already listed the aliased columns; it now also prints a new
+note (`res.glmAliasedNote`, EN and KO) explaining that alias assignment is
+solver-order dependent while fitted values, R², S and residual df are
+unaffected.
+
+**Regression tests:** `tests/followup-qa.test.ts` "QA-B-06 rank-deficient
+GLM" (2 cases): exactly one aliased column, dfe = n − rank, finite fitted
+values and residuals, SSE + SS_model = SS_total.
+
+### 7-③ QA-U-01 … QA-U-09 — charts and transforms verified through the shipped runners
+
+The nine former UNVERIFIED cases were placeholder records (`adapterOnly`) —
+the adapter never executed the analysis runners. The adapter now has a
+`sheet` op that builds a worksheet from a QA dataset and calls the **same
+`findAnalysis(id).run` function the browser UI calls**, then reads the numbers
+back out of the chart specs and sheet patches. A new golden dataset
+`charts` (60 rows, seed 11025: defect categories 15/11/8/6/5/4/3/2/1 + 5
+blanks, machine M1–M3, x ~ N(50, 8) with y = 1.5 + 0.6x + N(0, 2), value ~
+N(50, 4) with 2 injected outliers and 3 blanks, code in {1, 2, 3, 9}) carries
+designed answers for every rule.
+
+The Python reference re-derives each quantity from the **documented rules**
+(the bin rule, type-6 quantiles, the 1.5·IQR whisker rule, first-appearance
+group mapping, the (x − x̄)/s standardisation, the mapping/fallback recode) —
+they are part of the app's contract, so they are verified, not waved through
+as "visualisation". Two rules needed an explicit note: percent / cumulative
+columns are compared at the runner's documented one-decimal display
+precision, and the random case is judged against the population parameters
+with tolerances that cover sampling error (below).
+
+| Case | Analysis | What is compared | Reference |
+|---|---|---|---|
+| QA-U-01 | pareto | 9 labels, counts, % and cumulative %, total 55 | pandas value counts + display rule |
+| QA-U-02 | histogram | 7 bins (rule max(5, min(20, ⌈1 + log₂ n⌉))), counts summing to 57, bin edges, and the 121-point normal curve (n·binWidth·φ) | documented rule + `scipy.stats.norm.pdf` |
+| QA-U-03 | boxplot | type-6 Q1 / median / Q3, IQR, fences, whiskers, outlier list | `numpy.quantile(method='weibull')` |
+| QA-U-04 | scatter | OLS slope / intercept, group mapping M1/M2/M3, per-group n | `scipy.stats.linregress` |
+| QA-U-05 | timeseries | finite-sequence statistics, LSL/USL/target echo, raw length 60 | NumPy summary |
+| QA-U-06 | sort | all 60 sorted values with nulls last plus the id column proving whole-row movement | `pandas.sort_values` (stable, na last) |
+| QA-U-07 | standardize | all 60 z-scores with nulls preserved, z̄ ≈ 0, s ≈ 1 | (x − mean) / sample sd |
+| QA-U-08 | recode | mapping 1→10, 2→20, 3→30, unmapped 9 preserved (17), nulls preserved | documented mapping rule |
+| QA-U-09 | random | n = 5000, mean vs 10 (`moment_mean` atol 0.12 ≈ 4·σ/√n), sd vs 2 (`moment_sd` atol 0.09 ≈ 4·σ/√(2n)), repeat-run max difference = 0, all finite | population parameters; tolerance is sampling error, stated in the case note |
+
+Two pure helpers were extracted from the renderer so the QA adapter (and the
+unit tests) exercise exactly what is drawn, without changing any rendering:
+`charts.histogramCurve()` (the normal-reference curve) and
+`charts.boxplotStats()` (quartiles, fences, whiskers, outliers).
+
+**Live browser E2E (Chromium, built app served by `vite preview`).** One
+session ran ten flows end to end — Pareto (category = Defect), Histogram,
+Boxplot, Scatterplot (Yield vs Temperature), Time series plot with
+LSL 55 / USL 75 / Target 65, Sort, Standardize, Recode (160→1, 180→2) and
+seeded Random data (500 draws) — asserting the outputs (Pareto table with
+Scratch 15 and cumulative 100.0 %, scatter R², transform cards, worksheet
+growing to 8 columns with `Std Yield`, `Recode Temperature`, `Random data`).
+31 SVG charts rendered, **0 console errors**. Screenshots:
+
+| File | Content |
+|---|---|
+| `downloads/sigrun_followup_charts.png` | Pareto (Scratch 15 → 100 % cumulative), histogram and boxplot cards rendered from the shipped runner |
+| `downloads/sigrun_followup_transforms.png` | Sort / Standardize / Recode / Random cards (random: n 500, mean 9.992, sd 2.06 against μ = 10, σ = 2) and the 8-column worksheet |
+
+The same Pareto flow was replayed against the **deployed** Pages build
+(HTTP 200, 31 SVGs, 0 console errors) to confirm the live bundle matches.
+
+### 7-④ Weibull bootstrap calibration (α = 1 % · 5 % · 10 %)
+
+`qa/experiments/qa_f_calibration.py` measures the actual error rates of the
+test the engine ships: complete data are judged against the tabulated
+critical values (1.038 / 0.757 / 0.637); censored data through the
+parametric bootstrap (empirical censoring-time mechanism, two-earliest-
+read-as-failures repair, p = (hits + 1)/(B + 1), B = 400). 1 000 simulated
+samples per cell, every draw seeded. Alternatives: a lognormal with the same
+median as the Weibull truth (a fair, distribution-only change) and the bimodal
+mixture of the `censored_mixture` golden dataset (a gross violation).
+
+**Empirical Type I error (truth = Weibull) and power, 1 000 samples per cell,
+Wilson 95 % interval in brackets:**
+
+| Scenario | Censored share | α = 1 % | α = 5 % | α = 10 % |
+|---|---|---|---|---|
+| Complete data, n = 40 — Type I | 0 % | **1.1 %** [0.6, 2.0] | **5.6 %** [4.3, 7.2] | **10.8 %** [9.0, 12.9] |
+| Complete data — power vs lognormal(σ = 0.9) | 0 % | 26.3 % [23.7, 29.1] | 46.3 % [43.2, 49.4] | 56.2 % [53.1, 59.2] |
+| Complete data — power vs bimodal mixture | 0 % | 100 % [99.6, 100] | 100 % [99.6, 100] | 100 % [99.6, 100] |
+| Random censoring U(120, 400), n = 40 — Type I | 26.0 % | **0.0 %** [0.0, 0.4] | **0.1 %** [0.0, 0.6] | **0.2 %** [0.1, 0.7] |
+| Random censoring — power vs lognormal(σ = 0.9) | 33.0 % | 0.2 % [0.1, 0.7] | 2.0 % [1.3, 3.1] | 6.6 % [5.2, 8.3] |
+| Random censoring — power vs bimodal mixture | 12.4 % | 10.2 % [8.5, 12.2] | 26.5 % [23.9, 29.3] | 43.6 % [40.6, 46.7] |
+| Type-I censor at 4th order statistic, n = 30 — Type I | 86.7 % | **0.0 %** [0.0, 0.4] | **0.0 %** [0.0, 0.4] | **0.0 %** [0.0, 0.4] |
+| Type-I censor — power vs lognormal(σ = 0.7) | 86.7 % | 0.0 % [0.0, 0.4] | 0.0 % [0.0, 0.4] | 0.0 % [0.0, 0.4] |
+
+**Reading.** The complete-data rule is well calibrated (each rate's Wilson
+interval covers its nominal α). Under censoring the bootstrap test is
+**conservative** — it almost never rejects, at every α and even for the bimodal
+alternative — and the conservatism deepens as censoring increases, reaching
+zero rejections in 1 000 samples at 86.7 % censoring. This is a property of
+the shipped test, not of this experiment: the same direction showed up at
+0.7 % in the 150-sample experiment of Section 6 (`qa_f_bootstrap.py`) and the
+golden datasets reproduce it (censored_few p = 0.56, censored_heavy p = 0.91).
+The practical meaning: with heavy censoring the reported bootstrap p-value is
+a *lower bound on evidence against the model only in the conservative
+direction* — a p below α is still a genuine rejection signal, but "p > α"
+carries little information. Gross violations remain detectable while at least
+half the observations fail (mixture power 26.5 % at α = 5 % with 12 %
+censoring), and complete-data fits keep the calibrated table rule.
+
+Reproduce: `python3 qa/experiments/qa_f_calibration.py` (≈ 2 minutes; writes
+`qa/reports/calibration_weibull.json`).
+
+### 7-⑤ Final verification numbers
+
+| Check | Result |
+|---|---|
+| `npm run qa:stats` | 156 cases — PASS 156 · FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0 (pass rate 100 %); CI run 45083176303 green |
+| `npm test` (vitest) | 280 passed / 12 files (was 262 / 11) |
+| `npx tsc --noEmit` | 0 errors |
+| `npm run build` | success — bundle `index-CmXEUg1_.js`, css `index-CrbU_JK0.css` |
+| Deploy Pages | run 45083176294 success; live URL HTTP 200; live Chromium Pareto flow green |
+| New golden dataset | `charts` (60 rows, seed 11025) added; golden-diff check in `qa/run.sh` still byte-exact |
+| Tolerance classes added | `moment_mean` (atol 0.12), `moment_sd` (atol 0.09) — both justified by the sampling error of a 5 000-draw normal sample, stated in `qa/tolerances.json` |
+
+### 7-⑥ Boundaries and remaining caveats
+
+1. **The censored-data bootstrap test is conservative.** The calibration above
+   quantifies it; the engine was not changed to "fix" this because the
+   behaviour is inherent to the failures-only A* under censoring with the
+   shipped repair rule, and a calibrated-but-powerless alternative (e.g.
+   dropping the repair or widening the null by fiat) would trade an honest
+   conservative test for an anticonservative one. Anyone needing sharper
+   inference at high censoring should treat the p-value as one input beside
+   the Kaplan–Meier deviation, which stays distribution-free.
+2. **Term-level GLM SS under rank deficiency remain solver-dependent by
+   nature.** The app now says so in the output; QA-B-06 verifies only the
+   invariants. This mirrors SAS/statsmodels behaviour, not a defect.
+3. **Percent / cumulative display rounding is a shared convention, not an
+   independent truth.** The QA-U-01 comparison pins the runner's documented
+   one-decimal rule against an independent reimplementation of the same rule;
+   the counts and totals underneath it are verified exactly.
+4. **The random-data case cannot have exact reference values.** A generator is
+   its own target; the case verifies length, determinism (repeat-run maximum
+   difference = 0) and moments within 4 standard errors, and the seed
+   reproducibility is additionally pinned by a unit test and the E2E.
+5. **SciPy's own inconsistency at se = 0 is documented, not hidden.**
+   `ttest_ind` returning p = 0.0 for two zero-variance samples is recorded in
+   the reference engine; the shipped convention (undefined) is implemented on
+   both sides of the comparison.
+6. **Agreement with SciPy / statsmodels / NumPy remains evidence of
+   statistical-definition consistency, not a Minitab-identical guarantee** —
+   the same scope statement as Sections 1–6.
+7. **The E2E script used for this section (`tools/e2e_followup.cjs`) is an
+   environment-specific driver** (it resolves Playwright from a sibling
+   checkout); the flows themselves run against the ordinary built app.
+
+---
+
+*Report generated from the actual repository state at `a132e5b` (Section 7)
+and `a531e46` (Sections 1–6); every number in the tables is asserted by the
+test suite, the QA harness or the calibration experiment, or was read from
+the deployed build.*
