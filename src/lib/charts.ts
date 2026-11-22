@@ -153,10 +153,14 @@ export function histogramBins(values: number[], binCount?: number): { lo: number
 }
 
 function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>): string {
+  const fitted = (spec.curves ?? []).filter((curve) => curve.points.length > 1);
   const h = spec.height ?? 250;
   const values = spec.values.filter((v) => isFinite(v));
   if (!values.length) return emptyChart(W, h, spec.title ?? 'Histogram');
-  const box: Box = { x: 54, y: 18, w: W - 74, h: h - 18 - 42 };
+  // Fitted curves get their own legend line under the x-axis title, which keeps
+  // the names off the bars and away from the specification labels.
+  const bottom = fitted.length ? 56 : 42;
+  const box: Box = { x: 54, y: 18, w: W - 74, h: h - 18 - bottom };
   const bins = histogramBins(values, spec.bins);
   const maxCount = Math.max(1, ...bins.map((b) => b.count));
   const [rawMin, rawMax] = extent(values);
@@ -211,13 +215,14 @@ function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>): string 
     const color = C.series[(curve.color ?? index + 1) % C.series.length];
     g += `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.8" ${curve.dash ? `stroke-dasharray="${curve.dash}"` : ''}/>`;
   });
-  // A small legend in the upper-left corner keeps curve names off the bars and
-  // away from the specification lines at the right edge.
-  (spec.curves ?? []).filter((curve) => curve.label).forEach((curve, index) => {
+  let legendX = box.x;
+  const legendY = box.y + box.h + 40;
+  spec.curves?.forEach((curve, index) => {
+    if (!curve.label) return;
     const color = C.series[(curve.color ?? index + 1) % C.series.length];
-    const ly = box.y + 10 + index * 11;
-    g += `<line x1="${box.x + 6}" y1="${ly - 3}" x2="${box.x + 20}" y2="${ly - 3}" stroke="${color}" stroke-width="2"/>`;
-    g += `<text x="${box.x + 24}" y="${ly}" font-size="8.5" fill="${C.label}">${esc(curve.label ?? '')}</text>`;
+    g += `<line x1="${legendX}" y1="${legendY - 3}" x2="${legendX + 14}" y2="${legendY - 3}" stroke="${color}" stroke-width="2" ${curve.dash ? `stroke-dasharray="${curve.dash}"` : ''}/>`;
+    g += `<text x="${legendX + 18}" y="${legendY}" font-size="8.5" fill="${C.label}">${esc(curve.label)}</text>`;
+    legendX += 22 + curve.label.length * 5.1;
   });
   const limits: { x: number; label: string; color: string }[] = [];
   if (spec.lsl != null && isFinite(spec.lsl)) limits.push({ x: sx(spec.lsl), label: `LSL ${fmt(spec.lsl, 3)}`, color: C.series[5] });
