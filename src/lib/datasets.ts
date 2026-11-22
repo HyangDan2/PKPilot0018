@@ -118,10 +118,163 @@ function buildRegressionData(): Worksheet {
   ]);
 }
 
+/**
+ * Design runs for the sample datasets. Generated locally (not imported from
+ * doe.ts) so the sample module and the DOE module never import each other.
+ */
+function designRuns(kind: 'factorial' | 'ccd', k: number, centers: number): { std: number; run: number; ptType: string; levels: number[] }[] {
+  const rows: { ptType: string; levels: number[] }[] = [];
+  if (kind === 'factorial') {
+    for (let row = 0; row < 2 ** k; row += 1) {
+      const levels: number[] = [];
+      for (let f = 0; f < k; f += 1) levels.push(((row >> (k - 1 - f)) & 1) === 0 ? -1 : 1);
+      rows.push({ ptType: 'Factorial', levels });
+    }
+  } else {
+    for (let row = 0; row < 2 ** k; row += 1) {
+      const levels: number[] = [];
+      for (let f = 0; f < k; f += 1) levels.push(((row >> (k - 1 - f)) & 1) === 0 ? -1 : 1);
+      rows.push({ ptType: 'Factorial', levels });
+    }
+    const alpha = Math.pow(2, k) ** 0.25;
+    for (let f = 0; f < k; f += 1) {
+      for (const sign of [-1, 1]) {
+        const levels = new Array(k).fill(0);
+        levels[f] = sign * alpha;
+        rows.push({ ptType: 'Axial', levels });
+      }
+    }
+  }
+  for (let c = 0; c < centers; c += 1) rows.push({ ptType: 'Center', levels: new Array(k).fill(0) });
+  return rows.map((entry, index) => ({ std: index + 1, run: index + 1, ...entry }));
+}
+
+/** Gage R&R: 10 parts × 3 operators × 3 replicates, with real part variation. */
+function buildGageData(): Worksheet {
+  const rng = mulberry32(411025);
+  const parts = 10;
+  const operators = ['A. Reyes', 'B. Kim', 'C. Novak'];
+  const part: string[] = [];
+  const operator: string[] = [];
+  const measurement: number[] = [];
+  const partOffset = [0.0, 0.35, 0.75, 1.05, 1.45, 1.8, 2.15, 2.5, 2.85, 3.2];
+  const operatorOffset = [0.0, 0.28, -0.18];
+  for (let op = 0; op < operators.length; op += 1) {
+    for (let p = 0; p < parts; p += 1) {
+      for (let rep = 0; rep < 3; rep += 1) {
+        part.push(`P${p + 1}`);
+        operator.push(operators[op]);
+        measurement.push(round(10 + partOffset[p] + operatorOffset[op] + normalRandom(rng, 0, 0.16), 3));
+      }
+    }
+  }
+  return makeWorksheet('Gage R&R', [
+    { name: 'Part', type: 'text', values: part },
+    { name: 'Operator', type: 'text', values: operator },
+    { name: 'Measurement', type: 'numeric', values: measurement },
+  ]);
+}
+
+/** 2^3 factorial design with two centre points and a response column. */
+function buildDoeData(): Worksheet {
+  const rng = mulberry32(73015);
+  const runs = designRuns('factorial', 3, 2);
+  const std: number[] = [];
+  const run: number[] = [];
+  const pt: string[] = [];
+  const a: number[] = [];
+  const b: number[] = [];
+  const c: number[] = [];
+  const y: number[] = [];
+  runs.forEach((entry) => {
+    std.push(entry.std);
+    run.push(entry.run);
+    pt.push(entry.ptType);
+    a.push(entry.levels[0]);
+    b.push(entry.levels[1]);
+    c.push(entry.levels[2]);
+    const response = 62 + 4 * entry.levels[0] + 2.5 * entry.levels[1] - 1.5 * entry.levels[2]
+      + 2 * entry.levels[0] * entry.levels[1] - 1.2 * entry.levels[0] * entry.levels[2]
+      + normalRandom(rng, 0, 0.45);
+    y.push(round(response, 2));
+  });
+  return makeWorksheet('2^3 Design', [
+    { name: 'StdOrder', type: 'numeric', values: std },
+    { name: 'RunOrder', type: 'numeric', values: run },
+    { name: 'PtType', type: 'text', values: pt },
+    { name: 'A', type: 'numeric', values: a },
+    { name: 'B', type: 'numeric', values: b },
+    { name: 'C', type: 'numeric', values: c },
+    { name: 'Y', type: 'numeric', values: y },
+  ]);
+}
+
+/** Two-factor central composite design with a quadratic response. */
+function buildRsmData(): Worksheet {
+  const rng = mulberry32(88112);
+  const runs = designRuns('ccd', 2, 5);
+  const std: number[] = [];
+  const run: number[] = [];
+  const pt: string[] = [];
+  const a: number[] = [];
+  const b: number[] = [];
+  const y: number[] = [];
+  runs.forEach((entry) => {
+    std.push(entry.std);
+    run.push(entry.run);
+    pt.push(entry.ptType);
+    a.push(round(entry.levels[0], 3));
+    b.push(round(entry.levels[1], 3));
+    const response = 80 + 3 * entry.levels[0] + 2 * entry.levels[1]
+      - 5 * entry.levels[0] ** 2 - 4 * entry.levels[1] ** 2 + 2 * entry.levels[0] * entry.levels[1]
+      + normalRandom(rng, 0, 0.35);
+    y.push(round(response, 2));
+  });
+  return makeWorksheet('RSM (CCD)', [
+    { name: 'StdOrder', type: 'numeric', values: std },
+    { name: 'RunOrder', type: 'numeric', values: run },
+    { name: 'PtType', type: 'text', values: pt },
+    { name: 'A', type: 'numeric', values: a },
+    { name: 'B', type: 'numeric', values: b },
+    { name: 'Y', type: 'numeric', values: y },
+  ]);
+}
+
+/**
+ * Weibull life data drawn from a Weibull(shape 2.2, scale 220) population and
+ * right-censored at 400 hours (1 = censored), so the sample demonstrates a good
+ * fit instead of an arbitrary list of times.
+ */
+function buildWeibullData(): Worksheet {
+  const rng = mulberry32(660214);
+  const limit = 400;
+  const times: number[] = [];
+  const censored: number[] = [];
+  for (let i = 0; i < 40; i += 1) {
+    const u = Math.min(1 - 1e-9, Math.max(1e-9, rng()));
+    const life = 220 * Math.pow(-Math.log(1 - u), 1 / 2.2);
+    if (life > limit) {
+      times.push(limit);
+      censored.push(1);
+    } else {
+      times.push(Math.round(life));
+      censored.push(0);
+    }
+  }
+  return makeWorksheet('Weibull Life', [
+    { name: 'Time', type: 'numeric', values: times },
+    { name: 'Censored', type: 'numeric', values: censored },
+  ]);
+}
+
 export const DATASETS: DatasetDef[] = [
   { id: 'process', nameKey: '@sample.process', build: buildProcessData },
   { id: 'comparison', nameKey: '@sample.comparison', build: buildComparisonData },
   { id: 'regression', nameKey: '@sample.regression', build: buildRegressionData },
+  { id: 'gagerr', nameKey: '@sample.gagerr', build: buildGageData },
+  { id: 'doe', nameKey: '@sample.doe', build: buildDoeData },
+  { id: 'rsm', nameKey: '@sample.rsm', build: buildRsmData },
+  { id: 'weibull', nameKey: '@sample.weibull', build: buildWeibullData },
 ];
 
 export function emptyWorksheet(index = 1): Worksheet {

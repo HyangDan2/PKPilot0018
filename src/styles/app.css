@@ -39,8 +39,13 @@ a { color: inherit; }
 
 .app {
   display: grid;
+  /* One explicit column pinned to the viewport: an implicit `auto` column grows
+     to the widest card (a 7-column ANOVA table, a 6-panel chart grid) and pushes
+     the whole shell off-screen. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   height: 100%;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -509,7 +514,8 @@ a { color: inherit; }
 .stat-table td.al-c, .stat-table th.al-c { text-align: center; }
 .stat-table tr.group-row td { background: var(--surface-2); font-weight: 600; color: var(--text); }
 .stat-table tr.alarm td { color: var(--danger); }
-.table-scroll { overflow-x: auto; }
+.table-scroll { overflow-x: auto; max-width: 100%; }
+.output-panel, .output-scroll, .out-body, .out-card, .chart-card, .chart-holder { min-width: 0; }
 
 .out-text { font-size: 12px; color: var(--text-body); line-height: 1.65; white-space: pre-wrap; }
 .out-text b { color: var(--text); }

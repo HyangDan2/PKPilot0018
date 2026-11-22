@@ -36,6 +36,48 @@ export type ChartSpec =
       target?: number | null;
       xLabel?: string;
       yLabel?: string;
+      /** fitted density curves, already scaled to the frequency axis */
+      curves?: { label?: string; points: { x: number; y: number }[]; color?: number; dash?: string }[];
+    })
+  | (ChartBase & {
+      kind: 'line';
+      series: { label: string; points: { x: number; y: number }[]; color?: number; dash?: string }[];
+      xLabels?: string[];
+      xLabel?: string;
+      yLabel?: string;
+      refLines?: { y: number; label?: string }[];
+      markers?: { x: number; y: number; label?: string }[];
+    })
+  | (ChartBase & {
+      kind: 'bar';
+      items: { label: string; value: number; color?: number }[];
+      yLabel?: string;
+      xLabel?: string;
+      refLine?: { y: number; label?: string };
+      decimals?: number;
+    })
+  | (ChartBase & {
+      kind: 'contour';
+      xs: number[];
+      ys: number[];
+      z: number[][];
+      xLabel?: string;
+      yLabel?: string;
+      points?: { x: number; y: number }[];
+      levels?: number;
+    })
+  | (ChartBase & {
+      kind: 'probplot';
+      points: { x: number; y: number }[];
+      fit: { intercept: number; slope: number };
+      /** fitted curve when the distribution has no linearising scale (gamma) */
+      curve?: { x: number; y: number }[];
+      xLabel?: string;
+      yLabel?: string;
+      xTicks?: { v: number; label: string }[];
+      yTicks?: { v: number; label: string }[];
+      ci?: { x: number; lo: number; hi: number }[];
+      note?: string;
     })
   | (ChartBase & { kind: 'boxplot'; groups: { label: string; values: number[] }[]; yLabel?: string })
   | (ChartBase & {

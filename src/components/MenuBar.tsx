@@ -5,7 +5,8 @@ import { DATASETS } from '../lib/datasets';
 import { IconChevron } from './Icons';
 
 export type MenuAction =
-  | 'new' | 'save' | 'open' | 'importCsv' | 'exportCsv' | 'print' | 'undo' | 'redo' | 'copy' | 'paste'
+  | 'new' | 'save' | 'open' | 'importCsv' | 'exportCsv' | 'importXlsx' | 'exportXlsx' | 'exportXlsxCurrent'
+  | 'print' | 'undo' | 'redo' | 'copy' | 'paste'
   | 'clear' | 'insertRow' | 'deleteRow' | 'addColumn' | 'newSheet' | 'renameSheet' | 'deleteSheet'
   | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout';
 
@@ -13,6 +14,8 @@ interface MenuLeaf {
   labelKey: string;
   action?: MenuAction;
   analysis?: string;
+  /** dialog values pre-selected when the analysis opens */
+  preset?: Record<string, unknown>;
   sample?: string;
   kbd?: string;
   separatorBefore?: boolean;
@@ -30,7 +33,7 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   onAction: (action: MenuAction) => void;
-  onAnalysis: (id: string) => void;
+  onAnalysis: (id: string, preset?: Record<string, unknown>) => void;
   onSample: (id: string) => void;
 }
 
@@ -44,6 +47,9 @@ function buildMenus(canUndo: boolean, canRedo: boolean): MenuDef[] {
         { labelKey: 'file.save', action: 'save', kbd: 'JSON' },
         { labelKey: 'file.importCsv', action: 'importCsv' },
         { labelKey: 'file.exportCsv', action: 'exportCsv' },
+        { labelKey: 'file.importXlsx', action: 'importXlsx' },
+        { labelKey: 'file.exportXlsx', action: 'exportXlsx' },
+        { labelKey: 'file.exportXlsxCurrent', action: 'exportXlsxCurrent' },
         { labelKey: 'file.print', action: 'print', separatorBefore: true, kbd: 'PDF' },
         {
           labelKey: 'file.samples',
@@ -97,21 +103,59 @@ function buildMenus(canUndo: boolean, canRedo: boolean): MenuDef[] {
             { labelKey: 'stat.paired', analysis: 'paired' },
           ],
         },
-        { labelKey: 'stat.anova', children: [{ labelKey: 'stat.anova1', analysis: 'anova' }] },
+        {
+          labelKey: 'stat.anova',
+          children: [
+            { labelKey: 'stat.anova1', analysis: 'anova' },
+            { labelKey: 'stat.glm', analysis: 'glm' },
+          ],
+        },
         { labelKey: 'stat.regression', children: [{ labelKey: 'stat.fitRegression', analysis: 'regression' }] },
         {
           labelKey: 'stat.control',
           children: [
             { labelKey: 'stat.imr', analysis: 'imr' },
             { labelKey: 'stat.xbarr', analysis: 'xbarr' },
+            { labelKey: 'stat.xbars', analysis: 'xbars' },
             { labelKey: 'stat.pchart', analysis: 'pchart' },
+            { labelKey: 'stat.np', analysis: 'npchart' },
+            { labelKey: 'stat.c', analysis: 'cchart' },
+            { labelKey: 'stat.u', analysis: 'uchart' },
           ],
         },
         {
           labelKey: 'stat.quality',
           children: [
             { labelKey: 'stat.capability', analysis: 'capability' },
+            { labelKey: 'stat.sixpack', analysis: 'sixpack' },
+            { labelKey: 'stat.nonnormal', analysis: 'capnonnormal' },
+            { labelKey: 'stat.gagerrCrossed', analysis: 'gagerr', preset: { type: 'crossed' } },
+            { labelKey: 'stat.gagerrNested', analysis: 'gagerr', preset: { type: 'nested' } },
             { labelKey: 'stat.pareto', analysis: 'pareto' },
+          ],
+        },
+        {
+          labelKey: 'stat.doe',
+          children: [
+            { labelKey: 'stat.doeCreate', analysis: 'doecreate' },
+            { labelKey: 'stat.doeAnalyze', analysis: 'doeanalyze' },
+            { labelKey: 'stat.rsmCreate', analysis: 'rsmcreate' },
+            { labelKey: 'stat.rsmAnalyze', analysis: 'rsmanalyze' },
+          ],
+        },
+        {
+          labelKey: 'stat.reliability',
+          children: [{ labelKey: 'stat.weibull', analysis: 'weibull' }],
+        },
+        {
+          labelKey: 'stat.power',
+          children: [
+            { labelKey: 'stat.power1t', analysis: 'power1t' },
+            { labelKey: 'stat.power2t', analysis: 'power2t' },
+            { labelKey: 'stat.powerPaired', analysis: 'powerpaired' },
+            { labelKey: 'stat.powerAnova', analysis: 'poweranova' },
+            { labelKey: 'stat.powerProp1', analysis: 'powerprop1' },
+            { labelKey: 'stat.powerProp2', analysis: 'powerprop2' },
           ],
         },
       ],
@@ -185,7 +229,7 @@ export function MenuBar({ lang, canUndo, canRedo, onAction, onAnalysis, onSample
     if (leaf.disabled) return;
     if (leaf.children) return;
     close();
-    if (leaf.analysis) onAnalysis(leaf.analysis);
+    if (leaf.analysis) onAnalysis(leaf.analysis, leaf.preset);
     else if (leaf.sample) onSample(leaf.sample);
     else if (leaf.action) onAction(leaf.action);
   };
@@ -228,7 +272,8 @@ export function MenuBar({ lang, canUndo, canRedo, onAction, onAnalysis, onSample
                     role="menuitem"
                     className={`menu-item${sub === item.labelKey && item.children ? ' active' : ''}`}
                     disabled={item.disabled}
-                    onClick={() => (item.children ? setSub(sub === item.labelKey ? null : item.labelKey) : pick(item))}
+                    data-testid={item.analysis || item.action || item.sample ? `menu-item-${item.analysis ?? item.action ?? item.sample}` : undefined}
+                    onClick={() => (item.children ? setSub(item.labelKey) : pick(item))}
                   >
                     <span className="mi-label">{t(lang, item.labelKey)}</span>
                     {item.kbd && <span className="mi-kbd">{item.kbd}</span>}

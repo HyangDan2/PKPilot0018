@@ -8,7 +8,7 @@ import { OutputPanel } from './components/OutputPanel';
 import { WorksheetGrid, type GridCell, type GridRange } from './components/WorksheetGrid';
 import { AnalysisDialog } from './components/AnalysisDialog';
 import { HelpModal } from './components/HelpModal';
-import { ANALYSES, findAnalysis, type AnalysisDef, type RunResult } from './lib/analyses';
+import { ANALYSES, defaultValues as defaultDialogValues, findAnalysis, type AnalysisDef, type RunResult } from './lib/analyses';
 import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { loadAutosave, saveAutosave } from './lib/db';
 import { fmtInt } from './lib/format';
@@ -16,6 +16,7 @@ import { t } from './lib/i18n';
 import {
   PROJECT_ACCEPT,
   csvToWorksheet,
+  downloadBlob,
   downloadFile,
   looksLikeMinitabBinary,
   makeOutputId,
@@ -28,6 +29,7 @@ import {
   serializeProject,
   worksheetToCsv,
 } from './lib/project';
+import { XLSX_ACCEPT, readXlsx, writeXlsx, xlsxFileName } from './lib/xlsx';
 
 const SETTINGS_KEY = 'sigrun.settings.v1';
 const DEFAULT_NAV = 254;
@@ -519,10 +521,10 @@ export default function App() {
     setDialog({ def, initial: { ...meta.values } });
   };
 
-  const openAnalysis = (id: string) => {
+  const openAnalysis = (id: string, preset?: Record<string, unknown>) => {
     const def = findAnalysis(id);
     if (!def) return;
-    setDialog({ def });
+    setDialog(preset ? { def, initial: { ...defaultDialogValues(def), ...preset } } : { def });
   };
 
   const rerun = useCallback(() => {
@@ -591,6 +593,38 @@ export default function App() {
 
   const exportCsv = () => {
     downloadFile(`${sheet.name.replace(/\s+/g, '-')}.csv`, worksheetToCsv(sheet), 'text/csv;charset=utf-8');
+  };
+
+  /** Every sheet of the workbook becomes its own worksheet, in workbook order. */
+  const importXlsx = async () => {
+    const file = await pickFile(XLSX_ACCEPT);
+    if (!file) return;
+    try {
+      const imported = await readXlsx(file);
+      if (!imported.length) {
+        toast(t(lang, 'file.error'));
+        return;
+      }
+      const named = imported.map((ws) => ({ ...ws, name: uniqueSheetName(worksheets, ws.name) }));
+      applySheets((list) => [...list, ...named]);
+      setActiveSheetId(named[0].id);
+      setSelection({ row: 0, col: 0 });
+      setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
+      toast(t(lang, 'file.xlsxImported', { n: imported.length }));
+    } catch {
+      toast(t(lang, 'file.error'));
+    }
+  };
+
+  const exportXlsx = async (all: boolean) => {
+    const target = all ? worksheets : [sheet];
+    try {
+      const blob = await writeXlsx(target);
+      downloadBlob(xlsxFileName(target), blob);
+      toast(t(lang, 'file.xlsxExported'));
+    } catch {
+      toast(t(lang, 'file.error'));
+    }
   };
 
   const newProject = () => {
@@ -689,6 +723,9 @@ export default function App() {
       case 'open': void openProject(); break;
       case 'importCsv': void importCsv(); break;
       case 'exportCsv': exportCsv(); break;
+      case 'importXlsx': void importXlsx(); break;
+      case 'exportXlsx': void exportXlsx(true); break;
+      case 'exportXlsxCurrent': void exportXlsx(false); break;
       case 'print': window.print(); break;
       case 'undo': undo(); break;
       case 'redo': redo(); break;
@@ -771,6 +808,7 @@ export default function App() {
       <div className="workspace" style={{ '--nav-w': `${navW}px` } as React.CSSProperties}>
         <Navigator
           lang={lang}
+          open={navOpen}
           outputs={outputs}
           worksheets={worksheets}
           activeSheetId={sheet.id}

@@ -17,17 +17,19 @@ interface Props {
   onRenameSheet: (id: string, name: string) => void;
   onDeleteSheet: (id: string) => void;
   onClose?: () => void;
+  /** mobile drawer state: without this the aside stays translated off-screen */
+  open?: boolean;
 }
 
 export function Navigator({
   lang, outputs, worksheets, activeSheetId, focusedOutput,
-  onSelectOutput, onDeleteOutput, onSelectSheet, onAddSheet, onRenameSheet, onDeleteSheet, onClose,
+  onSelectOutput, onDeleteOutput, onSelectSheet, onAddSheet, onRenameSheet, onDeleteSheet, onClose, open,
 }: Props) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
 
   return (
-    <aside className="navigator" data-testid="navigator">
+    <aside className={`navigator${open ? ' open' : ''}`} data-testid="navigator">
       <div className="nav-section outputs">
         <div className="nav-head">
           <span className="mono-note">{t(lang, 'nav.output')}</span>

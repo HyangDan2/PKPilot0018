@@ -10,6 +10,8 @@ import { mean, stdev } from './stats';
 import { fmt } from './format';
 
 let W = 560;
+/** unique clip-path ids so several charts can share one page */
+let clipSeq = 0;
 const FS = 10.5;
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
@@ -137,7 +139,7 @@ function emptyChart(w: number, h: number, label: string, message = 'No finite da
     `<text x="${w / 2}" y="${h / 2}" text-anchor="middle" font-size="${FS + 1}" fill="${C.label}">${esc(message)}</text></svg>`;
 }
 
-function histogramBins(values: number[], binCount?: number): { lo: number; hi: number; count: number }[] {
+export function histogramBins(values: number[], binCount?: number): { lo: number; hi: number; count: number }[] {
   const [min, max] = extent(values);
   const n = values.length || 1;
   const bins = binCount && binCount > 0 ? Math.round(binCount) : Math.max(5, Math.min(20, Math.ceil(1 + Math.log2(n))));
@@ -159,9 +161,10 @@ function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>): string 
   const maxCount = Math.max(1, ...bins.map((b) => b.count));
   const [rawMin, rawMax] = extent(values);
   const specs = [spec.lsl, spec.usl, spec.target].filter((v): v is number => typeof v === 'number' && isFinite(v));
+  const curveX = (spec.curves ?? []).flatMap((curve) => curve.points.map((pt) => pt.x));
   // Target counts too, so no specification line is clipped at the plot edge.
-  const xMin = Math.min(rawMin, ...specs);
-  const xMax = Math.max(rawMax, ...specs);
+  const xMin = Math.min(rawMin, ...specs, ...curveX);
+  const xMax = Math.max(rawMax, ...specs, ...curveX);
   const span = xMax - xMin || Math.max(Math.abs(xMax), 1) * 0.05;
   const lo = xMin - span * 0.04;
   const hi = xMax + span * 0.04;
@@ -202,6 +205,20 @@ function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>): string 
       g += `<polyline points="${pts.join(' ')}" fill="none" stroke="${C.series[0]}" stroke-width="2"/>`;
     }
   }
+  (spec.curves ?? []).forEach((curve, index) => {
+    if (curve.points.length < 2) return;
+    const points = curve.points.map((pt) => `${sx(pt.x).toFixed(1)},${sy(Math.min(yMax, Math.max(0, pt.y))).toFixed(1)}`).join(' ');
+    const color = C.series[(curve.color ?? index + 1) % C.series.length];
+    g += `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.8" ${curve.dash ? `stroke-dasharray="${curve.dash}"` : ''}/>`;
+  });
+  // A small legend in the upper-left corner keeps curve names off the bars and
+  // away from the specification lines at the right edge.
+  (spec.curves ?? []).filter((curve) => curve.label).forEach((curve, index) => {
+    const color = C.series[(curve.color ?? index + 1) % C.series.length];
+    const ly = box.y + 10 + index * 11;
+    g += `<line x1="${box.x + 6}" y1="${ly - 3}" x2="${box.x + 20}" y2="${ly - 3}" stroke="${color}" stroke-width="2"/>`;
+    g += `<text x="${box.x + 24}" y="${ly}" font-size="8.5" fill="${C.label}">${esc(curve.label ?? '')}</text>`;
+  });
   const limits: { x: number; label: string; color: string }[] = [];
   if (spec.lsl != null && isFinite(spec.lsl)) limits.push({ x: sx(spec.lsl), label: `LSL ${fmt(spec.lsl, 3)}`, color: C.series[5] });
   if (spec.usl != null && isFinite(spec.usl)) limits.push({ x: sx(spec.usl), label: `USL ${fmt(spec.usl, 3)}`, color: C.series[5] });
@@ -347,6 +364,8 @@ function drawNormalProb(spec: Extract<ChartSpec, { kind: 'normalprob' }>): strin
   });
   g += `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + bh}" stroke="${C.axis}"/>`;
   g += `<line x1="${x}" y1="${y + bh}" x2="${x + w}" y2="${y + bh}" stroke="${C.axis}"/>`;
+  const npClip = `sigrun-clip-${(clipSeq += 1)}`;
+  g += `<defs><clipPath id="${npClip}"><rect x="${x}" y="${y}" width="${w}" height="${bh}"/></clipPath></defs><g clip-path="url(#${npClip})">`;
   if (spec.ci && spec.ci.length > 1) {
     const upper = spec.ci.map((p) => `${sx(p.x).toFixed(1)},${sy(p.hi).toFixed(1)}`).join(' ');
     const lower = [...spec.ci].reverse().map((p) => `${sx(p.x).toFixed(1)},${sy(p.lo).toFixed(1)}`).join(' ');
@@ -358,6 +377,7 @@ function drawNormalProb(spec: Extract<ChartSpec, { kind: 'normalprob' }>): strin
   spec.points.forEach((p) => {
     g += `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="2.8" fill="${C.series[0]}" opacity="0.85"/>`;
   });
+  g += '</g>';
   g += `<text x="${x + w / 2}" y="${y + bh + 30}" text-anchor="middle" font-size="${FS + 0.5}" fill="${C.label}">${esc(spec.xLabel ?? 'Data')}</text>`;
   g += `<text transform="translate(${x - 42} ${y + bh / 2}) rotate(-90)" text-anchor="middle" font-size="${FS + 0.5}" fill="${C.label}">Percent</text>`;
   if (spec.ad != null) {
@@ -433,7 +453,12 @@ function drawPareto(spec: Extract<ChartSpec, { kind: 'pareto' }>): string {
     const pct = (cumulative / total) * 100;
     g += `<rect x="${(cx - barW / 2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${(box.y + box.h - y).toFixed(1)}" fill="${C.series[0]}" opacity="0.82" rx="2"/>`;
     g += `<text x="${cx}" y="${(y - 4).toFixed(1)}" text-anchor="middle" font-family="${MONO}" font-size="8.5" fill="${C.label}">${item.count}</text>`;
-    g += `<text transform="translate(${cx} ${box.y + box.h + 12}) rotate(-16)" text-anchor="end" font-size="8.5" fill="${C.label}">${esc(truncate(item.label, 11))}</text>`;
+    if (items.length <= 6) {
+      const maxChars = Math.max(4, Math.floor(slot / 6.2));
+      g += `<text x="${cx}" y="${box.y + box.h + 13}" text-anchor="middle" font-size="8.5" fill="${C.label}">${esc(truncate(item.label, maxChars))}</text>`;
+    } else {
+      g += `<text transform="translate(${cx} ${box.y + box.h + 12}) rotate(-16)" text-anchor="end" font-size="8.5" fill="${C.label}">${esc(truncate(item.label, 11))}</text>`;
+    }
     linePts.push(`${cx.toFixed(1)},${(box.y + box.h - (pct / 100) * box.h).toFixed(1)}`);
   });
   const eighty = box.y + box.h - 0.8 * box.h;
@@ -526,6 +551,240 @@ function drawInterval(spec: Extract<ChartSpec, { kind: 'interval' }>): string {
   return open(W, h, 'Interval plot') + g + '</svg>';
 }
 
+/* ── line / bar / contour / probability plot (P2) ─────────────────────── */
+
+function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>): string {
+  const h = spec.height ?? 250;
+  const all = spec.series.flatMap((s) => s.points);
+  if (!all.length) return emptyChart(W, h, spec.title ?? 'Line plot');
+  const box: Box = { x: 58, y: 22, w: W - 80, h: h - 66 };
+  const xs = all.map((p) => p.x);
+  const ys = all.map((p) => p.y).concat((spec.refLines ?? []).map((r) => r.y)).concat((spec.markers ?? []).map((m) => m.y));
+  const [xMin, xMax] = pad(extent(xs), 0.04);
+  const [yMin, yMax] = pad(extent(ys), 0.1);
+  const { sx, sy } = scales(box, xMin, xMax, yMin, yMax);
+  const xTicks = spec.xLabels && spec.xLabels.length
+    ? spec.xLabels.map((_, i) => i).filter((i) => i >= xMin && i <= xMax)
+    : ticks(xMin, xMax, 5);
+  const yTicks = ticks(yMin, yMax, 5);
+  const xStep = niceStep((xMax - xMin) / 5);
+  const yStep = niceStep((yMax - yMin) / 5);
+  let g = '';
+  const { x, y, w, h: bh } = box;
+  yTicks.forEach((t) => {
+    const yy = sy(t);
+    g += `<line x1="${x}" y1="${yy.toFixed(1)}" x2="${x + w}" y2="${yy.toFixed(1)}" stroke="${C.grid}" stroke-width="1"/>`;
+    g += `<text x="${x - 7}" y="${(yy + 3).toFixed(1)}" text-anchor="end" font-family="${MONO}" font-size="${FS}" fill="${C.label}">${esc(tickLabel(t, yStep))}</text>`;
+  });
+  // Categorical x: thin the labels so a phone-width chart stays readable.
+  const labelEvery = Math.max(1, Math.ceil(xTicks.length / 8));
+  xTicks.forEach((t, index) => {
+    const xx = sx(t);
+    g += `<line x1="${xx.toFixed(1)}" y1="${y + bh}" x2="${xx.toFixed(1)}" y2="${y + bh + 4}" stroke="${C.axis}"/>`;
+    if (index % labelEvery === 0) {
+      const label = spec.xLabels ? spec.xLabels[Math.round(t)] ?? '' : tickLabel(t, xStep);
+      g += `<text x="${xx.toFixed(1)}" y="${y + bh + 15}" text-anchor="middle" font-size="8.5" fill="${C.label}">${esc(truncate(label, 10))}</text>`;
+    }
+  });
+  g += `<line x1="${x}" y1="${y + bh}" x2="${x + w}" y2="${y + bh}" stroke="${C.axis}"/>`;
+  g += `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + bh}" stroke="${C.axis}"/>`;
+  (spec.refLines ?? []).forEach((ref) => {
+    if (!isFinite(ref.y)) return;
+    g += `<line x1="${x}" y1="${sy(ref.y).toFixed(1)}" x2="${x + w}" y2="${sy(ref.y).toFixed(1)}" stroke="${C.alarm}" stroke-width="1.1" stroke-dasharray="5 3" opacity="0.85"/>`;
+    if (ref.label) g += `<text x="${x + w - 2}" y="${(sy(ref.y) - 3).toFixed(1)}" text-anchor="end" font-family="${MONO}" font-size="8" fill="${C.alarm}">${esc(ref.label)}</text>`;
+  });
+  spec.series.forEach((series, index) => {
+    const color = C.series[(series.color ?? index) % C.series.length];
+    const points = [...series.points].sort((a, b) => a.x - b.x);
+    if (points.length > 1) {
+      g += `<polyline points="${points.map((p) => `${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="1.7" ${series.dash ? `stroke-dasharray="${series.dash}"` : ''} opacity="0.95"/>`;
+    }
+    points.forEach((p) => {
+      g += `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="2.8" fill="${color}"/>`;
+    });
+  });
+  (spec.markers ?? []).forEach((marker) => {
+    g += `<circle cx="${sx(marker.x).toFixed(1)}" cy="${sy(marker.y).toFixed(1)}" r="4.2" fill="none" stroke="${C.series[4]}" stroke-width="1.8"/>`;
+    if (marker.label) g += `<text x="${(sx(marker.x) + 6).toFixed(1)}" y="${(sy(marker.y) - 6).toFixed(1)}" font-family="${MONO}" font-size="8" fill="${C.series[4]}">${esc(marker.label)}</text>`;
+  });
+  if (spec.xLabel) g += `<text x="${x + w / 2}" y="${y + bh + 30}" text-anchor="middle" font-size="${FS + 0.5}" fill="${C.label}">${esc(spec.xLabel)}</text>`;
+  if (spec.yLabel) g += `<text transform="translate(${x - 42} ${y + bh / 2}) rotate(-90)" text-anchor="middle" font-size="${FS + 0.5}" fill="${C.label}">${esc(spec.yLabel)}</text>`;
+  // Legend inside the plot's top-left keeps the margins fixed on mobile.
+  const legend = spec.series.filter((s) => s.label).slice(0, 6);
+  if (legend.length && legend.length <= 6) {
+    legend.forEach((series, index) => {
+      const ly = y + 10 + index * 12;
+      g += `<line x1="${x + 4}" y1="${ly - 3}" x2="${x + 18}" y2="${ly - 3}" stroke="${C.series[(series.color ?? index) % C.series.length]}" stroke-width="2"/>`;
+      g += `<text x="${x + 22}" y="${ly}" font-size="8.5" fill="${C.label}">${esc(truncate(series.label, 14))}</text>`;
+    });
+  }
+  return open(W, h, spec.title ?? 'Line plot') + g + '</svg>';
+}
+
+function drawBar(spec: Extract<ChartSpec, { kind: 'bar' }>): string {
+  const h = spec.height ?? 240;
+  const items = spec.items.filter((item) => isFinite(item.value));
+  if (!items.length) return emptyChart(W, h, spec.title ?? 'Bar chart');
+  const box: Box = { x: 58, y: 22, w: W - 80, h: h - 62 };
+  const values = items.map((i) => i.value).concat(spec.refLine ? [spec.refLine.y] : []);
+  const lo = Math.min(0, ...values);
+  const hi = Math.max(0, ...values);
+  const [yMin, yMax] = pad([lo, hi === lo ? lo + 1 : hi], 0.1);
+  const yTicks = ticks(yMin, yMax, 5);
+  const { sy } = scales(box, 0, 1, yTicks[0], yTicks[yTicks.length - 1]);
+  let g = axes(box, [], yTicks, 1, niceStep((yTicks[yTicks.length - 1] - yTicks[0]) / 5), undefined, spec.yLabel);
+  const slot = box.w / Math.max(1, items.length);
+  const barW = Math.min(58, slot * 0.62);
+  const zero = sy(Math.max(yMin, Math.min(yMax, 0)));
+  items.forEach((item, index) => {
+    const cx = box.x + slot * (index + 0.5);
+    const y = sy(item.value);
+    const color = C.series[(item.color ?? index) % C.series.length];
+    g += `<rect x="${(cx - barW / 2).toFixed(1)}" y="${Math.min(y, zero).toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1, Math.abs(zero - y)).toFixed(1)}" fill="${color}" opacity="0.82" rx="2"/>`;
+    g += `<text x="${cx}" y="${(Math.min(y, zero) - 4).toFixed(1)}" text-anchor="middle" font-family="${MONO}" font-size="8.5" fill="${C.ink}">${esc(item.value.toFixed(spec.decimals ?? 2))}</text>`;
+    if (items.length <= 6) {
+      const maxChars = Math.max(4, Math.floor(slot / 6.2));
+      g += `<text x="${cx}" y="${box.y + box.h + 13}" text-anchor="middle" font-size="8.5" fill="${C.label}">${esc(truncate(item.label, maxChars))}</text>`;
+    } else {
+      g += `<text transform="translate(${cx} ${box.y + box.h + 12}) rotate(-16)" text-anchor="end" font-size="8.5" fill="${C.label}">${esc(truncate(item.label, 11))}</text>`;
+    }
+  });
+  if (spec.refLine) {
+    g += `<line x1="${box.x}" y1="${sy(spec.refLine.y).toFixed(1)}" x2="${box.x + box.w}" y2="${sy(spec.refLine.y).toFixed(1)}" stroke="${C.series[4]}" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+    if (spec.refLine.label) g += `<text x="${box.x + box.w - 2}" y="${(sy(spec.refLine.y) - 3).toFixed(1)}" text-anchor="end" font-size="8" font-family="${MONO}" fill="${C.series[4]}">${esc(spec.refLine.label)}</text>`;
+  }
+  return open(W, h, spec.title ?? 'Bar chart') + g + '</svg>';
+}
+
+function drawContour(spec: Extract<ChartSpec, { kind: 'contour' }>): string {
+  const h = spec.height ?? 300;
+  const { xs, ys, z } = spec;
+  if (xs.length < 2 || ys.length < 2) return emptyChart(W, h, spec.title ?? 'Contour plot');
+  const box: Box = { x: 58, y: 22, w: W - 76, h: h - 62 };
+  const xMin = xs[0];
+  const xMax = xs[xs.length - 1];
+  const yMin = ys[0];
+  const yMax = ys[ys.length - 1];
+  const { sx, sy } = scales(box, xMin, xMax, yMin, yMax);
+  const flat = z.flat().filter((v) => isFinite(v));
+  const zMin = Math.min(...flat);
+  const zMax = Math.max(...flat);
+  const span = zMax - zMin || 1;
+  let g = '';
+  // Heat cells: one rect per grid cell, opacity keyed to the fitted response.
+  for (let j = 0; j < ys.length - 1; j += 1) {
+    for (let i = 0; i < xs.length - 1; i += 1) {
+      const value = (z[j][i] + z[j][i + 1] + z[j + 1][i] + z[j + 1][i + 1]) / 4;
+      if (!isFinite(value)) continue;
+      const level = (value - zMin) / span;
+      const x0 = sx(xs[i]);
+      const x1 = sx(xs[i + 1]);
+      const y0 = sy(ys[j + 1]);
+      const y1 = sy(ys[j]);
+      g += `<rect x="${(x0 - 0.3).toFixed(1)}" y="${(y0 - 0.3).toFixed(1)}" width="${Math.max(0.8, x1 - x0 + 0.6).toFixed(1)}" height="${Math.max(0.8, y1 - y0 + 0.6).toFixed(1)}" fill="${C.series[0]}" opacity="${(0.06 + 0.62 * level).toFixed(3)}"/>`;
+    }
+  }
+  // Iso-lines through marching squares on the cell corners.
+  const levels = Math.max(2, Math.min(8, spec.levels ?? 6));
+  for (let k = 1; k < levels; k += 1) {
+    const level = zMin + (span * k) / levels;
+    for (let j = 0; j < ys.length - 1; j += 1) {
+      for (let i = 0; i < xs.length - 1; i += 1) {
+        const corners = [z[j][i], z[j][i + 1], z[j + 1][i + 1], z[j + 1][i]];
+        const px = [xs[i], xs[i + 1], xs[i + 1], xs[i]];
+        const py = [ys[j], ys[j], ys[j + 1], ys[j + 1]];
+        const crossings: { x: number; y: number }[] = [];
+        for (let e = 0; e < 4; e += 1) {
+          const a = corners[e];
+          const b = corners[(e + 1) % 4];
+          if ((a - level) * (b - level) < 0) {
+            const t = (level - a) / (b - a);
+            crossings.push({
+              x: px[e] + t * (px[(e + 1) % 4] - px[e]),
+              y: py[e] + t * (py[(e + 1) % 4] - py[e]),
+            });
+          }
+        }
+        if (crossings.length >= 2) {
+          g += `<line x1="${sx(crossings[0].x).toFixed(1)}" y1="${sy(crossings[0].y).toFixed(1)}" x2="${sx(crossings[1].x).toFixed(1)}" y2="${sy(crossings[1].y).toFixed(1)}" stroke="${C.series[3]}" stroke-width="1" opacity="0.7"/>`;
+        }
+      }
+    }
+  }
+  (spec.points ?? []).forEach((point) => {
+    if (point.x < xMin || point.x > xMax || point.y < yMin || point.y > yMax) return;
+    g += `<circle cx="${sx(point.x).toFixed(1)}" cy="${sy(point.y).toFixed(1)}" r="2.4" fill="${C.surface}" stroke="${C.ink}" stroke-width="1"/>`;
+  });
+  g += `<line x1="${box.x}" y1="${box.y + box.h}" x2="${box.x + box.w}" y2="${box.y + box.h}" stroke="${C.axis}"/>`;
+  g += `<line x1="${box.x}" y1="${box.y}" x2="${box.x}" y2="${box.y + box.h}" stroke="${C.axis}"/>`;
+  ticks(xMin, xMax, 5).forEach((t) => {
+    const xx = sx(t);
+    g += `<text x="${xx.toFixed(1)}" y="${box.y + box.h + 15}" text-anchor="middle" font-family="${MONO}" font-size="${FS}" fill="${C.label}">${esc(tickLabel(t, niceStep((xMax - xMin) / 5)))}</text>`;
+  });
+  ticks(yMin, yMax, 5).forEach((t) => {
+    const yy = sy(t);
+    g += `<text x="${box.x - 7}" y="${(yy + 3).toFixed(1)}" text-anchor="end" font-family="${MONO}" font-size="${FS}" fill="${C.label}">${esc(tickLabel(t, niceStep((yMax - yMin) / 5)))}</text>`;
+  });
+  if (spec.xLabel) g += `<text x="${box.x + box.w / 2}" y="${box.y + box.h + 30}" text-anchor="middle" font-size="${FS + 0.5}" fill="${C.label}">${esc(spec.xLabel)}</text>`;
+  if (spec.yLabel) g += `<text transform="translate(${box.x - 42} ${box.y + box.h / 2}) rotate(-90)" text-anchor="middle" font-size="${FS + 0.5}" fill="${C.label}">${esc(spec.yLabel)}</text>`;
+  g += `<text x="${box.x + 4}" y="${box.y + 12}" font-family="${MONO}" font-size="8.5" fill="${C.label}">${esc(`${fmt(zMin, 3)} – ${fmt(zMax, 3)}`)}</text>`;
+  return open(W, h, spec.title ?? 'Contour plot') + g + '</svg>';
+}
+
+function drawProbplot(spec: Extract<ChartSpec, { kind: 'probplot' }>): string {
+  const h = spec.height ?? 280;
+  const box: Box = { x: 62, y: 22, w: W - 84, h: h - 68 };
+  if (!spec.points.length) return emptyChart(W, h, spec.title ?? 'Probability plot');
+  const xs = spec.points.map((p) => p.x);
+  const [xMin, xMax] = pad(extent(xs), 0.05);
+  const yTicks = spec.yTicks && spec.yTicks.length
+    ? spec.yTicks
+    : [1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => ({ v: normalInv(p / 100), label: String(p) }));
+  const yValues = yTicks.map((t) => t.v).concat(spec.points.map((p) => p.y));
+  const yMin = Math.min(...yValues) - 0.25;
+  const yMax = Math.max(...yValues) + 0.25;
+  const { sx, sy } = scales(box, xMin, xMax, yMin, yMax);
+  const { x, y, w, h: bh } = box;
+  let g = '';
+  yTicks.forEach((tick) => {
+    const yy = sy(tick.v);
+    g += `<line x1="${x}" y1="${yy.toFixed(1)}" x2="${x + w}" y2="${yy.toFixed(1)}" stroke="${tick.label === '50' ? C.axis : C.grid}" stroke-width="1" ${tick.label === '50' ? '' : 'stroke-dasharray="3 3"'}/>`;
+    g += `<text x="${x - 7}" y="${(yy + 3).toFixed(1)}" text-anchor="end" font-family="${MONO}" font-size="${FS}" fill="${C.label}">${esc(tick.label)}</text>`;
+  });
+  const xTicks = spec.xTicks && spec.xTicks.length
+    ? spec.xTicks.filter((t) => t.v >= xMin && t.v <= xMax)
+    : ticks(xMin, xMax, 5).map((t) => ({ v: t, label: tickLabel(t, niceStep((xMax - xMin) / 5)) }));
+  xTicks.forEach((tick) => {
+    const xx = sx(tick.v);
+    g += `<line x1="${xx.toFixed(1)}" y1="${y + bh}" x2="${xx.toFixed(1)}" y2="${y + bh + 4}" stroke="${C.axis}"/>`;
+    g += `<text x="${xx.toFixed(1)}" y="${y + bh + 15}" text-anchor="middle" font-family="${MONO}" font-size="${FS}" fill="${C.label}">${esc(tick.label)}</text>`;
+  });
+  g += `<line x1="${x}" y1="${y}" x2="${x}" y2="${y + bh}" stroke="${C.axis}"/>`;
+  g += `<line x1="${x}" y1="${y + bh}" x2="${x + w}" y2="${y + bh}" stroke="${C.axis}"/>`;
+  const clipId = `sigrun-clip-${(clipSeq += 1)}`;
+  g += `<defs><clipPath id="${clipId}"><rect x="${x}" y="${y}" width="${w}" height="${bh}"/></clipPath></defs><g clip-path="url(#${clipId})">`;
+  if (spec.ci && spec.ci.length > 1) {
+    const upper = spec.ci.map((p) => `${sx(p.x).toFixed(1)},${sy(p.hi).toFixed(1)}`).join(' ');
+    const lower = [...spec.ci].reverse().map((p) => `${sx(p.x).toFixed(1)},${sy(p.lo).toFixed(1)}`).join(' ');
+    g += `<polygon points="${upper} ${lower}" fill="${C.band}" stroke="none"/>`;
+  }
+  if (spec.curve && spec.curve.length > 1) {
+    g += `<polyline points="${spec.curve.map((p) => `${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ')}" fill="none" stroke="${C.series[4]}" stroke-width="2"/>`;
+  } else {
+    const f1 = xMin + (xMax - xMin) * 0.02;
+    const f2 = xMax - (xMax - xMin) * 0.02;
+    g += `<line x1="${sx(f1).toFixed(1)}" y1="${sy(spec.fit.intercept + spec.fit.slope * f1).toFixed(1)}" x2="${sx(f2).toFixed(1)}" y2="${sy(spec.fit.intercept + spec.fit.slope * f2).toFixed(1)}" stroke="${C.series[4]}" stroke-width="2"/>`;
+  }
+  spec.points.forEach((p) => {
+    g += `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="2.7" fill="${C.series[0]}" opacity="0.85"/>`;
+  });
+  g += '</g>';
+  if (spec.xLabel) g += `<text x="${x + w / 2}" y="${y + bh + 30}" text-anchor="middle" font-size="${FS + 0.5}" fill="${C.label}">${esc(spec.xLabel)}</text>`;
+  if (spec.yLabel) g += `<text transform="translate(${x - 46} ${y + bh / 2}) rotate(-90)" text-anchor="middle" font-size="${FS + 0.5}" fill="${C.label}">${esc(spec.yLabel)}</text>`;
+  if (spec.note) g += `<text x="${x + w - 4}" y="${y + 12}" text-anchor="end" font-family="${MONO}" font-size="9" fill="${C.label}">${esc(spec.note)}</text>`;
+  return open(W, h, spec.title ?? 'Probability plot') + g + '</svg>';
+}
+
 export function renderChart(spec: ChartSpec, width?: number): string {
   W = width && width > 260 ? width : 560;
   switch (spec.kind) {
@@ -538,6 +797,10 @@ export function renderChart(spec: ChartSpec, width?: number): string {
     case 'pareto': return drawPareto(spec);
     case 'capability': return drawCapability(spec);
     case 'interval': return drawInterval(spec);
+    case 'line': return drawLine(spec);
+    case 'bar': return drawBar(spec);
+    case 'contour': return drawContour(spec);
+    case 'probplot': return drawProbplot(spec);
     default: return '';
   }
 }

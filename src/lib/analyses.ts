@@ -7,10 +7,30 @@
 import type { Block, ChartSpec, Column, Lang, Worksheet } from '../types';
 import { capability } from './capability';
 import { evaluateFormula } from './calc';
+import { histogramBins } from './charts';
+import { fCdf, normalInv, normalPdf, tInv } from './dist';
+import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, ccdDesign, contourGrid, designWorksheet, factorialDesign } from './doe';
 import { fmt, fmtInt, fmtP } from './format';
+import { gageRR, type GrrRow } from './gagerr';
+import { cellMeans, fitGlm, type ModelFactor, type ModelTerm } from './glm';
 import { t } from './i18n';
+import { nonnormalCapability, type NonnormalDist } from './nonnormal';
+import { powerCurve, solvePower, type PowerMethod, type PowerSpec } from './power';
 import { generateRandom } from './random';
-import { imrChart, pChart, xbarRCharts, SpcValidationError, type SpcIssue } from './spc';
+import { fitWeibull, type WeibullInput } from './reliability';
+import { capabilitySixpack } from './sixpack';
+import {
+  cChart,
+  imrChart,
+  npChart,
+  pChart,
+  uChart,
+  xbarRCharts,
+  xbarSCharts,
+  XBAR_CONSTANTS,
+  SpcValidationError,
+  type SpcIssue,
+} from './spc';
 import {
   adNormality,
   anovaOneWay,
@@ -1213,6 +1233,1183 @@ function runRecode(ctx: RunContext): RunResult {
   };
 }
 
+/* ── P2: Gage R&R ─────────────────────────────────────────────────────── */
+
+interface CellStat { mean: number; range: number; n: number }
+
+function cellStats(rows: GrrRow[]): Map<string, CellStat> {
+  const map = new Map<string, number[]>();
+  rows.forEach((row) => {
+    const key = `${row.part}\u0001${row.operator}`;
+    const list = map.get(key) ?? [];
+    list.push(row.measurement);
+    map.set(key, list);
+  });
+  const out = new Map<string, CellStat>();
+  map.forEach((values, key) => {
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    out.set(key, { mean, range: Math.max(...values) - Math.min(...values), n: values.length });
+  });
+  return out;
+}
+
+function runGageRR(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const partCol = findColumn(sheet, values.part);
+  const opCol = findColumn(sheet, values.operator);
+  const measCol = findColumn(sheet, values.measurement);
+  if (!partCol || !opCol || !measCol) throw new Error('dlg.required');
+  const rows: GrrRow[] = [];
+  const count = rowCount(sheet);
+  for (let r = 0; r < count; r += 1) {
+    const measurement = measCol.values[r];
+    if (typeof measurement !== 'number' || !isFinite(measurement)) continue;
+    rows.push({ part: textOf(partCol, r), operator: textOf(opCol, r), measurement });
+  }
+  if (rows.length < 6) throw new Error('res.insufficient');
+  const type = str(values.type) === 'nested' ? 'nested' : 'crossed';
+  const toleranceRaw = str(values.tolerance).trim();
+  const tolerance = toleranceRaw === '' ? NaN : Math.abs(num(toleranceRaw, NaN));
+  const studyVar = num(values.studyVar, 6);
+  const result = gageRR(rows, type, {
+    tolerance: isFinite(tolerance) ? tolerance : undefined,
+    studyVar,
+    poolInteraction: bool(values.poolInteraction, false),
+  });
+  const level = `${(conf(values.confidence) * 100).toFixed(0)}%`;
+  const anovaRows: (string | number)[][] = result.anova.map((row) => [
+    `@grr.${row.source}`,
+    fmtInt(row.df),
+    fmt(row.ss),
+    Number.isFinite(row.ms) ? fmt(row.ms) : '—',
+    Number.isFinite(row.f) ? fmt(row.f) : '—',
+    Number.isFinite(row.p) ? fmtP(row.p) : '—',
+  ]);
+  const compRows: (string | number)[][] = result.components.map((c) => [
+    `@grr.${c.name}`,
+    fmt(c.variance, 5),
+    `${c.contribution.toFixed(2)}%`,
+    fmt(c.stdev, 5),
+    fmt(c.studyVar * c.stdev / 100, 5),
+    `${c.studyVar.toFixed(2)}%`,
+    Number.isFinite(c.tolerance) ? `${c.tolerance.toFixed(2)}%` : '—',
+  ]);
+  const grrPct = result.components.find((c) => c.name === 'grr')?.studyVar ?? NaN;
+  const verdict = grrPct < 10 ? 'res.grrAcceptable' : grrPct < 30 ? 'res.grrMarginal' : 'res.grrUnacceptable';
+  const cells = cellStats(rows);
+  const parts = [...new Set(rows.map((r) => r.part))];
+  const operators = [...new Set(rows.map((r) => r.operator))];
+  const n = Number.isFinite(result.replicates) ? result.replicates : 1;
+  const constants = XBAR_CONSTANTS[Math.max(2, Math.min(10, n))];
+  const allRanges = [...cells.values()].map((c) => c.range);
+  const rBar = mean(allRanges);
+  const grand = mean([...cells.values()].map((c) => c.mean));
+  const rSeries = operators.map((op, i) => ({
+    label: op,
+    color: i,
+    points: parts.map((part, pi) => ({ x: pi, y: cells.get(`${part}\u0001${op}`)?.range ?? NaN })).filter((p) => isFinite(p.y)),
+  }));
+  const xbarSeries = operators.map((op, i) => ({
+    label: op,
+    color: i,
+    points: parts.map((part, pi) => ({ x: pi, y: cells.get(`${part}\u0001${op}`)?.mean ?? NaN })).filter((p) => isFinite(p.y)),
+  }));
+  const interactionSeries = operators.map((op, i) => ({
+    label: op,
+    color: i,
+    points: parts.map((part, pi) => ({ x: pi, y: cells.get(`${part}\u0001${op}`)?.mean ?? NaN })).filter((p) => isFinite(p.y)),
+  }));
+  const partGroups = parts.map((part) => ({
+    label: part,
+    values: rows.filter((r) => r.part === part).map((r) => r.measurement),
+  }));
+  const opGroups = operators.map((op) => ({
+    label: op,
+    values: rows.filter((r) => r.operator === op).map((r) => r.measurement),
+  }));
+  const compItems = [
+    { label: t(lang, '@grr.repeat'), value: result.components.find((c) => c.name === 'repeat')?.contribution ?? 0, color: 0 },
+    { label: t(lang, '@grr.reproducibility'), value: result.components.find((c) => c.name === 'reproducibility')?.contribution ?? 0, color: 1 },
+    { label: t(lang, '@grr.partToPart'), value: result.components.find((c) => c.name === 'partToPart')?.contribution ?? 0, color: 2 },
+    { label: t(lang, '@grr.grr'), value: result.components.find((c) => c.name === 'grr')?.contribution ?? 0, color: 3 },
+  ];
+  const blocks: Block[] = [
+    {
+      type: 'text',
+      lines: [
+        `${t(lang, 'res.grrInfo', { type: t(lang, type === 'nested' ? '@grr.nested' : '@grr.crossed'), parts: result.parts, operators: result.operators, reps: result.replicates || '—', rows: rows.length })}`,
+        `${t(lang, 'res.grrVerdict', { pct: grrPct.toFixed(1), verdict: t(lang, verdict) })}`,
+        `${t(lang, 'res.grrNdc', { ndc: result.ndc })}`,
+        toleranceRaw === '' ? t(lang, 'res.grrNoTolerance') : t(lang, 'res.grrTolerance', { tol: fmt(tolerance) }),
+        result.note === 'interactionPooled' ? t(lang, 'res.grrPooled') : '',
+      ].filter(Boolean),
+    },
+    {
+      type: 'table',
+      title: tableTitle('res.grrAnova'),
+      headers: ['@th.source', '@th.df', '@th.ss', '@th.ms', '@th.f', '@th.p'],
+      rows: anovaRows,
+      align: ['l', 'r', 'r', 'r', 'r', 'r'],
+    },
+    {
+      type: 'table',
+      title: t(lang, 'res.grrComponentsLevel', { level }),
+      headers: ['@th.source', '@th.varComp', '@th.contribution', '@th.stdev', '@th.studyVar', '@th.pctStudyVar', '@th.pctTolerance'],
+      rows: compRows,
+      align: ['l', 'r', 'r', 'r', 'r', 'r', 'r'],
+      caption: t(lang, 'res.grrComponentNote', { mult: fmt(studyVar) }),
+    },
+    {
+      type: 'chartgrid',
+      charts: [
+        { title: '@chart.components', chart: { kind: 'bar', items: compItems, yLabel: '% Contribution', decimals: 1, height: 220 } },
+        {
+          title: '@chart.rbyop',
+          chart: {
+            kind: 'line',
+            series: rSeries,
+            xLabels: parts.map((_, i) => `P${i + 1}`),
+            yLabel: 'Range',
+            refLines: Number.isFinite(rBar)
+              ? [{ y: constants.D4 * rBar, label: `UCL ${fmt(constants.D4 * rBar, 3)}` }, { y: rBar, label: `R̄ ${fmt(rBar, 3)}` }, { y: constants.D3 * rBar, label: `LCL ${fmt(constants.D3 * rBar, 3)}` }]
+              : undefined,
+            height: 220,
+          },
+        },
+        {
+          title: '@chart.xbarbyop',
+          chart: {
+            kind: 'line',
+            series: xbarSeries,
+            xLabels: parts.map((_, i) => `P${i + 1}`),
+            yLabel: 'Mean',
+            refLines: Number.isFinite(rBar)
+              ? [{ y: grand + constants.A2 * rBar, label: `UCL ${fmt(grand + constants.A2 * rBar, 3)}` }, { y: grand, label: `X̄ ${fmt(grand, 3)}` }, { y: grand - constants.A2 * rBar, label: `LCL ${fmt(grand - constants.A2 * rBar, 3)}` }]
+              : undefined,
+            height: 220,
+          },
+        },
+        { title: '@chart.bypart', chart: { kind: 'boxplot', groups: partGroups, yLabel: 'Measurement', height: 220 } },
+        { title: '@chart.byoperator', chart: { kind: 'boxplot', groups: opGroups, yLabel: 'Measurement', height: 220 } },
+        { title: '@chart.interaction', chart: { kind: 'line', series: interactionSeries, xLabels: parts.map((_, i) => `P${i + 1}`), yLabel: 'Mean', height: 220 } },
+      ],
+    },
+  ];
+  return {
+    subtitle: `${measCol.name || measCol.id} · ${type}`,
+    blocks,
+  };
+}
+
+/* ── P2: Capability Sixpack ───────────────────────────────────────────── */
+
+function capabilitySummaryRows(result: ReturnType<typeof capability>): (string | number)[][] {
+  const dash = (value: number): string => (Number.isFinite(value) ? fmt(value) : '—');
+  return [
+    ['Mean', fmt(result.mean)],
+    ['StDev (within)', fmt(result.sdWithin)],
+    ['StDev (overall)', fmt(result.sdOverall)],
+    ['Cp', dash(result.cp)],
+    ['Cpk', dash(result.cpk)],
+    ['Pp', dash(result.pp)],
+    ['Ppk', dash(result.ppk)],
+    ['Cpm', dash(result.cpm)],
+    ['Expected PPM (overall)', Number.isFinite(result.ppmOverall) ? fmtInt(result.ppmOverall) : '—'],
+    ['Sigma level', dash(result.sigmaLevel)],
+  ];
+}
+
+function normalProbChart(data: number[], xLabel: string, height = 220): ChartSpec {
+  const ad = adNormality(data);
+  const zs = ad.sorted.map((_, i) => normalScores(ad.n)[i]);
+  const step = (Math.max(...ad.sorted) - Math.min(...ad.sorted)) / 40 || 1;
+  const ci: { x: number; lo: number; hi: number }[] = [];
+  for (let i = 0; i <= 40; i += 1) {
+    const x = Math.min(...ad.sorted) - step + i * step;
+    const z = (x - ad.mean) / ad.sd;
+    const margin = 1.96 * Math.sqrt(1 / ad.n + (z * z) / (2 * (ad.n - 1)));
+    ci.push({ x, lo: z - margin, hi: z + margin });
+  }
+  return {
+    kind: 'normalprob',
+    points: ad.sorted.map((x, i) => ({ x, y: zs[i] })),
+    fit: { intercept: -ad.mean / ad.sd, slope: 1 / ad.sd },
+    ci,
+    xLabel,
+    ad: ad.adAdj,
+    p: ad.p,
+    height,
+  };
+}
+
+function runSixpack(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const col = findColumn(sheet, values.variable);
+  const data = numValues(sheet, values.variable);
+  if (clean(data).length < 5) throw new Error('res.insufficient');
+  const lslValue = str(values.lsl).trim() === '' ? null : num(values.lsl, NaN);
+  const uslValue = str(values.usl).trim() === '' ? null : num(values.usl, NaN);
+  const targetValue = str(values.target).trim() === '' ? null : num(values.target, NaN);
+  if (lslValue === null && uslValue === null) throw new Error('res.needSpec');
+  const methodRaw = str(values.sigmaMethod);
+  const sigmaMethod = methodRaw === 'z_bench' || methodRaw === 'cpk_shift' ? methodRaw : 'z_bench_shift';
+  const subgroup = Math.max(1, Math.round(num(values.subgroup, 1)));
+  const result = capabilitySixpack(data, {
+    subgroup,
+    lsl: lslValue,
+    usl: uslValue,
+    target: targetValue,
+    sigmaMethod,
+  });
+  const values2 = clean(data);
+  let lo = Math.min(...values2);
+  let hi = Math.max(...values2);
+  [lslValue, uslValue, targetValue].forEach((v) => {
+    if (v !== null && isFinite(v)) {
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
+    }
+  });
+  const bins = histogramBins(values2);
+  const binWidth = bins.length ? bins[0].hi - bins[0].lo : 1;
+  const curve = (m: number, s: number, color: number, label: string): { label: string; points: { x: number; y: number }[]; color: number; dash?: string } => {
+    const points: { x: number; y: number }[] = [];
+    for (let i = 0; i <= 90; i += 1) {
+      const x = lo + ((hi - lo) * i) / 90;
+      points.push({ x, y: normalPdf(x, m, s) * values2.length * binWidth });
+    }
+    return { label, points, color, dash: undefined };
+  };
+  const statsRows = capabilitySummaryRows(result.capability);
+  const cap = result.capability;
+  const indexItems = [
+    { label: 'Cp', value: cap.cp, color: 0 },
+    { label: 'Cpk', value: cap.cpk, color: 1 },
+    { label: 'Pp', value: cap.pp, color: 2 },
+    { label: 'Ppk', value: cap.ppk, color: 3 },
+    { label: 'Cpm', value: cap.cpm, color: 4 },
+  ].filter((item) => isFinite(item.value));
+  const adResult = result.ad;
+  const blocks: Block[] = [
+    {
+      type: 'text',
+      lines: [
+        t(lang, 'res.sixpackInfo', {
+          chart: subgroup > 1 ? t(lang, '@chart.xbarchart') : t(lang, '@chart.ichart'),
+          n: subgroup,
+          rows: values2.length,
+        }),
+        Number.isFinite(adResult.p)
+          ? t(lang, adResult.p >= 0.05 ? 'res.normal' : 'res.notNormal')
+          : t(lang, 'res.insufficient'),
+      ],
+    },
+    {
+      type: 'table',
+      title: tableTitle('res.specs'),
+      headers: ['@th.statistic', 'Value'],
+      rows: [
+        ['LSL', cap.lsl === null ? '—' : fmt(cap.lsl)],
+        ['USL', cap.usl === null ? '—' : fmt(cap.usl)],
+        ['Target', cap.target === null ? '—' : fmt(cap.target)],
+        ['N', fmtInt(cap.n)],
+        ['Subgroup size', fmtInt(subgroup)],
+      ],
+      align: ['l', 'r'],
+    },
+    {
+      type: 'table',
+      title: tableTitle('res.capabilityStats'),
+      headers: ['@th.statistic', 'Value'],
+      rows: statsRows,
+      align: ['l', 'r'],
+    },
+    {
+      type: 'chartgrid',
+      charts: [
+        { title: '@chart.location', chart: { kind: 'control', panel: result.primary, yLabel: col?.name ?? 'Value', xLabel: subgroup > 1 ? 'Subgroup' : 'Observation', height: 210 } },
+        { title: '@chart.dispersion', chart: { kind: 'control', panel: result.secondary, yLabel: subgroup > 1 ? 'Range' : 'Moving range', xLabel: subgroup > 1 ? 'Subgroup' : 'Observation', height: 210 } },
+        { title: '@chart.last25', chart: { kind: 'control', panel: result.last, yLabel: col?.name ?? 'Value', xLabel: t(lang, 'res.lastRuns'), height: 210 } },
+        {
+          title: '@chart.caphist',
+          chart: {
+            kind: 'histogram',
+            values: values2,
+            lsl: cap.lsl,
+            usl: cap.usl,
+            target: cap.target,
+            xLabel: col?.name ?? 'Measurement',
+            height: 230,
+            curves: [
+              curve(cap.mean, cap.sdWithin, 1, t(lang, 'res.withinCurve')),
+              curve(cap.mean, cap.sdOverall, 2, t(lang, 'res.overallCurve')),
+            ],
+          },
+        },
+        { title: '@chart.capprob', chart: normalProbChart(values2, col?.name ?? 'Measurement', 230) },
+        { title: '@chart.capindices', chart: { kind: 'bar', items: indexItems, yLabel: 'Index', refLine: { y: 1.33, label: '1.33' }, decimals: 2, height: 230 } },
+      ],
+    },
+    { type: 'text', lines: [t(lang, 'res.sixpackNote')] },
+  ];
+  return { subtitle: col?.name ?? '', blocks };
+}
+
+/* ── P2: Nonnormal capability ─────────────────────────────────────────── */
+
+function logTicks(min: number, max: number): { v: number; label: string }[] {
+  const out: { v: number; label: string }[] = [];
+  const start = Math.floor(Math.log10(Math.max(1e-12, min)));
+  const end = Math.ceil(Math.log10(Math.max(1e-11, max)));
+  for (let e = start; e <= end; e += 1) {
+    [1, 2, 5].forEach((m) => {
+      const value = m * 10 ** e;
+      if (value >= min && value <= max) {
+        out.push({ v: Math.log(value), label: value >= 1000 ? `${value / 1000}k` : String(value) });
+      }
+    });
+  }
+  return out.slice(0, 9);
+}
+
+function runNonnormal(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const col = findColumn(sheet, values.variable);
+  const data = numValues(sheet, values.variable);
+  if (clean(data).filter((v) => v > 0).length < 5) throw new Error('res.insufficient');
+  const raw = str(values.distribution);
+  const dist: NonnormalDist = raw === 'lognormal' || raw === 'gamma' ? raw : 'weibull';
+  const lslValue = str(values.lsl).trim() === '' ? null : num(values.lsl, NaN);
+  const uslValue = str(values.usl).trim() === '' ? null : num(values.usl, NaN);
+  const targetValue = str(values.target).trim() === '' ? null : num(values.target, NaN);
+  const result = nonnormalCapability(data, dist, { lsl: lslValue, usl: uslValue, target: targetValue });
+  const fit = result.fit;
+  const shapeLabel = dist === 'lognormal' ? 'σ (ln)' : 'Shape';
+  const scaleLabel = dist === 'lognormal' ? 'μ (ln)' : 'Scale';
+  const bandText = {
+    above10: t(lang, 'res.adAbove10'),
+    between05and10: t(lang, 'res.ad0510'),
+    between01and05: t(lang, 'res.ad0105'),
+    below01: t(lang, 'res.adBelow01'),
+  }[fit.band];
+  const fitRows: (string | number)[][] = [
+    [shapeLabel, fmt(fit.params.shape, 5)],
+    [scaleLabel, fmt(fit.params.scale, 5)],
+    ['N', fmtInt(fit.n)],
+    ['Log-likelihood', fmt(fit.params.logLik, 3)],
+    ['AD', fmt(fit.ad, 4)],
+    ['AD*', fmt(fit.adAdjusted, 4)],
+    [t(lang, 'res.adCritical'), fit.critical.map((v) => fmt(v, 3)).join(' / ')],
+    [t(lang, 'res.adConclusion'), bandText],
+  ];
+  const capRows: (string | number)[][] = [
+    ['LSL', result.lsl === null ? '—' : fmt(result.lsl)],
+    ['USL', result.usl === null ? '—' : fmt(result.usl)],
+    ['P0.135', fmt(result.p00135, 4)],
+    ['P50', fmt(result.median, 4)],
+    ['P99.865', fmt(result.p99865, 4)],
+    ['Pp', Number.isFinite(result.pp) ? fmt(result.pp) : '—'],
+    ['Ppk', Number.isFinite(result.ppk) ? fmt(result.ppk) : '—'],
+    ['PPL / PPU', `${Number.isFinite(result.ppl) ? fmt(result.ppl) : '—'} / ${Number.isFinite(result.ppu) ? fmt(result.ppu) : '—'}`],
+    ['Expected PPM', fmtInt(result.ppm)],
+    ['Observed PPM', fmtInt(result.observedPpm)],
+  ];
+  const sorted = clean(data).filter((v) => v > 0).sort((a, b) => a - b);
+  const n = sorted.length;
+  const points = sorted.map((t, i) => {
+    const f = Math.min(1 - 1e-9, Math.max(1e-9, (i + 1 - 0.3) / (n + 0.4)));
+    const y = normalInv(f);
+    return { x: dist === 'gamma' ? t : Math.log(t), y };
+  });
+  const curve: { x: number; y: number }[] = [];
+  const xLo = dist === 'gamma' ? sorted[0] : Math.log(sorted[0]);
+  const xHi = dist === 'gamma' ? sorted[n - 1] : Math.log(sorted[n - 1]);
+  for (let i = 0; i <= 80; i += 1) {
+    const x = xLo + ((xHi - xLo) * i) / 80;
+    const time = dist === 'gamma' ? x : Math.exp(x);
+    const f = Math.min(1 - 1e-9, Math.max(1e-9, fit.cdf(time)));
+    curve.push({ x, y: normalInv(f) });
+  }
+  const binWidth = histogramBins(sorted).length ? histogramBins(sorted)[0].hi - histogramBins(sorted)[0].lo : 1;
+  const pdfPoints: { x: number; y: number }[] = [];
+  const lo = Math.min(sorted[0], result.lsl ?? sorted[0]);
+  const hi = Math.max(sorted[n - 1], result.usl ?? sorted[n - 1]);
+  for (let i = 0; i <= 100; i += 1) {
+    const x = lo + ((hi - lo) * i) / 100;
+    pdfPoints.push({ x, y: fit.pdf(x) * n * binWidth });
+  }
+  const blocks: Block[] = [
+    {
+      type: 'text',
+      lines: [
+        t(lang, 'res.nonnormalInfo', { dist: t(lang, `dist.${dist}`), n }),
+        t(lang, 'res.nonnormalMethod'),
+      ],
+    },
+    { type: 'table', title: tableTitle('res.distributionFit'), headers: ['@th.parameter', '@th.estimate'], rows: fitRows, align: ['l', 'r'] },
+    { type: 'table', title: tableTitle('res.capabilityStats'), headers: ['@th.statistic', 'Value'], rows: capRows, align: ['l', 'r'] },
+    {
+      type: 'chartgrid',
+      charts: [
+        {
+          title: '@chart.distpdf',
+          chart: {
+            kind: 'histogram',
+            values: sorted,
+            lsl: result.lsl,
+            usl: result.usl,
+            target: result.target,
+            xLabel: col?.name ?? 'Measurement',
+            curves: [{ label: t(lang, `dist.${dist}`), points: pdfPoints, color: 1 }],
+            height: 240,
+          },
+        },
+        {
+          title: '@chart.probplot',
+          chart: {
+            kind: 'probplot',
+            points,
+            fit: { intercept: 0, slope: 0 },
+            curve,
+            xLabel: dist === 'gamma' ? (col?.name ?? 'Measurement') : `ln(${col?.name ?? 'Measurement'})`,
+            yLabel: t(lang, 'res.percent'),
+            xTicks: dist === 'gamma' ? undefined : logTicks(sorted[0], sorted[n - 1]),
+            note: `AD* ${fmt(fit.adAdjusted, 3)}`,
+            height: 240,
+          },
+        },
+      ],
+    },
+    { type: 'text', lines: [t(lang, 'res.nonnormalNote')] },
+  ];
+  return { subtitle: `${col?.name ?? ''} · ${t(lang, `dist.${dist}`)}`, blocks };
+}
+
+/* ── P2: Xbar-S, NP, C, U charts ──────────────────────────────────────── */
+
+function runXbarS(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const col = findColumn(sheet, values.variable);
+  const groupCol = findColumn(sheet, values.groups);
+  const data = numValues(sheet, values.variable);
+  const size = Math.max(2, Math.round(num(values.subgroup, 5)));
+  if (clean(data).length < size * 2) throw new Error('res.insufficient');
+  let result;
+  try {
+    result = groupCol
+      ? xbarSCharts(data, { groupIds: groupCol.values.map((v) => (v === null || v === undefined || v === '' ? null : String(v))) })
+      : xbarSCharts(data, { size });
+  } catch (error) {
+    if (error instanceof SpcValidationError) throw new Error(spcIssueText(lang, error.issues));
+    throw error;
+  }
+  const vRows = violationRows(result.panels);
+  const blocks: Block[] = [
+    { type: 'table', headers: ['@th.level', 'Center', 'UCL', 'LCL', 'Sigma', 'Signals'], rows: chartRows(result.panels), align: ['l', 'r', 'r', 'r', 'r', 'r'] },
+  ];
+  if (vRows.length) blocks.push({ type: 'table', headers: ['@th.level', 'Point', 'Value', 'Rules'], rows: vRows, align: ['l', 'r', 'r', 'l'] });
+  blocks.push(
+    { type: 'chart', chart: { kind: 'control', panel: result.panels[0], yLabel: col?.name, xLabel: 'Subgroup' } },
+    { type: 'chart', chart: { kind: 'control', panel: result.panels[1], yLabel: 'StdDev', xLabel: 'Subgroup' } },
+    { type: 'text', lines: [result.rulesHit.length ? t(lang, 'res.rulesHit', { rules: result.rulesHit.join(', ') }) : t(lang, 'res.rulesNone')] },
+  );
+  const summary = result.subgroupSummary;
+  if (summary) {
+    blocks.push({
+      type: 'text',
+      lines: [t(lang, 'res.subgroupRule', { n: summary.size, total: summary.total, used: summary.used, skipped: summary.skipped, left: summary.leftoverRows })],
+    });
+  }
+  return { subtitle: `${col?.name ?? ''} · n=${groupCol ? 'varying' : size}`, blocks };
+}
+
+function countRows(col: Column | undefined): number[] {
+  if (!col) return [];
+  const out: number[] = [];
+  col.values.forEach((v) => {
+    if (v === null || v === undefined || v === '') return;
+    const n = typeof v === 'number' ? v : Number(v);
+    out.push(Number.isFinite(n) ? n : NaN);
+  });
+  return out;
+}
+
+function runNpChart(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const col = findColumn(sheet, values.defectives);
+  if (!col) throw new Error('dlg.required');
+  const counts = countRows(col);
+  const size = Math.round(num(values.sampleSize, 100));
+  let result;
+  try {
+    result = npChart(counts, size);
+  } catch (error) {
+    if (error instanceof SpcValidationError) throw new Error(spcIssueText(lang, error.issues));
+    throw error;
+  }
+  const vRows = violationRows(result.panels);
+  const blocks: Block[] = [
+    { type: 'table', headers: ['@th.level', 'Center', 'UCL', 'LCL', 'Sigma', 'Signals'], rows: chartRows(result.panels), align: ['l', 'r', 'r', 'r', 'r', 'r'] },
+  ];
+  if (vRows.length) blocks.push({ type: 'table', headers: ['@th.level', 'Point', 'Value', 'Rules'], rows: vRows, align: ['l', 'r', 'r', 'l'] });
+  blocks.push(
+    { type: 'chart', chart: { kind: 'control', panel: result.panels[0], yLabel: 'Defectives', xLabel: 'Sample' } },
+    { type: 'text', lines: [result.rulesHit.length ? t(lang, 'res.rulesHit', { rules: result.rulesHit.join(', ') }) : t(lang, 'res.rulesNone'), t(lang, 'res.attrNote')] },
+  );
+  return { subtitle: `${col.name || col.id} · n=${size}`, blocks };
+}
+
+function runCChart(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const col = findColumn(sheet, values.defects);
+  if (!col) throw new Error('dlg.required');
+  const counts = countRows(col);
+  let result;
+  try {
+    result = cChart(counts);
+  } catch (error) {
+    if (error instanceof SpcValidationError) throw new Error(spcIssueText(lang, error.issues));
+    throw error;
+  }
+  const vRows = violationRows(result.panels);
+  const blocks: Block[] = [
+    { type: 'table', headers: ['@th.level', 'Center', 'UCL', 'LCL', 'Sigma', 'Signals'], rows: chartRows(result.panels), align: ['l', 'r', 'r', 'r', 'r', 'r'] },
+  ];
+  if (vRows.length) blocks.push({ type: 'table', headers: ['@th.level', 'Point', 'Value', 'Rules'], rows: vRows, align: ['l', 'r', 'r', 'l'] });
+  blocks.push(
+    { type: 'chart', chart: { kind: 'control', panel: result.panels[0], yLabel: 'Defects', xLabel: 'Sample' } },
+    { type: 'text', lines: [result.rulesHit.length ? t(lang, 'res.rulesHit', { rules: result.rulesHit.join(', ') }) : t(lang, 'res.rulesNone'), t(lang, 'res.attrNote')] },
+  );
+  return { subtitle: col.name || col.id, blocks };
+}
+
+function runUChart(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const col = findColumn(sheet, values.defects);
+  const sizeCol = findColumn(sheet, values.unitSizes);
+  if (!col) throw new Error('dlg.required');
+  const counts = countRows(col);
+  const constSize = Math.round(num(values.unitSize, 1));
+  const sizes = sizeCol ? countRows(sizeCol) : counts.map(() => constSize);
+  let result;
+  try {
+    result = uChart(counts, sizes);
+  } catch (error) {
+    if (error instanceof SpcValidationError) throw new Error(spcIssueText(lang, error.issues));
+    throw error;
+  }
+  const vRows = violationRows(result.panels);
+  const blocks: Block[] = [
+    { type: 'table', headers: ['@th.level', 'Center', 'UCL', 'LCL', 'Sigma', 'Signals'], rows: chartRows(result.panels), align: ['l', 'r', 'r', 'r', 'r', 'r'] },
+  ];
+  if (vRows.length) blocks.push({ type: 'table', headers: ['@th.level', 'Point', 'Value', 'Rules'], rows: vRows, align: ['l', 'r', 'r', 'l'] });
+  blocks.push(
+    { type: 'chart', chart: { kind: 'control', panel: result.panels[0], yLabel: 'Defects per unit', xLabel: 'Sample' } },
+    { type: 'text', lines: [result.rulesHit.length ? t(lang, 'res.rulesHit', { rules: result.rulesHit.join(', ') }) : t(lang, 'res.rulesNone'), t(lang, 'res.attrNote')] },
+  );
+  return { subtitle: col.name || col.id, blocks };
+}
+
+/* ── P2: Weibull reliability ──────────────────────────────────────────── */
+
+function runWeibull(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const timeCol = findColumn(sheet, values.time);
+  const censorCol = findColumn(sheet, values.censor);
+  if (!timeCol) throw new Error('dlg.required');
+  const censoredIsOne = str(values.censorCode) !== '0=censored';
+  const rows: WeibullInput[] = [];
+  const total = rowCount(sheet);
+  for (let r = 0; r < total; r += 1) {
+    const time = timeCol.values[r];
+    if (typeof time !== 'number' || !isFinite(time) || time <= 0) continue;
+    let censored = false;
+    if (censorCol) {
+      const raw = censorCol.values[r];
+      if (raw === null || raw === undefined || raw === '') continue;
+      const code = typeof raw === 'number' ? raw : Number(raw);
+      if (!isFinite(code)) continue;
+      censored = censoredIsOne ? code === 1 : code === 0;
+    }
+    rows.push({ time, censored });
+  }
+  const result = fitWeibull(rows, conf(values.confidence));
+  const z = normalInv((1 + conf(values.confidence)) / 2);
+  const bandText = {
+    above10: t(lang, 'res.adAbove10'),
+    between05and10: t(lang, 'res.ad0510'),
+    between01and05: t(lang, 'res.ad0105'),
+    below01: t(lang, 'res.adBelow01'),
+  }[result.band];
+  const estimateRows: (string | number)[][] = [
+    [t(lang, 'res.shape'), fmt(result.shape, 5), fmt(result.seShape, 5), `${fmt(result.ciShape[0], 4)}  ${fmt(result.ciShape[1], 4)}`],
+    [t(lang, 'res.scale'), fmt(result.scale, 5), fmt(result.seScale, 5), `${fmt(result.ciScale[0], 4)}  ${fmt(result.ciScale[1], 4)}`],
+    ['MTTF', fmt(result.mttf, 5), Number.isFinite(result.mttfCi[0]) ? fmt((result.mttfCi[1] - result.mttfCi[0]) / 2, 5) : '—', `${fmt(result.mttfCi[0], 4)}  ${fmt(result.mttfCi[1], 4)}`],
+    ['B50 (median)', fmt(result.median, 5), '—', '—'],
+    ['B10', fmt(result.b10, 5), '—', '—'],
+    ['B5', fmt(result.b5, 5), '—', '—'],
+    ['B90', fmt(result.b90, 5), '—', '—'],
+  ];
+  const xLo = Math.min(...result.points.map((p) => p.x));
+  const xHi = Math.max(...result.points.map((p) => p.x));
+  const ticks = logTicks(Math.exp(xLo), Math.exp(xHi));
+  const ciPoints: { x: number; lo: number; hi: number }[] = [];
+  for (let i = 0; i <= 30; i += 1) {
+    const x = xLo + ((xHi - xLo) * i) / 30;
+    const band = result.band95(x);
+    ciPoints.push({ x, lo: band[0], hi: band[1] });
+  }
+  const maxTime = Math.max(...rows.map((r) => r.time));
+  const survivalPoints: { x: number; y: number }[] = [];
+  const hazardPoints: { x: number; y: number }[] = [];
+  for (let i = 0; i <= 60; i += 1) {
+    const t = (maxTime * 2.2 * i) / 60;
+    survivalPoints.push({ x: t, y: result.survival(t) });
+    hazardPoints.push({ x: t, y: result.hazard(t) });
+  }
+  const blocks: Block[] = [
+    {
+      type: 'text',
+      lines: [
+        t(lang, 'res.weibullInfo', { n: result.n, failures: result.failures, censored: result.censored }),
+        t(lang, 'res.weibullMethod'),
+      ],
+    },
+    {
+      type: 'table',
+      title: t(lang, 'res.distributionFitLevel', { level: `${(conf(values.confidence) * 100).toFixed(0)}%` }),
+      headers: ['@th.parameter', '@th.estimate', '@th.seCoef', `@th.ci`],
+      rows: estimateRows,
+      align: ['l', 'r', 'r', 'r'],
+    },
+    {
+      type: 'table',
+      title: tableTitle('res.adTest'),
+      headers: ['@th.statistic', '@th.value'],
+      rows: [
+        ['AD', fmt(result.ad, 4)],
+        ['AD*', fmt(result.adAdjusted, 4)],
+        [t(lang, 'res.adCritical'), '0.637 / 0.757 / 1.038'],
+        [t(lang, 'res.adConclusion'), bandText],
+        ['Log-likelihood', fmt(result.logLik, 3)],
+      ],
+      align: ['l', 'r'],
+    },
+    {
+      type: 'chart',
+      chart: {
+        kind: 'probplot',
+        points: result.points.map((p) => ({ x: p.x, y: p.y })),
+        fit: { intercept: -result.shape * Math.log(result.scale), slope: result.shape },
+        ci: ciPoints,
+        xLabel: `ln(${timeCol.name || timeCol.id})`,
+        yLabel: t(lang, 'res.percent'),
+        xTicks: ticks,
+        note: `β = ${fmt(result.shape, 3)}   η = ${fmt(result.scale, 3)}`,
+        height: 300,
+      },
+    },
+    {
+      type: 'chartgrid',
+      charts: [
+        {
+          title: '@chart.survival',
+          chart: {
+            kind: 'line',
+            series: [{ label: 'R(t)', points: survivalPoints }],
+            xLabel: timeCol.name || 'Time',
+            yLabel: 'Survival',
+            height: 230,
+          },
+        },
+        {
+          title: '@chart.hazard',
+          chart: { kind: 'line', series: [{ label: 'h(t)', points: hazardPoints }], xLabel: timeCol.name || 'Time', yLabel: 'Hazard', height: 230 },
+        },
+      ],
+    },
+    { type: 'text', lines: [t(lang, 'res.weibullNote', { z: fmt(z, 3) })] },
+  ];
+  return { subtitle: timeCol.name || timeCol.id, blocks };
+}
+
+/* ── P2: general linear model (multi-factor ANOVA) ────────────────────── */
+
+function factorFromColumn(col: Column): ModelFactor {
+  return {
+    name: col.name || col.id,
+    kind: col.type === 'numeric' ? 'numeric' : 'categorical',
+    values: col.values,
+  };
+}
+
+function levelsOf(factor: ModelFactor, levels: Record<string, string[]>): string[] {
+  if (factor.kind === 'categorical') return levels[factor.name] ?? [];
+  const unique = [...new Set(factor.values.filter((v): v is number => typeof v === 'number' && isFinite(v)))].sort((a, b) => a - b);
+  return unique.map((v) => String(v));
+}
+
+function mainEffectChart(factor: ModelFactor, y: (number | null)[], levels: Record<string, string[]>, grand: number, title: string, lang: Lang): { title: string; chart: ChartSpec } {
+  const lv = levelsOf(factor, levels);
+  const cells = cellMeans(y, [factor]);
+  const points = lv.map((level, index) => {
+    const cell = cells.find((c) => c.keys[0] === level);
+    return { x: index, y: cell ? cell.mean : NaN };
+  }).filter((p) => isFinite(p.y));
+  return {
+    title,
+    chart: {
+      kind: 'line',
+      series: [{ label: factor.name, points }],
+      xLabels: lv,
+      yLabel: t(lang, 'res.mean'),
+      refLines: isFinite(grand) ? [{ y: grand }] : undefined,
+      height: 220,
+    },
+  };
+}
+
+function interactionChart(a: ModelFactor, b: ModelFactor, y: (number | null)[], levels: Record<string, string[]>, lang: Lang): { title: string; chart: ChartSpec } {
+  const aLevels = levelsOf(a, levels);
+  const bLevels = levelsOf(b, levels);
+  const cells = cellMeans(y, [a, b]);
+  const series = bLevels.map((bLevel, index) => ({
+    label: bLevel,
+    color: index,
+    points: aLevels.map((aLevel, ai) => {
+      const cell = cells.find((c) => c.keys[0] === aLevel && c.keys[1] === bLevel);
+      return { x: ai, y: cell ? cell.mean : NaN };
+    }).filter((p) => isFinite(p.y)),
+  })).filter((s) => s.points.length);
+  return {
+    title: `${a.name} × ${b.name}`,
+    chart: { kind: 'line', series, xLabels: aLevels, xLabel: a.name, yLabel: t(lang, 'res.mean'), height: 220 },
+  };
+}
+
+function runGlm(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const response = findColumn(sheet, values.response);
+  const refs = (values.factors as string[]) ?? [];
+  const columns = refs.map((ref) => findColumn(sheet, ref)).filter((c): c is Column => Boolean(c));
+  if (!response) throw new Error('dlg.required');
+  if (columns.length < 2) throw new Error('res.needFactors');
+  const factors = columns.map(factorFromColumn);
+  const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
+  const terms: ModelTerm[] = factors.map((f) => ({ name: f.name, factors: [f.name] }));
+  if (bool(values.interactions, true)) {
+    for (let i = 0; i < factors.length; i += 1) {
+      for (let j = i + 1; j < factors.length; j += 1) {
+        terms.push({ name: `${factors[i].name}×${factors[j].name}`, factors: [factors[i].name, factors[j].name] });
+      }
+    }
+  }
+  let glm;
+  try {
+    glm = fitGlm(yValues, factors, terms);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.groupTooSmall');
+    throw error;
+  }
+  const anovaRows: (string | number)[][] = glm.terms.map((term) => [
+    term.name,
+    fmtInt(term.df),
+    fmt(term.ssSeq),
+    fmt(term.ssAdj),
+    Number.isFinite(term.msAdj) ? fmt(term.msAdj) : '—',
+    Number.isFinite(term.f) ? fmt(term.f) : '—',
+    Number.isFinite(term.p) ? fmtP(term.p) : '—',
+  ]);
+  anovaRows.push([t(lang, '@th.error'), fmtInt(glm.dfe), fmt(glm.sse), fmt(glm.sse), fmt(glm.mse), '—', '—']);
+  anovaRows.push([t(lang, '@th.total'), fmtInt(glm.dfe + glm.rank - 1), fmt(glm.ssTotal), '—', '—', '—', '—']);
+  const coefRows = glm.labels.map((label, i) => [
+    label,
+    fmt(glm.beta[i], 5),
+    Number.isFinite(glm.se[i]) ? fmt(glm.se[i], 5) : '—',
+    Number.isFinite(glm.t[i]) ? fmt(glm.t[i], 3) : '—',
+    Number.isFinite(glm.p[i]) ? fmtP(glm.p[i]) : '—',
+  ]);
+  const grand = mean(clean(yValues));
+  const charts: { title: string; chart: ChartSpec }[] = factors.map((factor) => mainEffectChart(factor, yValues, glm.design.levels, grand, factor.name, lang));
+  if (bool(values.interactions, true)) {
+    for (let i = 0; i < factors.length; i += 1) {
+      for (let j = i + 1; j < factors.length; j += 1) charts.push(interactionChart(factors[i], factors[j], yValues, glm.design.levels, lang));
+    }
+  }
+  const blocks: Block[] = [
+    {
+      type: 'text',
+      lines: [
+        t(lang, 'res.glmInfo', { response: response.name || response.id, factors: factors.map((f) => f.name).join(', '), n: glm.n }),
+        t(lang, 'res.glmTypeNote'),
+        glm.aliased.length ? t(lang, 'res.glmAliased', { terms: glm.aliased.join(', ') }) : '',
+      ].filter(Boolean),
+    },
+    {
+      type: 'table',
+      title: tableTitle('res.anovaTable'),
+      headers: ['@th.source', '@th.df', '@th.ssTypeI', '@th.ssTypeIII', '@th.ms', '@th.f', '@th.p'],
+      rows: anovaRows,
+      align: ['l', 'r', 'r', 'r', 'r', 'r', 'r'],
+    },
+    {
+      type: 'table',
+      title: tableTitle('res.modelSummary'),
+      headers: ['@th.statistic', '@th.value'],
+      rows: [
+        ['S', fmt(glm.s)],
+        ['R²', `${(glm.r2 * 100).toFixed(2)}%`],
+        ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`],
+        ['N', fmtInt(glm.n)],
+      ],
+      align: ['l', 'r'],
+    },
+    {
+      type: 'table',
+      title: tableTitle('res.coefficients'),
+      headers: ['@th.term', '@th.coef', '@th.seCoef', '@th.t', '@th.p'],
+      rows: coefRows,
+      align: ['l', 'r', 'r', 'r', 'r'],
+      caption: t(lang, 'res.glmCodingNote'),
+    },
+    { type: 'chartgrid', charts },
+  ];
+  return { subtitle: `${response.name || response.id} · ${factors.map((f) => f.name).join(' × ')}`, blocks };
+}
+
+/* ── P2: DOE ──────────────────────────────────────────────────────────── */
+
+function designTable(runs: { std: number; run: number; ptType: string; levels: number[] }[], names: string[]): Block {
+  return {
+    type: 'table',
+    title: tableTitle('res.designMatrix'),
+    headers: ['StdOrder', 'RunOrder', 'PtType', ...names],
+    rows: runs.map((run) => [fmtInt(run.std), fmtInt(run.run), run.ptType, ...run.levels.map((v) => fmt(v, 2))]),
+    align: ['r', 'r', 'l', ...names.map(() => ('r' as const))],
+  };
+}
+
+function runDoeCreate(ctx: RunContext): RunResult {
+  const { values, lang } = ctx;
+  const k = Math.round(num(values.factors, 3));
+  const centers = Math.max(0, Math.round(num(values.centers, 0)));
+  const replicates = Math.max(1, Math.round(num(values.replicates, 1)));
+  const randomize = bool(values.randomize, true);
+  const seed = Math.round(num(values.seed, 20261122));
+  const runs = factorialDesign(k, centers, replicates, randomize, seed);
+  const names = ['A', 'B', 'C', 'D', 'E', 'F'].slice(0, k);
+  const sheet = designWorksheet(runs, names, `2^${k} Design`);
+  return {
+    subtitle: `2^${k} · ${runs.length} runs`,
+    newSheet: sheet,
+    blocks: [
+      {
+        type: 'text',
+        lines: [
+          t(lang, 'res.designCreated', { k, runs: runs.length, centers, replicates, order: randomize ? t(lang, 'res.randomOrder') : t(lang, 'res.standardOrder') }),
+          t(lang, 'res.designCodedNote'),
+          t(lang, 'res.designYNote'),
+        ],
+      },
+      designTable(runs, names),
+    ],
+  };
+}
+
+function runDoeAnalyze(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const response = findColumn(sheet, values.response);
+  const refs = (values.factors as string[]) ?? [];
+  const columns = refs.map((ref) => findColumn(sheet, ref)).filter((c): c is Column => Boolean(c));
+  if (!response) throw new Error('dlg.required');
+  if (columns.length < 2) throw new Error('res.needFactors');
+  const order = Math.max(1, Math.min(3, Math.round(num(values.order, 2))));
+  const factors = columns.map(factorFromColumn);
+  const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
+  let analysis;
+  try {
+    analysis = analyzeFactorial(yValues, factors, order);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.doeNoDf');
+    throw error;
+  }
+  const glm = analysis.glm;
+  const effectRows = analysis.effects.map((e) => [
+    e.term,
+    fmt(e.effect, 4),
+    fmt(e.coef, 4),
+    Number.isFinite(e.se) ? fmt(e.se, 4) : '—',
+    Number.isFinite(e.t) ? fmt(e.t, 3) : '—',
+    Number.isFinite(e.p) ? fmtP(e.p) : '—',
+  ]);
+  const anovaRows: (string | number)[][] = glm.terms.map((term) => [
+    term.name,
+    fmtInt(term.df),
+    fmt(term.ssSeq),
+    fmt(term.ssAdj),
+    Number.isFinite(term.msAdj) ? fmt(term.msAdj) : '—',
+    Number.isFinite(term.f) ? fmt(term.f) : '—',
+    Number.isFinite(term.p) ? fmtP(term.p) : '—',
+  ]);
+  anovaRows.push([t(lang, '@th.error'), fmtInt(glm.dfe), fmt(glm.sse), fmt(glm.sse), fmt(glm.mse), '—', '—']);
+  anovaRows.push([t(lang, '@th.total'), fmtInt(glm.dfe + glm.rank - 1), fmt(glm.ssTotal), '—', '—', '—', '—']);
+  const tCrit = tInv(1 - 0.025, glm.dfe);
+  const paretoItems = analysis.effects
+    .filter((e) => isFinite(e.t))
+    .map((e) => ({ label: e.term, value: Math.abs(e.t) }))
+    .sort((a, b) => b.value - a.value);
+  const halfNormal = analysis.effects
+    .filter((e) => isFinite(e.effect))
+    .map((e) => Math.abs(e.effect))
+    .sort((a, b) => a - b)
+    .map((value, i, arr) => ({ x: value, y: normalInv(0.5 + 0.5 * ((i + 1 - 0.375) / (arr.length + 0.25))) }));
+  const grand = mean(clean(yValues));
+  const charts: { title: string; chart: ChartSpec }[] = [
+    { title: '@chart.paretoEffects', chart: { kind: 'bar', items: paretoItems, yLabel: '|t|', refLine: { y: tCrit, label: `t ${fmt(tCrit, 2)}` }, decimals: 2, height: 240 } },
+    {
+      title: '@chart.halfNormal',
+      chart: {
+        kind: 'probplot',
+        points: halfNormal,
+        fit: { intercept: 0, slope: 0 },
+        curve: halfNormal.length > 1 ? [{ x: 0, y: 0 }, { x: Math.max(...halfNormal.map((p) => p.x)), y: normalInv(0.5 + 0.5 * (halfNormal.length - 0.375) / (halfNormal.length + 0.25)) }] : undefined,
+        xLabel: '|Effect|',
+        yLabel: t(lang, 'res.percent'),
+        yTicks: [10, 30, 50, 70, 90].map((p) => ({ v: normalInv(0.5 + 0.5 * p / 100), label: String(p) })),
+        height: 240,
+      },
+    },
+    ...factors.map((factor) => mainEffectChart(factor, yValues, glm.design.levels, grand, factor.name, lang)),
+  ];
+  for (let i = 0; i < factors.length; i += 1) {
+    for (let j = i + 1; j < factors.length; j += 1) charts.push(interactionChart(factors[i], factors[j], yValues, glm.design.levels, lang));
+  }
+  return {
+    subtitle: `${response.name || response.id} · 2^${factors.length}`,
+    blocks: [
+      { type: 'text', lines: [t(lang, 'res.doeAnalysisInfo', { response: response.name || response.id, order, n: glm.n }), t(lang, 'res.effectNote')] },
+      { type: 'table', title: tableTitle('res.effectsTable'), headers: ['@th.term', '@th.effect', '@th.coef', '@th.seCoef', '@th.t', '@th.p'], rows: effectRows, align: ['l', 'r', 'r', 'r', 'r', 'r'] },
+      { type: 'table', title: tableTitle('res.anovaTable'), headers: ['@th.source', '@th.df', '@th.ssTypeI', '@th.ssTypeIII', '@th.ms', '@th.f', '@th.p'], rows: anovaRows, align: ['l', 'r', 'r', 'r', 'r', 'r', 'r'] },
+      {
+        type: 'table',
+        title: tableTitle('res.modelSummary'),
+        headers: ['@th.statistic', '@th.value'],
+        rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
+        align: ['l', 'r'],
+      },
+      { type: 'chartgrid', charts },
+    ],
+  };
+}
+
+function runRsmCreate(ctx: RunContext): RunResult {
+  const { values, lang } = ctx;
+  const kind = str(values.design) === 'bbd' ? 'bbd' : 'ccd';
+  const centers = Math.max(1, Math.round(num(values.centers, 5)));
+  const randomize = bool(values.randomize, true);
+  const seed = Math.round(num(values.seed, 20261122));
+  const runs = kind === 'bbd'
+    ? boxBehnkenDesign(centers, randomize, seed)
+    : ccdDesign(Math.max(2, Math.min(5, Math.round(num(values.factors, 2)))), centers, randomize, seed);
+  const k = runs[0]?.levels.length ?? 2;
+  const names = ['A', 'B', 'C', 'D', 'E'].slice(0, k);
+  const sheet = designWorksheet(runs, names, kind === 'bbd' ? 'Box-Behnken' : 'CCD');
+  return {
+    subtitle: `${kind.toUpperCase()} · ${runs.length} runs`,
+    newSheet: sheet,
+    blocks: [
+      {
+        type: 'text',
+        lines: [
+          t(lang, 'res.rsmCreated', { design: kind === 'bbd' ? 'Box–Behnken' : 'Central composite', runs: runs.length, centers, order: randomize ? t(lang, 'res.randomOrder') : t(lang, 'res.standardOrder') }),
+          t(lang, 'res.designCodedNote'),
+          t(lang, 'res.designYNote'),
+        ],
+      },
+      designTable(runs, names),
+    ],
+  };
+}
+
+function runRsmAnalyze(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const response = findColumn(sheet, values.response);
+  const refs = (values.factors as string[]) ?? [];
+  const columns = refs.map((ref) => findColumn(sheet, ref)).filter((c): c is Column => Boolean(c));
+  if (!response) throw new Error('dlg.required');
+  if (columns.length < 2) throw new Error('res.needFactors');
+  const factors = columns.map(factorFromColumn);
+  const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
+  let analysis;
+  try {
+    analysis = analyzeRsm(yValues, factors);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.doeNoDf');
+    throw error;
+  }
+  const glm = analysis.glm;
+  const modelF = isFinite(glm.mse) && glm.mse > 0 ? (glm.ssModel / Math.max(1, glm.dfModel)) / glm.mse : NaN;
+  const modelP = isFinite(modelF) ? fmtP(1 - fCdf(modelF, glm.dfModel, glm.dfe)) : '—';
+  const anovaRows: (string | number)[][] = [
+    [t(lang, 'res.model'), fmtInt(glm.dfModel), fmt(glm.ssModel), fmt(glm.ssModel), fmt(glm.ssModel / Math.max(1, glm.dfModel)), isFinite(modelF) ? fmt(modelF) : '—', modelP],
+    [t(lang, 'res.linear'), fmtInt(analysis.linear.df), fmt(analysis.linear.ss), fmt(analysis.linear.ss), '—', '—', '—'],
+    [t(lang, 'res.square'), fmtInt(analysis.square.df), fmt(analysis.square.ss), fmt(analysis.square.ss), '—', '—', '—'],
+    [t(lang, 'res.interactionTerm'), fmtInt(analysis.interaction.df), fmt(analysis.interaction.ss), fmt(analysis.interaction.ss), '—', '—', '—'],
+    [t(lang, '@th.error'), fmtInt(glm.dfe), fmt(glm.sse), fmt(glm.sse), fmt(glm.mse), '—', '—'],
+    [t(lang, 'res.total'), fmtInt(glm.dfe + glm.rank - 1), fmt(glm.ssTotal), '—', '—', '—', '—'],
+  ];
+  if (analysis.pureError) {
+    anovaRows.splice(5, 0, [
+      t(lang, 'res.lackOfFit'),
+      fmtInt(analysis.lackOfFit?.df ?? 0),
+      fmt(analysis.lackOfFit?.ss ?? 0),
+      fmt(analysis.lackOfFit?.ss ?? 0),
+      fmt(analysis.lackOfFit?.ms ?? 0),
+      Number.isFinite(analysis.lackOfFit?.f ?? NaN) ? fmt(analysis.lackOfFit?.f ?? 0) : '—',
+      Number.isFinite(analysis.lackOfFit?.p ?? NaN) ? fmtP(analysis.lackOfFit?.p ?? 0) : '—',
+    ]);
+    anovaRows.splice(6, 0, [t(lang, 'res.pureError'), fmtInt(analysis.pureError.df), fmt(analysis.pureError.ss), fmt(analysis.pureError.ss), fmt(analysis.pureError.ms), '—', '—']);
+  }
+  const coefRows = glm.labels.map((label, i) => [
+    label,
+    fmt(glm.beta[i], 5),
+    Number.isFinite(glm.se[i]) ? fmt(glm.se[i], 5) : '—',
+    Number.isFinite(glm.t[i]) ? fmt(glm.t[i], 3) : '—',
+    Number.isFinite(glm.p[i]) ? fmtP(glm.p[i]) : '—',
+  ]);
+  const grid = contourGrid(glm, factors, 0, 1, 41);
+  const blocks: Block[] = [
+    { type: 'text', lines: [t(lang, 'res.rsmInfo', { response: response.name || response.id, factors: factors.map((f) => f.name).join(', '), n: glm.n }), t(lang, 'res.rsmModelNote')] },
+    { type: 'table', title: tableTitle('res.anovaTable'), headers: ['@th.source', '@th.df', '@th.ssTypeI', '@th.ssTypeIII', '@th.ms', '@th.f', '@th.p'], rows: anovaRows, align: ['l', 'r', 'r', 'r', 'r', 'r', 'r'] },
+    {
+      type: 'table',
+      title: tableTitle('res.modelSummary'),
+      headers: ['@th.statistic', '@th.value'],
+      rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
+      align: ['l', 'r'],
+    },
+    { type: 'table', title: tableTitle('res.coefficients'), headers: ['@th.term', '@th.coef', '@th.seCoef', '@th.t', '@th.p'], rows: coefRows, align: ['l', 'r', 'r', 'r', 'r'] },
+    {
+      type: 'table',
+      title: tableTitle('res.stationary'),
+      headers: ['@th.parameter', '@th.value'],
+      rows: analysis.stationary
+        ? [
+          ...analysis.stationary.point.map((v, i) => [factors[i].name, fmt(v, 4)] as (string | number)[]),
+          [t(lang, 'res.predictedResponse'), fmt(analysis.stationary.response, 4)],
+          [t(lang, 'res.stationaryKind'), t(lang, `res.stationary_${analysis.stationary.kind}`)],
+          [t(lang, 'res.eigenvalues'), analysis.stationary.eigenvalues.map((v) => fmt(v, 4)).join(', ')],
+        ]
+        : [[t(lang, 'res.stationaryKind'), t(lang, 'res.stationaryNone')]],
+      align: ['l', 'r'],
+      caption: t(lang, 'res.stationaryNote'),
+    },
+    {
+      type: 'chart',
+      chart: {
+        kind: 'contour',
+        xs: grid.xs,
+        ys: grid.ys,
+        z: grid.z,
+        xLabel: factors[0].name,
+        yLabel: factors[1].name,
+        points: grid.points,
+        height: 300,
+      },
+      caption: t(lang, 'res.contourNote'),
+    },
+  ];
+  return { subtitle: `${response.name || response.id} · RSM`, blocks };
+}
+
+/* ── P2: power and sample size ────────────────────────────────────────── */
+
+function runPowerAnalysis(ctx: RunContext, method: PowerMethod): RunResult {
+  const { values, lang } = ctx;
+  const solveRaw = str(values.solveFor);
+  const solveFor: PowerSpec['solveFor'] = solveRaw === 'power' ? 'power' : solveRaw === 'difference' ? 'difference' : 'n';
+  const alphaRaw = num(values.alpha, 5);
+  const alpha = alphaRaw > 1 ? alphaRaw / 100 : alphaRaw;
+  const isProp = method === 'oneProp' || method === 'twoProp';
+  const p1 = Math.min(0.9999, Math.max(0.0001, num(values.p1, 0.5)));
+  const p2 = Math.min(0.9999, Math.max(0.0001, num(values.p2, 0.6)));
+  const spec: PowerSpec = {
+    method,
+    solveFor,
+    alpha: Math.min(0.5, Math.max(1e-6, alpha)),
+    alternative: alt(values.alternative),
+    sd: Math.max(1e-9, num(values.sd, 1)),
+    groups: Math.max(2, Math.round(num(values.groups, 3))),
+    p1,
+    p2,
+  };
+  const nText = str(values.n).trim();
+  if (nText !== '') spec.n = Math.max(2, Math.round(Number(nText)));
+  const powerText = str(values.power).trim();
+  const targetPower = powerText === '' ? 0.9 : Math.min(0.9999, Math.max(0.01, Number(powerText) / 100));
+  spec.power = targetPower;
+  const diffText = str(values.difference).trim();
+  const baseDifference = isProp ? Math.abs(p2 - p1) : num(values.difference, 1);
+  if (solveFor !== 'difference') {
+    if (diffText !== '') spec.difference = Math.abs(Number(diffText));
+    else if (isProp) spec.difference = baseDifference;
+    else if (diffText === '') throw new Error('res.powerNeedDifference');
+  }
+  if (solveFor === 'n' && spec.difference === undefined) throw new Error('res.powerNeedDifference');
+  if (solveFor === 'power' && spec.n === undefined) throw new Error('res.powerNeedN');
+  if (solveFor === 'difference' && spec.n === undefined) throw new Error('res.powerNeedN');
+  let solution;
+  try {
+    solution = solvePower(spec);
+  } catch {
+    throw new Error('res.powerFailed');
+  }
+  const difference = solution.difference;
+  const curve = powerCurve({ ...spec, n: solution.n, power: targetPower }, difference, 30);
+  const rows: (string | number)[][] = [
+    [fmtInt(solution.n), `${(solution.power * 100).toFixed(2)}%`, fmt(difference, 4), `${(solution.alpha * 100).toFixed(2)}%`],
+  ];
+  const notes: string[] = [t(lang, 'res.powerMethod', { method: t(lang, `power.${method}`) })];
+  if (isProp) {
+    notes.push(t(lang, 'res.powerPropApprox'));
+    notes.push(t(lang, 'res.powerProportions', { p1: fmt(p1, 3), p2: fmt(p1 + (p1 + difference <= 1 ? difference : -difference), 3) }));
+  }
+  if (method === 'anova') notes.push(t(lang, 'res.powerAnovaAssumption', { groups: spec.groups ?? 2 }));
+  if (method === 'twoT') notes.push(t(lang, 'res.powerTwoSampleNote'));
+  if (method === 'paired') notes.push(t(lang, 'res.powerPairedNote'));
+  if (solveFor === 'n') notes.push(t(lang, 'res.powerSolvedN'));
+  if (solveFor === 'power') notes.push(t(lang, 'res.powerSolvedPower'));
+  if (solveFor === 'difference') notes.push(t(lang, 'res.powerSolvedDifference'));
+  return {
+    subtitle: t(lang, `power.${method}`),
+    blocks: [
+      { type: 'text', lines: notes },
+      {
+        type: 'table',
+        title: tableTitle('res.powerTable'),
+        headers: ['@th.n', '@th.power', '@th.difference', '@th.alpha'],
+        rows,
+        align: ['r', 'r', 'r', 'r'],
+      },
+      {
+        type: 'chart',
+        chart: {
+          kind: 'line',
+          series: [{ label: t(lang, '@th.power'), points: curve.map((p) => ({ x: p.n, y: p.power })) }],
+          xLabel: t(lang, 'res.sampleSizeAxis'),
+          yLabel: t(lang, '@th.power'),
+          refLines: [{ y: targetPower, label: `${(targetPower * 100).toFixed(0)}%` }],
+          markers: solveFor === 'n' ? [{ x: solution.n, y: solution.power, label: `n ${solution.n}` }] : undefined,
+          height: 250,
+        },
+      },
+    ],
+  };
+}
+
 /* ── registry ─────────────────────────────────────────────────────────── */
 
 const confidenceSlot: SlotDef = { key: 'confidence', label: 'slot.confidence', kind: 'num', group: 'options', defaultValue: 95, min: 50, max: 99.99, step: 0.1 };
@@ -1463,6 +2660,294 @@ export const ANALYSES: AnalysisDef[] = [
       { key: 'storeIn', label: 'slot.storeIn', kind: 'text', group: 'options', defaultValue: '' },
     ],
     run: runRecode,
+  },
+
+  /* ── P2 analyses ──────────────────────────────────────────────────── */
+  {
+    id: 'gagerr',
+    titleKey: 'an.gagerr',
+    slots: [
+      { key: 'part', label: 'slot.part', kind: 'col', required: true },
+      { key: 'operator', label: 'slot.operator', kind: 'col', required: true },
+      { key: 'measurement', label: 'slot.measurement', kind: 'col', required: true },
+      {
+        key: 'type',
+        label: 'slot.grrType',
+        kind: 'select',
+        group: 'options',
+        defaultValue: 'crossed',
+        options: [
+          { value: 'crossed', label: 'grr.crossed' },
+          { value: 'nested', label: 'grr.nested' },
+        ],
+      },
+      { key: 'tolerance', label: 'slot.tolerance', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'studyVar', label: 'slot.studyVar', kind: 'num', group: 'options', defaultValue: 6, min: 1, max: 12, step: 0.5 },
+      { key: 'poolInteraction', label: 'opt.poolInteraction', kind: 'check', group: 'options', defaultValue: false },
+      confidenceSlot,
+    ],
+    run: runGageRR,
+  },
+  {
+    id: 'sixpack',
+    titleKey: 'an.sixpack',
+    slots: [
+      { key: 'variable', label: 'slot.variable', kind: 'col', required: true },
+      { key: 'subgroup', label: 'slot.subgroup', kind: 'num', group: 'options', defaultValue: 1, min: 1, max: 10, step: 1 },
+      { key: 'lsl', label: 'slot.lsl', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'usl', label: 'slot.usl', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'target', label: 'slot.target', kind: 'text', group: 'options', defaultValue: '' },
+      {
+        key: 'sigmaMethod',
+        label: 'slot.sigmaMethod',
+        kind: 'select',
+        group: 'options',
+        defaultValue: 'z_bench_shift',
+        options: [
+          { value: 'z_bench_shift', label: 'sigma.zBenchShift' },
+          { value: 'z_bench', label: 'sigma.zBench' },
+          { value: 'cpk_shift', label: 'sigma.cpkShift' },
+        ],
+      },
+    ],
+    run: runSixpack,
+  },
+  {
+    id: 'capnonnormal',
+    titleKey: 'an.capnonnormal',
+    slots: [
+      { key: 'variable', label: 'slot.variable', kind: 'col', required: true },
+      {
+        key: 'distribution',
+        label: 'slot.distribution',
+        kind: 'select',
+        defaultValue: 'weibull',
+        options: [
+          { value: 'weibull', label: 'dist.weibull' },
+          { value: 'lognormal', label: 'dist.lognormal' },
+          { value: 'gamma', label: 'dist.gamma' },
+        ],
+      },
+      { key: 'lsl', label: 'slot.lsl', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'usl', label: 'slot.usl', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'target', label: 'slot.target', kind: 'text', group: 'options', defaultValue: '' },
+    ],
+    run: runNonnormal,
+  },
+  {
+    id: 'xbars',
+    titleKey: 'an.xbars',
+    slots: [
+      { key: 'variable', label: 'slot.variable', kind: 'col', required: true },
+      { key: 'subgroup', label: 'slot.subgroup', kind: 'num', group: 'options', defaultValue: 5, min: 2, max: 25, step: 1 },
+      { key: 'groups', label: 'slot.subgroupId', kind: 'col', group: 'options' },
+    ],
+    run: runXbarS,
+  },
+  {
+    id: 'npchart',
+    titleKey: 'an.npchart',
+    slots: [
+      { key: 'defectives', label: 'slot.defectives', kind: 'col', required: true },
+      { key: 'sampleSize', label: 'slot.subgroup', kind: 'num', defaultValue: 100, min: 1, step: 1 },
+    ],
+    run: runNpChart,
+  },
+  {
+    id: 'cchart',
+    titleKey: 'an.cchart',
+    slots: [{ key: 'defects', label: 'slot.defectCounts', kind: 'col', required: true }],
+    run: runCChart,
+  },
+  {
+    id: 'uchart',
+    titleKey: 'an.uchart',
+    slots: [
+      { key: 'defects', label: 'slot.defectCounts', kind: 'col', required: true },
+      { key: 'unitSizes', label: 'slot.unitSizes', kind: 'col' },
+      { key: 'unitSize', label: 'slot.unitSize', kind: 'num', group: 'options', defaultValue: 1, min: 1, step: 1 },
+    ],
+    run: runUChart,
+  },
+  {
+    id: 'glm',
+    titleKey: 'an.glm',
+    slots: [
+      { key: 'response', label: 'slot.response', kind: 'col', required: true },
+      { key: 'factors', label: 'slot.factors', kind: 'vars', required: true },
+      { key: 'interactions', label: 'opt.interactions', kind: 'check', group: 'options', defaultValue: true },
+      confidenceSlot,
+    ],
+    run: runGlm,
+  },
+  {
+    id: 'doecreate',
+    titleKey: 'an.doecreate',
+    slots: [
+      { key: 'factors', label: 'slot.factorCount', kind: 'num', defaultValue: 3, min: 2, max: 6, step: 1 },
+      { key: 'replicates', label: 'slot.replicates', kind: 'num', defaultValue: 1, min: 1, max: 5, step: 1 },
+      { key: 'centers', label: 'slot.centers', kind: 'num', group: 'options', defaultValue: 0, min: 0, max: 20, step: 1 },
+      { key: 'randomize', label: 'opt.randomize', kind: 'check', group: 'options', defaultValue: true },
+      { key: 'seed', label: 'slot.seed', kind: 'num', group: 'options', defaultValue: 20261122 },
+    ],
+    run: runDoeCreate,
+  },
+  {
+    id: 'doeanalyze',
+    titleKey: 'an.doeanalyze',
+    slots: [
+      { key: 'response', label: 'slot.response', kind: 'col', required: true },
+      { key: 'factors', label: 'slot.factors', kind: 'vars', required: true },
+      {
+        key: 'order',
+        label: 'slot.modelOrder',
+        kind: 'select',
+        group: 'options',
+        defaultValue: '2',
+        options: [
+          { value: '1', label: 'doe.order1' },
+          { value: '2', label: 'doe.order2' },
+          { value: '3', label: 'doe.order3' },
+        ],
+      },
+    ],
+    run: runDoeAnalyze,
+  },
+  {
+    id: 'rsmcreate',
+    titleKey: 'an.rsmcreate',
+    slots: [
+      {
+        key: 'design',
+        label: 'slot.rsmDesign',
+        kind: 'select',
+        defaultValue: 'ccd',
+        options: [
+          { value: 'ccd', label: 'doe.ccd' },
+          { value: 'bbd', label: 'doe.bbd' },
+        ],
+      },
+      { key: 'factors', label: 'slot.factorCount', kind: 'num', group: 'options', defaultValue: 2, min: 2, max: 5, step: 1 },
+      { key: 'centers', label: 'slot.centers', kind: 'num', group: 'options', defaultValue: 5, min: 1, max: 20, step: 1 },
+      { key: 'randomize', label: 'opt.randomize', kind: 'check', group: 'options', defaultValue: true },
+      { key: 'seed', label: 'slot.seed', kind: 'num', group: 'options', defaultValue: 20261122 },
+    ],
+    run: runRsmCreate,
+  },
+  {
+    id: 'rsmanalyze',
+    titleKey: 'an.rsmanalyze',
+    slots: [
+      { key: 'response', label: 'slot.response', kind: 'col', required: true },
+      { key: 'factors', label: 'slot.factors', kind: 'vars', required: true },
+    ],
+    run: runRsmAnalyze,
+  },
+  {
+    id: 'weibull',
+    titleKey: 'an.weibull',
+    slots: [
+      { key: 'time', label: 'slot.failureTime', kind: 'col', required: true },
+      { key: 'censor', label: 'slot.censoring', kind: 'col' },
+      {
+        key: 'censorCode',
+        label: 'slot.censorCode',
+        kind: 'select',
+        group: 'options',
+        defaultValue: '1=censored',
+        options: [
+          { value: '1=censored', label: 'opt.censor1' },
+          { value: '0=censored', label: 'opt.censor0' },
+        ],
+      },
+      confidenceSlot,
+    ],
+    run: runWeibull,
+  },
+
+  {
+    id: 'power1t',
+    titleKey: 'an.power1t',
+    slots: [
+      { key: 'solveFor', label: 'slot.solveFor', kind: 'select', defaultValue: 'n', options: [{ value: 'n', label: 'power.solveN' }, { value: 'power', label: 'power.solvePower' }, { value: 'difference', label: 'power.solveDifference' }] },
+      { key: 'difference', label: 'slot.difference', kind: 'text', defaultValue: '' },
+      { key: 'sd', label: 'slot.stdev', kind: 'num', defaultValue: 1, min: 0.0001, step: 0.1 },
+      { key: 'n', label: 'slot.n', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'power', label: 'slot.power', kind: 'text', group: 'options', defaultValue: '90' },
+      { key: 'alpha', label: 'slot.alpha', kind: 'num', group: 'options', defaultValue: 5, min: 0.001, max: 50, step: 0.1 },
+      altSlot,
+    ],
+    run: (ctx) => runPowerAnalysis(ctx, 'oneT'),
+  },
+  {
+    id: 'power2t',
+    titleKey: 'an.power2t',
+    slots: [
+      { key: 'solveFor', label: 'slot.solveFor', kind: 'select', defaultValue: 'n', options: [{ value: 'n', label: 'power.solveN' }, { value: 'power', label: 'power.solvePower' }, { value: 'difference', label: 'power.solveDifference' }] },
+      { key: 'difference', label: 'slot.difference', kind: 'text', defaultValue: '' },
+      { key: 'sd', label: 'slot.stdev', kind: 'num', defaultValue: 1, min: 0.0001, step: 0.1 },
+      { key: 'n', label: 'slot.n', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'power', label: 'slot.power', kind: 'text', group: 'options', defaultValue: '90' },
+      { key: 'alpha', label: 'slot.alpha', kind: 'num', group: 'options', defaultValue: 5, min: 0.001, max: 50, step: 0.1 },
+      altSlot,
+    ],
+    run: (ctx) => runPowerAnalysis(ctx, 'twoT'),
+  },
+  {
+    id: 'powerpaired',
+    titleKey: 'an.powerpaired',
+    slots: [
+      { key: 'solveFor', label: 'slot.solveFor', kind: 'select', defaultValue: 'n', options: [{ value: 'n', label: 'power.solveN' }, { value: 'power', label: 'power.solvePower' }, { value: 'difference', label: 'power.solveDifference' }] },
+      { key: 'difference', label: 'slot.difference', kind: 'text', defaultValue: '' },
+      { key: 'sd', label: 'slot.stdevDiff', kind: 'num', defaultValue: 1, min: 0.0001, step: 0.1 },
+      { key: 'n', label: 'slot.n', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'power', label: 'slot.power', kind: 'text', group: 'options', defaultValue: '90' },
+      { key: 'alpha', label: 'slot.alpha', kind: 'num', group: 'options', defaultValue: 5, min: 0.001, max: 50, step: 0.1 },
+      altSlot,
+    ],
+    run: (ctx) => runPowerAnalysis(ctx, 'paired'),
+  },
+  {
+    id: 'poweranova',
+    titleKey: 'an.poweranova',
+    slots: [
+      { key: 'solveFor', label: 'slot.solveFor', kind: 'select', defaultValue: 'n', options: [{ value: 'n', label: 'power.solveN' }, { value: 'power', label: 'power.solvePower' }, { value: 'difference', label: 'power.solveDifference' }] },
+      { key: 'difference', label: 'slot.difference', kind: 'text', defaultValue: '' },
+      { key: 'sd', label: 'slot.stdev', kind: 'num', defaultValue: 1, min: 0.0001, step: 0.1 },
+      { key: 'groups', label: 'slot.groups', kind: 'num', defaultValue: 3, min: 2, max: 20, step: 1 },
+      { key: 'n', label: 'slot.n', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'power', label: 'slot.power', kind: 'text', group: 'options', defaultValue: '90' },
+      { key: 'alpha', label: 'slot.alpha', kind: 'num', group: 'options', defaultValue: 5, min: 0.001, max: 50, step: 0.1 },
+    ],
+    run: (ctx) => runPowerAnalysis(ctx, 'anova'),
+  },
+  {
+    id: 'powerprop1',
+    titleKey: 'an.powerprop1',
+    slots: [
+      { key: 'solveFor', label: 'slot.solveFor', kind: 'select', defaultValue: 'n', options: [{ value: 'n', label: 'power.solveN' }, { value: 'power', label: 'power.solvePower' }, { value: 'difference', label: 'power.solveDifference' }] },
+      { key: 'p1', label: 'slot.p1', kind: 'num', defaultValue: 0.5, min: 0.0001, max: 0.9999, step: 0.01 },
+      { key: 'p2', label: 'slot.p2', kind: 'num', defaultValue: 0.6, min: 0.0001, max: 0.9999, step: 0.01 },
+      { key: 'n', label: 'slot.n', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'power', label: 'slot.power', kind: 'text', group: 'options', defaultValue: '90' },
+      { key: 'alpha', label: 'slot.alpha', kind: 'num', group: 'options', defaultValue: 5, min: 0.001, max: 50, step: 0.1 },
+      altSlot,
+    ],
+    run: (ctx) => runPowerAnalysis(ctx, 'oneProp'),
+  },
+  {
+    id: 'powerprop2',
+    titleKey: 'an.powerprop2',
+    slots: [
+      { key: 'solveFor', label: 'slot.solveFor', kind: 'select', defaultValue: 'n', options: [{ value: 'n', label: 'power.solveN' }, { value: 'power', label: 'power.solvePower' }, { value: 'difference', label: 'power.solveDifference' }] },
+      { key: 'p1', label: 'slot.p1', kind: 'num', defaultValue: 0.4, min: 0.0001, max: 0.9999, step: 0.01 },
+      { key: 'p2', label: 'slot.p2', kind: 'num', defaultValue: 0.6, min: 0.0001, max: 0.9999, step: 0.01 },
+      { key: 'n', label: 'slot.n', kind: 'text', group: 'options', defaultValue: '' },
+      { key: 'power', label: 'slot.power', kind: 'text', group: 'options', defaultValue: '90' },
+      { key: 'alpha', label: 'slot.alpha', kind: 'num', group: 'options', defaultValue: 5, min: 0.001, max: 50, step: 0.1 },
+      altSlot,
+    ],
+    run: (ctx) => runPowerAnalysis(ctx, 'twoProp'),
   },
 ];
 

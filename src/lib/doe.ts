@@ -1,0 +1,442 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Sigrún — design of experiments and response surface methodology
+   Standard-order 2^k designs (with centre points and replicates), central
+   composite and Box–Behnken designs, factorial effect analysis and a full
+   quadratic response-surface fit with the stationary point and a contour grid.
+   Factor levels are coded −1 / 0 / +1 so effect = 2 × coded coefficient.
+   ───────────────────────────────────────────────────────────────────────── */
+
+import type { Column, Worksheet } from '../types';
+import { makeWorksheet } from './datasets';
+import type { ModelFactor } from './glm';
+import { fitGlm, type GlmResult } from './glm';
+import type { ModelFactor as Factor } from './glm';
+import { mulberry32 } from './random';
+import { mean } from './stats';
+
+export type PointType = 'Factorial' | 'Center' | 'Axial' | 'Edge';
+
+export interface DesignRun {
+  std: number;
+  run: number;
+  ptType: PointType;
+  /** coded factor levels, in factor order */
+  levels: number[];
+}
+
+function shuffle(list: number[], seed: number): number[] {
+  const rng = mulberry32(seed);
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function finish(stdRows: { levels: number[]; ptType: PointType }[], randomize: boolean, seed: number): DesignRun[] {
+  const order = randomize ? shuffle(stdRows.map((_, i) => i), seed) : stdRows.map((_, i) => i);
+  return stdRows.map((row, i) => ({ std: i + 1, run: 0, ptType: row.ptType, levels: row.levels }))
+    .map((row, i) => {
+      const runIndex = order.indexOf(i);
+      return { ...row, run: runIndex + 1 };
+    });
+}
+
+/** 2^k factorial design: factorial runs, then centre points, replicated r times. */
+export function factorialDesign(k: number, centers: number, replicates: number, randomize: boolean, seed = 20261122): DesignRun[] {
+  if (k < 2 || k > 6) throw new Error('doe.factorRange');
+  const rows: { levels: number[]; ptType: PointType }[] = [];
+  for (let rep = 0; rep < Math.max(1, replicates); rep += 1) {
+    for (let row = 0; row < 2 ** k; row += 1) {
+      const levels: number[] = [];
+      for (let f = 0; f < k; f += 1) levels.push(((row >> (k - 1 - f)) & 1) === 0 ? -1 : 1);
+      rows.push({ levels, ptType: 'Factorial' });
+    }
+    for (let c = 0; c < Math.max(0, centers); c += 1) rows.push({ levels: new Array(k).fill(0), ptType: 'Center' });
+  }
+  return finish(rows, randomize, seed);
+}
+
+/** Central composite design (rotatable, α = (2^k)^(1/4)). */
+export function ccdDesign(k: number, centers: number, randomize: boolean, seed = 20261122, alpha?: number): DesignRun[] {
+  if (k < 2 || k > 5) throw new Error('doe.factorRange');
+  const a = alpha && isFinite(alpha) ? alpha : Math.pow(2, k) ** 0.25;
+  const rows: { levels: number[]; ptType: PointType }[] = [];
+  for (let row = 0; row < 2 ** k; row += 1) {
+    const levels: number[] = [];
+    for (let f = 0; f < k; f += 1) levels.push(((row >> (k - 1 - f)) & 1) === 0 ? -1 : 1);
+    rows.push({ levels, ptType: 'Factorial' });
+  }
+  for (let f = 0; f < k; f += 1) {
+    for (const sign of [-1, 1]) {
+      const levels = new Array(k).fill(0);
+      levels[f] = sign * a;
+      rows.push({ levels, ptType: 'Axial' });
+    }
+  }
+  for (let c = 0; c < Math.max(1, centers); c += 1) rows.push({ levels: new Array(k).fill(0), ptType: 'Center' });
+  return finish(rows, randomize, seed);
+}
+
+/** Box–Behnken design for 3 factors (12 edge runs + centre points). */
+export function boxBehnkenDesign(centers: number, randomize: boolean, seed = 20261122): DesignRun[] {
+  const rows: { levels: number[]; ptType: PointType }[] = [];
+  const pairs: [number, number][] = [[0, 1], [0, 2], [1, 2]];
+  pairs.forEach(([i, j]) => {
+    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([a, b]) => {
+      const levels = [0, 0, 0];
+      levels[i] = a;
+      levels[j] = b;
+      rows.push({ levels, ptType: 'Edge' });
+    });
+  });
+  for (let c = 0; c < Math.max(1, centers); c += 1) rows.push({ levels: [0, 0, 0], ptType: 'Center' });
+  return finish(rows, randomize, seed);
+}
+
+/** Turn runs into a worksheet with StdOrder / RunOrder / PtType, factors and a Y column. */
+export function designWorksheet(runs: DesignRun[], names: string[], title: string): Worksheet {
+  const std: number[] = [];
+  const run: number[] = [];
+  const pt: string[] = [];
+  const factors: number[][] = names.map(() => []);
+  runs.forEach((entry) => {
+    std.push(entry.std);
+    run.push(entry.run);
+    pt.push(entry.ptType);
+    entry.levels.forEach((v, i) => factors[i].push(v));
+  });
+  const columns: Omit<Column, 'id'>[] = [
+    { name: 'StdOrder', type: 'numeric', values: std },
+    { name: 'RunOrder', type: 'numeric', values: run },
+    { name: 'PtType', type: 'text', values: pt },
+    ...names.map((name, i) => ({ name, type: 'numeric' as const, values: factors[i] })),
+    { name: 'Y', type: 'numeric', values: names.map(() => null) },
+  ];
+  return makeWorksheet(title, columns);
+}
+
+/* ── factorial analysis ──────────────────────────────────────────────── */
+
+export interface EffectRow {
+  term: string;
+  effect: number;
+  coef: number;
+  se: number;
+  t: number;
+  p: number;
+}
+
+export interface FactorialAnalysis {
+  glm: GlmResult;
+  effects: EffectRow[];
+  factorNames: string[];
+}
+
+/**
+ * Analyze a 2-level factorial: main effects plus every interaction up to
+ * `order`. Each 1-df term's effect is twice its coded coefficient.
+ */
+export function analyzeFactorial(y: (number | null)[], factors: ModelFactor[], order = 2): FactorialAnalysis {
+  const names = factors.map((f) => f.name);
+  const terms: { name: string; factors: string[] }[] = [];
+  const combos: string[][] = [];
+  const build = (start: number, current: string[]) => {
+    for (let i = start; i < names.length; i += 1) {
+      const next = [...current, names[i]];
+      if (next.length <= order) {
+        combos.push(next);
+        build(i + 1, next);
+      }
+    }
+  };
+  build(0, []);
+  combos.forEach((c) => terms.push({ name: c.join('×'), factors: c }));
+  const glm = fitGlm(y, factors, terms);
+  const effects: EffectRow[] = terms.map((term, ti) => {
+    const start = glm.design.blockStart[ti];
+    const coef = glm.beta[start] ?? 0;
+    const se = glm.se[start] ?? NaN;
+    const tValue = glm.t[start] ?? NaN;
+    const pValue = glm.p[start] ?? NaN;
+    return {
+      term: term.name,
+      effect: glm.design.blockSizes[ti] === 1 && term.factors.every((f) => factors.find((x) => x.name === f)?.kind === 'numeric') ? 2 * coef : 2 * coef,
+      coef,
+      se,
+      t: tValue,
+      p: pValue,
+    };
+  });
+  return { glm, effects, factorNames: names };
+}
+
+/* ── response surface ────────────────────────────────────────────────── */
+
+export interface RsmAnalysis {
+  glm: GlmResult;
+  factorNames: string[];
+  linear: { df: number; ss: number };
+  square: { df: number; ss: number };
+  interaction: { df: number; ss: number };
+  pureError?: { df: number; ss: number; ms: number };
+  lackOfFit?: { df: number; ss: number; ms: number; f: number; p: number };
+  stationary?: { point: number[]; response: number; eigenvalues: number[]; kind: 'maximum' | 'minimum' | 'saddle' };
+  quadratic: { name: string; coef: number }[];
+}
+
+function jacobiEigen(matrix: number[][], iterations = 100): number[] {
+  const n = matrix.length;
+  const a = matrix.map((row) => [...row]);
+  for (let sweep = 0; sweep < iterations; sweep += 1) {
+    let off = 0;
+    for (let i = 0; i < n; i += 1) for (let j = i + 1; j < n; j += 1) off += a[i][j] * a[i][j];
+    if (off < 1e-18) break;
+    for (let p = 0; p < n; p += 1) {
+      for (let q = p + 1; q < n; q += 1) {
+        if (Math.abs(a[p][q]) < 1e-15) continue;
+        const theta = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+        const tValue = (theta >= 0 ? 1 : -1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
+        const c = 1 / Math.sqrt(tValue * tValue + 1);
+        const s = tValue * c;
+        for (let i = 0; i < n; i += 1) {
+          const aip = a[i][p];
+          const aiq = a[i][q];
+          a[i][p] = c * aip - s * aiq;
+          a[i][q] = s * aip + c * aiq;
+        }
+        for (let i = 0; i < n; i += 1) {
+          const api = a[p][i];
+          const aqi = a[q][i];
+          a[p][i] = c * api - s * aqi;
+          a[q][i] = s * api + c * aqi;
+        }
+      }
+    }
+  }
+  return a.map((row, i) => row[i]).sort((x, y) => y - x);
+}
+
+function invertSmall(matrix: number[][]): number[][] | null {
+  const n = matrix.length;
+  const M = matrix.map((row, i) => [...row, ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))]);
+  for (let col = 0; col < n; col += 1) {
+    let pivot = col;
+    for (let r = col + 1; r < n; r += 1) if (Math.abs(M[r][col]) > Math.abs(M[pivot][col])) pivot = r;
+    if (Math.abs(M[pivot][col]) < 1e-12) return null;
+    [M[col], M[pivot]] = [M[pivot], M[col]];
+    const pv = M[col][col];
+    for (let c = 0; c < 2 * n; c += 1) M[col][c] /= pv;
+    for (let r = 0; r < n; r += 1) {
+      if (r === col) continue;
+      const f = M[r][col];
+      if (f === 0) continue;
+      for (let c = 0; c < 2 * n; c += 1) M[r][c] -= f * M[col][c];
+    }
+  }
+  return M.map((row) => row.slice(n));
+}
+
+export function analyzeRsm(y: (number | null)[], factors: ModelFactor[]): RsmAnalysis {
+  const names = factors.map((f) => f.name);
+  const squares: ModelFactor[] = factors.map((f) => ({
+    name: `${f.name}²`,
+    kind: 'numeric',
+    values: f.values.map((v) => (typeof v === 'number' ? v * v : null)),
+  }));
+  const terms: { name: string; factors: string[] }[] = [];
+  names.forEach((name) => terms.push({ name, factors: [name] }));
+  squares.forEach((sq) => terms.push({ name: sq.name, factors: [sq.name] }));
+  for (let i = 0; i < names.length; i += 1) {
+    for (let j = i + 1; j < names.length; j += 1) {
+      terms.push({ name: `${names[i]}×${names[j]}`, factors: [names[i], names[j]] });
+    }
+  }
+  const glm = fitGlm(y, [...factors, ...squares], terms);
+  const blockSs = (predicate: (name: string) => boolean) => {
+    const chosen = glm.terms.filter((tt) => predicate(tt.name));
+    return { df: chosen.reduce((a, t) => a + t.df, 0), ss: chosen.reduce((a, t) => a + t.ssAdj, 0) };
+  };
+  const linear = blockSs((name) => names.includes(name));
+  const square = blockSs((name) => name.endsWith('²'));
+  const interaction = blockSs((name) => name.includes('×'));
+  // Pure error / lack of fit from replicated treatment combinations.
+  const cells = new Map<string, number[]>();
+  glm.design.rows.forEach((row, i) => {
+    const key = factors.map((f) => String(f.values[row] ?? '')).join('|');
+    const list = cells.get(key) ?? [];
+    list.push(glm.design.y[i]);
+    cells.set(key, list);
+  });
+  let ssPure = 0;
+  let dfPure = 0;
+  cells.forEach((values) => {
+    if (values.length < 2) return;
+    const m = mean(values);
+    ssPure += values.reduce((a, v) => a + (v - m) ** 2, 0);
+    dfPure += values.length - 1;
+  });
+  const pureError = dfPure > 0 ? { df: dfPure, ss: ssPure, ms: ssPure / dfPure } : undefined;
+  const lackDf = glm.dfe - dfPure;
+  const lackOfFit = pureError && lackDf > 0
+    ? (() => {
+      const ss = glm.sse - ssPure;
+      const ms = ss / lackDf;
+      const f = pureError.ms > 0 ? ms / pureError.ms : NaN;
+      return { df: lackDf, ss, ms, f, p: isFinite(f) ? 1 - fCdfLocal(f, lackDf, dfPure) : NaN };
+    })()
+    : undefined;
+  // Stationary point of the full quadratic.
+  const beta = glm.beta;
+  const index = (label: string) => glm.design.labels.indexOf(label);
+  const k = names.length;
+  const b = names.map((name) => beta[index(name)] ?? 0);
+  const B = Array.from({ length: k }, () => new Array<number>(k).fill(0));
+  names.forEach((name, i) => { B[i][i] = beta[index(`${name}²`)] ?? 0; });
+  for (let i = 0; i < k; i += 1) {
+    for (let j = i + 1; j < k; j += 1) {
+      const value = beta[index(`${names[i]}×${names[j]}`)] ?? 0;
+      B[i][j] = value / 2;
+      B[j][i] = value / 2;
+    }
+  }
+  const BInv = invertSmall(B);
+  let stationary: RsmAnalysis['stationary'];
+  if (BInv) {
+    const point = new Array(k).fill(0);
+    for (let i = 0; i < k; i += 1) {
+      point[i] = -0.5 * BInv[i].reduce((a, v, j) => a + v * b[j], 0);
+    }
+    const intercept = beta[0] ?? 0;
+    const response = intercept
+      + b.reduce((a, v, i) => a + v * point[i], 0)
+      + point.reduce((a, xi, i) => a + xi * B[i].reduce((s, v, j) => s + v * point[j], 0), 0);
+    const eigenvalues = jacobiEigen(B);
+    const kind: 'maximum' | 'minimum' | 'saddle' = eigenvalues.every((v) => v < -1e-9)
+      ? 'maximum'
+      : eigenvalues.every((v) => v > 1e-9)
+        ? 'minimum'
+        : 'saddle';
+    stationary = { point, response, eigenvalues, kind };
+  }
+  return {
+    glm,
+    factorNames: names,
+    linear,
+    square,
+    interaction,
+    pureError,
+    lackOfFit,
+    stationary,
+    quadratic: terms.map((term, ti) => ({ name: term.name, coef: beta[glm.design.blockStart[ti]] ?? 0 })),
+  };
+}
+
+/** Predicted response of the fitted quadratic at coded point x. */
+export function predictQuadratic(beta: number[], labels: string[], names: string[], x: number[]): number {
+  const at = (label: string) => beta[labels.indexOf(label)] ?? 0;
+  let value = beta[0] ?? 0;
+  names.forEach((name, i) => { value += at(name) * x[i] + at(`${name}²`) * x[i] * x[i]; });
+  for (let i = 0; i < names.length; i += 1) {
+    for (let j = i + 1; j < names.length; j += 1) value += at(`${names[i]}×${names[j]}`) * x[i] * x[j];
+  }
+  return value;
+}
+
+export interface ContourGrid {
+  xs: number[];
+  ys: number[];
+  z: number[][];
+  xName: string;
+  yName: string;
+  /** design points in coded coordinates */
+  points: { x: number; y: number; z: number }[];
+  zMin: number;
+  zMax: number;
+}
+
+/**
+ * Contour grid over two factors with the remaining factors held at 0, plus the
+ * actual design runs in coded coordinates so the plot can show where they sit.
+ */
+export function contourGrid(glm: GlmResult, factors: Factor[], xi = 0, yi = 1, resolution = 41): ContourGrid {
+  const names = factors.map((f) => f.name);
+  const span = Math.max(1.25, ...factors.flatMap((f) => f.values.map((v) => (typeof v === 'number' ? Math.abs(v) : 0))));
+  const xs = Array.from({ length: resolution }, (_, i) => -span + (2 * span * i) / (resolution - 1));
+  const ys = [...xs];
+  const z: number[][] = ys.map((yv) => xs.map((xv) => {
+    const point = new Array(names.length).fill(0);
+    point[xi] = xv;
+    point[yi] = yv;
+    return predictQuadratic(glm.beta, glm.design.labels, names, point);
+  }));
+  const flat = z.flat().filter((v) => isFinite(v));
+  const points = glm.design.rows.map((row, i) => {
+    const xv = Number(factors[xi].values[row]);
+    const yv = Number(factors[yi].values[row]);
+    return { x: Number.isFinite(xv) ? xv : 0, y: Number.isFinite(yv) ? yv : 0, z: glm.design.y[i] };
+  });
+  return {
+    xs,
+    ys,
+    z,
+    xName: names[xi],
+    yName: names[yi],
+    points,
+    zMin: flat.length ? Math.min(...flat) : 0,
+    zMax: flat.length ? Math.max(...flat) : 1,
+  };
+}
+
+function fCdfLocal(f: number, d1: number, d2: number): number {
+  if (f <= 0) return 0;
+  const x = (d1 * f) / (d1 * f + d2);
+  return betaLocal(d1 / 2, d2 / 2, x);
+}
+
+function betaLocal(a: number, b: number, x: number): number {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const front = Math.exp(logGammaLocal(a + b) - logGammaLocal(a) - logGammaLocal(b) + a * Math.log(x) + b * Math.log(1 - x));
+  if (x < (a + 1) / (a + b + 2)) return (front * cfLocal(a, b, x)) / a;
+  return 1 - (front * cfLocal(b, a, 1 - x)) / b;
+}
+
+function cfLocal(a: number, b: number, x: number): number {
+  let c = 1;
+  let d = 1 - ((a + b) * x) / (a + 1);
+  if (Math.abs(d) < 1e-30) d = 1e-30;
+  d = 1 / d;
+  let h = d;
+  for (let m = 1; m <= 200; m += 1) {
+    const m2 = 2 * m;
+    let aa = (m * (b - m) * x) / ((a - 1 + m2) * (a + m2));
+    d = 1 + aa * d;
+    if (Math.abs(d) < 1e-30) d = 1e-30;
+    c = 1 + aa / c;
+    if (Math.abs(c) < 1e-30) c = 1e-30;
+    d = 1 / d;
+    h *= d * c;
+    aa = (-(a + m) * (a + b + m) * x) / ((a + m2) * (a + 1 + m2));
+    d = 1 + aa * d;
+    if (Math.abs(d) < 1e-30) d = 1e-30;
+    c = 1 + aa / c;
+    if (Math.abs(c) < 1e-30) c = 1e-30;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < 1e-13) break;
+  }
+  return h;
+}
+
+function logGammaLocal(x: number): number {
+  const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - logGammaLocal(1 - x);
+  const z = x - 1;
+  let a = c[0];
+  const t = z + 7.5;
+  for (let i = 1; i < 9; i += 1) a += c[i] / (z + i);
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(a);
+}

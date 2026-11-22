@@ -1,7 +1,9 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Sigrún — statistical process control
-   I-MR, Xbar-R and P charts with the eight Nelson rules.
+   I-MR, Xbar-R, Xbar-S, P, NP, C and U charts with the eight Nelson rules.
    ───────────────────────────────────────────────────────────────────────── */
+
+import { logGamma } from './dist';
 
 export interface SpcViolation { index: number; rules: number[] }
 
@@ -318,4 +320,229 @@ export function pChart(defects: number[], sizes: number[]): SpcResult {
     },
   ];
   return summarizePanels(panels, Math.sqrt((pBar * (1 - pBar)) / totalSize / sizes.length));
+}
+
+/* ── Xbar-S chart (P2) ──────────────────────────────────────────────────
+   S-chart constants come from the unbiasing constant c₄, so any subgroup
+   size ≥ 2 is exact instead of being read from a 2..10 lookup table.
+   ──────────────────────────────────────────────────────────────────── */
+
+/** c₄(n) = √(2/(n−1)) · Γ(n/2) / Γ((n−1)/2) — the S-chart unbiasing constant. */
+export function c4Constant(n: number): number {
+  if (!(n >= 2)) return NaN;
+  return Math.sqrt(2 / (n - 1)) * Math.exp(logGamma(n / 2) - logGamma((n - 1) / 2));
+}
+
+export function xbarSConstants(n: number): { c4: number; A3: number; B3: number; B4: number } {
+  const c = c4Constant(n);
+  const spread = Math.sqrt(Math.max(0, 1 - c * c));
+  return {
+    c4: c,
+    A3: 3 / (c * Math.sqrt(n)),
+    B3: Math.max(0, 1 - (3 * spread) / c),
+    B4: 1 + (3 * spread) / c,
+  };
+}
+
+/**
+ * Xbar-S charts. Subgroups are either consecutive rows of a fixed size (row
+ * order preserved, missing values dropped inside a finished subgroup) or the
+ * rows sharing an optional group-id column, which gives varying nᵢ.
+ */
+export function xbarSCharts(
+  values: (number | null)[],
+  options: { size?: number; groupIds?: (string | null)[] } = {},
+): SpcResult {
+  let groups: number[][] = [];
+  let skipped = 0;
+  let totalGroups = 0;
+  let leftoverRows = 0;
+  if (options.groupIds && options.groupIds.length) {
+    const map = new Map<string, number[]>();
+    options.groupIds.forEach((key, index) => {
+      const value = values[index];
+      if (key === null || key === '') return;
+      if (typeof value !== 'number' || !isFinite(value)) return;
+      const list = map.get(key) ?? [];
+      list.push(value);
+      map.set(key, list);
+    });
+    groups = [...map.values()].filter((g) => g.length >= 2);
+    skipped = [...map.values()].filter((g) => g.length < 2).length;
+    totalGroups = map.size;
+  } else {
+    const n = Math.max(2, Math.round(options.size ?? 5));
+    for (let start = 0; start + n <= values.length; start += n) {
+      const chunk = values.slice(start, start + n).filter((x): x is number => typeof x === 'number' && isFinite(x));
+      if (chunk.length < 2) {
+        skipped += 1;
+        continue;
+      }
+      groups.push(chunk);
+    }
+    totalGroups = Math.floor(values.length / n);
+    leftoverRows = values.length % n;
+  }
+  if (!groups.length) throw new SpcValidationError([{ code: 'noGroups' }]);
+  const sizes = groups.map((g) => g.length);
+  const means = groups.map((g) => g.reduce((a, b) => a + b, 0) / g.length);
+  const sds = groups.map((g) => {
+    if (g.length < 2) return NaN;
+    const m = g.reduce((a, b) => a + b, 0) / g.length;
+    return Math.sqrt(g.reduce((a, b) => a + (b - m) ** 2, 0) / (g.length - 1));
+  });
+  const grand = means.reduce((a, b) => a + b, 0) / means.length;
+  const sBar = sds.reduce((a, b) => a + b, 0) / sds.length;
+  const c4Bar = sizes.reduce((a, c) => a + c4Constant(c), 0) / sizes.length;
+  const sigma = sBar / c4Bar;
+  const xbarSigma = sizes.map((n) => sigma / Math.sqrt(n));
+  const sSigma = sizes.map((n) => sigma * Math.sqrt(Math.max(0, 1 - c4Constant(n) ** 2)));
+  const xbarUcl = sizes.map((_, i) => grand + 3 * xbarSigma[i]);
+  const xbarLcl = sizes.map((_, i) => grand - 3 * xbarSigma[i]);
+  const sUcl = sizes.map((_, i) => sBar + 3 * sSigma[i]);
+  const sLcl = sizes.map((_, i) => Math.max(0, sBar - 3 * sSigma[i]));
+  const zXbar = means.map((m, i) => (xbarSigma[i] > 0 ? (m - grand) / xbarSigma[i] : 0));
+  const zS = sds.map((s, i) => (sSigma[i] > 0 ? (s - sBar) / sSigma[i] : 0));
+  const panels: SpcPanel[] = [
+    {
+      key: 'xbar',
+      titleKey: '@chart.xbarchart',
+      points: means,
+      center: grand,
+      ucl: xbarUcl,
+      lcl: xbarLcl,
+      sigma: xbarSigma,
+      violations: violationsFrom(nelsonRules(zXbar, 0, 1)),
+    },
+    {
+      key: 's',
+      titleKey: '@chart.schart',
+      points: sds,
+      center: sBar,
+      ucl: sUcl,
+      lcl: sLcl,
+      sigma: sSigma,
+      violations: violationsFrom(nelsonRules(zS, 0, 1)),
+    },
+  ];
+  const result = summarizePanels(panels, sigma);
+  result.subgroupSummary = {
+    size: Math.round(sizes.reduce((a, b) => a + b, 0) / sizes.length),
+    total: totalGroups,
+    used: groups.length,
+    skipped,
+    leftoverRows,
+  };
+  return result;
+}
+
+/* ── attribute charts NP, C, U (P2) ──────────────────────────────────── */
+
+function checkCounts(counts: number[], sizes: number[] | null, requireInteger: boolean): SpcIssue[] {
+  const issues: SpcIssue[] = [];
+  counts.forEach((d, i) => {
+    if (!Number.isFinite(d)) {
+      issues.push({ index: i, code: 'nonFinite', defect: d });
+      return;
+    }
+    if (requireInteger && !Number.isInteger(d)) issues.push({ index: i, code: 'nonInteger', defect: d });
+    if (d < 0) issues.push({ index: i, code: 'negative', defect: d });
+    if (sizes) {
+      const n = sizes[i];
+      if (!Number.isFinite(n) || n <= 0) {
+        issues.push({ index: i, code: 'size', size: n });
+        return;
+      }
+      if (Number.isFinite(d) && d > n) issues.push({ index: i, code: 'exceeds', defect: d, size: n });
+    }
+  });
+  return issues;
+}
+
+/** NP chart — defectives per subgroup with a constant subgroup size n. */
+export function npChart(defectives: number[], sampleSize: number): SpcResult {
+  if (!defectives.length) throw new SpcValidationError([{ code: 'empty' }]);
+  const n = Math.round(sampleSize);
+  if (!(n > 0)) throw new SpcValidationError([{ code: 'size', size: sampleSize }]);
+  const issues = checkCounts(defectives, defectives.map(() => n), true);
+  if (issues.length) throw new SpcValidationError(issues);
+  const npBar = defectives.reduce((a, b) => a + b, 0) / defectives.length;
+  const pBar = npBar / n;
+  const sigma = Math.sqrt(Math.max(0, npBar * (1 - pBar)));
+  const ucl = Math.min(n, npBar + 3 * sigma);
+  const lcl = Math.max(0, npBar - 3 * sigma);
+  const z = defectives.map((d) => (sigma > 0 ? (d - npBar) / sigma : 0));
+  const panels: SpcPanel[] = [
+    {
+      key: 'np',
+      titleKey: '@chart.npchart',
+      points: defectives,
+      center: npBar,
+      ucl,
+      lcl,
+      sigma,
+      violations: violationsFrom(nelsonRules(z, 0, 1)),
+    },
+  ];
+  return summarizePanels(panels, sigma);
+}
+
+/** C chart — defects per unit with a constant inspection unit. */
+export function cChart(defects: number[]): SpcResult {
+  if (!defects.length) throw new SpcValidationError([{ code: 'empty' }]);
+  const issues = checkCounts(defects, null, true);
+  if (issues.length) throw new SpcValidationError(issues);
+  const cBar = defects.reduce((a, b) => a + b, 0) / defects.length;
+  const sigma = Math.sqrt(Math.max(0, cBar));
+  const ucl = cBar + 3 * sigma;
+  const lcl = Math.max(0, cBar - 3 * sigma);
+  const z = defects.map((c) => (sigma > 0 ? (c - cBar) / sigma : 0));
+  const panels: SpcPanel[] = [
+    {
+      key: 'c',
+      titleKey: '@chart.cchart',
+      points: defects,
+      center: cBar,
+      ucl,
+      lcl,
+      sigma,
+      violations: violationsFrom(nelsonRules(z, 0, 1)),
+    },
+  ];
+  return summarizePanels(panels, sigma);
+}
+
+/** U chart — defects per unit with a varying (or constant) inspection size. */
+export function uChart(defects: number[], unitSizes: number[]): SpcResult {
+  if (!defects.length || !unitSizes.length) throw new SpcValidationError([{ code: 'empty' }]);
+  if (defects.length !== unitSizes.length) {
+    throw new SpcValidationError([{ code: 'length', defect: defects.length, size: unitSizes.length }]);
+  }
+  const issues = checkCounts(defects, null, true);
+  unitSizes.forEach((n, i) => {
+    if (!Number.isFinite(n) || n <= 0) issues.push({ index: i, code: 'size', size: n });
+    else if (!Number.isInteger(n)) issues.push({ index: i, code: 'sizeNonInteger', size: n });
+  });
+  if (issues.length) throw new SpcValidationError(issues);
+  const totalDefects = defects.reduce((a, b) => a + b, 0);
+  const totalUnits = unitSizes.reduce((a, b) => a + b, 0);
+  const uBar = totalDefects / totalUnits;
+  const points = defects.map((c, i) => c / unitSizes[i]);
+  const sigmas = unitSizes.map((n) => Math.sqrt(Math.max(0, uBar / n)));
+  const ucl = sigmas.map((s) => uBar + 3 * s);
+  const lcl = sigmas.map((s) => Math.max(0, uBar - 3 * s));
+  const z = points.map((u, i) => (sigmas[i] > 0 ? (u - uBar) / sigmas[i] : 0));
+  const panels: SpcPanel[] = [
+    {
+      key: 'u',
+      titleKey: '@chart.uchart',
+      points,
+      center: uBar,
+      ucl,
+      lcl,
+      sigma: sigmas,
+      violations: violationsFrom(nelsonRules(z, 0, 1)),
+    },
+  ];
+  return summarizePanels(panels, Math.sqrt(uBar / (totalUnits / unitSizes.length)));
 }

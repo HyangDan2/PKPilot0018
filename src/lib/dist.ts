@@ -221,3 +221,193 @@ export function rangeInv(p: number, k: number, df: number): number {
   }
   return (lo + hi) / 2;
 }
+
+/* ── additional distributions (P2) ─────────────────────────────────────
+   Gamma (with incomplete-gamma P), chi-square, Weibull, lognormal and the
+   noncentral t / F distributions used by the power-and-sample-size engine.
+   ──────────────────────────────────────────────────────────────────── */
+
+/** Digamma ψ(x) — asymptotic series with recurrence for x < 6. */
+export function digamma(x: number): number {
+  let v = x;
+  let result = 0;
+  while (v < 6) {
+    result -= 1 / v;
+    v += 1;
+  }
+  const inv = 1 / v;
+  const inv2 = inv * inv;
+  result += Math.log(v) - 0.5 * inv - inv2 * (1 / 12 - inv2 * (1 / 120 - inv2 * (1 / 252 - inv2 * (1 / 240 - inv2 / 132))));
+  return result;
+}
+
+/** Trigamma ψ'(x). */
+export function trigamma(x: number): number {
+  let v = x;
+  let result = 0;
+  while (v < 6) {
+    result += 1 / (v * v);
+    v += 1;
+  }
+  const inv = 1 / v;
+  const inv2 = inv * inv;
+  result += inv + 0.5 * inv2 + inv * inv2 * (1 / 6 - inv2 * (1 / 30 - inv2 * (1 / 42 - inv2 / 30)));
+  return result;
+}
+
+/** Regularized lower incomplete gamma P(a, x) (series / continued fraction). */
+export function gammaP(a: number, x: number): number {
+  if (!(x > 0) || !(a > 0)) return 0;
+  if (x < a + 1) {
+    let sum = 1 / a;
+    let term = sum;
+    let n = a;
+    for (let i = 1; i < 500; i += 1) {
+      n += 1;
+      term *= x / n;
+      sum += term;
+      if (Math.abs(term) < Math.abs(sum) * 1e-15) break;
+    }
+    return Math.min(1, (sum * Math.exp(-x + a * Math.log(x) - logGamma(a))));
+  }
+  // Lentz continued fraction for Q(a, x), then P = 1 - Q.
+  const FPMIN = 1e-300;
+  let b = x + 1 - a;
+  let c = 1 / FPMIN;
+  let d = 1 / b;
+  let h = d;
+  for (let i = 1; i < 500; i += 1) {
+    const an = -i * (i - a);
+    b += 2;
+    d = an * d + b;
+    if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = b + an / c;
+    if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < 1e-15) break;
+  }
+  const q = Math.exp(-x + a * Math.log(x) - logGamma(a)) * h;
+  return Math.min(1, Math.max(0, 1 - q));
+}
+
+export function gammaPdf(x: number, shape: number, scale = 1): number {
+  if (!(x > 0) || !(shape > 0) || !(scale > 0)) return 0;
+  return Math.exp((shape - 1) * Math.log(x) - x / scale - logGamma(shape) - shape * Math.log(scale));
+}
+
+export function gammaCdf(x: number, shape: number, scale = 1): number {
+  if (x <= 0) return 0;
+  return gammaP(shape, x / scale);
+}
+
+/** Gamma quantile by bisection on the CDF (monotone, cheap enough). */
+export function gammaInv(p: number, shape: number, scale = 1): number {
+  if (p <= 0) return 0;
+  if (p >= 1) return Infinity;
+  let lo = 0;
+  let hi = Math.max(1, shape) * scale;
+  while (gammaCdf(hi, shape, scale) < p && hi < 1e12) hi *= 2;
+  for (let i = 0; i < 200; i += 1) {
+    const mid = (lo + hi) / 2;
+    if (gammaCdf(mid, shape, scale) < p) lo = mid;
+    else hi = mid;
+    if (hi - lo < 1e-10 * Math.max(1, hi)) break;
+  }
+  return (lo + hi) / 2;
+}
+
+export function chi2Cdf(x: number, df: number): number {
+  if (x <= 0) return 0;
+  return gammaP(df / 2, x / 2);
+}
+
+export function weibullPdf(x: number, shape: number, scale: number): number {
+  if (!(x >= 0) || !(shape > 0) || !(scale > 0)) return 0;
+  return (shape / scale) * Math.pow(x / scale, shape - 1) * Math.exp(-Math.pow(x / scale, shape));
+}
+
+export function weibullCdf(x: number, shape: number, scale: number): number {
+  if (x <= 0) return 0;
+  return 1 - Math.exp(-Math.pow(x / scale, shape));
+}
+
+export function weibullInv(p: number, shape: number, scale: number): number {
+  if (p <= 0) return 0;
+  if (p >= 1) return Infinity;
+  return scale * Math.pow(-Math.log(1 - p), 1 / shape);
+}
+
+export function lognormalPdf(x: number, mu: number, sigma: number): number {
+  if (!(x > 0) || !(sigma > 0)) return 0;
+  const z = (Math.log(x) - mu) / sigma;
+  return Math.exp(-0.5 * z * z) / (x * sigma * Math.sqrt(2 * Math.PI));
+}
+
+export function lognormalCdf(x: number, mu: number, sigma: number): number {
+  if (x <= 0) return 0;
+  return normalCdf(Math.log(x), mu, sigma);
+}
+
+export function lognormalInv(p: number, mu: number, sigma: number): number {
+  if (p <= 0) return 0;
+  if (p >= 1) return Infinity;
+  return Math.exp(mu + sigma * normalInv(p));
+}
+
+export function gammaLogPdf(x: number, shape: number, scale = 1): number {
+  if (!(x > 0) || !(shape > 0) || !(scale > 0)) return -Infinity;
+  return (shape - 1) * Math.log(x) - x / scale - logGamma(shape) - shape * Math.log(scale);
+}
+
+/**
+ * CDF of the noncentral t distribution.
+ *   P(T ≤ t) = E[ Φ(t·√(Y/ν) − δ) ],  Y ~ χ²_ν
+ * evaluated by Simpson quadrature over u = √Y (which keeps the density
+ * finite at the origin for every ν ≥ 1).
+ */
+export function nctCdf(t: number, df: number, ncp: number): number {
+  if (!isFinite(df) || df <= 0) return NaN;
+  if (!isFinite(t)) return t > 0 ? 1 : 0;
+  if (!isFinite(ncp)) return ncp > 0 ? 1 : 0;
+  if (Math.abs(ncp) < 1e-12) return tCdf(t, df);
+  const root = Math.sqrt(df);
+  const uMax = Math.sqrt(df + 12 * Math.sqrt(2 * df) + 60);
+  const steps = 800;
+  const h = uMax / steps;
+  const logNorm = -0.5 * df * Math.LN2 - logGamma(df / 2);
+  const density = (u: number): number => {
+    if (u <= 0) return df === 1 ? Math.sqrt(2 / Math.PI) : 0;
+    return 2 * Math.pow(u, df - 1) * Math.exp(-0.5 * u * u + logNorm);
+  };
+  let sum = 0;
+  for (let i = 0; i <= steps; i += 1) {
+    const u = i * h;
+    const weight = i === 0 || i === steps ? 1 : i % 2 === 1 ? 4 : 2;
+    sum += weight * normalCdf((t * u) / root - ncp) * density(u);
+  }
+  const value = (sum * h) / 3;
+  return Math.min(1, Math.max(0, value));
+}
+
+/** CDF of the noncentral F distribution (Poisson mixture of incomplete betas). */
+export function ncfCdf(f: number, df1: number, df2: number, ncp: number): number {
+  if (f <= 0) return 0;
+  if (!(ncp > 0)) return fCdf(f, df1, df2);
+  const x = (df1 * f) / (df1 * f + df2);
+  const half = ncp / 2;
+  let weight = Math.exp(-half);
+  let sum = 0;
+  for (let j = 0; j < 400; j += 1) {
+    if (j > 0) weight *= half / j;
+    sum += weight * betai(df1 / 2 + j, df2 / 2, x);
+    if (weight < 1e-16 && j > half) break;
+  }
+  return Math.min(1, Math.max(0, sum));
+}
+
+/** Inverse standard normal folded: z for a two-sided tail probability. */
+export function zTwoSided(alpha: number): number {
+  return normalInv(1 - alpha / 2);
+}
