@@ -1,0 +1,56 @@
+{
+ "name": "constant_zero",
+ "description": "Constant column (5.0 x12), all-zero column (x12) and a nonnormal sample holding 0 and negatives",
+ "seed": 11005,
+ "generator": "literal values (no RNG) — exercises variance 0 and the (0, inf) support guards",
+ "python": "3.12.16",
+ "numpy": "2.5.4",
+ "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
+ "columns": {
+  "flat": [
+   5.0,
+   5.0,
+   5.0,
+   5.0,
+   5.0,
+   5.0,
+   5.0,
+   5.0,
+   5.0,
+   5.0,
+   5.0,
+   5.0
+  ],
+  "zeros": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "negmix": [
+   0.0,
+   -1.5,
+   2.0,
+   3.5,
+   -0.5,
+   4.0,
+   2.5,
+   1.0,
+   6.0,
+   3.0,
+   2.2,
+   4.8,
+   1.4,
+   5.5,
+   0.0
+  ]
+ }
+}

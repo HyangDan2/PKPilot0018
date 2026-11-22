@@ -151,13 +151,27 @@ function failuresAdAdjusted(rows: WeibullInput[], shape: number, scale: number):
  * Parametric-bootstrap null distribution of the censored-data A*.
  *
  * Under H₀ (the fitted Weibull is the truth) each replicate draws n lifetimes
- * from Weibull(shape, scale) and applies the SAME right-censoring mechanism the
- * sample shows: the failure/censoring share is kept, and each censoring time is
- * redrawn from the empirical distribution of the observed censoring times. A
- * replicate that happens to produce fewer than two failures has its two earliest
- * observations read as failures instead (a fit needs two), which keeps the failure
- * rate intact instead of dropping the replicate. The replicate is refitted and
- * its failures-only A* compared with the observed one; p = (hits + 1)/(B + 1).
+ * from Weibull(shape, scale) and each observation its own censoring time from
+ * the empirical distribution of the observed censoring times; the unit is
+ * right-censored exactly when that time falls before its lifetime. That is the
+ * mechanism that produced the sample, so the replicate keeps the observed
+ * censoring PATTERN instead of only its average share.
+ *
+ * The earlier version instead drew a censoring indicator with probability equal
+ * to the observed censored share and then took min(life, c). Taking the minimum
+ * turned most of those draws back into failures — 32.2 failures per replicate
+ * against the 25 actually observed on the QA golden sample — which made the null
+ * A* distribution far too small and the p-value far too small: a correct Weibull
+ * model was rejected at α = 0.05 in 100 % of 150 simulated samples
+ * (qa/experiments/qa_f_bootstrap.py). The empirical-censoring-time draw gives a
+ * 0.7 % rejection rate on the same experiment and p = 0.93 on that sample.
+ *
+ * A replicate that still produces fewer than two failures has its two earliest
+ * observations read as failures (a fit needs two): the measured effect of that
+ * repair is nil (repair rate 0 % at 6+ failures, 1.2 % at 3, 33 % at 2, and the
+ * p-value moves by < 0.07 against dropping those replicates). The replicate is
+ * refitted and its failures-only A* compared with the observed one;
+ * p = (hits + 1)/(B + 1).
  */
 function bootstrapAdP(
   data: WeibullInput[],
@@ -169,7 +183,6 @@ function bootstrapAdP(
   const n = data.length;
   const censTimes = data.filter((r) => r.censored).map((r) => r.time);
   if (!censTimes.length || !(observedAdjusted >= 0)) return NaN;
-  const censShare = censTimes.length / n;
   const rand = mulberry32(WEIBULL_AD_BOOTSTRAP_SEED);
   let hits = 0;
   for (let b = 0; b < reps; b += 1) {
@@ -177,15 +190,8 @@ function bootstrapAdP(
     for (let i = 0; i < n; i += 1) {
       const u = Math.min(1 - 1e-12, Math.max(1e-12, rand()));
       const life = scale * Math.pow(-Math.log(u), 1 / shape);
-      const isCensored = censShare > 0 && rand() < censShare;
-      if (isCensored) {
-        const c = censTimes[Math.min(censTimes.length - 1, Math.floor(rand() * censTimes.length))];
-        if (c < life) {
-          sample.push({ time: c, censored: true });
-          continue;
-        }
-      }
-      sample.push({ time: life, censored: false });
+      const c = censTimes[Math.min(censTimes.length - 1, Math.floor(rand() * censTimes.length))];
+      sample.push(c < life ? { time: c, censored: true } : { time: life, censored: false });
     }
     let failed = sample.filter((r) => !r.censored);
     if (failed.length < 2) {

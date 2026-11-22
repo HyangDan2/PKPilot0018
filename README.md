@@ -7,6 +7,8 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 **Correctness review:** [docs/CODE_REVIEW_REMEDIATION_REPORT.md](docs/CODE_REVIEW_REMEDIATION_REPORT.md) — P0/P1/GLM-DOE-RSM fixes with their SciPy/statsmodels references and the QA-01…QA-15 matrix.
 
+**Independent statistics QA:** [`qa/reports/latest.html`](qa/reports/latest.html) — 155 cases compared against a NumPy/SciPy/statsmodels reference engine (`npm run qa:stats`, also run in CI by `.github/workflows/qa-stats.yml`). Inventory: [`qa/inventory.md`](qa/inventory.md).
+
 ## What is inside
 
 | Area | Capability |
@@ -35,7 +37,8 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 ```bash
 npm install
 npm run dev        # http://localhost:5178
-npm test           # 78 unit tests (statistics, SPC, parser, project files, charts, i18n)
+npm test           # 262 unit tests (statistics, SPC, parser, project files, charts, i18n, QA-F regressions)
+npm run qa:stats   # independent reference QA → qa/reports/latest.html
 npm run typecheck  # tsc --noEmit
 npm run build      # production bundle in dist/
 ```

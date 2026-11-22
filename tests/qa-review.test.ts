@@ -653,17 +653,35 @@ describe('F-02 censored Weibull: reference-only AD and a censoring-aware bootstr
     expect(Number.isNaN(complete.adBootstrapP)).toBe(true);
   });
 
-  it('rejects an obviously non-Weibull censored sample', () => {
-    // 30 lognormal lifetimes (μ = ln 100, σ = 1.2), censored at their 80th
-    // percentile. python: Weibull MLE β 1.3541, η 90.89, A* 1.7579,
-    //   bootstrap p = 0.0033 (1 / 301)…
+  it('still rejects a grossly non-Weibull censored sample', () => {
+    // 15 lifetimes around 20 plus 15 around 180, all capped (censored) at 150 —
+    // a strongly bimodal sample no 2-parameter Weibull can follow.
+    // python (qa/reference, empirical censoring times, B = 2000): β 0.6317,
+    //   η 221.66, A* 12.53, bootstrap p ≈ 0.002.
+    const MIX = [23.4, 17.1, 22.6, 19.8, 25.3, 16.9, 20.2, 18.7, 24.5, 21.3, 15.8, 20.9, 22.1, 19.1, 23.9,
+      185.4, 172.8, 193.2, 168.5, 178.9, 150, 187.1, 176.4, 150, 150, 181.5, 170.2, 150, 190.7, 150];
+    const r = fitWeibull(MIX.map((time) => ({ time, censored: time >= 150 })));
+    expect(r.failures).toBe(15);
+    expect(r.adAdjusted).toBeGreaterThan(1.0);
+    expect(r.adBootstrapP).toBeLessThan(0.05);
+    // complete-data band is a reference only for censored fits — the UI hides it
+    expect(r.adBasis).toBe('failures');
+  });
+
+  it('documents the power limit of the failures-only A* under light censoring', () => {
+    // 30 lognormal lifetimes (μ = ln 100, σ = 1.2) censored at the 80th percentile.
+    // The failures-only A* (1.758) is NOT rejected once the bootstrap reproduces
+    // the censoring pattern (p ≈ 0.71), because a correctly specified Weibull
+    // sample with the same censoring gives A* ≈ 2.5 — the failures-only statistic
+    // is biased upward and loses most of its power at n = 30 with 20 % censoring.
+    // The earlier p = 1/301 came from the old Bernoulli-share null, whose mean A*
+    // was 0.50 and which rejected a correct model in 100 % of samples.
     const NON = [100.15, 124.25, 71.97, 34.35, 57.95, 30.42, 107.48, 124.25, 55.4, 47.49, 124.25, 124.25, 113.48, 32.74, 96.55, 124.25, 19.93, 57.74, 10.21, 21.28, 10.97, 75.42, 21.85, 124.25, 120.7, 79.91, 4.88, 52.39, 94.35, 114.56];
     const censorAt = [1, 7, 10, 11, 15, 23];
     const r = fitWeibull(NON.map((time, i) => ({ time, censored: censorAt.includes(i) })));
     expect(r.failures).toBe(24);
     expect(r.adAdjusted).toBeGreaterThan(1.0);
-    expect(r.adBootstrapP).toBeLessThan(0.05);
-    // complete-data band is a reference only for censored fits — the UI hides it
+    expect(r.adBootstrapP).toBeGreaterThan(0.2);
     expect(r.adBasis).toBe('failures');
   });
 

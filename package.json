@@ -10,7 +10,9 @@
     "preview": "vite preview --port 4178 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "qa:stats": "bash qa/run.sh",
+    "qa:cases": "python3 qa/build_cases.py"
   },
   "dependencies": {
     "react": "^19.0.0",

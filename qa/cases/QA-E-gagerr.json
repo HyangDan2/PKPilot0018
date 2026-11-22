@@ -1,0 +1,722 @@
+{
+ "area": "QA-E",
+ "cases": [
+  {
+   "id": "QA-E-01",
+   "title": "Crossed 균형 10×3×2 분산성분",
+   "op": "gagerr",
+   "tolerance": "default",
+   "dataset": "gage_crossed",
+   "args": {
+    "part": "part",
+    "operator": "operator",
+    "measurement": "meas",
+    "type": "crossed"
+   },
+   "fields": [
+    {
+     "key": "parts"
+    },
+    {
+     "key": "operators"
+    },
+    {
+     "key": "replicates"
+    },
+    {
+     "key": "grr_variance"
+    },
+    {
+     "key": "total_variance"
+    },
+    {
+     "key": "ndc"
+    },
+    {
+     "key": "anova:part:df"
+    },
+    {
+     "key": "anova:part:ss"
+    },
+    {
+     "key": "anova:part:ms"
+    },
+    {
+     "key": "anova:part:f"
+    },
+    {
+     "key": "anova:part:p"
+    },
+    {
+     "key": "anova:operator:df"
+    },
+    {
+     "key": "anova:operator:ss"
+    },
+    {
+     "key": "anova:operator:ms"
+    },
+    {
+     "key": "anova:operator:f"
+    },
+    {
+     "key": "anova:operator:p"
+    },
+    {
+     "key": "anova:interaction:df"
+    },
+    {
+     "key": "anova:interaction:ss"
+    },
+    {
+     "key": "anova:interaction:ms"
+    },
+    {
+     "key": "anova:interaction:f"
+    },
+    {
+     "key": "anova:interaction:p"
+    },
+    {
+     "key": "anova:repeat:df"
+    },
+    {
+     "key": "anova:repeat:ss"
+    },
+    {
+     "key": "anova:repeat:ms"
+    },
+    {
+     "key": "anova:repeat:f"
+    },
+    {
+     "key": "anova:repeat:p"
+    },
+    {
+     "key": "comp:repeat:variance"
+    },
+    {
+     "key": "comp:repeat:stdev"
+    },
+    {
+     "key": "comp:repeat:contribution"
+    },
+    {
+     "key": "comp:repeat:studyvar"
+    },
+    {
+     "key": "comp:reproducibility:variance"
+    },
+    {
+     "key": "comp:reproducibility:stdev"
+    },
+    {
+     "key": "comp:reproducibility:contribution"
+    },
+    {
+     "key": "comp:reproducibility:studyvar"
+    },
+    {
+     "key": "comp:interaction:variance"
+    },
+    {
+     "key": "comp:interaction:stdev"
+    },
+    {
+     "key": "comp:interaction:contribution"
+    },
+    {
+     "key": "comp:interaction:studyvar"
+    },
+    {
+     "key": "comp:operator:variance"
+    },
+    {
+     "key": "comp:operator:stdev"
+    },
+    {
+     "key": "comp:operator:contribution"
+    },
+    {
+     "key": "comp:operator:studyvar"
+    },
+    {
+     "key": "comp:partToPart:variance"
+    },
+    {
+     "key": "comp:partToPart:stdev"
+    },
+    {
+     "key": "comp:partToPart:contribution"
+    },
+    {
+     "key": "comp:partToPart:studyvar"
+    },
+    {
+     "key": "comp:grr:variance"
+    },
+    {
+     "key": "comp:grr:stdev"
+    },
+    {
+     "key": "comp:grr:contribution"
+    },
+    {
+     "key": "comp:grr:studyvar"
+    },
+    {
+     "key": "comp:total:variance"
+    },
+    {
+     "key": "comp:total:stdev"
+    },
+    {
+     "key": "comp:total:contribution"
+    },
+    {
+     "key": "comp:total:studyvar"
+    },
+    {
+     "key": "note",
+     "kind": "string"
+    },
+    {
+     "key": "negative_components",
+     "kind": "string"
+    }
+   ]
+  },
+  {
+   "id": "QA-E-02",
+   "title": "Crossed 공차 %Tolerance 포함",
+   "op": "gagerr",
+   "tolerance": "default",
+   "dataset": "gage_crossed",
+   "args": {
+    "part": "part",
+    "operator": "operator",
+    "measurement": "meas",
+    "tolerance": 4.0
+   },
+   "fields": [
+    {
+     "key": "comp:grr:variance"
+    },
+    {
+     "key": "comp:grr:tolerance"
+    },
+    {
+     "key": "comp:repeat:tolerance"
+    },
+    {
+     "key": "comp:partToPart:tolerance"
+    }
+   ]
+  },
+  {
+   "id": "QA-E-03",
+   "title": "Crossed 교호작용 풀링 (poolInteraction)",
+   "op": "gagerr",
+   "tolerance": "default",
+   "dataset": "gage_crossed",
+   "args": {
+    "part": "part",
+    "operator": "operator",
+    "measurement": "meas",
+    "poolInteraction": true
+   },
+   "fields": [
+    {
+     "key": "parts"
+    },
+    {
+     "key": "operators"
+    },
+    {
+     "key": "replicates"
+    },
+    {
+     "key": "grr_variance"
+    },
+    {
+     "key": "total_variance"
+    },
+    {
+     "key": "ndc"
+    },
+    {
+     "key": "anova:part:df"
+    },
+    {
+     "key": "anova:part:ss"
+    },
+    {
+     "key": "anova:part:ms"
+    },
+    {
+     "key": "anova:part:f"
+    },
+    {
+     "key": "anova:part:p"
+    },
+    {
+     "key": "anova:operator:df"
+    },
+    {
+     "key": "anova:operator:ss"
+    },
+    {
+     "key": "anova:operator:ms"
+    },
+    {
+     "key": "anova:operator:f"
+    },
+    {
+     "key": "anova:operator:p"
+    },
+    {
+     "key": "anova:repeat:df"
+    },
+    {
+     "key": "anova:repeat:ss"
+    },
+    {
+     "key": "anova:repeat:ms"
+    },
+    {
+     "key": "anova:repeat:f"
+    },
+    {
+     "key": "anova:repeat:p"
+    },
+    {
+     "key": "comp:repeat:variance"
+    },
+    {
+     "key": "comp:repeat:stdev"
+    },
+    {
+     "key": "comp:repeat:contribution"
+    },
+    {
+     "key": "comp:repeat:studyvar"
+    },
+    {
+     "key": "comp:operator:variance"
+    },
+    {
+     "key": "comp:operator:stdev"
+    },
+    {
+     "key": "comp:operator:contribution"
+    },
+    {
+     "key": "comp:operator:studyvar"
+    },
+    {
+     "key": "comp:partToPart:variance"
+    },
+    {
+     "key": "comp:partToPart:stdev"
+    },
+    {
+     "key": "comp:partToPart:contribution"
+    },
+    {
+     "key": "comp:partToPart:studyvar"
+    },
+    {
+     "key": "comp:grr:variance"
+    },
+    {
+     "key": "comp:grr:stdev"
+    },
+    {
+     "key": "comp:grr:contribution"
+    },
+    {
+     "key": "comp:grr:studyvar"
+    },
+    {
+     "key": "comp:total:variance"
+    },
+    {
+     "key": "comp:total:stdev"
+    },
+    {
+     "key": "comp:total:contribution"
+    },
+    {
+     "key": "comp:total:studyvar"
+    },
+    {
+     "key": "note",
+     "kind": "string"
+    }
+   ]
+  },
+  {
+   "id": "QA-E-04",
+   "title": "Nested 3교대×4부품×3반복",
+   "op": "gagerr",
+   "tolerance": "default",
+   "dataset": "gage_nested",
+   "args": {
+    "part": "part",
+    "operator": "operator",
+    "measurement": "meas",
+    "type": "nested"
+   },
+   "fields": [
+    {
+     "key": "parts"
+    },
+    {
+     "key": "operators"
+    },
+    {
+     "key": "replicates"
+    },
+    {
+     "key": "grr_variance"
+    },
+    {
+     "key": "total_variance"
+    },
+    {
+     "key": "ndc"
+    },
+    {
+     "key": "anova:operator:df"
+    },
+    {
+     "key": "anova:operator:ss"
+    },
+    {
+     "key": "anova:operator:ms"
+    },
+    {
+     "key": "anova:operator:f"
+    },
+    {
+     "key": "anova:operator:p"
+    },
+    {
+     "key": "anova:partOperator:df"
+    },
+    {
+     "key": "anova:partOperator:ss"
+    },
+    {
+     "key": "anova:partOperator:ms"
+    },
+    {
+     "key": "anova:partOperator:f"
+    },
+    {
+     "key": "anova:partOperator:p"
+    },
+    {
+     "key": "anova:repeat:df"
+    },
+    {
+     "key": "anova:repeat:ss"
+    },
+    {
+     "key": "anova:repeat:ms"
+    },
+    {
+     "key": "anova:repeat:f"
+    },
+    {
+     "key": "anova:repeat:p"
+    },
+    {
+     "key": "comp:repeat:variance"
+    },
+    {
+     "key": "comp:repeat:stdev"
+    },
+    {
+     "key": "comp:repeat:contribution"
+    },
+    {
+     "key": "comp:repeat:studyvar"
+    },
+    {
+     "key": "comp:reproducibility:variance"
+    },
+    {
+     "key": "comp:reproducibility:stdev"
+    },
+    {
+     "key": "comp:reproducibility:contribution"
+    },
+    {
+     "key": "comp:reproducibility:studyvar"
+    },
+    {
+     "key": "comp:operator:variance"
+    },
+    {
+     "key": "comp:operator:stdev"
+    },
+    {
+     "key": "comp:operator:contribution"
+    },
+    {
+     "key": "comp:operator:studyvar"
+    },
+    {
+     "key": "comp:partToPart:variance"
+    },
+    {
+     "key": "comp:partToPart:stdev"
+    },
+    {
+     "key": "comp:partToPart:contribution"
+    },
+    {
+     "key": "comp:partToPart:studyvar"
+    },
+    {
+     "key": "comp:grr:variance"
+    },
+    {
+     "key": "comp:grr:stdev"
+    },
+    {
+     "key": "comp:grr:contribution"
+    },
+    {
+     "key": "comp:grr:studyvar"
+    },
+    {
+     "key": "comp:total:variance"
+    },
+    {
+     "key": "comp:total:stdev"
+    },
+    {
+     "key": "comp:total:contribution"
+    },
+    {
+     "key": "comp:total:studyvar"
+    }
+   ]
+  },
+  {
+   "id": "QA-E-05",
+   "title": "음수 분산성분 보고 (operator)",
+   "op": "gagerr",
+   "tolerance": "default",
+   "dataset": "gage_negative",
+   "args": {
+    "part": "part",
+    "operator": "operator",
+    "measurement": "meas"
+   },
+   "fields": [
+    {
+     "key": "parts"
+    },
+    {
+     "key": "operators"
+    },
+    {
+     "key": "replicates"
+    },
+    {
+     "key": "grr_variance"
+    },
+    {
+     "key": "total_variance"
+    },
+    {
+     "key": "ndc"
+    },
+    {
+     "key": "anova:part:df"
+    },
+    {
+     "key": "anova:part:ss"
+    },
+    {
+     "key": "anova:part:ms"
+    },
+    {
+     "key": "anova:part:f"
+    },
+    {
+     "key": "anova:part:p"
+    },
+    {
+     "key": "anova:operator:df"
+    },
+    {
+     "key": "anova:operator:ss"
+    },
+    {
+     "key": "anova:operator:ms"
+    },
+    {
+     "key": "anova:operator:f"
+    },
+    {
+     "key": "anova:operator:p"
+    },
+    {
+     "key": "anova:interaction:df"
+    },
+    {
+     "key": "anova:interaction:ss"
+    },
+    {
+     "key": "anova:interaction:ms"
+    },
+    {
+     "key": "anova:interaction:f"
+    },
+    {
+     "key": "anova:interaction:p"
+    },
+    {
+     "key": "anova:repeat:df"
+    },
+    {
+     "key": "anova:repeat:ss"
+    },
+    {
+     "key": "anova:repeat:ms"
+    },
+    {
+     "key": "anova:repeat:f"
+    },
+    {
+     "key": "anova:repeat:p"
+    },
+    {
+     "key": "comp:repeat:variance"
+    },
+    {
+     "key": "comp:repeat:stdev"
+    },
+    {
+     "key": "comp:repeat:contribution"
+    },
+    {
+     "key": "comp:repeat:studyvar"
+    },
+    {
+     "key": "comp:reproducibility:variance"
+    },
+    {
+     "key": "comp:reproducibility:stdev"
+    },
+    {
+     "key": "comp:reproducibility:contribution"
+    },
+    {
+     "key": "comp:reproducibility:studyvar"
+    },
+    {
+     "key": "comp:interaction:variance"
+    },
+    {
+     "key": "comp:interaction:stdev"
+    },
+    {
+     "key": "comp:interaction:contribution"
+    },
+    {
+     "key": "comp:interaction:studyvar"
+    },
+    {
+     "key": "comp:operator:variance"
+    },
+    {
+     "key": "comp:operator:stdev"
+    },
+    {
+     "key": "comp:operator:contribution"
+    },
+    {
+     "key": "comp:operator:studyvar"
+    },
+    {
+     "key": "comp:partToPart:variance"
+    },
+    {
+     "key": "comp:partToPart:stdev"
+    },
+    {
+     "key": "comp:partToPart:contribution"
+    },
+    {
+     "key": "comp:partToPart:studyvar"
+    },
+    {
+     "key": "comp:grr:variance"
+    },
+    {
+     "key": "comp:grr:stdev"
+    },
+    {
+     "key": "comp:grr:contribution"
+    },
+    {
+     "key": "comp:grr:studyvar"
+    },
+    {
+     "key": "comp:total:variance"
+    },
+    {
+     "key": "comp:total:stdev"
+    },
+    {
+     "key": "comp:total:contribution"
+    },
+    {
+     "key": "comp:total:studyvar"
+    },
+    {
+     "key": "negative_components",
+     "kind": "string"
+    },
+    {
+     "key": "note",
+     "kind": "string"
+    }
+   ],
+   "note": "Minitab처럼 음수 성분은 부호를 유지하고 stdev만 0 — clamped 값 비교가 아니다."
+  },
+  {
+   "id": "QA-E-06",
+   "title": "불균형 Crossed → grr.unbalanced 거부",
+   "op": "gagerr",
+   "tolerance": "default",
+   "dataset": "gage_unbalanced",
+   "args": {
+    "part": "part",
+    "operator": "operator",
+    "measurement": "meas"
+   },
+   "expectError": "grr.unbalanced"
+  },
+  {
+   "id": "QA-E-07",
+   "title": "공유 부품을 Nested로 선언 → grr.nestedPartShared 거부",
+   "op": "gagerr",
+   "tolerance": "default",
+   "dataset": "gage_crossed",
+   "args": {
+    "part": "part",
+    "operator": "operator",
+    "measurement": "meas",
+    "type": "nested"
+   },
+   "expectError": "grr.nestedPartShared",
+   "note": "Crossed 자료를 Nested로 분석하면 부품이 교대 간 공유되므로 Nested 가정 위반 — 명시적 거부."
+  }
+ ]
+}

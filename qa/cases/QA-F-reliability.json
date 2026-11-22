@@ -1,0 +1,835 @@
+{
+ "area": "QA-F",
+ "cases": [
+  {
+   "id": "QA-F-01",
+   "title": "Weibull 완전데이터 MLE + AD + 신뢰구간",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "censored_mixed",
+   "args": {
+    "column": "time"
+   },
+   "fields": [
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "se_shape",
+     "tol": "mle_se"
+    },
+    {
+     "key": "se_scale",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "loglik",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "mttf_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "median",
+     "tol": "mle"
+    },
+    {
+     "key": "b10",
+     "tol": "mle"
+    },
+    {
+     "key": "b5",
+     "tol": "mle"
+    },
+    {
+     "key": "b90",
+     "tol": "mle"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "failures"
+    },
+    {
+     "key": "censored"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_basis",
+     "kind": "string"
+    },
+    {
+     "key": "ad_bootstrap_p",
+     "tol": "bootstrap_p"
+    },
+    {
+     "key": "km_dev",
+     "tol": "mle"
+    },
+    {
+     "key": "km_critical05"
+    }
+   ],
+   "note": "censor 열을 주지 않으면 전부 고장으로 본다(40건 완전데이터)."
+  },
+  {
+   "id": "QA-F-02",
+   "title": "Weibull 우측 중도절단 25/40",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "censored_mixed",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1"
+   },
+   "fields": [
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "se_shape",
+     "tol": "mle_se"
+    },
+    {
+     "key": "se_scale",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "loglik",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "mttf_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "median",
+     "tol": "mle"
+    },
+    {
+     "key": "b10",
+     "tol": "mle"
+    },
+    {
+     "key": "b5",
+     "tol": "mle"
+    },
+    {
+     "key": "b90",
+     "tol": "mle"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "failures"
+    },
+    {
+     "key": "censored"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_basis",
+     "kind": "string"
+    },
+    {
+     "key": "ad_bootstrap_p",
+     "tol": "bootstrap_p"
+    },
+    {
+     "key": "km_dev",
+     "tol": "mle"
+    },
+    {
+     "key": "km_critical05"
+    }
+   ],
+   "note": "AD는 고장 시각에 대해서만, A* 보정은 고장 수 k 기준, p는 모수적 부트스트랩."
+  },
+  {
+   "id": "QA-F-03",
+   "title": "Weibull 중도절단 6/25 (80% 생존)",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "censored_heavy",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1"
+   },
+   "fields": [
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "se_shape",
+     "tol": "mle_se"
+    },
+    {
+     "key": "se_scale",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "loglik",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "mttf_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "median",
+     "tol": "mle"
+    },
+    {
+     "key": "b10",
+     "tol": "mle"
+    },
+    {
+     "key": "b5",
+     "tol": "mle"
+    },
+    {
+     "key": "b90",
+     "tol": "mle"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "failures"
+    },
+    {
+     "key": "censored"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_basis",
+     "kind": "string"
+    },
+    {
+     "key": "ad_bootstrap_p",
+     "tol": "bootstrap_p"
+    },
+    {
+     "key": "km_dev",
+     "tol": "mle"
+    },
+    {
+     "key": "km_critical05"
+    }
+   ]
+  },
+  {
+   "id": "QA-F-04",
+   "title": "Weibull 고장 3/30 극한 (소수 고장)",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "censored_few",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1"
+   },
+   "fields": [
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "se_shape",
+     "tol": "mle_se"
+    },
+    {
+     "key": "se_scale",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "loglik",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "mttf_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "median",
+     "tol": "mle"
+    },
+    {
+     "key": "b10",
+     "tol": "mle"
+    },
+    {
+     "key": "b5",
+     "tol": "mle"
+    },
+    {
+     "key": "b90",
+     "tol": "mle"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "failures"
+    },
+    {
+     "key": "censored"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_basis",
+     "kind": "string"
+    },
+    {
+     "key": "ad_bootstrap_p",
+     "tol": "bootstrap_p"
+    },
+    {
+     "key": "km_dev",
+     "tol": "mle"
+    },
+    {
+     "key": "km_critical05"
+    }
+   ],
+   "note": "부트스트랩 반복 중 고장 2개 미만 보정이 개입하는 구간 — QA-F 실험 대상."
+  },
+  {
+   "id": "QA-F-05",
+   "title": "Weibull 고장 2/20 최소 (추정 가능 경계)",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "censored_two",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1"
+   },
+   "fields": [
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "se_shape",
+     "tol": "mle_se"
+    },
+    {
+     "key": "se_scale",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "loglik",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "mttf_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "median",
+     "tol": "mle"
+    },
+    {
+     "key": "b10",
+     "tol": "mle"
+    },
+    {
+     "key": "b5",
+     "tol": "mle"
+    },
+    {
+     "key": "b90",
+     "tol": "mle"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "failures"
+    },
+    {
+     "key": "censored"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_basis",
+     "kind": "string"
+    },
+    {
+     "key": "ad_bootstrap_p",
+     "tol": "bootstrap_p"
+    },
+    {
+     "key": "km_dev",
+     "tol": "mle"
+    },
+    {
+     "key": "km_critical05"
+    }
+   ]
+  },
+  {
+   "id": "QA-F-06",
+   "title": "Weibull 90% 신뢰수준",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "censored_mixed",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1",
+    "conf": 0.9
+   },
+   "fields": [
+    {
+     "key": "ci_shape_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "mttf_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "mttf_high",
+     "tol": "mle_se"
+    }
+   ]
+  },
+  {
+   "id": "QA-F-07",
+   "title": "Weibull 99% 신뢰수준",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "censored_mixed",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1",
+    "conf": 0.99
+   },
+   "fields": [
+    {
+     "key": "ci_shape_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "mttf_low",
+     "tol": "mle_se"
+    }
+   ]
+  },
+  {
+   "id": "QA-F-08",
+   "title": "Lognormal 완전데이터 (폐형 MLE)",
+   "op": "lognorm_rel",
+   "tolerance": "default",
+   "dataset": "censored_mixed",
+   "args": {
+    "column": "time"
+   },
+   "fields": [
+    {
+     "key": "mu",
+     "tol": "nelder_mead"
+    },
+    {
+     "key": "sigma",
+     "tol": "nelder_mead"
+    },
+    {
+     "key": "median",
+     "tol": "nelder_mead"
+    },
+    {
+     "key": "mttf",
+     "tol": "nelder_mead"
+    },
+    {
+     "key": "loglik",
+     "tol": "nelder_mead"
+    },
+    {
+     "key": "closed_form"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "failures"
+    }
+   ]
+  },
+  {
+   "id": "QA-F-09",
+   "title": "Lognormal 중도절단 MLE",
+   "op": "lognorm_rel",
+   "tolerance": "default",
+   "dataset": "censored_mixed",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1"
+   },
+   "fields": [
+    {
+     "key": "mu",
+     "tol": "nelder_mead"
+    },
+    {
+     "key": "sigma",
+     "tol": "nelder_mead"
+    },
+    {
+     "key": "mttf",
+     "tol": "nelder_mead"
+    },
+    {
+     "key": "loglik",
+     "tol": "nelder_mead"
+    },
+    {
+     "key": "censored"
+    },
+    {
+     "key": "closed_form"
+    },
+    {
+     "key": "se_mu",
+     "tol": "mle_se"
+    },
+    {
+     "key": "se_sigma",
+     "tol": "mle_se"
+    }
+   ]
+  },
+  {
+   "id": "QA-F-12",
+   "title": "강한 비-Weibull(혼합) → 기각력 유지",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "censored_mixture",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1"
+   },
+   "fields": [
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "se_shape",
+     "tol": "mle_se"
+    },
+    {
+     "key": "se_scale",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_shape_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "ci_scale_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "loglik",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf",
+     "tol": "mle"
+    },
+    {
+     "key": "mttf_low",
+     "tol": "mle_se"
+    },
+    {
+     "key": "mttf_high",
+     "tol": "mle_se"
+    },
+    {
+     "key": "median",
+     "tol": "mle"
+    },
+    {
+     "key": "b10",
+     "tol": "mle"
+    },
+    {
+     "key": "b5",
+     "tol": "mle"
+    },
+    {
+     "key": "b90",
+     "tol": "mle"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "failures"
+    },
+    {
+     "key": "censored"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_basis",
+     "kind": "string"
+    },
+    {
+     "key": "ad_bootstrap_p",
+     "tol": "bootstrap_p"
+    },
+    {
+     "key": "km_dev",
+     "tol": "mle"
+    },
+    {
+     "key": "km_critical05"
+    }
+   ],
+   "note": "2봉 혼합 표본(15×~20, 15×~180, 150 상한) — 보정 후에도 총체적 위반은 기각되어야 한다(p≈0.002)."
+  },
+  {
+   "id": "QA-F-10",
+   "title": "고장 1건 → rel.needFailures",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "censored_one",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1",
+    "conf": 0.95
+   },
+   "expectError": "rel.needFailures"
+  },
+  {
+   "id": "QA-F-11",
+   "title": "고장 1건 로그노말 → rel.needFailures",
+   "op": "lognorm_rel",
+   "tolerance": "default",
+   "dataset": "censored_one",
+   "args": {
+    "column": "time",
+    "censorColumn": "censor1"
+   },
+   "expectError": "rel.needFailures"
+  }
+ ]
+}

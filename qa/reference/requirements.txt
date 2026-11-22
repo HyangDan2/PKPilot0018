@@ -1,0 +1,8 @@
+# Reference engine pins — the versions the QA run was certified against.
+# They are recorded in every report's metadata (Python/NumPy/SciPy/statsmodels/
+# pandas/patsy) and the CI job installs exactly these.
+numpy==2.5.4
+scipy==1.18.1
+statsmodels==0.15.0
+pandas==3.1.1
+patsy==1.0.3

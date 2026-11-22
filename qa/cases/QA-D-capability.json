@@ -1,0 +1,842 @@
+{
+ "area": "QA-D",
+ "cases": [
+  {
+   "id": "QA-D-01",
+   "title": "Cp/Cpk/Pp/Ppk 양측 규격 (이동범위 σ)",
+   "op": "capability",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "lsl": 85,
+    "usl": 115
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "sd_within"
+    },
+    {
+     "key": "sd_overall"
+    },
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "cpl"
+    },
+    {
+     "key": "cpu"
+    },
+    {
+     "key": "pp"
+    },
+    {
+     "key": "ppk"
+    },
+    {
+     "key": "ppl"
+    },
+    {
+     "key": "ppu"
+    },
+    {
+     "key": "cpm"
+    },
+    {
+     "key": "ppm_within",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_overall",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_observed"
+    },
+    {
+     "key": "sigma_level",
+     "tol": "sigma_level"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-02",
+   "title": "Cpm 목표값 지정",
+   "op": "capability",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "lsl": 85,
+    "usl": 115,
+    "target": 100
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "sd_within"
+    },
+    {
+     "key": "sd_overall"
+    },
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "cpl"
+    },
+    {
+     "key": "cpu"
+    },
+    {
+     "key": "pp"
+    },
+    {
+     "key": "ppk"
+    },
+    {
+     "key": "ppl"
+    },
+    {
+     "key": "ppu"
+    },
+    {
+     "key": "cpm"
+    },
+    {
+     "key": "ppm_within",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_overall",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_observed"
+    },
+    {
+     "key": "sigma_level",
+     "tol": "sigma_level"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-03",
+   "title": "단측 규격 LSL만",
+   "op": "capability",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "lsl": 90
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "sd_within"
+    },
+    {
+     "key": "sd_overall"
+    },
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "cpl"
+    },
+    {
+     "key": "cpu"
+    },
+    {
+     "key": "pp"
+    },
+    {
+     "key": "ppk"
+    },
+    {
+     "key": "ppl"
+    },
+    {
+     "key": "ppu"
+    },
+    {
+     "key": "cpm"
+    },
+    {
+     "key": "ppm_within",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_overall",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_observed"
+    },
+    {
+     "key": "sigma_level",
+     "tol": "sigma_level"
+    }
+   ],
+   "note": "Cp/Pp는 NaN, Cpk=Cpl."
+  },
+  {
+   "id": "QA-D-04",
+   "title": "단측 규격 USL만",
+   "op": "capability",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "usl": 110
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "sd_within"
+    },
+    {
+     "key": "sd_overall"
+    },
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "cpl"
+    },
+    {
+     "key": "cpu"
+    },
+    {
+     "key": "pp"
+    },
+    {
+     "key": "ppk"
+    },
+    {
+     "key": "ppl"
+    },
+    {
+     "key": "ppu"
+    },
+    {
+     "key": "cpm"
+    },
+    {
+     "key": "ppm_within",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_overall",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_observed"
+    },
+    {
+     "key": "sigma_level",
+     "tol": "sigma_level"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-05",
+   "title": "부분군 5의 풀링 within σ",
+   "op": "capability",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "v5",
+    "lsl": 85,
+    "usl": 115,
+    "subgroup": 5
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "sd_within"
+    },
+    {
+     "key": "sd_overall"
+    },
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "cpl"
+    },
+    {
+     "key": "cpu"
+    },
+    {
+     "key": "pp"
+    },
+    {
+     "key": "ppk"
+    },
+    {
+     "key": "ppl"
+    },
+    {
+     "key": "ppu"
+    },
+    {
+     "key": "cpm"
+    },
+    {
+     "key": "ppm_within",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_overall",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_observed"
+    },
+    {
+     "key": "sigma_level",
+     "tol": "sigma_level"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-06",
+   "title": "시그마 수준 방식 z_bench",
+   "op": "capability",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "lsl": 85,
+    "usl": 115,
+    "sigmaMethod": "z_bench"
+   },
+   "fields": [
+    {
+     "key": "sigma_level",
+     "tol": "sigma_level"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-07",
+   "title": "시그마 수준 방식 cpk_shift",
+   "op": "capability",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "lsl": 85,
+    "usl": 115,
+    "sigmaMethod": "cpk_shift"
+   },
+   "fields": [
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "sigma_level",
+     "tol": "sigma_level"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-08",
+   "title": "Sixpack n=1 (I-MR 기반)",
+   "op": "sixpack",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "v1",
+    "lsl": 40,
+    "usl": 60
+   },
+   "fields": [
+    {
+     "key": "chart",
+     "kind": "string"
+    },
+    {
+     "key": "sigma_basis",
+     "kind": "string"
+    },
+    {
+     "key": "sigma_within",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "pp"
+    },
+    {
+     "key": "ppk"
+    },
+    {
+     "key": "ppm_within",
+     "tol": "ppm"
+    },
+    {
+     "key": "ppm_overall",
+     "tol": "ppm"
+    },
+    {
+     "key": "ad",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "ad_p",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "primary.center"
+    },
+    {
+     "key": "primary.ucl",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "secondary.center"
+    },
+    {
+     "key": "secondary.ucl",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "says_within"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-09",
+   "title": "Sixpack n=5 (Xbar-R 기반, R̄/d2 공유)",
+   "op": "sixpack",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "v5",
+    "lsl": 85,
+    "usl": 115,
+    "subgroup": 5
+   },
+   "fields": [
+    {
+     "key": "chart",
+     "kind": "string"
+    },
+    {
+     "key": "sigma_basis",
+     "kind": "string"
+    },
+    {
+     "key": "sigma_within",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "ppm_within",
+     "tol": "ppm"
+    },
+    {
+     "key": "ad",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "primary.center"
+    },
+    {
+     "key": "primary.ucl[0]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "secondary.center"
+    },
+    {
+     "key": "secondary.ucl[0]",
+     "tol": "chart_constants"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-10",
+   "title": "Sixpack n=12 (Xbar-S 기반, S̄/c4 공유)",
+   "op": "sixpack",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "v12",
+    "lsl": 5,
+    "usl": 10,
+    "subgroup": 12
+   },
+   "fields": [
+    {
+     "key": "chart",
+     "kind": "string"
+    },
+    {
+     "key": "sigma_basis",
+     "kind": "string"
+    },
+    {
+     "key": "sigma_within"
+    },
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "ppm_within",
+     "tol": "ppm"
+    },
+    {
+     "key": "ad",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "primary.ucl[0]"
+    },
+    {
+     "key": "secondary.ucl[0]"
+    },
+    {
+     "key": "missing_subgroups"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-11",
+   "title": "Sixpack n=5 결측 부분군 포함",
+   "op": "sixpack",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "v5",
+    "lsl": 85,
+    "usl": 115,
+    "subgroup": 5
+   },
+   "fields": [
+    {
+     "key": "sigma_within",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "missing_subgroups"
+    },
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-12",
+   "title": "비정규 능력 Weibull MLE",
+   "op": "capnonnormal",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "distribution": "weibull",
+    "lsl": 80,
+    "usl": 120
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "excluded"
+    },
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "loglik",
+     "tol": "mle"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "mle"
+    },
+    {
+     "key": "median",
+     "tol": "mle"
+    },
+    {
+     "key": "p00135",
+     "tol": "mle"
+    },
+    {
+     "key": "p99865",
+     "tol": "mle"
+    },
+    {
+     "key": "pp",
+     "tol": "mle"
+    },
+    {
+     "key": "ppk",
+     "tol": "mle"
+    },
+    {
+     "key": "ppl",
+     "tol": "mle"
+    },
+    {
+     "key": "ppu",
+     "tol": "mle"
+    },
+    {
+     "key": "ppm",
+     "tol": "ppm"
+    },
+    {
+     "key": "observed_ppm"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-13",
+   "title": "비정규 능력 Lognormal",
+   "op": "capnonnormal",
+   "tolerance": "default",
+   "dataset": "large_stability",
+   "args": {
+    "column": "x",
+    "distribution": "lognormal",
+    "lsl": 400,
+    "usl": 620
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "pp",
+     "tol": "mle"
+    },
+    {
+     "key": "ppk",
+     "tol": "mle"
+    },
+    {
+     "key": "median",
+     "tol": "mle"
+    },
+    {
+     "key": "ppm",
+     "tol": "ppm"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-14",
+   "title": "비정규 능력 Gamma",
+   "op": "capnonnormal",
+   "tolerance": "default",
+   "dataset": "censored_mixed",
+   "args": {
+    "column": "time",
+    "distribution": "gamma",
+    "lsl": 50,
+    "usl": 400
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "pp",
+     "tol": "mle"
+    },
+    {
+     "key": "ppk",
+     "tol": "mle"
+    },
+    {
+     "key": "ppm",
+     "tol": "ppm"
+    }
+   ]
+  },
+  {
+   "id": "QA-D-15",
+   "title": "비정규 적합: 0·음수 제외 보고 (excluded=3)",
+   "op": "capnonnormal",
+   "tolerance": "default",
+   "dataset": "constant_zero",
+   "args": {
+    "column": "negmix",
+    "distribution": "weibull",
+    "specs": false
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "excluded"
+    },
+    {
+     "key": "shape",
+     "tol": "mle"
+    },
+    {
+     "key": "scale",
+     "tol": "mle"
+    },
+    {
+     "key": "ad",
+     "tol": "mle"
+    },
+    {
+     "key": "crit10"
+    },
+    {
+     "key": "crit5"
+    },
+    {
+     "key": "crit1"
+    }
+   ],
+   "note": "(0,∞) 지지 밖 값은 조용히 버리지 않고 excluded로 보고해야 한다."
+  },
+  {
+   "id": "QA-D-16",
+   "title": "비정규 적합 n<5 → res.insufficient (엔진 정의)",
+   "op": "capnonnormal",
+   "tolerance": "default",
+   "dataset": "tiny",
+   "args": {
+    "column": "p3",
+    "distribution": "weibull",
+    "lsl": 0,
+    "usl": 10
+   },
+   "expectError": "res.insufficient"
+  },
+  {
+   "id": "QA-D-17",
+   "title": "Sixpack 상수열 → AD 정의 불가(NaN)",
+   "op": "sixpack",
+   "tolerance": "default",
+   "dataset": "constant_zero",
+   "args": {
+    "column": "flat",
+    "lsl": 4,
+    "usl": 6
+   },
+   "fields": [
+    {
+     "key": "cp"
+    },
+    {
+     "key": "cpk"
+    },
+    {
+     "key": "ad",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "ad_p",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "sigma_within"
+    }
+   ],
+   "note": "s=0이면 Cp/Cpk·AD가 NaN — 0으로 나눈 값이 아니라 정의 불가."
+  }
+ ]
+}

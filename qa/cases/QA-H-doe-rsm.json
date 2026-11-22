@@ -1,0 +1,1438 @@
+{
+ "area": "QA-H",
+ "cases": [
+  {
+   "id": "QA-H-01",
+   "title": "2^3 요인설계 표준·실행순서 (랜덤화)",
+   "op": "doecreate",
+   "tolerance": "default",
+   "args": {
+    "k": 3,
+    "centers": 2,
+    "replicates": 1,
+    "randomize": true,
+    "seed": 20261122
+   },
+   "fields": [
+    {
+     "key": "runs"
+    },
+    {
+     "key": "run[0]:std"
+    },
+    {
+     "key": "run[0]:run"
+    },
+    {
+     "key": "run[1]:std"
+    },
+    {
+     "key": "run[1]:run"
+    },
+    {
+     "key": "run[2]:std"
+    },
+    {
+     "key": "run[2]:run"
+    },
+    {
+     "key": "run[3]:std"
+    },
+    {
+     "key": "run[3]:run"
+    },
+    {
+     "key": "run[4]:std"
+    },
+    {
+     "key": "run[4]:run"
+    },
+    {
+     "key": "run[5]:std"
+    },
+    {
+     "key": "run[5]:run"
+    },
+    {
+     "key": "run[6]:std"
+    },
+    {
+     "key": "run[6]:run"
+    },
+    {
+     "key": "run[7]:std"
+    },
+    {
+     "key": "run[7]:run"
+    },
+    {
+     "key": "run[8]:std"
+    },
+    {
+     "key": "run[8]:run"
+    },
+    {
+     "key": "run[9]:std"
+    },
+    {
+     "key": "run[9]:run"
+    },
+    {
+     "key": "run[0]:f0"
+    },
+    {
+     "key": "run[0]:f1"
+    },
+    {
+     "key": "run[0]:f2"
+    },
+    {
+     "key": "run[1]:f0"
+    },
+    {
+     "key": "run[1]:f1"
+    },
+    {
+     "key": "run[1]:f2"
+    },
+    {
+     "key": "run[2]:f0"
+    },
+    {
+     "key": "run[2]:f1"
+    },
+    {
+     "key": "run[2]:f2"
+    },
+    {
+     "key": "run[3]:f0"
+    },
+    {
+     "key": "run[3]:f1"
+    },
+    {
+     "key": "run[3]:f2"
+    },
+    {
+     "key": "run[4]:f0"
+    },
+    {
+     "key": "run[4]:f1"
+    },
+    {
+     "key": "run[4]:f2"
+    },
+    {
+     "key": "run[5]:f0"
+    },
+    {
+     "key": "run[5]:f1"
+    },
+    {
+     "key": "run[5]:f2"
+    },
+    {
+     "key": "run[6]:f0"
+    },
+    {
+     "key": "run[6]:f1"
+    },
+    {
+     "key": "run[6]:f2"
+    },
+    {
+     "key": "run[7]:f0"
+    },
+    {
+     "key": "run[7]:f1"
+    },
+    {
+     "key": "run[7]:f2"
+    },
+    {
+     "key": "run[8]:f0"
+    },
+    {
+     "key": "run[8]:f1"
+    },
+    {
+     "key": "run[8]:f2"
+    },
+    {
+     "key": "run[9]:f0"
+    },
+    {
+     "key": "run[9]:f1"
+    },
+    {
+     "key": "run[9]:f2"
+    },
+    {
+     "key": "ptype:Factorial"
+    },
+    {
+     "key": "ptype:Center"
+    }
+   ],
+   "note": "표준순서는 조합 정의, 실행순서는 문서화된 mulberry32 셔플."
+  },
+  {
+   "id": "QA-H-02",
+   "title": "2^2 반복 2회, 랜덤화 없음",
+   "op": "doecreate",
+   "tolerance": "default",
+   "args": {
+    "k": 2,
+    "replicates": 2,
+    "centers": 0,
+    "randomize": false
+   },
+   "fields": [
+    {
+     "key": "runs"
+    },
+    {
+     "key": "run[0]:std"
+    },
+    {
+     "key": "run[0]:run"
+    },
+    {
+     "key": "run[1]:std"
+    },
+    {
+     "key": "run[1]:run"
+    },
+    {
+     "key": "run[2]:std"
+    },
+    {
+     "key": "run[2]:run"
+    },
+    {
+     "key": "run[3]:std"
+    },
+    {
+     "key": "run[3]:run"
+    },
+    {
+     "key": "run[4]:std"
+    },
+    {
+     "key": "run[4]:run"
+    },
+    {
+     "key": "run[5]:std"
+    },
+    {
+     "key": "run[5]:run"
+    },
+    {
+     "key": "run[6]:std"
+    },
+    {
+     "key": "run[6]:run"
+    },
+    {
+     "key": "run[7]:std"
+    },
+    {
+     "key": "run[7]:run"
+    },
+    {
+     "key": "run[0]:f0"
+    },
+    {
+     "key": "run[0]:f1"
+    },
+    {
+     "key": "run[1]:f0"
+    },
+    {
+     "key": "run[1]:f1"
+    },
+    {
+     "key": "run[2]:f0"
+    },
+    {
+     "key": "run[2]:f1"
+    },
+    {
+     "key": "run[3]:f0"
+    },
+    {
+     "key": "run[3]:f1"
+    },
+    {
+     "key": "run[4]:f0"
+    },
+    {
+     "key": "run[4]:f1"
+    },
+    {
+     "key": "run[5]:f0"
+    },
+    {
+     "key": "run[5]:f1"
+    },
+    {
+     "key": "run[6]:f0"
+    },
+    {
+     "key": "run[6]:f1"
+    },
+    {
+     "key": "run[7]:f0"
+    },
+    {
+     "key": "run[7]:f1"
+    },
+    {
+     "key": "ptype:Factorial"
+    }
+   ]
+  },
+  {
+   "id": "QA-H-03",
+   "title": "2^4 설계 (16런 + 중심 3점)",
+   "op": "doecreate",
+   "tolerance": "default",
+   "args": {
+    "k": 4,
+    "centers": 3,
+    "replicates": 1,
+    "randomize": true,
+    "seed": 7
+   },
+   "fields": [
+    {
+     "key": "runs"
+    },
+    {
+     "key": "run[0]:std"
+    },
+    {
+     "key": "run[0]:run"
+    },
+    {
+     "key": "run[1]:std"
+    },
+    {
+     "key": "run[1]:run"
+    },
+    {
+     "key": "run[2]:std"
+    },
+    {
+     "key": "run[2]:run"
+    },
+    {
+     "key": "run[3]:std"
+    },
+    {
+     "key": "run[3]:run"
+    },
+    {
+     "key": "run[4]:std"
+    },
+    {
+     "key": "run[4]:run"
+    },
+    {
+     "key": "run[5]:std"
+    },
+    {
+     "key": "run[5]:run"
+    },
+    {
+     "key": "run[6]:std"
+    },
+    {
+     "key": "run[6]:run"
+    },
+    {
+     "key": "run[7]:std"
+    },
+    {
+     "key": "run[7]:run"
+    },
+    {
+     "key": "run[8]:std"
+    },
+    {
+     "key": "run[8]:run"
+    },
+    {
+     "key": "run[9]:std"
+    },
+    {
+     "key": "run[9]:run"
+    },
+    {
+     "key": "run[10]:std"
+    },
+    {
+     "key": "run[10]:run"
+    },
+    {
+     "key": "run[11]:std"
+    },
+    {
+     "key": "run[11]:run"
+    },
+    {
+     "key": "run[12]:std"
+    },
+    {
+     "key": "run[12]:run"
+    },
+    {
+     "key": "run[13]:std"
+    },
+    {
+     "key": "run[13]:run"
+    },
+    {
+     "key": "run[14]:std"
+    },
+    {
+     "key": "run[14]:run"
+    },
+    {
+     "key": "run[15]:std"
+    },
+    {
+     "key": "run[15]:run"
+    },
+    {
+     "key": "run[16]:std"
+    },
+    {
+     "key": "run[16]:run"
+    },
+    {
+     "key": "run[17]:std"
+    },
+    {
+     "key": "run[17]:run"
+    },
+    {
+     "key": "run[18]:std"
+    },
+    {
+     "key": "run[18]:run"
+    },
+    {
+     "key": "run[0]:f0"
+    },
+    {
+     "key": "run[0]:f1"
+    },
+    {
+     "key": "run[0]:f2"
+    },
+    {
+     "key": "run[0]:f3"
+    },
+    {
+     "key": "run[1]:f0"
+    },
+    {
+     "key": "run[1]:f1"
+    },
+    {
+     "key": "run[1]:f2"
+    },
+    {
+     "key": "run[1]:f3"
+    },
+    {
+     "key": "run[2]:f0"
+    },
+    {
+     "key": "run[2]:f1"
+    },
+    {
+     "key": "run[2]:f2"
+    },
+    {
+     "key": "run[2]:f3"
+    },
+    {
+     "key": "run[3]:f0"
+    },
+    {
+     "key": "run[3]:f1"
+    },
+    {
+     "key": "run[3]:f2"
+    },
+    {
+     "key": "run[3]:f3"
+    },
+    {
+     "key": "run[4]:f0"
+    },
+    {
+     "key": "run[4]:f1"
+    },
+    {
+     "key": "run[4]:f2"
+    },
+    {
+     "key": "run[4]:f3"
+    },
+    {
+     "key": "run[5]:f0"
+    },
+    {
+     "key": "run[5]:f1"
+    },
+    {
+     "key": "run[5]:f2"
+    },
+    {
+     "key": "run[5]:f3"
+    },
+    {
+     "key": "run[6]:f0"
+    },
+    {
+     "key": "run[6]:f1"
+    },
+    {
+     "key": "run[6]:f2"
+    },
+    {
+     "key": "run[6]:f3"
+    },
+    {
+     "key": "run[7]:f0"
+    },
+    {
+     "key": "run[7]:f1"
+    },
+    {
+     "key": "run[7]:f2"
+    },
+    {
+     "key": "run[7]:f3"
+    },
+    {
+     "key": "run[8]:f0"
+    },
+    {
+     "key": "run[8]:f1"
+    },
+    {
+     "key": "run[8]:f2"
+    },
+    {
+     "key": "run[8]:f3"
+    },
+    {
+     "key": "run[9]:f0"
+    },
+    {
+     "key": "run[9]:f1"
+    },
+    {
+     "key": "run[9]:f2"
+    },
+    {
+     "key": "run[9]:f3"
+    },
+    {
+     "key": "run[10]:f0"
+    },
+    {
+     "key": "run[10]:f1"
+    },
+    {
+     "key": "run[10]:f2"
+    },
+    {
+     "key": "run[10]:f3"
+    },
+    {
+     "key": "run[11]:f0"
+    },
+    {
+     "key": "run[11]:f1"
+    },
+    {
+     "key": "run[11]:f2"
+    },
+    {
+     "key": "run[11]:f3"
+    },
+    {
+     "key": "run[12]:f0"
+    },
+    {
+     "key": "run[12]:f1"
+    },
+    {
+     "key": "run[12]:f2"
+    },
+    {
+     "key": "run[12]:f3"
+    },
+    {
+     "key": "run[13]:f0"
+    },
+    {
+     "key": "run[13]:f1"
+    },
+    {
+     "key": "run[13]:f2"
+    },
+    {
+     "key": "run[13]:f3"
+    },
+    {
+     "key": "run[14]:f0"
+    },
+    {
+     "key": "run[14]:f1"
+    },
+    {
+     "key": "run[14]:f2"
+    },
+    {
+     "key": "run[14]:f3"
+    },
+    {
+     "key": "run[15]:f0"
+    },
+    {
+     "key": "run[15]:f1"
+    },
+    {
+     "key": "run[15]:f2"
+    },
+    {
+     "key": "run[15]:f3"
+    },
+    {
+     "key": "run[16]:f0"
+    },
+    {
+     "key": "run[16]:f1"
+    },
+    {
+     "key": "run[16]:f2"
+    },
+    {
+     "key": "run[16]:f3"
+    },
+    {
+     "key": "run[17]:f0"
+    },
+    {
+     "key": "run[17]:f1"
+    },
+    {
+     "key": "run[17]:f2"
+    },
+    {
+     "key": "run[17]:f3"
+    },
+    {
+     "key": "run[18]:f0"
+    },
+    {
+     "key": "run[18]:f1"
+    },
+    {
+     "key": "run[18]:f2"
+    },
+    {
+     "key": "run[18]:f3"
+    },
+    {
+     "key": "ptype:Factorial"
+    },
+    {
+     "key": "ptype:Center"
+    }
+   ]
+  },
+  {
+   "id": "QA-H-04",
+   "title": "CCD k=2 (α=2^0.75, 중심 5점)",
+   "op": "rsmcreate",
+   "tolerance": "default",
+   "args": {
+    "design": "ccd",
+    "k": 2,
+    "centers": 5,
+    "randomize": true,
+    "seed": 20261122
+   },
+   "fields": [
+    {
+     "key": "runs"
+    },
+    {
+     "key": "run[0]:std"
+    },
+    {
+     "key": "run[0]:run"
+    },
+    {
+     "key": "run[1]:std"
+    },
+    {
+     "key": "run[1]:run"
+    },
+    {
+     "key": "run[2]:std"
+    },
+    {
+     "key": "run[2]:run"
+    },
+    {
+     "key": "run[3]:std"
+    },
+    {
+     "key": "run[3]:run"
+    },
+    {
+     "key": "run[4]:std"
+    },
+    {
+     "key": "run[4]:run"
+    },
+    {
+     "key": "run[5]:std"
+    },
+    {
+     "key": "run[5]:run"
+    },
+    {
+     "key": "run[6]:std"
+    },
+    {
+     "key": "run[6]:run"
+    },
+    {
+     "key": "run[7]:std"
+    },
+    {
+     "key": "run[7]:run"
+    },
+    {
+     "key": "run[8]:std"
+    },
+    {
+     "key": "run[8]:run"
+    },
+    {
+     "key": "run[9]:std"
+    },
+    {
+     "key": "run[9]:run"
+    },
+    {
+     "key": "run[10]:std"
+    },
+    {
+     "key": "run[10]:run"
+    },
+    {
+     "key": "run[11]:std"
+    },
+    {
+     "key": "run[11]:run"
+    },
+    {
+     "key": "run[12]:std"
+    },
+    {
+     "key": "run[12]:run"
+    },
+    {
+     "key": "run[0]:f0"
+    },
+    {
+     "key": "run[0]:f1"
+    },
+    {
+     "key": "run[1]:f0"
+    },
+    {
+     "key": "run[1]:f1"
+    },
+    {
+     "key": "run[2]:f0"
+    },
+    {
+     "key": "run[2]:f1"
+    },
+    {
+     "key": "run[3]:f0"
+    },
+    {
+     "key": "run[3]:f1"
+    },
+    {
+     "key": "run[4]:f0"
+    },
+    {
+     "key": "run[4]:f1"
+    },
+    {
+     "key": "run[5]:f0"
+    },
+    {
+     "key": "run[5]:f1"
+    },
+    {
+     "key": "run[6]:f0"
+    },
+    {
+     "key": "run[6]:f1"
+    },
+    {
+     "key": "run[7]:f0"
+    },
+    {
+     "key": "run[7]:f1"
+    },
+    {
+     "key": "run[8]:f0"
+    },
+    {
+     "key": "run[8]:f1"
+    },
+    {
+     "key": "run[9]:f0"
+    },
+    {
+     "key": "run[9]:f1"
+    },
+    {
+     "key": "run[10]:f0"
+    },
+    {
+     "key": "run[10]:f1"
+    },
+    {
+     "key": "run[11]:f0"
+    },
+    {
+     "key": "run[11]:f1"
+    },
+    {
+     "key": "run[12]:f0"
+    },
+    {
+     "key": "run[12]:f1"
+    },
+    {
+     "key": "ptype:Factorial"
+    },
+    {
+     "key": "ptype:Axial"
+    },
+    {
+     "key": "ptype:Center"
+    }
+   ]
+  },
+  {
+   "id": "QA-H-05",
+   "title": "Box-Behnken 3요인 (12 edge + 중심 3)",
+   "op": "rsmcreate",
+   "tolerance": "default",
+   "args": {
+    "design": "bbd",
+    "centers": 3,
+    "randomize": true,
+    "seed": 20261122
+   },
+   "fields": [
+    {
+     "key": "runs"
+    },
+    {
+     "key": "run[0]:std"
+    },
+    {
+     "key": "run[0]:run"
+    },
+    {
+     "key": "run[1]:std"
+    },
+    {
+     "key": "run[1]:run"
+    },
+    {
+     "key": "run[2]:std"
+    },
+    {
+     "key": "run[2]:run"
+    },
+    {
+     "key": "run[3]:std"
+    },
+    {
+     "key": "run[3]:run"
+    },
+    {
+     "key": "run[4]:std"
+    },
+    {
+     "key": "run[4]:run"
+    },
+    {
+     "key": "run[5]:std"
+    },
+    {
+     "key": "run[5]:run"
+    },
+    {
+     "key": "run[6]:std"
+    },
+    {
+     "key": "run[6]:run"
+    },
+    {
+     "key": "run[7]:std"
+    },
+    {
+     "key": "run[7]:run"
+    },
+    {
+     "key": "run[8]:std"
+    },
+    {
+     "key": "run[8]:run"
+    },
+    {
+     "key": "run[9]:std"
+    },
+    {
+     "key": "run[9]:run"
+    },
+    {
+     "key": "run[10]:std"
+    },
+    {
+     "key": "run[10]:run"
+    },
+    {
+     "key": "run[11]:std"
+    },
+    {
+     "key": "run[11]:run"
+    },
+    {
+     "key": "run[12]:std"
+    },
+    {
+     "key": "run[12]:run"
+    },
+    {
+     "key": "run[13]:std"
+    },
+    {
+     "key": "run[13]:run"
+    },
+    {
+     "key": "run[14]:std"
+    },
+    {
+     "key": "run[14]:run"
+    },
+    {
+     "key": "run[0]:f0"
+    },
+    {
+     "key": "run[0]:f1"
+    },
+    {
+     "key": "run[0]:f2"
+    },
+    {
+     "key": "run[1]:f0"
+    },
+    {
+     "key": "run[1]:f1"
+    },
+    {
+     "key": "run[1]:f2"
+    },
+    {
+     "key": "run[2]:f0"
+    },
+    {
+     "key": "run[2]:f1"
+    },
+    {
+     "key": "run[2]:f2"
+    },
+    {
+     "key": "run[3]:f0"
+    },
+    {
+     "key": "run[3]:f1"
+    },
+    {
+     "key": "run[3]:f2"
+    },
+    {
+     "key": "run[4]:f0"
+    },
+    {
+     "key": "run[4]:f1"
+    },
+    {
+     "key": "run[4]:f2"
+    },
+    {
+     "key": "run[5]:f0"
+    },
+    {
+     "key": "run[5]:f1"
+    },
+    {
+     "key": "run[5]:f2"
+    },
+    {
+     "key": "run[6]:f0"
+    },
+    {
+     "key": "run[6]:f1"
+    },
+    {
+     "key": "run[6]:f2"
+    },
+    {
+     "key": "run[7]:f0"
+    },
+    {
+     "key": "run[7]:f1"
+    },
+    {
+     "key": "run[7]:f2"
+    },
+    {
+     "key": "run[8]:f0"
+    },
+    {
+     "key": "run[8]:f1"
+    },
+    {
+     "key": "run[8]:f2"
+    },
+    {
+     "key": "run[9]:f0"
+    },
+    {
+     "key": "run[9]:f1"
+    },
+    {
+     "key": "run[9]:f2"
+    },
+    {
+     "key": "run[10]:f0"
+    },
+    {
+     "key": "run[10]:f1"
+    },
+    {
+     "key": "run[10]:f2"
+    },
+    {
+     "key": "run[11]:f0"
+    },
+    {
+     "key": "run[11]:f1"
+    },
+    {
+     "key": "run[11]:f2"
+    },
+    {
+     "key": "run[12]:f0"
+    },
+    {
+     "key": "run[12]:f1"
+    },
+    {
+     "key": "run[12]:f2"
+    },
+    {
+     "key": "run[13]:f0"
+    },
+    {
+     "key": "run[13]:f1"
+    },
+    {
+     "key": "run[13]:f2"
+    },
+    {
+     "key": "run[14]:f0"
+    },
+    {
+     "key": "run[14]:f1"
+    },
+    {
+     "key": "run[14]:f2"
+    },
+    {
+     "key": "ptype:Edge"
+    },
+    {
+     "key": "ptype:Center"
+    }
+   ]
+  },
+  {
+   "id": "QA-H-06",
+   "title": "요인분석 2^3 효과·계수·p",
+   "op": "doeanalyze",
+   "tolerance": "default",
+   "dataset": "doe_2k3",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2
+   },
+   "fields": [
+    {
+     "key": "effect:A"
+    },
+    {
+     "key": "coef:A"
+    },
+    {
+     "key": "se:A"
+    },
+    {
+     "key": "t:A"
+    },
+    {
+     "key": "p:A"
+    },
+    {
+     "key": "effect:B"
+    },
+    {
+     "key": "coef:B"
+    },
+    {
+     "key": "se:B"
+    },
+    {
+     "key": "t:B"
+    },
+    {
+     "key": "p:B"
+    },
+    {
+     "key": "effect:C"
+    },
+    {
+     "key": "coef:C"
+    },
+    {
+     "key": "se:C"
+    },
+    {
+     "key": "t:C"
+    },
+    {
+     "key": "p:C"
+    },
+    {
+     "key": "effect:A×B"
+    },
+    {
+     "key": "coef:A×B"
+    },
+    {
+     "key": "se:A×B"
+    },
+    {
+     "key": "t:A×B"
+    },
+    {
+     "key": "p:A×B"
+    },
+    {
+     "key": "effect:A×C"
+    },
+    {
+     "key": "coef:A×C"
+    },
+    {
+     "key": "se:A×C"
+    },
+    {
+     "key": "t:A×C"
+    },
+    {
+     "key": "p:A×C"
+    },
+    {
+     "key": "effect:B×C"
+    },
+    {
+     "key": "coef:B×C"
+    },
+    {
+     "key": "se:B×C"
+    },
+    {
+     "key": "t:B×C"
+    },
+    {
+     "key": "p:B×C"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "s"
+    }
+   ]
+  },
+  {
+   "id": "QA-H-07",
+   "title": "요인분석 주효과만 (order 1)",
+   "op": "doeanalyze",
+   "tolerance": "default",
+   "dataset": "doe_2k3",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 1
+   },
+   "fields": [
+    {
+     "key": "effect:A"
+    },
+    {
+     "key": "coef:A"
+    },
+    {
+     "key": "se:A"
+    },
+    {
+     "key": "t:A"
+    },
+    {
+     "key": "p:A"
+    },
+    {
+     "key": "effect:B"
+    },
+    {
+     "key": "coef:B"
+    },
+    {
+     "key": "se:B"
+    },
+    {
+     "key": "t:B"
+    },
+    {
+     "key": "p:B"
+    },
+    {
+     "key": "effect:C"
+    },
+    {
+     "key": "coef:C"
+    },
+    {
+     "key": "se:C"
+    },
+    {
+     "key": "t:C"
+    },
+    {
+     "key": "p:C"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "r2"
+    }
+   ]
+  },
+  {
+   "id": "QA-H-08",
+   "title": "RSM 2차 적합 + 정지점 (영역 내)",
+   "op": "rsmanalyze",
+   "tolerance": "default",
+   "dataset": "rsm_ccd",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "x",
+     "y"
+    ]
+   },
+   "fields": [
+    {
+     "key": "linear:df"
+    },
+    {
+     "key": "linear:ss"
+    },
+    {
+     "key": "square:df"
+    },
+    {
+     "key": "square:ss"
+    },
+    {
+     "key": "interaction:df"
+    },
+    {
+     "key": "interaction:ss"
+    },
+    {
+     "key": "pure:df"
+    },
+    {
+     "key": "pure:ss"
+    },
+    {
+     "key": "lof:df"
+    },
+    {
+     "key": "lof:ss"
+    },
+    {
+     "key": "lof:f"
+    },
+    {
+     "key": "lof:p"
+    },
+    {
+     "key": "qcoef:x"
+    },
+    {
+     "key": "qcoef:y"
+    },
+    {
+     "key": "qcoef:x²"
+    },
+    {
+     "key": "qcoef:y²"
+    },
+    {
+     "key": "qcoef:x×y"
+    },
+    {
+     "key": "stationary:x0"
+    },
+    {
+     "key": "stationary:x1"
+    },
+    {
+     "key": "stationary:response"
+    },
+    {
+     "key": "stationary:eigen0"
+    },
+    {
+     "key": "stationary:eigen1"
+    },
+    {
+     "key": "stationary:kind",
+     "kind": "string"
+    },
+    {
+     "key": "stationary:max_abs"
+    },
+    {
+     "key": "stationary:outside"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "r2"
+    }
+   ]
+  },
+  {
+   "id": "QA-H-09",
+   "title": "RSM 정지점 실험영역 밖 판별",
+   "op": "rsmanalyze",
+   "tolerance": "default",
+   "dataset": "rsm_outside",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "x",
+     "y"
+    ]
+   },
+   "fields": [
+    {
+     "key": "stationary:x0"
+    },
+    {
+     "key": "stationary:x1"
+    },
+    {
+     "key": "stationary:response"
+    },
+    {
+     "key": "stationary:max_abs"
+    },
+    {
+     "key": "stationary:outside"
+    },
+    {
+     "key": "stationary:kind",
+     "kind": "string"
+    },
+    {
+     "key": "lof:p"
+    }
+   ],
+   "note": "정지점 (2.08, 2.08) > α=1.1892 → outside=1, 외삽 경고."
+  },
+  {
+   "id": "QA-H-10",
+   "title": "요인 수 범위 밖 (k=7) → 오류",
+   "op": "doecreate",
+   "tolerance": "default",
+   "args": {
+    "k": 7
+   },
+   "expectError": "doe.factorRange"
+  }
+ ]
+}

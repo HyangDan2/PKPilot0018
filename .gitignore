@@ -5,3 +5,7 @@ dist-ssr
 .DS_Store
 .vite
 coverage
+
+# QA harness scratch output (reports are committed, run files are not)
+qa/_run/
+qa/adapters/sigrun/.build/

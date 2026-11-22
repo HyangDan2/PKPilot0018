@@ -1,0 +1,1742 @@
+{
+ "area": "QA-A",
+ "cases": [
+  {
+   "id": "QA-A-01",
+   "title": "기술통계 전체 항목 (n=60 정규)",
+   "op": "desc",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "n_star"
+    },
+    {
+     "key": "sum"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "se_mean"
+    },
+    {
+     "key": "stdev"
+    },
+    {
+     "key": "variance"
+    },
+    {
+     "key": "coef_var"
+    },
+    {
+     "key": "min"
+    },
+    {
+     "key": "q1"
+    },
+    {
+     "key": "median"
+    },
+    {
+     "key": "q3"
+    },
+    {
+     "key": "max"
+    },
+    {
+     "key": "iqr"
+    },
+    {
+     "key": "range"
+    },
+    {
+     "key": "skewness"
+    },
+    {
+     "key": "kurtosis"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-02",
+   "title": "기술통계 결측 포함 (N* 7건)",
+   "op": "desc",
+   "tolerance": "default",
+   "dataset": "missing_values",
+   "args": {
+    "column": "x"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "n_star"
+    },
+    {
+     "key": "sum"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "se_mean"
+    },
+    {
+     "key": "stdev"
+    },
+    {
+     "key": "variance"
+    },
+    {
+     "key": "coef_var"
+    },
+    {
+     "key": "min"
+    },
+    {
+     "key": "q1"
+    },
+    {
+     "key": "median"
+    },
+    {
+     "key": "q3"
+    },
+    {
+     "key": "max"
+    },
+    {
+     "key": "iqr"
+    },
+    {
+     "key": "range"
+    },
+    {
+     "key": "skewness"
+    },
+    {
+     "key": "kurtosis"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-03",
+   "title": "소표본 n=6 사분위수·왜도 (type-6 quantile)",
+   "op": "desc",
+   "tolerance": "default",
+   "dataset": "small_sample",
+   "args": {
+    "column": "a"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "stdev"
+    },
+    {
+     "key": "se_mean"
+    },
+    {
+     "key": "q1"
+    },
+    {
+     "key": "median"
+    },
+    {
+     "key": "q3"
+    },
+    {
+     "key": "iqr"
+    },
+    {
+     "key": "skewness"
+    },
+    {
+     "key": "kurtosis"
+    }
+   ],
+   "note": "n<4 이면 첨도 정의 불가 → 양쪽 모두 NaN이어야 한다."
+  },
+  {
+   "id": "QA-A-04",
+   "title": "상수열 s=0, 왜도/변동계수 정의",
+   "op": "desc",
+   "tolerance": "default",
+   "dataset": "constant_zero",
+   "args": {
+    "column": "flat"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "n_star"
+    },
+    {
+     "key": "sum"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "se_mean"
+    },
+    {
+     "key": "stdev"
+    },
+    {
+     "key": "variance"
+    },
+    {
+     "key": "coef_var"
+    },
+    {
+     "key": "min"
+    },
+    {
+     "key": "q1"
+    },
+    {
+     "key": "median"
+    },
+    {
+     "key": "q3"
+    },
+    {
+     "key": "max"
+    },
+    {
+     "key": "iqr"
+    },
+    {
+     "key": "range"
+    },
+    {
+     "key": "skewness"
+    },
+    {
+     "key": "kurtosis"
+    }
+   ],
+   "note": "영분산에서는 왜도·첨도·CoefVar가 NaN."
+  },
+  {
+   "id": "QA-A-05",
+   "title": "이상치 2건 포함 분포 모양",
+   "op": "desc",
+   "tolerance": "default",
+   "dataset": "outliers",
+   "args": {
+    "column": "x"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "n_star"
+    },
+    {
+     "key": "sum"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "se_mean"
+    },
+    {
+     "key": "stdev"
+    },
+    {
+     "key": "variance"
+    },
+    {
+     "key": "coef_var"
+    },
+    {
+     "key": "min"
+    },
+    {
+     "key": "q1"
+    },
+    {
+     "key": "median"
+    },
+    {
+     "key": "q3"
+    },
+    {
+     "key": "max"
+    },
+    {
+     "key": "iqr"
+    },
+    {
+     "key": "range"
+    },
+    {
+     "key": "skewness"
+    },
+    {
+     "key": "kurtosis"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-06",
+   "title": "대규모 8 000행 수치 안정성",
+   "op": "desc",
+   "tolerance": "default",
+   "dataset": "large_stability",
+   "args": {
+    "column": "x"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "n_star"
+    },
+    {
+     "key": "sum"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "se_mean"
+    },
+    {
+     "key": "stdev"
+    },
+    {
+     "key": "variance"
+    },
+    {
+     "key": "coef_var"
+    },
+    {
+     "key": "min"
+    },
+    {
+     "key": "q1"
+    },
+    {
+     "key": "median"
+    },
+    {
+     "key": "q3"
+    },
+    {
+     "key": "max"
+    },
+    {
+     "key": "iqr"
+    },
+    {
+     "key": "range"
+    },
+    {
+     "key": "skewness"
+    },
+    {
+     "key": "kurtosis"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-07",
+   "title": "정규성 AD (정규 데이터)",
+   "op": "normality",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "sd"
+    },
+    {
+     "key": "ad",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "p",
+     "tol": "ad_erf"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-08",
+   "title": "정규성 AD (이상치 → p 극소)",
+   "op": "normality",
+   "tolerance": "default",
+   "dataset": "outliers",
+   "args": {
+    "column": "x"
+   },
+   "fields": [
+    {
+     "key": "ad",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "p",
+     "tol": "ad_erf"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-09",
+   "title": "정규성 AD 소표본 n=6",
+   "op": "normality",
+   "tolerance": "default",
+   "dataset": "small_sample",
+   "args": {
+    "column": "a"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "ad",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "ad_adjusted",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "p",
+     "tol": "ad_erf"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-10",
+   "title": "정규성 AD 상수열 → 정의 불가(NaN)",
+   "op": "normality",
+   "tolerance": "default",
+   "dataset": "constant_zero",
+   "args": {
+    "column": "flat"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "ad",
+     "tol": "ad_erf"
+    },
+    {
+     "key": "p",
+     "tol": "ad_erf"
+    }
+   ],
+   "note": "s=0이면 A²·p는 NaN (n=12)."
+  },
+  {
+   "id": "QA-A-11",
+   "title": "1표본 t (양측, μ0=100)",
+   "op": "t1",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "mu0": 100
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-12",
+   "title": "1표본 t 단측 less, 90% CI",
+   "op": "t1",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "mu0": 101,
+    "alt": "less",
+    "conf": 0.9
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-13",
+   "title": "1표본 t 단측 greater, 99% CI",
+   "op": "t1",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "mu0": 99,
+    "alt": "greater",
+    "conf": 0.99
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-14",
+   "title": "1표본 t 결측 포함",
+   "op": "t1",
+   "tolerance": "default",
+   "dataset": "missing_values",
+   "args": {
+    "column": "x",
+    "mu0": 20
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-15",
+   "title": "2표본 t Welch",
+   "op": "t2",
+   "tolerance": "default",
+   "dataset": "small_sample",
+   "args": {
+    "column": "a",
+    "column2": "b",
+    "welch": true
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    },
+    {
+     "key": "mean_b"
+    },
+    {
+     "key": "n_b"
+    },
+    {
+     "key": "stdev_b"
+    },
+    {
+     "key": "f"
+    },
+    {
+     "key": "f_p"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-16",
+   "title": "2표본 t 등분산(pooled)",
+   "op": "t2",
+   "tolerance": "default",
+   "dataset": "small_sample",
+   "args": {
+    "column": "a",
+    "column2": "b",
+    "welch": false
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    },
+    {
+     "key": "mean_b"
+    },
+    {
+     "key": "n_b"
+    },
+    {
+     "key": "stdev_b"
+    },
+    {
+     "key": "f"
+    },
+    {
+     "key": "f_p"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-17",
+   "title": "2표본 t 단측 greater 90%",
+   "op": "t2",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "column": "x",
+    "column2": "y",
+    "alt": "greater",
+    "conf": 0.9
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    },
+    {
+     "key": "mean_b"
+    },
+    {
+     "key": "n_b"
+    },
+    {
+     "key": "stdev_b"
+    },
+    {
+     "key": "f"
+    },
+    {
+     "key": "f_p"
+    }
+   ],
+   "note": "단측 구간의 반대쪽 한계는 ±∞ — 두 구현 모두 Infinity로 태그해야 한다."
+  },
+  {
+   "id": "QA-A-18",
+   "title": "대응표본 t (차이 μ0=0)",
+   "op": "paired",
+   "tolerance": "default",
+   "dataset": "small_sample",
+   "args": {
+    "column": "a",
+    "column2": "b"
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "mean_b"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "difference_vs_mu0"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-19",
+   "title": "대응표본 t 차이 검정 μ0=0.5, 단측",
+   "op": "paired",
+   "tolerance": "default",
+   "dataset": "small_sample",
+   "args": {
+    "column": "a",
+    "column2": "b",
+    "mu0": 0.5,
+    "alt": "greater"
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "mean_b"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "difference_vs_mu0"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-20",
+   "title": "대응표본 t 결측쌍 제외 (n=34)",
+   "op": "paired",
+   "tolerance": "default",
+   "dataset": "missing_values",
+   "args": {
+    "column": "x",
+    "column2": "y"
+   },
+   "fields": [
+    {
+     "key": "mean"
+    },
+    {
+     "key": "mean_b"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "difference_vs_mu0"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "stdev"
+    }
+   ],
+   "note": "x·y 둘 다 있는 행만 짝이 된다."
+  },
+  {
+   "id": "QA-A-21",
+   "title": "일원 ANOVA + Tukey HSD (3집단)",
+   "op": "anova",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "response": "x",
+    "factor": "group"
+   },
+   "fields": [
+    {
+     "key": "df_between"
+    },
+    {
+     "key": "df_within"
+    },
+    {
+     "key": "ss_between"
+    },
+    {
+     "key": "ss_within"
+    },
+    {
+     "key": "ms_between"
+    },
+    {
+     "key": "ms_within"
+    },
+    {
+     "key": "f"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "s_pooled"
+    },
+    {
+     "key": "tukey_q",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:A|B:diff"
+    },
+    {
+     "key": "tukey:A|B:se"
+    },
+    {
+     "key": "tukey:A|B:ci_low",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:A|B:ci_high",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:A|B:p",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:A|B:significant"
+    },
+    {
+     "key": "tukey:A|C:diff"
+    },
+    {
+     "key": "tukey:A|C:se"
+    },
+    {
+     "key": "tukey:A|C:ci_low",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:A|C:ci_high",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:A|C:p",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:A|C:significant"
+    },
+    {
+     "key": "tukey:B|C:diff"
+    },
+    {
+     "key": "tukey:B|C:se"
+    },
+    {
+     "key": "tukey:B|C:ci_low",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:B|C:ci_high",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:B|C:p",
+     "tol": "studentized_range"
+    },
+    {
+     "key": "tukey:B|C:significant"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-22",
+   "title": "일원 ANOVA 불균형 3집단 (12/9/6)",
+   "op": "anova",
+   "tolerance": "default",
+   "dataset": "unbalanced",
+   "args": {
+    "response": "resp",
+    "factor": "fa"
+   },
+   "fields": [
+    {
+     "key": "df_between"
+    },
+    {
+     "key": "df_within"
+    },
+    {
+     "key": "ss_between"
+    },
+    {
+     "key": "ss_within"
+    },
+    {
+     "key": "ms_between"
+    },
+    {
+     "key": "ms_within"
+    },
+    {
+     "key": "f"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "s_pooled"
+    },
+    {
+     "key": "tukey_q",
+     "tol": "studentized_range"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-23",
+   "title": "회귀 y ~ x (VIF·R²pred 포함)",
+   "op": "regression",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "response": "y",
+    "predictors": [
+     "x"
+    ]
+   },
+   "fields": [
+    {
+     "key": "coef:Constant"
+    },
+    {
+     "key": "se:Constant"
+    },
+    {
+     "key": "t:Constant"
+    },
+    {
+     "key": "p:Constant"
+    },
+    {
+     "key": "coef:x"
+    },
+    {
+     "key": "se:x"
+    },
+    {
+     "key": "t:x"
+    },
+    {
+     "key": "p:x"
+    },
+    {
+     "key": "vif:x"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "r2_pred"
+    },
+    {
+     "key": "s"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "df_reg"
+    },
+    {
+     "key": "df_err"
+    },
+    {
+     "key": "ss_reg"
+    },
+    {
+     "key": "ss_err"
+    },
+    {
+     "key": "f"
+    },
+    {
+     "key": "p"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-24",
+   "title": "회귀 2예측변수 (DOE 설계, VIF=1)",
+   "op": "regression",
+   "tolerance": "default",
+   "dataset": "doe_2k3",
+   "args": {
+    "response": "Y",
+    "predictors": [
+     "A",
+     "B"
+    ]
+   },
+   "fields": [
+    {
+     "key": "coef:Constant"
+    },
+    {
+     "key": "se:Constant"
+    },
+    {
+     "key": "t:Constant"
+    },
+    {
+     "key": "p:Constant"
+    },
+    {
+     "key": "coef:A"
+    },
+    {
+     "key": "se:A"
+    },
+    {
+     "key": "t:A"
+    },
+    {
+     "key": "p:A"
+    },
+    {
+     "key": "coef:B"
+    },
+    {
+     "key": "se:B"
+    },
+    {
+     "key": "t:B"
+    },
+    {
+     "key": "p:B"
+    },
+    {
+     "key": "vif:A"
+    },
+    {
+     "key": "vif:B"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "r2_pred"
+    },
+    {
+     "key": "s"
+    },
+    {
+     "key": "f"
+    },
+    {
+     "key": "p"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-25",
+   "title": "normalCdf(1.96)",
+   "op": "dist",
+   "tolerance": "prob",
+   "args": {
+    "function": "normalCdf",
+    "args": [
+     1.96
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "prob"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-26",
+   "title": "normalCdf(-2.5, 10, 2)",
+   "op": "dist",
+   "tolerance": "prob",
+   "args": {
+    "function": "normalCdf",
+    "args": [
+     -2.5,
+     10,
+     2
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "prob"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-27",
+   "title": "normalInv(0.975)",
+   "op": "dist",
+   "tolerance": "normal_inv",
+   "args": {
+    "function": "normalInv",
+    "args": [
+     0.975
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "normal_inv"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-28",
+   "title": "normalPdf(0.3)",
+   "op": "dist",
+   "tolerance": "prob",
+   "args": {
+    "function": "normalPdf",
+    "args": [
+     0.3
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "prob"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-47",
+   "title": "normalInv(0.001) 꼬리",
+   "op": "dist",
+   "tolerance": "normal_inv",
+   "args": {
+    "function": "normalInv",
+    "args": [
+     0.001
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "normal_inv"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-48",
+   "title": "normalInv(0.9999) 꼬리",
+   "op": "dist",
+   "tolerance": "normal_inv",
+   "args": {
+    "function": "normalInv",
+    "args": [
+     0.9999
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "normal_inv"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-29",
+   "title": "tCdf(2.1, 9)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "tCdf",
+    "args": [
+     2.1,
+     9
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-30",
+   "title": "tInv(0.95, 12)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "tInv",
+    "args": [
+     0.95,
+     12
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-31",
+   "title": "fCdf(2.5, 3, 20)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "fCdf",
+    "args": [
+     2.5,
+     3,
+     20
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-32",
+   "title": "fInv(0.95, 4, 12)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "fInv",
+    "args": [
+     0.95,
+     4,
+     12
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-33",
+   "title": "chi2Cdf(7.8, 5)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "chi2Cdf",
+    "args": [
+     7.8,
+     5
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-34",
+   "title": "gammaP(3.5, 2.2)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "gammaP",
+    "args": [
+     3.5,
+     2.2
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-35",
+   "title": "gammaInv(0.9, 2.5, 3)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "gammaInv",
+    "args": [
+     0.9,
+     2.5,
+     3
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-36",
+   "title": "weibullCdf(120, 1.7, 200)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "weibullCdf",
+    "args": [
+     120,
+     1.7,
+     200
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-37",
+   "title": "weibullInv(0.9, 1.7, 200)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "weibullInv",
+    "args": [
+     0.9,
+     1.7,
+     200
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-38",
+   "title": "lognormalCdf(150, 4.8, 0.4)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "lognormalCdf",
+    "args": [
+     150,
+     4.8,
+     0.4
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-39",
+   "title": "lognormalInv(0.05, 4.8, 0.4)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "lognormalInv",
+    "args": [
+     0.05,
+     4.8,
+     0.4
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-40",
+   "title": "nctCdf(1.5, 10, 2)",
+   "op": "dist",
+   "tolerance": "nct_quad",
+   "args": {
+    "function": "nctCdf",
+    "args": [
+     1.5,
+     10,
+     2
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "nct_quad"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-41",
+   "title": "ncfCdf(2.0, 3, 20, 4)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "ncfCdf",
+    "args": [
+     2.0,
+     3,
+     20,
+     4
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-42",
+   "title": "studentized range CDF (q=3.5, k=4, df=18)",
+   "op": "dist",
+   "tolerance": "studentized_range",
+   "args": {
+    "function": "rangeCdf",
+    "args": [
+     3.5,
+     4,
+     18
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "studentized_range"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-43",
+   "title": "studentized range 분위수 (0.95, k=3, df=9)",
+   "op": "dist",
+   "tolerance": "studentized_range",
+   "args": {
+    "function": "rangeInv",
+    "args": [
+     0.95,
+     3,
+     9
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "studentized_range"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-44",
+   "title": "logGamma(7.5)",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "logGamma",
+    "args": [
+     7.5
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-45",
+   "title": "c4(5) 관리도 상수",
+   "op": "dist",
+   "tolerance": "default",
+   "args": {
+    "function": "c4",
+    "args": [
+     5
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "default"
+    }
+   ]
+  },
+  {
+   "id": "QA-A-46",
+   "title": "nctCdf 대자유도 (df=254, ncp=4)",
+   "op": "dist",
+   "tolerance": "nct_quad",
+   "args": {
+    "function": "nctCdf",
+    "args": [
+     -1.969,
+     254,
+     4.0
+    ]
+   },
+   "fields": [
+    {
+     "key": "value",
+     "tol": "nct_quad"
+    }
+   ]
+  }
+ ]
+}

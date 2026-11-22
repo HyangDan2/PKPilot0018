@@ -1,0 +1,94 @@
+{
+ "part_a": [
+  {
+   "dataset": "censored_two",
+   "n": 20,
+   "failures": 2,
+   "observed_ad": 0.7051074376862074,
+   "p_bernoulli_flip": 0.5324459234608985,
+   "engine_rule_rate": 0.3333333333333333,
+   "engine_rule_fail_mean": 2.8266666666666667,
+   "engine_rule_adsd": 1.0219983160904986,
+   "p_bernoulli_drop": 0.29925187032418954,
+   "p_censor_time_flip": 1.0,
+   "p_censor_time_drop": 1.0,
+   "censor_time_fail_mean": 2.272727272727273,
+   "censor_time_adsd": 0.2955720462224556
+  },
+  {
+   "dataset": "censored_few",
+   "n": 30,
+   "failures": 3,
+   "observed_ad": 6.275872741387436,
+   "p_bernoulli_flip": 0.06655574043261231,
+   "engine_rule_rate": 0.011666666666666667,
+   "engine_rule_fail_mean": 5.7,
+   "engine_rule_adsd": 2.9118987164255614,
+   "p_bernoulli_drop": 0.06734006734006734,
+   "p_censor_time_flip": 0.5574043261231281,
+   "p_censor_time_drop": 0.625,
+   "censor_time_fail_mean": 3.4552683896620278,
+   "censor_time_adsd": 0.9966177542366048
+  },
+  {
+   "dataset": "censored_heavy",
+   "n": 25,
+   "failures": 6,
+   "observed_ad": 5.800819317891815,
+   "p_bernoulli_flip": 0.009983361064891847,
+   "engine_rule_rate": 0.0,
+   "engine_rule_fail_mean": 10.443333333333333,
+   "engine_rule_adsd": 1.1177880392570005,
+   "p_bernoulli_drop": 0.009983361064891847,
+   "p_censor_time_flip": 0.9068219633943427,
+   "p_censor_time_drop": 0.9159663865546218,
+   "censor_time_fail_mean": 5.848484848484849,
+   "censor_time_adsd": 0.6990758660985172
+  },
+  {
+   "dataset": "censored_mixed",
+   "n": 40,
+   "failures": 25,
+   "observed_ad": 3.3636057405021265,
+   "p_bernoulli_flip": 0.0016638935108153079,
+   "engine_rule_rate": 0.0,
+   "engine_rule_fail_mean": 32.2,
+   "engine_rule_adsd": 0.41128300261818934,
+   "p_bernoulli_drop": 0.0016638935108153079,
+   "p_censor_time_flip": 0.930116472545757,
+   "p_censor_time_drop": 0.930116472545757,
+   "censor_time_fail_mean": 18.985,
+   "censor_time_adsd": 1.7250805778983649
+  }
+ ],
+ "part_b": [
+  {
+   "config": "Weibull(1.7,200) 25% cens",
+   "shape": 1.7,
+   "scale": 200.0,
+   "censor": [
+    60.0,
+    260.0
+   ],
+   "sims": 150,
+   "bernoulli_flip": 1.0,
+   "bernoulli_drop": 1.0,
+   "censor_time_flip": 0.006666666666666667,
+   "censor_time_drop": 0.006666666666666667
+  },
+  {
+   "config": "Weibull(1.8,260) 90% cens",
+   "shape": 1.8,
+   "scale": 260.0,
+   "censor": [
+    40.0,
+    90.0
+   ],
+   "sims": 150,
+   "bernoulli_flip": 0.44666666666666666,
+   "bernoulli_drop": 0.52,
+   "censor_time_flip": 0.0,
+   "censor_time_drop": 0.0
+  }
+ ]
+}

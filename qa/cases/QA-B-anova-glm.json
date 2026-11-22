@@ -1,0 +1,608 @@
+{
+ "area": "QA-B",
+ "cases": [
+  {
+   "id": "QA-B-01",
+   "title": "일원 ANOVA 4집단 n=2000씩 (대규모)",
+   "op": "anova",
+   "tolerance": "default",
+   "dataset": "large_stability",
+   "args": {
+    "response": "x",
+    "factor": "group"
+   },
+   "fields": [
+    {
+     "key": "df_between"
+    },
+    {
+     "key": "df_within"
+    },
+    {
+     "key": "ss_between"
+    },
+    {
+     "key": "ss_within"
+    },
+    {
+     "key": "ms_between"
+    },
+    {
+     "key": "ms_within"
+    },
+    {
+     "key": "f"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "s_pooled"
+    },
+    {
+     "key": "tukey_q",
+     "tol": "studentized_range"
+    }
+   ]
+  },
+  {
+   "id": "QA-B-02",
+   "title": "GLM 2요인 + 교호작용, 불균형 Type I/III",
+   "op": "glm",
+   "tolerance": "default",
+   "dataset": "unbalanced",
+   "args": {
+    "response": "resp",
+    "factors": [
+     {
+      "name": "fa",
+      "column": "fa",
+      "kind": "categorical"
+     },
+     {
+      "name": "fb",
+      "column": "fb",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "fa"
+     ],
+     [
+      "fb"
+     ],
+     [
+      "fa",
+      "fb"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "mse"
+    },
+    {
+     "key": "s"
+    },
+    {
+     "key": "ss_total"
+    },
+    {
+     "key": "ss_model"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "rank"
+    },
+    {
+     "key": "term:fa:df"
+    },
+    {
+     "key": "term:fa:ss_seq"
+    },
+    {
+     "key": "term:fa:ss_adj"
+    },
+    {
+     "key": "term:fa:ms_adj"
+    },
+    {
+     "key": "term:fa:f"
+    },
+    {
+     "key": "term:fa:p"
+    },
+    {
+     "key": "term:fb:df"
+    },
+    {
+     "key": "term:fb:ss_seq"
+    },
+    {
+     "key": "term:fb:ss_adj"
+    },
+    {
+     "key": "term:fb:ms_adj"
+    },
+    {
+     "key": "term:fb:f"
+    },
+    {
+     "key": "term:fb:p"
+    },
+    {
+     "key": "term:fa×fb:df"
+    },
+    {
+     "key": "term:fa×fb:ss_seq"
+    },
+    {
+     "key": "term:fa×fb:ss_adj"
+    },
+    {
+     "key": "term:fa×fb:ms_adj"
+    },
+    {
+     "key": "term:fa×fb:f"
+    },
+    {
+     "key": "term:fa×fb:p"
+    }
+   ],
+   "note": "Sum-to-zero 코딩의 Type III SS가 statsmodels C(f, Sum) anova_lm(typ=3)와 일치해야 한다."
+  },
+  {
+   "id": "QA-B-03",
+   "title": "GLM 주효과만 (교호작용 제외) 불균형",
+   "op": "glm",
+   "tolerance": "default",
+   "dataset": "unbalanced",
+   "args": {
+    "response": "resp",
+    "factors": [
+     {
+      "name": "fa",
+      "column": "fa",
+      "kind": "categorical"
+     },
+     {
+      "name": "fb",
+      "column": "fb",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "fa"
+     ],
+     [
+      "fb"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "mse"
+    },
+    {
+     "key": "s"
+    },
+    {
+     "key": "ss_total"
+    },
+    {
+     "key": "ss_model"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "rank"
+    },
+    {
+     "key": "term:fa:df"
+    },
+    {
+     "key": "term:fa:ss_seq"
+    },
+    {
+     "key": "term:fa:ss_adj"
+    },
+    {
+     "key": "term:fa:ms_adj"
+    },
+    {
+     "key": "term:fa:f"
+    },
+    {
+     "key": "term:fa:p"
+    },
+    {
+     "key": "term:fb:df"
+    },
+    {
+     "key": "term:fb:ss_seq"
+    },
+    {
+     "key": "term:fb:ss_adj"
+    },
+    {
+     "key": "term:fb:ms_adj"
+    },
+    {
+     "key": "term:fb:f"
+    },
+    {
+     "key": "term:fb:p"
+    }
+   ]
+  },
+  {
+   "id": "QA-B-04",
+   "title": "GLM 숫자형 요인 3개 (2^3 DOE) Type I/III",
+   "op": "glm",
+   "tolerance": "default",
+   "dataset": "doe_2k3",
+   "args": {
+    "response": "Y",
+    "factors": [
+     {
+      "name": "A",
+      "column": "A",
+      "kind": "numeric"
+     },
+     {
+      "name": "B",
+      "column": "B",
+      "kind": "numeric"
+     },
+     {
+      "name": "C",
+      "column": "C",
+      "kind": "numeric"
+     }
+    ],
+    "terms": [
+     [
+      "A"
+     ],
+     [
+      "B"
+     ],
+     [
+      "C"
+     ],
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "mse"
+    },
+    {
+     "key": "s"
+    },
+    {
+     "key": "ss_total"
+    },
+    {
+     "key": "ss_model"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "rank"
+    },
+    {
+     "key": "term:A:df"
+    },
+    {
+     "key": "term:A:ss_seq"
+    },
+    {
+     "key": "term:A:ss_adj"
+    },
+    {
+     "key": "term:A:ms_adj"
+    },
+    {
+     "key": "term:A:f"
+    },
+    {
+     "key": "term:A:p"
+    },
+    {
+     "key": "term:B:df"
+    },
+    {
+     "key": "term:B:ss_seq"
+    },
+    {
+     "key": "term:B:ss_adj"
+    },
+    {
+     "key": "term:B:ms_adj"
+    },
+    {
+     "key": "term:B:f"
+    },
+    {
+     "key": "term:B:p"
+    },
+    {
+     "key": "term:C:df"
+    },
+    {
+     "key": "term:C:ss_seq"
+    },
+    {
+     "key": "term:C:ss_adj"
+    },
+    {
+     "key": "term:C:ms_adj"
+    },
+    {
+     "key": "term:C:f"
+    },
+    {
+     "key": "term:C:p"
+    },
+    {
+     "key": "term:A×B:df"
+    },
+    {
+     "key": "term:A×B:ss_seq"
+    },
+    {
+     "key": "term:A×B:ss_adj"
+    },
+    {
+     "key": "term:A×B:ms_adj"
+    },
+    {
+     "key": "term:A×B:f"
+    },
+    {
+     "key": "term:A×B:p"
+    }
+   ]
+  },
+  {
+   "id": "QA-B-05",
+   "title": "GLM 결측 행 제외 후 적합",
+   "op": "glm",
+   "tolerance": "default",
+   "dataset": "missing_values",
+   "args": {
+    "response": "y",
+    "factors": [
+     {
+      "name": "group",
+      "column": "group",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "group"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "mse"
+    },
+    {
+     "key": "s"
+    },
+    {
+     "key": "ss_total"
+    },
+    {
+     "key": "ss_model"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "rank"
+    },
+    {
+     "key": "term:group:df"
+    },
+    {
+     "key": "term:group:ss_seq"
+    },
+    {
+     "key": "term:group:ss_adj"
+    },
+    {
+     "key": "term:group:ms_adj"
+    },
+    {
+     "key": "term:group:f"
+    },
+    {
+     "key": "term:group:p"
+    }
+   ]
+  },
+  {
+   "id": "QA-B-06",
+   "title": "GLM 숫자형과 범주형 혼합 (중심점에서 빈 셀)",
+   "op": "glm",
+   "tolerance": "default",
+   "dataset": "doe_2k3",
+   "args": {
+    "response": "Y",
+    "factors": [
+     {
+      "name": "A",
+      "column": "A",
+      "kind": "numeric"
+     },
+     {
+      "name": "B",
+      "column": "B",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "A"
+     ],
+     [
+      "B"
+     ],
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "mse"
+    },
+    {
+     "key": "s"
+    },
+    {
+     "key": "ss_total"
+    },
+    {
+     "key": "ss_model"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "rank"
+    },
+    {
+     "key": "term:A:df"
+    },
+    {
+     "key": "term:A:ss_seq"
+    },
+    {
+     "key": "term:A:ss_adj"
+    },
+    {
+     "key": "term:A:ms_adj"
+    },
+    {
+     "key": "term:A:f"
+    },
+    {
+     "key": "term:A:p"
+    },
+    {
+     "key": "term:B:df"
+    },
+    {
+     "key": "term:B:ss_seq"
+    },
+    {
+     "key": "term:B:ss_adj"
+    },
+    {
+     "key": "term:B:ms_adj"
+    },
+    {
+     "key": "term:B:f"
+    },
+    {
+     "key": "term:B:p"
+    },
+    {
+     "key": "term:A×B:df"
+    },
+    {
+     "key": "term:A×B:ss_seq"
+    },
+    {
+     "key": "term:A×B:ss_adj"
+    },
+    {
+     "key": "term:A×B:ms_adj"
+    },
+    {
+     "key": "term:A×B:f"
+    },
+    {
+     "key": "term:A×B:p"
+    }
+   ],
+   "verdict": "REVIEW",
+   "note": "B를 범주형으로 선언하면 중심점(A=0) 때문에 B에 3수준(-1/0/+1)이 생겨 B 2열 + A×B 2열이 rank-deficient가 된다. 엔진(열 피벗)은 A를 alias로, statsmodels는 다른 열을 alias로 버린다 — alias 선택 정책 차이이지 계산 오류가 아니다."
+  }
+ ]
+}

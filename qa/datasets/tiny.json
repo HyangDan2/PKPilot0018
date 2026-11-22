@@ -1,0 +1,28 @@
+{
+ "name": "tiny",
+ "description": "Two- and three-row samples: exercises not-enough-data / res.insufficient guards",
+ "seed": 11022,
+ "generator": "literal values, no RNG",
+ "python": "3.12.16",
+ "numpy": "2.5.4",
+ "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
+ "columns": {
+  "p2": [
+   1.0,
+   2.0
+  ],
+  "p3": [
+   1.0,
+   2.0,
+   3.0
+  ],
+  "y2": [
+   2.0,
+   4.5
+  ],
+  "x2": [
+   1.0,
+   2.0
+  ]
+ }
+}

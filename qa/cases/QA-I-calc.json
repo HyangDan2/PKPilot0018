@@ -1,0 +1,123 @@
+{
+ "area": "QA-I",
+ "cases": [
+  {
+   "id": "QA-I-01",
+   "title": "수식 C1 * 2 + 1",
+   "op": "calc",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "columns": [
+     "x"
+    ],
+    "formula": "C1 * 2 + 1"
+   },
+   "fields": [
+    {
+     "key": "rows"
+    },
+    {
+     "key": "errors"
+    },
+    {
+     "key": "value[0]"
+    },
+    {
+     "key": "value[29]"
+    },
+    {
+     "key": "value[59]"
+    }
+   ]
+  },
+  {
+   "id": "QA-I-02",
+   "title": "수식 (C1 - MEAN(C1)) / STDEV(C1)",
+   "op": "calc",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "columns": [
+     "x"
+    ],
+    "formula": "(C1 - MEAN(C1)) / STDEV(C1)"
+   },
+   "fields": [
+    {
+     "key": "rows"
+    },
+    {
+     "key": "errors"
+    },
+    {
+     "key": "value[0]"
+    },
+    {
+     "key": "value[17]"
+    },
+    {
+     "key": "value[59]"
+    }
+   ]
+  },
+  {
+   "id": "QA-I-03",
+   "title": "수식 ROUND(C1 / 3, 2) — 결측 행은 오류 카운트",
+   "op": "calc",
+   "tolerance": "default",
+   "dataset": "missing_values",
+   "args": {
+    "columns": [
+     "x"
+    ],
+    "formula": "ROUND(C1 / 3, 2)"
+   },
+   "fields": [
+    {
+     "key": "rows"
+    },
+    {
+     "key": "errors"
+    },
+    {
+     "key": "value[0]"
+    },
+    {
+     "key": "value[7]"
+    }
+   ]
+  },
+  {
+   "id": "QA-I-04",
+   "title": "두 열 합 C1 + C2",
+   "op": "calc",
+   "tolerance": "default",
+   "dataset": "balanced_normal",
+   "args": {
+    "columns": [
+     "x",
+     "y"
+    ],
+    "formula": "C1 + C2"
+   },
+   "fields": [
+    {
+     "key": "rows"
+    },
+    {
+     "key": "errors"
+    },
+    {
+     "key": "value[0]"
+    },
+    {
+     "key": "value[41]"
+    },
+    {
+     "key": "value[59]"
+    }
+   ]
+  }
+ ]
+}

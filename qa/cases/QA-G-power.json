@@ -1,0 +1,527 @@
+{
+ "area": "QA-G",
+ "cases": [
+  {
+   "id": "QA-G-01",
+   "title": "1표본 t 표본크기 (δ=0.5, 90%)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneT",
+    "solveFor": "n",
+    "difference": 0.5,
+    "sd": 1,
+    "power": 0.9,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-02",
+   "title": "1표본 t 검정력 (n=30, δ=0.4)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneT",
+    "solveFor": "power",
+    "difference": 0.4,
+    "sd": 1,
+    "n": 30,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-03",
+   "title": "1표본 t 효과크기 역산 (n=25, 80%)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneT",
+    "solveFor": "difference",
+    "n": 25,
+    "sd": 2,
+    "power": 0.8,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-04",
+   "title": "2표본 t 표본크기 (δ=0.5, 90%)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "twoT",
+    "solveFor": "n",
+    "difference": 0.5,
+    "sd": 1,
+    "power": 0.9,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ],
+   "note": "n은 그룹당 표본수. df=2(n−1)가 커지면 비중심 t 구적이 넘치던 구간(엔진 결함 F-01)을 지난다."
+  },
+  {
+   "id": "QA-G-05",
+   "title": "2표본 t 검정력 (n=128, δ=0.5)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "twoT",
+    "solveFor": "power",
+    "difference": 0.5,
+    "sd": 1,
+    "n": 128,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ],
+   "note": "df=254 — 엔진의 nctCdf가 NaN을 내던 정확한 지점."
+  },
+  {
+   "id": "QA-G-06",
+   "title": "2표본 t 단측 greater 80%",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "twoT",
+    "solveFor": "n",
+    "difference": 0.4,
+    "sd": 1,
+    "power": 0.8,
+    "alpha": 0.05,
+    "alt": "greater"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-07",
+   "title": "대응 t 표본크기 (δ=0.3, 95%)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "paired",
+    "solveFor": "n",
+    "difference": 0.3,
+    "sd": 1,
+    "power": 0.95,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-08",
+   "title": "ANOVA 표본크기 (3집단, δ=1.0)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "anova",
+    "solveFor": "n",
+    "difference": 1.0,
+    "sd": 1,
+    "groups": 3,
+    "power": 0.9,
+    "alpha": 0.05
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-09",
+   "title": "ANOVA 검정력 (4집단, n=20, δ=0.8)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "anova",
+    "solveFor": "power",
+    "difference": 0.8,
+    "sd": 1,
+    "groups": 4,
+    "n": 20,
+    "alpha": 0.05
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-10",
+   "title": "1비율 표본크기 (0.5→0.6, 90%)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneProp",
+    "solveFor": "n",
+    "p1": 0.5,
+    "p2": 0.6,
+    "power": 0.9,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-11",
+   "title": "1비율 검정력 (n=200, 0.3→0.36)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneProp",
+    "solveFor": "power",
+    "p1": 0.3,
+    "p2": 0.36,
+    "n": 200,
+    "alpha": 0.05,
+    "alt": "greater"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "prob"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-12",
+   "title": "1비율 양측 비대칭 효과 역산 (p0=0.2, n=100)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneProp",
+    "solveFor": "difference",
+    "p1": 0.2,
+    "n": 100,
+    "power": 0.8,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "prob"
+    },
+    {
+     "key": "difference",
+     "tol": "search_grid"
+    },
+    {
+     "key": "opposite_difference",
+     "tol": "search_grid"
+    }
+   ],
+   "note": "p0=0.2에서 위·아래 방향의 유효 범위가 비대칭(−0.2 vs +0.8) — 작은 |d|와 반대 방향 임계값을 함께 보고해야 한다."
+  },
+  {
+   "id": "QA-G-13",
+   "title": "2비율 표본크기 (0.4→0.6, 90%)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "twoProp",
+    "solveFor": "n",
+    "p1": 0.4,
+    "p2": 0.6,
+    "power": 0.9,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "prob"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-14",
+   "title": "2비율 검정력 (n=150, 0.5→0.58) 단측",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "twoProp",
+    "solveFor": "power",
+    "p1": 0.5,
+    "p2": 0.58,
+    "n": 150,
+    "alpha": 0.05,
+    "alt": "greater"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "prob"
+    },
+    {
+     "key": "difference"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-15",
+   "title": "2비율 효과크기 역산 (n=120)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "twoProp",
+    "solveFor": "difference",
+    "p1": 0.35,
+    "n": 120,
+    "power": 0.8,
+    "alpha": 0.05,
+    "alt": "two-sided"
+   },
+   "fields": [
+    {
+     "key": "difference",
+     "tol": "search_grid"
+    },
+    {
+     "key": "opposite_difference",
+     "tol": "search_grid"
+    },
+    {
+     "key": "power",
+     "tol": "prob"
+    }
+   ]
+  },
+  {
+   "id": "QA-G-16",
+   "title": "단측 대립가설에 반대방향 효과 → α 미만 검정력",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneT",
+    "solveFor": "power",
+    "difference": -0.4,
+    "sd": 1,
+    "n": 30,
+    "alpha": 0.05,
+    "alt": "greater"
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "power",
+     "tol": "nct_quad"
+    },
+    {
+     "key": "difference"
+    }
+   ],
+   "note": "부호를 무시하고 |δ| 검정력을 내면 0.68이 나온다 — 반대방향은 α 미만이어야 한다."
+  },
+  {
+   "id": "QA-G-17",
+   "title": "단측 대립가설에 반대효과 → power.unreachable",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneProp",
+    "solveFor": "n",
+    "p1": 0.5,
+    "p2": 0.45,
+    "power": 0.9,
+    "alpha": 0.05,
+    "alt": "greater"
+   },
+   "expectError": "power.unreachable",
+   "note": "greater 검정에서 p₂<p₁은 검정력이 α를 넘을 수 없다 — 큰 n을 임의로 답하지 않고 거부해야 한다."
+  },
+  {
+   "id": "QA-G-21",
+   "title": "실질적으로 달성 불가한 미세효과 (n 상한 1e7)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneProp",
+    "solveFor": "n",
+    "p1": 0.5,
+    "p2": 0.5001,
+    "power": 0.999,
+    "alpha": 0.05
+   },
+   "expectError": "power.unreachable",
+   "note": "수학적으로는 n≈3e8에서 도달하지만 엔진은 1e7 상한을 두고 unreachable로 답한다 — 정책 상한도 계약의 일부로 함께 검증."
+  },
+  {
+   "id": "QA-G-18",
+   "title": "효과 0 → power.unreachable",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneT",
+    "solveFor": "n",
+    "difference": 0,
+    "sd": 1,
+    "power": 0.9,
+    "alpha": 0.05
+   },
+   "expectError": "power.unreachable"
+  },
+  {
+   "id": "QA-G-19",
+   "title": "비율 범위 밖 (p2=0.05에서 −0.1)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneProp",
+    "solveFor": "n",
+    "p1": 0.05,
+    "p2": -0.05,
+    "power": 0.8,
+    "alpha": 0.05
+   },
+   "expectError": "power.unreachable"
+  },
+  {
+   "id": "QA-G-20",
+   "title": "목표 검정력 0.5 (α 이하 요구)",
+   "op": "power",
+   "tolerance": "default",
+   "args": {
+    "method": "oneT",
+    "solveFor": "n",
+    "difference": 0.5,
+    "sd": 1,
+    "power": 0.03,
+    "alpha": 0.05
+   },
+   "expectError": "power.unreachable",
+   "note": "target ≤ α 는 의미 없는 요구 — 명시적 거부."
+  }
+ ]
+}

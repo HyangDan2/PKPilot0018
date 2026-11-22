@@ -1,0 +1,1374 @@
+{
+ "area": "QA-C",
+ "cases": [
+  {
+   "id": "QA-C-01",
+   "title": "I-MR (24개 개별값)",
+   "op": "imr",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "v1"
+   },
+   "fields": [
+    {
+     "key": "i.center"
+    },
+    {
+     "key": "i.ucl",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "i.lcl",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "i.sigma",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "i.points[0]"
+    },
+    {
+     "key": "i.points[23]"
+    },
+    {
+     "key": "mr.center"
+    },
+    {
+     "key": "mr.ucl",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "mr.lcl"
+    },
+    {
+     "key": "mr.sigma",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "mr.points[0]"
+    },
+    {
+     "key": "sigma_within",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "out_of_control"
+    },
+    {
+     "key": "i.rule1_points"
+    },
+    {
+     "key": "i.rule2_points"
+    },
+    {
+     "key": "i.rule3_points"
+    },
+    {
+     "key": "i.rule4_points"
+    },
+    {
+     "key": "i.rule5_points"
+    },
+    {
+     "key": "i.rule6_points"
+    },
+    {
+     "key": "i.rule7_points"
+    },
+    {
+     "key": "i.rule8_points"
+    },
+    {
+     "key": "mr.rule1_points"
+    },
+    {
+     "key": "mr.rule2_points"
+    },
+    {
+     "key": "mr.rule3_points"
+    },
+    {
+     "key": "mr.rule4_points"
+    },
+    {
+     "key": "mr.rule5_points"
+    },
+    {
+     "key": "mr.rule6_points"
+    },
+    {
+     "key": "mr.rule7_points"
+    },
+    {
+     "key": "mr.rule8_points"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-02",
+   "title": "I-MR 이상치 포함 (규칙 1 검출)",
+   "op": "imr",
+   "tolerance": "default",
+   "dataset": "outliers",
+   "args": {
+    "column": "x"
+   },
+   "fields": [
+    {
+     "key": "i.center"
+    },
+    {
+     "key": "i.ucl",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "i.sigma",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "out_of_control"
+    },
+    {
+     "key": "i.rule1_points"
+    },
+    {
+     "key": "i.rule2_points"
+    },
+    {
+     "key": "i.rule8_points"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-03",
+   "title": "Xbar-R n=5, 결측 1개 부분군 (n_i 변화)",
+   "op": "xbarr",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "v5",
+    "subgroup": 5
+   },
+   "fields": [
+    {
+     "key": "xbar.center"
+    },
+    {
+     "key": "sigma_within",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "sg_used"
+    },
+    {
+     "key": "sg_total"
+    },
+    {
+     "key": "sg_skipped"
+    },
+    {
+     "key": "sg_leftover"
+    },
+    {
+     "key": "sg_missing"
+    },
+    {
+     "key": "sg_varying"
+    },
+    {
+     "key": "xbar.ucl[0]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[1]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[2]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[3]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[4]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[5]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[6]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[7]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[8]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[9]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[10]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.ucl[11]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[0]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[1]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[2]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[3]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[4]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[5]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[6]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[7]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[8]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[9]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[10]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[11]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "xbar.points[0]"
+    },
+    {
+     "key": "xbar.points[1]"
+    },
+    {
+     "key": "xbar.points[2]"
+    },
+    {
+     "key": "xbar.points[3]"
+    },
+    {
+     "key": "xbar.points[4]"
+    },
+    {
+     "key": "xbar.points[5]"
+    },
+    {
+     "key": "xbar.points[6]"
+    },
+    {
+     "key": "xbar.points[7]"
+    },
+    {
+     "key": "xbar.points[8]"
+    },
+    {
+     "key": "xbar.points[9]"
+    },
+    {
+     "key": "xbar.points[10]"
+    },
+    {
+     "key": "xbar.points[11]"
+    },
+    {
+     "key": "r.points[0]"
+    },
+    {
+     "key": "r.points[1]"
+    },
+    {
+     "key": "r.points[2]"
+    },
+    {
+     "key": "r.points[3]"
+    },
+    {
+     "key": "r.points[4]"
+    },
+    {
+     "key": "r.points[5]"
+    },
+    {
+     "key": "r.points[6]"
+    },
+    {
+     "key": "r.points[7]"
+    },
+    {
+     "key": "r.points[8]"
+    },
+    {
+     "key": "r.points[9]"
+    },
+    {
+     "key": "r.points[10]"
+    },
+    {
+     "key": "r.points[11]"
+    },
+    {
+     "key": "out_of_control"
+    },
+    {
+     "key": "xbar.rule1_points"
+    },
+    {
+     "key": "xbar.rule2_points"
+    },
+    {
+     "key": "xbar.rule3_points"
+    },
+    {
+     "key": "xbar.rule4_points"
+    },
+    {
+     "key": "xbar.rule5_points"
+    },
+    {
+     "key": "xbar.rule6_points"
+    },
+    {
+     "key": "xbar.rule7_points"
+    },
+    {
+     "key": "xbar.rule8_points"
+    },
+    {
+     "key": "r.rule1_points"
+    },
+    {
+     "key": "r.rule2_points"
+    },
+    {
+     "key": "r.rule3_points"
+    },
+    {
+     "key": "r.rule4_points"
+    },
+    {
+     "key": "r.rule5_points"
+    },
+    {
+     "key": "r.rule6_points"
+    },
+    {
+     "key": "r.rule7_points"
+    },
+    {
+     "key": "r.rule8_points"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-04",
+   "title": "Xbar-R n=2 (Montgomery d2(2) 경계)",
+   "op": "xbarr",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "vmix",
+    "subgroup": 2
+   },
+   "fields": [
+    {
+     "key": "xbar.center"
+    },
+    {
+     "key": "sigma_within",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "sg_used"
+    },
+    {
+     "key": "r.center",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.ucl[0]",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "r.sigma[0]",
+     "tol": "chart_constants"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-05",
+   "title": "Xbar-R n=10 (표 상한)",
+   "op": "xbarr",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "vmix",
+    "subgroup": 10
+   },
+   "fields": [
+    {
+     "key": "xbar.center"
+    },
+    {
+     "key": "sigma_within",
+     "tol": "chart_constants"
+    },
+    {
+     "key": "sg_used"
+    },
+    {
+     "key": "sg_leftover"
+    },
+    {
+     "key": "r.ucl[0]",
+     "tol": "chart_constants"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-06",
+   "title": "Xbar-S n=12 (c4 기반, R표 범위 밖)",
+   "op": "xbars",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "v12",
+    "subgroup": 12
+   },
+   "fields": [
+    {
+     "key": "xbar.center"
+    },
+    {
+     "key": "s.center"
+    },
+    {
+     "key": "sigma_within"
+    },
+    {
+     "key": "sg_used"
+    },
+    {
+     "key": "xbar.ucl[0]"
+    },
+    {
+     "key": "xbar.ucl[1]"
+    },
+    {
+     "key": "xbar.ucl[2]"
+    },
+    {
+     "key": "s.ucl[0]"
+    },
+    {
+     "key": "s.ucl[1]"
+    },
+    {
+     "key": "s.ucl[2]"
+    },
+    {
+     "key": "s.points[0]"
+    },
+    {
+     "key": "s.points[1]"
+    },
+    {
+     "key": "s.points[2]"
+    },
+    {
+     "key": "out_of_control"
+    },
+    {
+     "key": "xbar.rule1_points"
+    },
+    {
+     "key": "xbar.rule2_points"
+    },
+    {
+     "key": "xbar.rule3_points"
+    },
+    {
+     "key": "xbar.rule4_points"
+    },
+    {
+     "key": "xbar.rule5_points"
+    },
+    {
+     "key": "xbar.rule6_points"
+    },
+    {
+     "key": "xbar.rule7_points"
+    },
+    {
+     "key": "xbar.rule8_points"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-07",
+   "title": "Xbar-S 그룹ID 방식 (n_i 2~6 가변)",
+   "op": "xbars",
+   "tolerance": "default",
+   "dataset": "subgroups",
+   "args": {
+    "column": "vid",
+    "groupIds": "sid"
+   },
+   "fields": [
+    {
+     "key": "xbar.center"
+    },
+    {
+     "key": "s.center"
+    },
+    {
+     "key": "sigma_within"
+    },
+    {
+     "key": "sg_used"
+    },
+    {
+     "key": "sg_skipped"
+    },
+    {
+     "key": "xbar.ucl[0]"
+    },
+    {
+     "key": "xbar.ucl[1]"
+    },
+    {
+     "key": "xbar.ucl[2]"
+    },
+    {
+     "key": "xbar.ucl[3]"
+    },
+    {
+     "key": "xbar.ucl[4]"
+    },
+    {
+     "key": "xbar.ucl[5]"
+    },
+    {
+     "key": "xbar.ucl[6]"
+    },
+    {
+     "key": "xbar.ucl[7]"
+    },
+    {
+     "key": "s.ucl[0]"
+    },
+    {
+     "key": "s.ucl[1]"
+    },
+    {
+     "key": "s.ucl[2]"
+    },
+    {
+     "key": "s.ucl[3]"
+    },
+    {
+     "key": "s.ucl[4]"
+    },
+    {
+     "key": "s.ucl[5]"
+    },
+    {
+     "key": "s.ucl[6]"
+    },
+    {
+     "key": "s.ucl[7]"
+    },
+    {
+     "key": "s.sigma[0]"
+    },
+    {
+     "key": "s.sigma[1]"
+    },
+    {
+     "key": "s.sigma[2]"
+    },
+    {
+     "key": "s.sigma[3]"
+    },
+    {
+     "key": "s.sigma[4]"
+    },
+    {
+     "key": "s.sigma[5]"
+    },
+    {
+     "key": "s.sigma[6]"
+    },
+    {
+     "key": "s.sigma[7]"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-08",
+   "title": "P chart 부분군 크기 열 (50/100 혼합)",
+   "op": "pchart",
+   "tolerance": "default",
+   "dataset": "attribute",
+   "args": {
+    "column": "defectives",
+    "sizesColumn": "sizes"
+   },
+   "fields": [
+    {
+     "key": "p.center"
+    },
+    {
+     "key": "sigma_within"
+    },
+    {
+     "key": "p.ucl[0]"
+    },
+    {
+     "key": "p.ucl[1]"
+    },
+    {
+     "key": "p.ucl[2]"
+    },
+    {
+     "key": "p.ucl[3]"
+    },
+    {
+     "key": "p.ucl[4]"
+    },
+    {
+     "key": "p.ucl[5]"
+    },
+    {
+     "key": "p.ucl[6]"
+    },
+    {
+     "key": "p.ucl[7]"
+    },
+    {
+     "key": "p.ucl[8]"
+    },
+    {
+     "key": "p.ucl[9]"
+    },
+    {
+     "key": "p.ucl[10]"
+    },
+    {
+     "key": "p.ucl[11]"
+    },
+    {
+     "key": "p.ucl[12]"
+    },
+    {
+     "key": "p.ucl[13]"
+    },
+    {
+     "key": "p.ucl[14]"
+    },
+    {
+     "key": "p.ucl[15]"
+    },
+    {
+     "key": "p.ucl[16]"
+    },
+    {
+     "key": "p.ucl[17]"
+    },
+    {
+     "key": "p.ucl[18]"
+    },
+    {
+     "key": "p.ucl[19]"
+    },
+    {
+     "key": "p.points[0]"
+    },
+    {
+     "key": "p.points[1]"
+    },
+    {
+     "key": "p.points[2]"
+    },
+    {
+     "key": "p.points[3]"
+    },
+    {
+     "key": "p.points[4]"
+    },
+    {
+     "key": "p.points[5]"
+    },
+    {
+     "key": "p.points[6]"
+    },
+    {
+     "key": "p.points[7]"
+    },
+    {
+     "key": "p.points[8]"
+    },
+    {
+     "key": "p.points[9]"
+    },
+    {
+     "key": "p.points[10]"
+    },
+    {
+     "key": "p.points[11]"
+    },
+    {
+     "key": "p.points[12]"
+    },
+    {
+     "key": "p.points[13]"
+    },
+    {
+     "key": "p.points[14]"
+    },
+    {
+     "key": "p.points[15]"
+    },
+    {
+     "key": "p.points[16]"
+    },
+    {
+     "key": "p.points[17]"
+    },
+    {
+     "key": "p.points[18]"
+    },
+    {
+     "key": "p.points[19]"
+    },
+    {
+     "key": "out_of_control"
+    },
+    {
+     "key": "p.rule1_points"
+    },
+    {
+     "key": "p.rule2_points"
+    },
+    {
+     "key": "p.rule3_points"
+    },
+    {
+     "key": "p.rule4_points"
+    },
+    {
+     "key": "p.rule5_points"
+    },
+    {
+     "key": "p.rule6_points"
+    },
+    {
+     "key": "p.rule7_points"
+    },
+    {
+     "key": "p.rule8_points"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-09",
+   "title": "P chart 고정 부분군 크기 100",
+   "op": "pchart",
+   "tolerance": "default",
+   "dataset": "attribute",
+   "args": {
+    "column": "defectives",
+    "sampleSize": 100
+   },
+   "fields": [
+    {
+     "key": "p.center"
+    },
+    {
+     "key": "p.ucl[0]"
+    },
+    {
+     "key": "p.lcl[0]"
+    },
+    {
+     "key": "sigma_within"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-10",
+   "title": "NP chart (n=100)",
+   "op": "npchart",
+   "tolerance": "default",
+   "dataset": "attribute",
+   "args": {
+    "column": "defectives",
+    "sampleSize": 100
+   },
+   "fields": [
+    {
+     "key": "np.center"
+    },
+    {
+     "key": "np.ucl"
+    },
+    {
+     "key": "np.lcl"
+    },
+    {
+     "key": "np.sigma"
+    },
+    {
+     "key": "out_of_control"
+    },
+    {
+     "key": "np.rule1_points"
+    },
+    {
+     "key": "np.rule2_points"
+    },
+    {
+     "key": "np.rule3_points"
+    },
+    {
+     "key": "np.rule4_points"
+    },
+    {
+     "key": "np.rule5_points"
+    },
+    {
+     "key": "np.rule6_points"
+    },
+    {
+     "key": "np.rule7_points"
+    },
+    {
+     "key": "np.rule8_points"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-11",
+   "title": "C chart 결함수",
+   "op": "cchart",
+   "tolerance": "default",
+   "dataset": "attribute",
+   "args": {
+    "column": "defects"
+   },
+   "fields": [
+    {
+     "key": "c.center"
+    },
+    {
+     "key": "c.ucl"
+    },
+    {
+     "key": "c.lcl"
+    },
+    {
+     "key": "c.sigma"
+    },
+    {
+     "key": "out_of_control"
+    },
+    {
+     "key": "c.rule1_points"
+    },
+    {
+     "key": "c.rule2_points"
+    },
+    {
+     "key": "c.rule3_points"
+    },
+    {
+     "key": "c.rule4_points"
+    },
+    {
+     "key": "c.rule5_points"
+    },
+    {
+     "key": "c.rule6_points"
+    },
+    {
+     "key": "c.rule7_points"
+    },
+    {
+     "key": "c.rule8_points"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-12",
+   "title": "U chart 단위 크기 열 (1~4)",
+   "op": "uchart",
+   "tolerance": "default",
+   "dataset": "attribute",
+   "args": {
+    "column": "defects",
+    "unitsColumn": "units"
+   },
+   "fields": [
+    {
+     "key": "u.center"
+    },
+    {
+     "key": "u.ucl[0]"
+    },
+    {
+     "key": "u.ucl[1]"
+    },
+    {
+     "key": "u.ucl[2]"
+    },
+    {
+     "key": "u.ucl[3]"
+    },
+    {
+     "key": "u.ucl[4]"
+    },
+    {
+     "key": "u.ucl[5]"
+    },
+    {
+     "key": "u.ucl[6]"
+    },
+    {
+     "key": "u.ucl[7]"
+    },
+    {
+     "key": "u.ucl[8]"
+    },
+    {
+     "key": "u.ucl[9]"
+    },
+    {
+     "key": "u.ucl[10]"
+    },
+    {
+     "key": "u.ucl[11]"
+    },
+    {
+     "key": "u.ucl[12]"
+    },
+    {
+     "key": "u.ucl[13]"
+    },
+    {
+     "key": "u.ucl[14]"
+    },
+    {
+     "key": "u.ucl[15]"
+    },
+    {
+     "key": "u.ucl[16]"
+    },
+    {
+     "key": "u.ucl[17]"
+    },
+    {
+     "key": "u.ucl[18]"
+    },
+    {
+     "key": "u.ucl[19]"
+    },
+    {
+     "key": "u.lcl[0]"
+    },
+    {
+     "key": "u.lcl[1]"
+    },
+    {
+     "key": "u.lcl[2]"
+    },
+    {
+     "key": "u.lcl[3]"
+    },
+    {
+     "key": "u.lcl[4]"
+    },
+    {
+     "key": "u.lcl[5]"
+    },
+    {
+     "key": "u.lcl[6]"
+    },
+    {
+     "key": "u.lcl[7]"
+    },
+    {
+     "key": "u.lcl[8]"
+    },
+    {
+     "key": "u.lcl[9]"
+    },
+    {
+     "key": "u.lcl[10]"
+    },
+    {
+     "key": "u.lcl[11]"
+    },
+    {
+     "key": "u.lcl[12]"
+    },
+    {
+     "key": "u.lcl[13]"
+    },
+    {
+     "key": "u.lcl[14]"
+    },
+    {
+     "key": "u.lcl[15]"
+    },
+    {
+     "key": "u.lcl[16]"
+    },
+    {
+     "key": "u.lcl[17]"
+    },
+    {
+     "key": "u.lcl[18]"
+    },
+    {
+     "key": "u.lcl[19]"
+    },
+    {
+     "key": "sigma_within"
+    },
+    {
+     "key": "out_of_control"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-13",
+   "title": "U chart 고정 단위 크기 2",
+   "op": "uchart",
+   "tolerance": "default",
+   "dataset": "attribute",
+   "args": {
+    "column": "defects",
+    "unitSize": 2
+   },
+   "fields": [
+    {
+     "key": "u.center"
+    },
+    {
+     "key": "u.ucl[0]"
+    },
+    {
+     "key": "u.lcl[0]"
+    },
+    {
+     "key": "u.sigma[0]"
+    }
+   ]
+  },
+  {
+   "id": "QA-C-14",
+   "title": "Nelson 규칙 1~8 전수 (중심 10, σ 1)",
+   "op": "nelson",
+   "tolerance": "default",
+   "dataset": "nelson",
+   "args": {
+    "column": "x",
+    "center": 10,
+    "sigma": 1
+   },
+   "fields": [
+    {
+     "key": "rules[0]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[1]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[2]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[3]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[4]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[5]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[6]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[7]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[8]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[9]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[10]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[11]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[12]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[13]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[14]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[15]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[16]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[17]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[18]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[19]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[20]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[21]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[22]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[23]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[24]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[25]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[26]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[27]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[28]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[29]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[30]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[31]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[32]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[33]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[34]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[35]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[36]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[37]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[38]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[39]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[40]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[41]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[42]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[43]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[44]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[45]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[46]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[47]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[48]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[49]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[50]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[51]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[52]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[53]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[54]",
+     "kind": "string"
+    },
+    {
+     "key": "rules[55]",
+     "kind": "string"
+    },
+    {
+     "key": "flagged"
+    }
+   ],
+   "note": "각 규칙이 설계된 위치에서만 발화하는지 점별 규칙 목록을 문자열로 비교한다."
+  },
+  {
+   "id": "QA-C-15",
+   "title": "P chart 결측 크기(0) → 엔진 검증 오류",
+   "op": "pchart",
+   "tolerance": "default",
+   "dataset": "attribute",
+   "args": {
+    "column": "defects",
+    "sampleSize": 0
+   },
+   "expectError": "spc.invalid",
+   "note": "SpcValidationError는 'spc.invalid' 코드로 던져지고 issues에 size가 담긴다."
+  },
+  {
+   "id": "QA-C-16",
+   "title": "Xbar-R 부분군 부족 → noGroups 오류",
+   "op": "xbarr",
+   "tolerance": "default",
+   "dataset": "tiny",
+   "args": {
+    "column": "p3",
+    "subgroup": 5
+   },
+   "expectError": "spc.invalid"
+  }
+ ]
+}

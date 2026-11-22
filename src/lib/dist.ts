@@ -379,7 +379,10 @@ export function nctCdf(t: number, df: number, ncp: number): number {
   const logNorm = -0.5 * df * Math.LN2 - logGamma(df / 2);
   const density = (u: number): number => {
     if (u <= 0) return df === 1 ? Math.sqrt(2 / Math.PI) : 0;
-    return 2 * Math.pow(u, df - 1) * Math.exp(-0.5 * u * u + logNorm);
+    // (df−1)·ln u − u²/2 + logNorm stays in the log domain: u^(df−1) overflows
+    // a double for df ≳ 200 (u^(df−1)·e^{−u²/2} is then Inf × 0 = NaN), so
+    // nctCdf — and with it every noncentral-t power calculation — returned NaN.
+    return 2 * Math.exp((df - 1) * Math.log(u) - 0.5 * u * u + logNorm);
   };
   let sum = 0;
   for (let i = 0; i <= steps; i += 1) {

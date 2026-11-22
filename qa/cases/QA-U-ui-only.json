@@ -1,0 +1,167 @@
+{
+ "area": "QA-U",
+ "cases": [
+  {
+   "id": "QA-U-01",
+   "title": "파레토 차트 (정렬·누적%) — 독립 기준 없음",
+   "op": "ui",
+   "tolerance": "default",
+   "args": {
+    "analysis": "pareto"
+   },
+   "fields": [
+    {
+     "key": "analysis",
+     "kind": "string"
+    }
+   ],
+   "verdict": "UNVERIFIED",
+   "note": "차트 스펙과 정렬·누적 계산이 analyses.ts 러너에만 있다",
+   "adapterOnly": true
+  },
+  {
+   "id": "QA-U-02",
+   "title": "히스토그램 (빈 규칙·정규곡선) — 독립 기준 없음",
+   "op": "ui",
+   "tolerance": "default",
+   "args": {
+    "analysis": "histogram"
+   },
+   "fields": [
+    {
+     "key": "analysis",
+     "kind": "string"
+    }
+   ],
+   "verdict": "UNVERIFIED",
+   "note": "빈 개수 휴리스틱(charts.ts histogramBins)은 시각화 규칙이라 독립 기준이 없다",
+   "adapterOnly": true
+  },
+  {
+   "id": "QA-U-03",
+   "title": "상자그림 (사분위·수염) — 독립 기준 없음",
+   "op": "ui",
+   "tolerance": "default",
+   "args": {
+    "analysis": "boxplot"
+   },
+   "fields": [
+    {
+     "key": "analysis",
+     "kind": "string"
+    }
+   ],
+   "verdict": "UNVERIFIED",
+   "note": "수염 정의가 차트 표시 규칙이다 (사분위 자체는 QA-A-01에서 검증)",
+   "adapterOnly": true
+  },
+  {
+   "id": "QA-U-04",
+   "title": "산점도 (적합선·군별 색) — 독립 기준 없음",
+   "op": "ui",
+   "tolerance": "default",
+   "args": {
+    "analysis": "scatter"
+   },
+   "fields": [
+    {
+     "key": "analysis",
+     "kind": "string"
+    }
+   ],
+   "verdict": "UNVERIFIED",
+   "note": "점 좌표·색은 시각화 계층",
+   "adapterOnly": true
+  },
+  {
+   "id": "QA-U-05",
+   "title": "시계열 plot (규격선) — 독립 기준 없음",
+   "op": "ui",
+   "tolerance": "default",
+   "args": {
+    "analysis": "timeseries"
+   },
+   "fields": [
+    {
+     "key": "analysis",
+     "kind": "string"
+    }
+   ],
+   "verdict": "UNVERIFIED",
+   "note": "시각화 계층",
+   "adapterOnly": true
+  },
+  {
+   "id": "QA-U-06",
+   "title": "정렬 (열 전체 행 이동) — 독립 기준 없음",
+   "op": "ui",
+   "tolerance": "default",
+   "args": {
+    "analysis": "sort"
+   },
+   "fields": [
+    {
+     "key": "analysis",
+     "kind": "string"
+    }
+   ],
+   "verdict": "UNVERIFIED",
+   "note": "시트 변환이라 src/lib 순수 함수가 없고 단위테스트(project.test.ts)가 담당",
+   "adapterOnly": true
+  },
+  {
+   "id": "QA-U-07",
+   "title": "표준화 (Z 점수 저장) — 독립 기준 없음",
+   "op": "ui",
+   "tolerance": "default",
+   "args": {
+    "analysis": "standardize"
+   },
+   "fields": [
+    {
+     "key": "analysis",
+     "kind": "string"
+    }
+   ],
+   "verdict": "UNVERIFIED",
+   "note": "시트 저장 변환이라 러너에만 존재",
+   "adapterOnly": true
+  },
+  {
+   "id": "QA-U-08",
+   "title": "코드 변환 (1=10, 2=20) — 독립 기준 없음",
+   "op": "ui",
+   "tolerance": "default",
+   "args": {
+    "analysis": "recode"
+   },
+   "fields": [
+    {
+     "key": "analysis",
+     "kind": "string"
+    }
+   ],
+   "verdict": "UNVERIFIED",
+   "note": "시트 저장 변환이라 러너에만 존재",
+   "adapterOnly": true
+  },
+  {
+   "id": "QA-U-09",
+   "title": "난수 생성 (시드) — 독립 기준 없음",
+   "op": "ui",
+   "tolerance": "default",
+   "args": {
+    "analysis": "random"
+   },
+   "fields": [
+    {
+     "key": "analysis",
+     "kind": "string"
+    }
+   ],
+   "verdict": "UNVERIFIED",
+   "note": "생성기 자체가 대상이라 독립 기준값이 없고, 분포 검정은 표본오차 때문에 PASS/FAIL 판정에 부적합",
+   "adapterOnly": true
+  }
+ ]
+}

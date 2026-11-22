@@ -1,0 +1,107 @@
+{
+ "area": "QA-X",
+ "cases": [
+  {
+   "id": "QA-X-01",
+   "title": "Weibull n=2 → res.insufficient",
+   "op": "weibull",
+   "tolerance": "default",
+   "dataset": "tiny",
+   "args": {
+    "column": "p2"
+   },
+   "expectError": "res.insufficient"
+  },
+  {
+   "id": "QA-X-02",
+   "title": "상수 예측변수 → res.constantPredictor",
+   "op": "regression",
+   "tolerance": "default",
+   "dataset": "constant_zero",
+   "args": {
+    "response": "zeros",
+    "predictors": [
+     "flat"
+    ]
+   },
+   "expectError": "res.constantPredictor"
+  },
+  {
+   "id": "QA-X-03",
+   "title": "회귀 데이터 부족 → not-enough-data",
+   "op": "regression",
+   "tolerance": "default",
+   "dataset": "tiny",
+   "args": {
+    "response": "y2",
+    "predictors": [
+     "x2"
+    ]
+   },
+   "expectError": "not-enough-data"
+  },
+  {
+   "id": "QA-X-04",
+   "title": "t검정 상수열 s=0 (t 정의 경계)",
+   "op": "t1",
+   "tolerance": "default",
+   "dataset": "constant_zero",
+   "args": {
+    "column": "flat",
+    "mu0": 5
+   },
+   "fields": [
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "ci_low"
+    },
+    {
+     "key": "ci_high"
+    }
+   ],
+   "verdict": "REVIEW",
+   "note": "se=0이면 t는 0/±∞/NaN 정책 문제 — 엔진은 |m−μ0|≤1e-12이면 0, 아니면 ±∞(paired) 규칙을 쓰고 t1은 NaN을 낸다. 정책 차이로 REVIEW."
+  },
+  {
+   "id": "QA-X-05",
+   "title": "2표본 상수열 → t NaN",
+   "op": "t2",
+   "tolerance": "default",
+   "dataset": "constant_zero",
+   "args": {
+    "column": "flat",
+    "column2": "zeros"
+   },
+   "fields": [
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "f"
+    }
+   ],
+   "verdict": "REVIEW",
+   "note": "분산 0 두 집단: se=0, t=NaN, F=0/0 — 양쪽 모두 정의 불가."
+  }
+ ]
+}
