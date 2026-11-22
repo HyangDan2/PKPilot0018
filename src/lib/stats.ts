@@ -193,6 +193,9 @@ export function tTest1(raw: (number | null)[], mu0 = 0, conf = 0.95, alt: Alt = 
   const m = mean(v);
   const s = stdev(v);
   const se = n > 1 ? s / Math.sqrt(n) : NaN;
+  // se = 0 (a constant sample) leaves t undefined: the data carry no
+  // information about variation around μ₀. The convention — NaN, never 0 or
+  // ±∞ — is shared by tTest1 / tTest2 / pairedT and verified as QA-X-04/05/06.
   const t = isFinite(se) && se > 0 ? (m - mu0) / se : NaN;
   return {
     test: '1-sample',
@@ -292,15 +295,12 @@ export function pairedT(
   const m = mean(diffs);
   const s = stdev(diffs);
   const se = s / Math.sqrt(n);
-  // se = 0 (identical differences) is not undefined: t is 0 when they all equal
-  // μ₀ and ±∞ otherwise, which is exactly what the t statistic means there.
-  const t = !isFinite(se)
-    ? NaN
-    : se > 0
-      ? (m - mu0) / se
-      : Math.abs(m - mu0) <= 1e-12 * Math.max(1, Math.abs(mu0))
-        ? 0
-        : (m > mu0 ? Infinity : -Infinity);
+  // se = 0 leaves t undefined under every sign convention: the paired data
+  // carry no information about variation around μ₀, so neither the t statistic
+  // nor its p-value exists — not 0 (that would claim perfect agreement with
+  // H₀) and not ±∞ (that would claim certainty about the direction). Same NaN
+  // convention as tTest1/tTest2; the UI explains it with res.constantTest.
+  const t = isFinite(se) && se > 0 ? (m - mu0) / se : NaN;
   return {
     test: 'paired',
     mu0,

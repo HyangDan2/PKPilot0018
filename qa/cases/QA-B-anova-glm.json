@@ -484,7 +484,7 @@
   },
   {
    "id": "QA-B-06",
-   "title": "GLM 숫자형과 범주형 혼합 (중심점에서 빈 셀)",
+   "title": "GLM 숫자형+범주형 혼합, 중심점에서 rank-deficient (모형 불변량 검증)",
    "op": "glm",
    "tolerance": "default",
    "dataset": "doe_2k3",
@@ -547,62 +547,70 @@
      "key": "rank"
     },
     {
-     "key": "term:A:df"
+     "key": "aliased_count"
     },
     {
-     "key": "term:A:ss_seq"
+     "key": "fitted[0]"
     },
     {
-     "key": "term:A:ss_adj"
+     "key": "fitted[1]"
     },
     {
-     "key": "term:A:ms_adj"
+     "key": "fitted[2]"
     },
     {
-     "key": "term:A:f"
+     "key": "fitted[3]"
     },
     {
-     "key": "term:A:p"
+     "key": "fitted[4]"
     },
     {
-     "key": "term:B:df"
+     "key": "fitted[5]"
     },
     {
-     "key": "term:B:ss_seq"
+     "key": "fitted[6]"
     },
     {
-     "key": "term:B:ss_adj"
+     "key": "fitted[7]"
     },
     {
-     "key": "term:B:ms_adj"
+     "key": "fitted[8]"
     },
     {
-     "key": "term:B:f"
+     "key": "fitted[9]"
     },
     {
-     "key": "term:B:p"
+     "key": "residuals[0]"
     },
     {
-     "key": "term:A×B:df"
+     "key": "residuals[1]"
     },
     {
-     "key": "term:A×B:ss_seq"
+     "key": "residuals[2]"
     },
     {
-     "key": "term:A×B:ss_adj"
+     "key": "residuals[3]"
     },
     {
-     "key": "term:A×B:ms_adj"
+     "key": "residuals[4]"
     },
     {
-     "key": "term:A×B:f"
+     "key": "residuals[5]"
     },
     {
-     "key": "term:A×B:p"
+     "key": "residuals[6]"
+    },
+    {
+     "key": "residuals[7]"
+    },
+    {
+     "key": "residuals[8]"
+    },
+    {
+     "key": "residuals[9]"
     }
    ],
-   "verdict": "REVIEW",
-   "note": "B를 범주형으로 선언하면 중심점(A=0) 때문에 B에 3수준(-1/0/+1)이 생겨 B 2열 + A×B 2열이 rank-deficient가 된다. 엔진(열 피벗)은 A를 alias로, statsmodels는 다른 열을 alias로 버린다 — alias 선택 정책 차이이지 계산 오류가 아니다."
+   "note": "B를 범주형으로 선언하면 중심점(A=0, B=0) 때문에 설계 행렬이 rank-deficient가 된다: 유일 종속은 A − A·B[−1] + 2·A·B[0] = 0 (즉 A·B[0] = (A·B[−1] − A)/2). rank-deficient 설계에서는 어느 열을 alias로 버릴지 일반화역행렬마다 다르다 — 엔진(열 피벗 QR)은 A 계열을, statsmodels(pinv)은 A×B 쪽을 버려 term별 df·SS·F가 달라진다. 이는 계산 오류가 아니라 alias 흡수 정책 차이이므로, 항 수준 검증은 여기서 하지 않고(QA-B-02~04가 full-rank 항 검증을 담당) 일반화역행렬에 무관한 모형 불변량(n, dfe, sse, mse, s, ss_total, ss_model, r2, r2_adj, rank, aliased_count, fitted, residuals)으로 엄격 검증한다. UI는 res.glmAliased로 alias 열을 명시한다."
   }
  ]
 }

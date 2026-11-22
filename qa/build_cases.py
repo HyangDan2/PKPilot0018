@@ -206,14 +206,20 @@ B.append(case("QA-B-05", "GLM 결측 행 제외 후 적합", "glm", "missing_val
                "factors": [{"name": "group", "column": "group", "kind": "categorical"}],
                "terms": [["group"]]},
               GLM + GLM_TERMS(["group"])))
-B.append(case("QA-B-06", "GLM 숫자형과 범주형 혼합 (중심점에서 빈 셀)", "glm", "doe_2k3",
+B.append(case("QA-B-06", "GLM 숫자형+범주형 혼합, 중심점에서 rank-deficient (모형 불변량 검증)", "glm", "doe_2k3",
               {"response": "Y",
                "factors": [{"name": "A", "column": "A", "kind": "numeric"},
                            {"name": "B", "column": "B", "kind": "categorical"}],
                "terms": [["A"], ["B"], ["A", "B"]]},
-              GLM + GLM_TERMS(["A", "B", "A×B"]),
-              verdict="REVIEW",
-              note="B를 범주형으로 선언하면 중심점(A=0) 때문에 B에 3수준(-1/0/+1)이 생겨 B 2열 + A×B 2열이 rank-deficient가 된다. 엔진(열 피벗)은 A를 alias로, statsmodels는 다른 열을 alias로 버린다 — alias 선택 정책 차이이지 계산 오류가 아니다."))
+              GLM + [f("aliased_count")] + [f(f"fitted[{i}]") for i in range(10)] + [f(f"residuals[{i}]") for i in range(10)],
+              note=(
+                  "B를 범주형으로 선언하면 중심점(A=0, B=0) 때문에 설계 행렬이 rank-deficient가 된다: "
+                  "유일 종속은 A − A·B[−1] + 2·A·B[0] = 0 (즉 A·B[0] = (A·B[−1] − A)/2). "
+                  "rank-deficient 설계에서는 어느 열을 alias로 버릴지 일반화역행렬마다 다르다 — 엔진(열 피벗 QR)은 A 계열을, "
+                  "statsmodels(pinv)은 A×B 쪽을 버려 term별 df·SS·F가 달라진다. 이는 계산 오류가 아니라 "
+                  "alias 흡수 정책 차이이므로, 항 수준 검증은 여기서 하지 않고(QA-B-02~04가 full-rank 항 검증을 담당) "
+                  "일반화역행렬에 무관한 모형 불변량(n, dfe, sse, mse, s, ss_total, ss_model, r2, r2_adj, rank, "
+                  "aliased_count, fitted, residuals)으로 엄격 검증한다. UI는 res.glmAliased로 alias 열을 명시한다.")))
 
 areas["QA-B-anova-glm.json"] = ("QA-B", B)
 
@@ -584,12 +590,14 @@ X.append(case("QA-X-03", "회귀 데이터 부족 → not-enough-data", "regress
               {"response": "y2", "predictors": ["x2"]}, None, expect="not-enough-data"))
 X.append(case("QA-X-04", "t검정 상수열 s=0 (t 정의 경계)", "t1", "constant_zero",
               {"column": "flat", "mu0": 5}, [f("t"), f("p"), f("se"), f("mean"), f("ci_low"), f("ci_high")],
-              verdict="REVIEW",
-              note="se=0이면 t는 0/±∞/NaN 정책 문제 — 엔진은 |m−μ0|≤1e-12이면 0, 아니면 ±∞(paired) 규칙을 쓰고 t1은 NaN을 낸다. 정책 차이로 REVIEW."))
+              note="se=0 규약(QA-X-04/05/06): t와 p는 정의 불가(NaN) — 0도 ±∞도 아니다. CI는 추정값의 축퇴구간 [m, m]. scipy ttest_1samp도 NaN을 낸다."))
 X.append(case("QA-X-05", "2표본 상수열 → t NaN", "t2", "constant_zero",
               {"column": "flat", "column2": "zeros"}, [f("t"), f("p"), f("se"), f("df"), f("f")],
-              verdict="REVIEW",
-              note="분산 0 두 집단: se=0, t=NaN, F=0/0 — 양쪽 모두 정의 불가."))
+              note="분산 0 두 집단: se=0이면 t·p 정의 불가(NaN). scipy.stats.ttest_ind는 여기서 p=0.0을 내므로 참조 엔진이 같은 NaN 규약을 명시적으로 구현한다."))
+X.append(case("QA-X-06", "대응표본 상수 차이 → t NaN (0/±∞ 규약 폐지)", "paired", "constant_zero",
+              {"column": "flat", "column2": "zeros", "mu0": 5},
+              [f("t"), f("p"), f("se"), f("df"), f("mean"), f("mean_b"), f("difference"), f("difference_vs_mu0"), f("stdev")],
+              note="모든 차이가 5로 동일: 이전 규약은 |m−μ₀|≤1e-12이면 t=0, 아니면 ±∞였지만 상수 자료는 방향에 대한 근거도 없으므로 t·p 모두 NaN으로 통일. m−μ₀=0인 경계(정확히 일치)에서도 NaN."))
 
 areas["QA-X-edge.json"] = ("QA-X", X)
 
@@ -618,29 +626,78 @@ I.append(case("QA-I-04", "두 열 합 C1 + C2", "calc", "balanced_normal",
 areas["QA-I-calc.json"] = ("QA-I", I)
 
 # ════════════════════════════════════════════════════════════════════════
-# QA-U — 독립 기준이 없는 UI/시각화 계층 (UNVERIFIED로 집계)
+# QA-U — 차트 규칙과 시트 변환 (출하 러너를 실제로 호출해 검증)
 # ════════════════════════════════════════════════════════════════════════
-UI = [
-    ("pareto", "파레토 차트 (정렬·누적%)", "차트 스펙과 정렬·누적 계산이 analyses.ts 러너에만 있다"),
-    ("histogram", "히스토그램 (빈 규칙·정규곡선)", "빈 개수 휴리스틱(charts.ts histogramBins)은 시각화 규칙이라 독립 기준이 없다"),
-    ("boxplot", "상자그림 (사분위·수염)", "수염 정의가 차트 표시 규칙이다 (사분위 자체는 QA-A-01에서 검증)"),
-    ("scatter", "산점도 (적합선·군별 색)", "점 좌표·색은 시각화 계층"),
-    ("timeseries", "시계열 plot (규격선)", "시각화 계층"),
-    ("sort", "정렬 (열 전체 행 이동)", "시트 변환이라 src/lib 순수 함수가 없고 단위테스트(project.test.ts)가 담당"),
-    ("standardize", "표준화 (Z 점수 저장)", "시트 저장 변환이라 러너에만 존재"),
-    ("recode", "코드 변환 (1=10, 2=20)", "시트 저장 변환이라 러너에만 존재"),
-    ("random", "난수 생성 (시드)", "생성기 자체가 대상이라 독립 기준값이 없고, 분포 검정은 표본오차 때문에 PASS/FAIL 판정에 부적합"),
-]
+# Each case drives the SAME run function the browser UI calls
+# (findAnalysis(id).run) through the adapter, and the Python reference
+# re-derives the same quantities from the documented rules. The chart/bin
+# visualisation rules are part of the app's contract, so the reference
+# implements those rules independently (source: charts.ts doc comments)
+# instead of leaving the cases UNVERIFIED.
+CH = "charts"
 U = []
-for idx, (analysis, title, reason) in enumerate(UI, start=1):
-    U.append(case(f"QA-U-{idx:02d}", f"{title} — 독립 기준 없음", "ui", None,
-                  {"analysis": analysis}, [f("analysis", kind="string")],
-                  verdict="UNVERIFIED", note=reason))
-U[0]["adapterOnly"] = True
-for u in U:
-    u["adapterOnly"] = True
-areas["QA-U-ui-only.json"] = ("QA-U", U)
+U.append(case("QA-U-01", "파레토 차트 (정렬·빈도·누적%)", "sheet", CH,
+              {"analysis": "pareto", "emit": "pareto", "values": {"category": "C2"}},
+              [f("items"), f("total")]
+              + [f(f"label[{i}]", kind="string") for i in range(9)]
+              + [f(f"count[{i}]") for i in range(9)]
+              + [f(f"pct[{i}]") for i in range(9)]
+              + [f(f"cum[{i}]") for i in range(9)],
+              note="빈도·내림 정렬은 불변 검증, %·누적%는 러너 표의 표시 규칙(소수 1자리 반올림)을 양쪽이 같은 규칙으로 계산해 비교한다. 결측 5행은 세지 않는다."))
+U.append(case("QA-U-02", "히스토그램 (빈 경계·도수 합·정규곡선)", "sheet", CH,
+              {"analysis": "histogram", "emit": "histogram", "values": {"variable": "C6", "bins": 0, "normal": True}},
+              [f("n"), f("bins"), f("bin_lo0"), f("bin_hi_last")]
+              + [f(f"count[{i}]") for i in range(7)]
+              + [f("curve_mean"), f("curve_sd")]
+              + [f(f"curve_x[{i}]") for i in (0, 60, 120)]
+              + [f(f"curve_y[{i}]") for i in (0, 60, 120)],
+              note="빈 규칙(자동: max(5, min(20, ceil(1+log2 n)))=7)과 도수 합=n은 문서화된 시각화 규칙을 독립 구현해 검증한다. 정규곡선은 n·binWidth·φ(x; m, s), 121점 격자."))
+U.append(case("QA-U-03", "상자그림 (사분위·수염·이상치)", "sheet", CH,
+              {"analysis": "boxplot", "emit": "boxplot", "values": {"variables": ["C6"]}},
+              [f("groups"), f("g[0]_label", kind="string"), f("g[0]_n"), f("g[0]_q1"), f("g[0]_median"),
+               f("g[0]_q3"), f("g[0]_iqr"), f("g[0]_low_fence"), f("g[0]_high_fence"),
+               f("g[0]_whisker_low"), f("g[0]_whisker_high"), f("g[0]_mean"), f("g[0]_outliers"),
+               f("g[0]_outlier[0]"), f("g[0]_outlier[1]")],
+              note="사분위는 type-6(h=(n+1)p, QA-A-01과 동일), 수염은 1.5·IQR 울타리 안쪽의 극값, 울타리 밖은 이상치로 나열한다."))
+U.append(case("QA-U-04", "산점도 (적합선 기울기·절편·군별 매핑)", "sheet", CH,
+              {"analysis": "scatter", "emit": "scatter", "values": {"y": "C5", "x": "C4", "by": ["C3"]}},
+              [f("n"), f("slope"), f("intercept"), f("groups")]
+              + [f(f"g[{i}]_label", kind="string") for i in range(3)]
+              + [f(f"g[{i}]_n") for i in range(3)],
+              note="적합선은 최소제곱 회귀(QA-A-23과 동일 정의, scipy linregress로 검증), 군별 매핑은 x·y가 모두 수치인 행의 by 라벨 첫등장 순."))
+U.append(case("QA-U-05", "시계열 plot (규격선·시퀀스 값)", "sheet", CH,
+              {"analysis": "timeseries", "emit": "timeseries",
+               "values": {"variable": "C6", "lsl": "40", "usl": "60", "target": "50"}},
+              [f("length"), f("n"), f("mean"), f("min"), f("max"), f("lsl"), f("usl"), f("target")],
+              note="유한값 시퀀스 통계와 규격선(LSL/USL/Target)의 값·존재 여부를 검증한다. 결측은 선에서 건너뛰지만 length는 원본 길이."))
+U.append(case("QA-U-06", "정렬 (열 전체 행 이동·결측 마지막)", "sheet", CH,
+              {"analysis": "sort", "emit": "sheet", "emitColumns": ["value", "id"],
+               "values": {"column": "C6", "descending": False}},
+              [f("columns")] + [f(f"value[{i}]") for i in range(60)] + [f(f"id[{i}]") for i in range(60)],
+              note="오름차순·결측 마지막·안정 정렬. id 열이 함께 이동해 행 무결성을 검증한다."))
+U.append(case("QA-U-07", "표준화 (Z 점수 저장·결측 보존)", "sheet", CH,
+              {"analysis": "standardize", "emit": "sheet", "emitColumns": ["Std value"],
+               "values": {"column": "C6", "storeIn": ""}},
+              [f("columns"), f("z_mean"), f("z_sd")] + [f(f"Std value[{i}]") for i in range(60)],
+              note="z=(x−m)/s(표본 표준편차)를 새 열로 저장하고 결측은 null로 보존한다. z의 평균≈0·표준편차≈1도 함께 검증."))
+U.append(case("QA-U-08", "코드 변환 (1=10, 2=20, 3=30·미매핑 보존)", "sheet", CH,
+              {"analysis": "recode", "emit": "sheet", "emitColumns": ["Recode code"],
+               "values": {"column": "C7", "mapping": "1=10, 2=20, 3=30", "fallback": ""}},
+              [f("columns"), f("count:10"), f("count:20"), f("count:30"), f("count:9")]
+              + [f(f"Recode code[{i}]") for i in range(60)],
+              note="매핑 1→10·2→20·3→30, fallback 미지정이면 미매핑 값(9)을 보존하고 결측은 null로 유지한다."))
+U.append(case("QA-U-09", "난수 생성 (시드 결정성·길이·모멘트)", "sheet", CH,
+              {"analysis": "random", "emit": "sheet", "emitColumns": ["Random data"], "runs": 2,
+               "values": {"distribution": "normal", "count": 5000, "mean": 10, "sd": 2,
+                          "min": 0, "max": 10, "seed": 20261121, "storeIn": "Random data"}},
+              [f("columns"), f("n"), f("mean", "moment_mean"), f("sd", "moment_sd"),
+               f("repeat_max_diff"), f("all_finite")],
+              note=(
+                  "생성기 자체가 대상이라 독립 기준값은 모평균/모표준편차(10/2)뿐이다. 허용오차는 표본오차에서 온다: "
+                  "n=5000 정규 표본의 평균 표준오차 σ/√n=0.0283 → 4σ=0.113, s의 표준오차≈σ/√(2n)=0.02 → 4σ=0.08. "
+                  "동일 시드 재실행 차이(repeat_max_diff)와 유한성은 정확 일치로 검증하고, 결정성 회귀테스트와 E2E도 함께 둔다.")))
+areas["QA-U-charts-transforms.json"] = ("QA-U", U)
 
-for name, (area, cases) in [("QA-I-calc.json", areas["QA-I-calc.json"]), ("QA-U-ui-only.json", areas["QA-U-ui-only.json"])]:
+for name, (area, cases) in [("QA-I-calc.json", areas["QA-I-calc.json"]), ("QA-U-charts-transforms.json", areas["QA-U-charts-transforms.json"])]:
     write(name, area, cases)
 print("total:", sum(len(v[1]) for v in areas.values()))

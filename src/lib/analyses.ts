@@ -402,8 +402,9 @@ function runPaired(ctx: RunContext): RunResult {
     }
   }
   if (result.n < 2) throw new Error('res.insufficientPairs');
-  // Zero variance is no longer refused: with every difference equal, t is 0
-  // (all equal to μ₀) or ±∞, both of which are reportable answers.
+  // Zero variance is refused only for the raw numbers it cannot produce: the
+  // engine reports t and p as NaN (undefined) and the output states why, so a
+  // constant-difference sample no longer poses as a significant result.
   const diffs = pairedA.map((x, i) => x - pairedB[i]);
   const blocks: Block[] = [
     {
@@ -411,6 +412,7 @@ function runPaired(ctx: RunContext): RunResult {
       lines: [
         `${t(lang, 'res.meanDifference')}: ${colA?.name ?? 'A'} − ${colB?.name ?? 'B'} = ${fmt(result.difference)}`,
         `${t(lang, 'res.testOfMu')}: μ_d = ${fmt(testDiff)} · ${t(lang, 'res.pairedMethod', { d: fmt(testDiff), alt: altSymbol(alpha) })}`,
+        ...(!Number.isFinite(result.se) || result.se === 0 ? [t(lang, 'res.constantTest')] : []),
       ],
     },
     {
@@ -2119,6 +2121,7 @@ function runGlm(ctx: RunContext): RunResult {
         t(lang, 'res.glmInfo', { response: response.name || response.id, factors: factors.map((f) => f.name).join(', '), n: glm.n }),
         t(lang, 'res.glmTypeNote'),
         glm.aliased.length ? t(lang, 'res.glmAliased', { terms: glm.aliased.join(', ') }) : '',
+        glm.aliased.length ? t(lang, 'res.glmAliasedNote') : '',
       ].filter(Boolean),
     },
     {

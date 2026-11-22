@@ -414,6 +414,36 @@ def main() -> None:
         rows,
     )
 
+    # Chart / worksheet-transform dataset: categories with distinct frequencies
+    # (Pareto), a continuous column with outliers and holes (histogram, boxplot,
+    # sort, standardize), a linear pair with three groups (scatter) and a coded
+    # column (recode).
+    rng = np.random.default_rng(11025)
+    n = 60
+    ids = list(range(1, n + 1))
+    machine = [f"M{i % 3 + 1}" for i in range(n)]
+    xc = rng.normal(50.0, 8.0, n)
+    yc = 1.5 + 0.6 * xc + rng.normal(0.0, 2.0, n)
+    value = rng.normal(50.0, 4.0, n).tolist()
+    value[6] = round(value[6] + 24.0, 12)
+    value[26] = round(value[26] - 22.0, 12)
+    for i in (12, 33, 51):
+        value[i] = None
+    defect_pool = (["Scratch"] * 15 + ["Dent"] * 11 + ["Stain"] * 8 + ["Burr"] * 6 +
+                   ["Crack"] * 5 + ["Hole"] * 4 + ["Warp"] * 3 + ["Flash"] * 2 + ["Void"] * 1)
+    defect = list(defect_pool) + [None] * 5
+    rng.shuffle(defect)
+    code = [int(v) for v in rng.choice([1, 2, 3, 9], n)]
+    defect = [d if isinstance(d, str) else None for d in defect]
+    write(
+        "charts",
+        "Chart/transform data: 60 rows; defect categories 15/11/8/6/5/4/3/2/1 + 5 blanks, machine M1-M3 x20, "
+        "x~N(50,8) with y=1.5+0.6x+N(0,2), value~N(50,4) with 2 outliers and 3 blanks, code in {1,2,3,9}",
+        11025,
+        "numpy.random.default_rng(11025): normal / choice, fixed outlier rows 6 and 26, blanks at 12/33/51",
+        {"id": ids, "defect": defect, "machine": machine, "x": xc, "y": yc, "value": value, "code": code},
+    )
+
     # Minimum-size datasets for the "not enough data" guards
     write(
         "tiny",

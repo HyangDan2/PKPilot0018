@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-22T14:44:40+09:00",
-  "commit": "57b431ef6996df7eb8cb32c55aa1523d1235bda6",
+  "generated_at": "2026-11-23T08:07:08+09:00",
+  "commit": "27881028acacb460111501dbfccc07e99e94fbb4",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
    "node": "v24.11.0",
-   "commit": "57b431ef6996df7eb8cb32c55aa1523d1235bda6",
-   "cases": 155,
-   "generatedAt": "2026-11-22T05:44:24.460Z"
+   "commit": "27881028acacb460111501dbfccc07e99e94fbb4",
+   "cases": 156,
+   "generatedAt": "2026-11-22T23:07:08.010Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",
@@ -18,8 +18,8 @@
    "statsmodels": "0.15.0",
    "pandas": "3.1.1",
    "patsy": "1.0.3",
-   "platform": "Linux-6.12.8+-x86_64-with-glibc2.41",
-   "cases": 155,
+   "platform": "Linux-6.12.118-guest-1.1-x86_64-with-glibc2.41",
+   "cases": 156,
    "methods": {
     "QA-A-01": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
     "QA-A-02": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
@@ -149,8 +149,18 @@
     "QA-I-02": "numpy elementwise evaluation of the same documented formula",
     "QA-I-03": "numpy elementwise evaluation of the same documented formula",
     "QA-I-04": "numpy elementwise evaluation of the same documented formula",
+    "QA-U-01": "pandas value counts + documented 1-decimal display rule",
+    "QA-U-02": "documented bin rule (max(5,min(20,1+log2 n))) + scipy.stats.norm.pdf curve",
+    "QA-U-03": "numpy.quantile(method='weibull') + 1.5·IQR whisker rule",
+    "QA-U-04": "scipy.stats.linregress + first-appearance group mapping",
+    "QA-U-05": "numpy summary of the finite sequence + spec-limit echo",
+    "QA-U-06": "pandas.sort_values(stable, na_position='last')",
+    "QA-U-07": "(x − mean) / sample sd over the finite values",
+    "QA-U-08": "documented mapping/fallback rule",
+    "QA-U-09": "population parameters; tolerance covers the sampling error (see case note)",
     "QA-X-04": "scipy.stats.ttest_1samp + scipy.stats.t.ppf interval",
-    "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f"
+    "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f",
+    "QA-X-06": "scipy.stats.ttest_1samp on the paired differences (= ttest_rel)"
    },
    "warnings": []
   },
@@ -219,6 +229,16 @@
     "rtol": 0.005,
     "reason": "효과크기 역산은 엔진이 문서화된 200칸 격자에서 첫 교차점을 찾고, 기준은 20001칸 격자를 쓴다. 비단조 구간(비율검정 양측)에서 격자 해상도만큼 차이가 날 수 있다. t/ANOVA처럼 단조인 경우는 default로 비교한다."
    },
+   "moment_mean": {
+    "atol": 0.12,
+    "rtol": 0,
+    "reason": "난수 생성(QA-U-09)의 유일한 독립 기준은 모수 자체다. n=5000 정규 표본 평균의 표준오차 σ/√n=0.0283이므로 4σ=0.113 → 0.12. 수치 fudge가 아니라 표본오차다."
+   },
+   "moment_sd": {
+    "atol": 0.09,
+    "rtol": 0,
+    "reason": "정규 표본 표준편차 s의 표준오차는 근사적으로 σ/√(2n)=0.020이므로 4σ=0.08 → 0.09 (QA-U-09, n=5000)."
+   },
    "nelder_mead": {
     "atol": 1e-07,
     "rtol": 0.001,
@@ -233,17 +253,17 @@
  },
  "summary": {
   "counts": {
-   "PASS": 143,
+   "PASS": 156,
    "FAIL": 0,
-   "REVIEW": 3,
-   "UNVERIFIED": 9,
+   "REVIEW": 0,
+   "UNVERIFIED": 0,
    "ERROR": 0
   },
-  "total": 155,
-  "verifiable": 143,
+  "total": 156,
+  "verifiable": 156,
   "pass_rate_verifiable": 1.0,
-  "review_rate": 0.01935483870967742,
-  "unverified_rate": 0.05806451612903226,
+  "review_rate": 0.0,
+  "unverified_rate": 0.0,
   "areas": {
    "QA-A": {
     "PASS": 48,
@@ -256,13 +276,13 @@
     "total": 48
    },
    "QA-B": {
-    "PASS": 5,
+    "PASS": 6,
     "FAIL": 0,
-    "REVIEW": 1,
+    "REVIEW": 0,
     "UNVERIFIED": 0,
     "ERROR": 0,
-    "max_rel": 11.082308262780986,
-    "max_abs": 125.36505386419788,
+    "max_rel": 0.00020998662965876881,
+    "max_abs": 0.0007630753666738599,
     "total": 6
    },
    "QA-C": {
@@ -336,24 +356,24 @@
     "total": 4
    },
    "QA-U": {
-    "PASS": 0,
+    "PASS": 9,
     "FAIL": 0,
     "REVIEW": 0,
-    "UNVERIFIED": 9,
+    "UNVERIFIED": 0,
     "ERROR": 0,
-    "max_rel": 0.0,
-    "max_abs": 0.0,
+    "max_rel": 16.743362831858406,
+    "max_abs": 0.03265303633301109,
     "total": 9
    },
    "QA-X": {
-    "PASS": 3,
+    "PASS": 6,
     "FAIL": 0,
-    "REVIEW": 2,
+    "REVIEW": 0,
     "UNVERIFIED": 0,
     "ERROR": 0,
     "max_rel": 0.0,
     "max_abs": 0.0,
-    "total": 5
+    "total": 6
    }
   }
  },
@@ -6049,12 +6069,12 @@
   {
    "id": "QA-B-06",
    "area": "QA-B",
-   "title": "GLM 숫자형과 범주형 혼합 (중심점에서 빈 셀)",
+   "title": "GLM 숫자형+범주형 혼합, 중심점에서 rank-deficient (모형 불변량 검증)",
    "op": "glm",
    "dataset": "doe_2k3",
    "tolerance": "default",
-   "declared": "REVIEW",
-   "note": "B를 범주형으로 선언하면 중심점(A=0) 때문에 B에 3수준(-1/0/+1)이 생겨 B 2열 + A×B 2열이 rank-deficient가 된다. 엔진(열 피벗)은 A를 alias로, statsmodels는 다른 열을 alias로 버린다 — alias 선택 정책 차이이지 계산 오류가 아니다.",
+   "declared": "PASS",
+   "note": "B를 범주형으로 선언하면 중심점(A=0, B=0) 때문에 설계 행렬이 rank-deficient가 된다: 유일 종속은 A − A·B[−1] + 2·A·B[0] = 0 (즉 A·B[0] = (A·B[−1] − A)/2). rank-deficient 설계에서는 어느 열을 alias로 버릴지 일반화역행렬마다 다르다 — 엔진(열 피벗 QR)은 A 계열을, statsmodels(pinv)은 A×B 쪽을 버려 term별 df·SS·F가 달라진다. 이는 계산 오류가 아니라 alias 흡수 정책 차이이므로, 항 수준 검증은 여기서 하지 않고(QA-B-02~04가 full-rank 항 검증을 담당) 일반화역행렬에 무관한 모형 불변량(n, dfe, sse, mse, s, ss_total, ss_model, r2, r2_adj, rank, aliased_count, fitted, residuals)으로 엄격 검증한다. UI는 res.glmAliased로 alias 열을 명시한다.",
    "args": {
     "response": "Y",
     "factors": [
@@ -6184,202 +6204,220 @@
      "status": "match"
     },
     {
-     "key": "term:A:df",
+     "key": "aliased_count",
      "tol": "default",
      "kind": "number",
-     "adapter": 0,
+     "adapter": 1,
      "reference": 1,
-     "abs": 1,
-     "rel": 1.0,
-     "status": "mismatch"
-    },
-    {
-     "key": "term:A:ss_seq",
-     "tol": "default",
-     "kind": "number",
-     "adapter": 125.3650538641976,
-     "reference": 125.36505386419782,
-     "abs": 2.1316282072803006e-13,
-     "rel": 1.700336849525383e-15,
-     "status": "match"
-    },
-    {
-     "key": "term:A:ss_adj",
-     "tol": "default",
-     "kind": "number",
-     "adapter": 0,
-     "reference": 104.43383286525109,
-     "abs": 104.43383286525109,
-     "rel": 1.0,
-     "status": "mismatch"
-    },
-    {
-     "key": "term:A:ms_adj",
-     "tol": "default",
-     "kind": "number",
-     "adapter": 0,
-     "reference": 104.43383286525109,
-     "abs": 104.43383286525109,
-     "rel": 1.0,
-     "status": "mismatch"
-    },
-    {
-     "key": "term:A:f",
-     "tol": "default",
-     "kind": "number",
-     "adapter": {
-      "__special": "NaN"
-     },
-     "reference": 15.753996842789356,
-     "status": "mismatch"
-    },
-    {
-     "key": "term:A:p",
-     "tol": "default",
-     "kind": "number",
-     "adapter": {
-      "__special": "NaN"
-     },
-     "reference": 0.010645403340140141,
-     "status": "mismatch"
-    },
-    {
-     "key": "term:B:df",
-     "tol": "default",
-     "kind": "number",
-     "adapter": 2,
-     "reference": 2,
      "abs": 0,
      "rel": 0.0,
      "status": "match"
     },
     {
-     "key": "term:B:ss_seq",
+     "key": "fitted[0]",
      "tol": "default",
      "kind": "number",
-     "adapter": 71.8029324569203,
-     "reference": 71.80293245692026,
+     "adapter": 30.56833272980001,
+     "reference": 30.568332729799966,
      "abs": 4.263256414560601e-14,
-     "rel": 5.937440531580566e-16,
+     "rel": 1.394664358126574e-15,
      "status": "match"
     },
     {
-     "key": "term:B:ss_adj",
+     "key": "fitted[1]",
      "tol": "default",
      "kind": "number",
-     "adapter": 71.8029324569203,
-     "reference": 71.8029324569202,
-     "abs": 9.947598300641403e-14,
-     "rel": 1.3854027907021332e-15,
+     "adapter": 30.56833272980001,
+     "reference": 30.568332729799966,
+     "abs": 4.263256414560601e-14,
+     "rel": 1.394664358126574e-15,
      "status": "match"
     },
     {
-     "key": "term:B:ms_adj",
+     "key": "fitted[2]",
      "tol": "default",
      "kind": "number",
-     "adapter": 35.90146622846015,
-     "reference": 35.9014662284601,
-     "abs": 4.973799150320701e-14,
-     "rel": 1.3854027907021332e-15,
+     "adapter": 21.845177899450004,
+     "reference": 21.84517789944999,
+     "abs": 1.4210854715202004e-14,
+     "rel": 6.505259321124503e-16,
      "status": "match"
     },
     {
-     "key": "term:B:f",
+     "key": "fitted[3]",
      "tol": "default",
      "kind": "number",
-     "adapter": 5.415788831043304,
-     "reference": 5.415788831043296,
-     "abs": 8.881784197001252e-15,
-     "rel": 1.6399797839404069e-15,
+     "adapter": 21.845177899450004,
+     "reference": 21.84517789944999,
+     "abs": 1.4210854715202004e-14,
+     "rel": 6.505259321124503e-16,
      "status": "match"
     },
     {
-     "key": "term:B:p",
+     "key": "fitted[4]",
      "tol": "default",
      "kind": "number",
-     "adapter": 0.056055021253282655,
-     "reference": 0.05605502125328272,
-     "abs": 6.245004513516506e-17,
-     "rel": 1.1140847641995646e-15,
+     "adapter": 35.7455780745,
+     "reference": 35.745578074499996,
+     "abs": 7.105427357601002e-15,
+     "rel": 1.9877779967055105e-16,
      "status": "match"
     },
     {
-     "key": "term:A×B:df",
+     "key": "fitted[5]",
      "tol": "default",
      "kind": "number",
-     "adapter": 1,
-     "reference": 2,
-     "abs": 1,
-     "rel": 0.5,
-     "status": "mismatch"
+     "adapter": 35.7455780745,
+     "reference": 35.745578074499996,
+     "abs": 7.105427357601002e-15,
+     "rel": 1.9877779967055105e-16,
+     "status": "match"
     },
     {
-     "key": "term:A×B:ss_seq",
+     "key": "fitted[6]",
      "tol": "default",
      "kind": "number",
-     "adapter": 15.015029094904342,
-     "reference": 16.229307317468095,
-     "abs": 1.2142782225637525,
-     "rel": 0.07482008928728512,
-     "status": "mismatch"
+     "adapter": 32.502392057,
+     "reference": 32.502392056999994,
+     "abs": 7.105427357601002e-15,
+     "rel": 2.1861244382075305e-16,
+     "status": "match"
     },
     {
-     "key": "term:A×B:ss_adj",
+     "key": "fitted[7]",
      "tol": "default",
      "kind": "number",
-     "adapter": 15.015029094904342,
-     "reference": 140.38008295910223,
-     "abs": 125.36505386419788,
-     "rel": 0.8930401750846751,
-     "status": "mismatch"
+     "adapter": 32.502392057,
+     "reference": 32.502392056999994,
+     "abs": 7.105427357601002e-15,
+     "rel": 2.1861244382075305e-16,
+     "status": "match"
     },
     {
-     "key": "term:A×B:ms_adj",
+     "key": "fitted[8]",
      "tol": "default",
      "kind": "number",
-     "adapter": 15.015029094904342,
-     "reference": 70.19004147955111,
-     "abs": 55.17501238464677,
-     "rel": 0.7860803501693504,
-     "status": "mismatch"
+     "adapter": 29.80631255775,
+     "reference": 29.80631255775,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
     },
     {
-     "key": "term:A×B:f",
+     "key": "fitted[9]",
      "tol": "default",
      "kind": "number",
-     "adapter": 2.2650391589162964,
-     "reference": 10.588270692801824,
-     "abs": 8.323231533885528,
-     "rel": 0.7860803501693503,
-     "status": "mismatch"
+     "adapter": 29.80631255775,
+     "reference": 29.80631255775,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
     },
     {
-     "key": "term:A×B:p",
+     "key": "residuals[0]",
      "tol": "default",
      "kind": "number",
-     "adapter": 0.1926612005711913,
-     "reference": 0.015945727950401296,
-     "abs": 0.17671547262079,
-     "rel": 11.082308262780986,
-     "status": "mismatch"
+     "adapter": -2.377825006000009,
+     "reference": -2.3778250059999664,
+     "abs": 4.263256414560601e-14,
+     "rel": 1.7929226935552976e-14,
+     "status": "match"
+    },
+    {
+     "key": "residuals[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.3778250059999912,
+     "reference": 2.377825006000034,
+     "abs": 4.263256414560601e-14,
+     "rel": 1.7929226935552465e-14,
+     "status": "match"
+    },
+    {
+     "key": "residuals[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -2.2362552787500043,
+     "reference": -2.23625527874999,
+     "abs": 1.4210854715202004e-14,
+     "rel": 6.354755134729301e-15,
+     "status": "match"
+    },
+    {
+     "key": "residuals[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.236255278749997,
+     "reference": 2.2362552787500114,
+     "abs": 1.4210854715202004e-14,
+     "rel": 6.35475513472924e-15,
+     "status": "match"
+    },
+    {
+     "key": "residuals[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.8449665289000023,
+     "reference": -1.8449665288999952,
+     "abs": 7.105427357601002e-15,
+     "rel": 3.851250007140994e-15,
+     "status": "match"
+    },
+    {
+     "key": "residuals[5]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.8449665288999952,
+     "reference": 1.8449665289000023,
+     "abs": 7.105427357601002e-15,
+     "rel": 3.851250007140979e-15,
+     "status": "match"
+    },
+    {
+     "key": "residuals[6]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.5641225673,
+     "reference": -1.564122567299993,
+     "abs": 7.105427357601002e-15,
+     "rel": 4.542756115248996e-15,
+     "status": "match"
+    },
+    {
+     "key": "residuals[7]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.5641225672999965,
+     "reference": 1.5641225673000037,
+     "abs": 7.105427357601002e-15,
+     "rel": 4.542756115248965e-15,
+     "status": "match"
+    },
+    {
+     "key": "residuals[8]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.2594666603500002,
+     "reference": 0.2594666603500002,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "residuals[9]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.2594666603500002,
+     "reference": -0.2594666603500002,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
     }
    ],
-   "verdict": "REVIEW",
-   "errors": [
-    "term:A:df: 0 vs 1 (|Δ|=1.000e+00, rel=1.000e+00, class=default)",
-    "term:A:ss_adj: 0 vs 104.43383286525109 (|Δ|=1.044e+02, rel=1.000e+00, class=default)",
-    "term:A:ms_adj: 0 vs 104.43383286525109 (|Δ|=1.044e+02, rel=1.000e+00, class=default)",
-    "term:A:f: one side undefined (NaN vs 15.75399684)",
-    "term:A:p: one side undefined (NaN vs 0.01064540334)",
-    "term:A×B:df: 1 vs 2 (|Δ|=1.000e+00, rel=5.000e-01, class=default)",
-    "term:A×B:ss_seq: 15.015029094904342 vs 16.229307317468095 (|Δ|=1.214e+00, rel=7.482e-02, class=default)",
-    "term:A×B:ss_adj: 15.015029094904342 vs 140.38008295910223 (|Δ|=1.254e+02, rel=8.930e-01, class=default)",
-    "term:A×B:ms_adj: 15.015029094904342 vs 70.19004147955111 (|Δ|=5.518e+01, rel=7.861e-01, class=default)",
-    "term:A×B:f: 2.2650391589162964 vs 10.588270692801824 (|Δ|=8.323e+00, rel=7.861e-01, class=default)",
-    "term:A×B:p: 0.1926612005711913 vs 0.015945727950401296 (|Δ|=1.767e-01, rel=1.108e+01, class=default)"
-   ],
-   "max_abs": 125.36505386419788,
-   "max_rel": 11.082308262780986
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 5.684341886080802e-14,
+   "max_rel": 1.7929226935552976e-14
   },
   {
    "id": "QA-C-01",
@@ -22276,209 +22314,3684 @@
   {
    "id": "QA-U-01",
    "area": "QA-U",
-   "title": "파레토 차트 (정렬·누적%) — 독립 기준 없음",
-   "op": "ui",
-   "dataset": null,
+   "title": "파레토 차트 (정렬·빈도·누적%)",
+   "op": "sheet",
+   "dataset": "charts",
    "tolerance": "default",
-   "declared": "UNVERIFIED",
-   "note": "차트 스펙과 정렬·누적 계산이 analyses.ts 러너에만 있다",
+   "declared": "PASS",
+   "note": "빈도·내림 정렬은 불변 검증, %·누적%는 러너 표의 표시 규칙(소수 1자리 반올림)을 양쪽이 같은 규칙으로 계산해 비교한다. 결측 5행은 세지 않는다.",
    "args": {
-    "analysis": "pareto"
+    "analysis": "pareto",
+    "emit": "pareto",
+    "values": {
+     "category": "C2"
+    }
    },
-   "fields": [],
-   "verdict": "UNVERIFIED",
+   "fields": [
+    {
+     "key": "items",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "total",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 55,
+     "reference": 55,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "label[0]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Scratch",
+     "reference": "Scratch",
+     "status": "match"
+    },
+    {
+     "key": "label[1]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Dent",
+     "reference": "Dent",
+     "status": "match"
+    },
+    {
+     "key": "label[2]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Stain",
+     "reference": "Stain",
+     "status": "match"
+    },
+    {
+     "key": "label[3]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Burr",
+     "reference": "Burr",
+     "status": "match"
+    },
+    {
+     "key": "label[4]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Crack",
+     "reference": "Crack",
+     "status": "match"
+    },
+    {
+     "key": "label[5]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Hole",
+     "reference": "Hole",
+     "status": "match"
+    },
+    {
+     "key": "label[6]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Warp",
+     "reference": "Warp",
+     "status": "match"
+    },
+    {
+     "key": "label[7]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Flash",
+     "reference": "Flash",
+     "status": "match"
+    },
+    {
+     "key": "label[8]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Void",
+     "reference": "Void",
+     "status": "match"
+    },
+    {
+     "key": "count[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 15,
+     "reference": 15,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8,
+     "reference": 8,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6,
+     "reference": 6,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[5]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4,
+     "reference": 4,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[6]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3,
+     "reference": 3,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[7]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[8]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pct[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 27.3,
+     "reference": 27.3,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pct[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pct[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 14.5,
+     "reference": 14.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pct[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.9,
+     "reference": 10.9,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pct[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9.1,
+     "reference": 9.1,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pct[5]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7.3,
+     "reference": 7.3,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pct[6]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5.5,
+     "reference": 5.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pct[7]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3.6,
+     "reference": 3.6,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pct[8]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.8,
+     "reference": 1.8,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cum[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 27.3,
+     "reference": 27.3,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cum[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.3,
+     "reference": 47.3,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cum[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 61.8,
+     "reference": 61.8,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cum[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 72.7,
+     "reference": 72.7,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cum[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 81.8,
+     "reference": 81.8,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cum[5]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 89.1,
+     "reference": 89.1,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cum[6]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 94.5,
+     "reference": 94.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cum[7]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 98.2,
+     "reference": 98.2,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cum[8]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 100,
+     "reference": 100.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
    "errors": [],
    "max_abs": 0.0,
-   "max_rel": 0.0,
-   "observed": {
-    "analysis": "pareto",
-    "engineFunction": "analyses.ts run* (worksheet transform / chart spec only)"
-   },
-   "reason": "차트 스펙과 정렬·누적 계산이 analyses.ts 러너에만 있다"
+   "max_rel": 0.0
   },
   {
    "id": "QA-U-02",
    "area": "QA-U",
-   "title": "히스토그램 (빈 규칙·정규곡선) — 독립 기준 없음",
-   "op": "ui",
-   "dataset": null,
+   "title": "히스토그램 (빈 경계·도수 합·정규곡선)",
+   "op": "sheet",
+   "dataset": "charts",
    "tolerance": "default",
-   "declared": "UNVERIFIED",
-   "note": "빈 개수 휴리스틱(charts.ts histogramBins)은 시각화 규칙이라 독립 기준이 없다",
+   "declared": "PASS",
+   "note": "빈 규칙(자동: max(5, min(20, ceil(1+log2 n)))=7)과 도수 합=n은 문서화된 시각화 규칙을 독립 구현해 검증한다. 정규곡선은 n·binWidth·φ(x; m, s), 121점 격자.",
    "args": {
-    "analysis": "histogram"
-   },
-   "fields": [],
-   "verdict": "UNVERIFIED",
-   "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0,
-   "observed": {
     "analysis": "histogram",
-    "engineFunction": "analyses.ts run* (worksheet transform / chart spec only)"
+    "emit": "histogram",
+    "values": {
+     "variable": "C6",
+     "bins": 0,
+     "normal": true
+    }
    },
-   "reason": "빈 개수 휴리스틱(charts.ts histogramBins)은 시각화 규칙이라 독립 기준이 없다"
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 57,
+     "reference": 57,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "bins",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7,
+     "reference": 7,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "bin_lo0",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 34.1266815417,
+     "reference": 34.1266815417,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "bin_hi_last",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 71.7307522185,
+     "reference": 71.7307522185,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 22,
+     "reference": 22,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 24,
+     "reference": 24,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4,
+     "reference": 4,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[5]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count[6]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "curve_mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.27791766445437,
+     "reference": 50.277917664454385,
+     "abs": 1.4210854715202004e-14,
+     "rel": 2.826460477150753e-16,
+     "status": "match"
+    },
+    {
+     "key": "curve_sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5.125130664575302,
+     "reference": 5.125130664575302,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "curve_x[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 34.1266815417,
+     "reference": 34.1266815417,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "curve_x[60]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 52.9287168801,
+     "reference": 52.9287168801,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "curve_x[120]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 71.7307522185,
+     "reference": 71.7307522185,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "curve_y[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.1662204737740983,
+     "reference": 0.16622047377409688,
+     "abs": 1.4155343563970746e-15,
+     "rel": 8.516004823334018e-15,
+     "status": "match"
+    },
+    {
+     "key": "curve_y[60]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20.851016794734065,
+     "reference": 20.851016794734093,
+     "abs": 2.842170943040401e-14,
+     "rel": 1.3630850576832247e-15,
+     "status": "match"
+    },
+    {
+     "key": "curve_y[120]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.0037374448764862954,
+     "reference": 0.003737444876486333,
+     "abs": 3.7730235602495554e-17,
+     "rel": 1.009519520672281e-14,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 2.842170943040401e-14,
+   "max_rel": 1.009519520672281e-14
   },
   {
    "id": "QA-U-03",
    "area": "QA-U",
-   "title": "상자그림 (사분위·수염) — 독립 기준 없음",
-   "op": "ui",
-   "dataset": null,
+   "title": "상자그림 (사분위·수염·이상치)",
+   "op": "sheet",
+   "dataset": "charts",
    "tolerance": "default",
-   "declared": "UNVERIFIED",
-   "note": "수염 정의가 차트 표시 규칙이다 (사분위 자체는 QA-A-01에서 검증)",
+   "declared": "PASS",
+   "note": "사분위는 type-6(h=(n+1)p, QA-A-01과 동일), 수염은 1.5·IQR 울타리 안쪽의 극값, 울타리 밖은 이상치로 나열한다.",
    "args": {
-    "analysis": "boxplot"
-   },
-   "fields": [],
-   "verdict": "UNVERIFIED",
-   "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0,
-   "observed": {
     "analysis": "boxplot",
-    "engineFunction": "analyses.ts run* (worksheet transform / chart spec only)"
+    "emit": "boxplot",
+    "values": {
+     "variables": [
+      "C6"
+     ]
+    }
    },
-   "reason": "수염 정의가 차트 표시 규칙이다 (사분위 자체는 QA-A-01에서 검증)"
+   "fields": [
+    {
+     "key": "groups",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_label",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "value",
+     "reference": "value",
+     "status": "match"
+    },
+    {
+     "key": "g[0]_n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 57,
+     "reference": 57,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_q1",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.774978391299996,
+     "reference": 47.774978391299996,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_median",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.2474222646,
+     "reference": 50.2474222646,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_q3",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 52.19177034645,
+     "reference": 52.19177034645,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_iqr",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4.4167919551500034,
+     "reference": 4.4167919551500034,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_low_fence",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 41.14979045857499,
+     "reference": 41.14979045857499,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_high_fence",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 58.816958279175005,
+     "reference": 58.816958279175005,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_whisker_low",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 41.5250608454,
+     "reference": 41.5250608454,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_whisker_high",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 57.6089969637,
+     "reference": 57.6089969637,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.27791766445437,
+     "reference": 50.27791766445439,
+     "abs": 2.1316282072803006e-14,
+     "rel": 4.2396907157261293e-16,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_outliers",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3,
+     "reference": 3,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_outlier[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 34.1266815417,
+     "reference": 34.1266815417,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_outlier[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 59.0825292411,
+     "reference": 59.0825292411,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 2.1316282072803006e-14,
+   "max_rel": 4.2396907157261293e-16
   },
   {
    "id": "QA-U-04",
    "area": "QA-U",
-   "title": "산점도 (적합선·군별 색) — 독립 기준 없음",
-   "op": "ui",
-   "dataset": null,
+   "title": "산점도 (적합선 기울기·절편·군별 매핑)",
+   "op": "sheet",
+   "dataset": "charts",
    "tolerance": "default",
-   "declared": "UNVERIFIED",
-   "note": "점 좌표·색은 시각화 계층",
+   "declared": "PASS",
+   "note": "적합선은 최소제곱 회귀(QA-A-23과 동일 정의, scipy linregress로 검증), 군별 매핑은 x·y가 모두 수치인 행의 by 라벨 첫등장 순.",
    "args": {
-    "analysis": "scatter"
-   },
-   "fields": [],
-   "verdict": "UNVERIFIED",
-   "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0,
-   "observed": {
     "analysis": "scatter",
-    "engineFunction": "analyses.ts run* (worksheet transform / chart spec only)"
+    "emit": "scatter",
+    "values": {
+     "y": "C5",
+     "x": "C4",
+     "by": [
+      "C3"
+     ]
+    }
    },
-   "reason": "점 좌표·색은 시각화 계층"
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 60,
+     "reference": 60,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "slope",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.6232040325750452,
+     "reference": 0.6232040325750562,
+     "abs": 1.099120794378905e-14,
+     "rel": 1.7636612360118694e-14,
+     "status": "match"
+    },
+    {
+     "key": "intercept",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.40885713951976227,
+     "reference": 0.408857139519224,
+     "abs": 5.382916334895071e-13,
+     "rel": 1.3165763330499389e-12,
+     "status": "match"
+    },
+    {
+     "key": "groups",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3,
+     "reference": 3,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[0]_label",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "M1",
+     "reference": "M1",
+     "status": "match"
+    },
+    {
+     "key": "g[1]_label",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "M2",
+     "reference": "M2",
+     "status": "match"
+    },
+    {
+     "key": "g[2]_label",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "M3",
+     "reference": "M3",
+     "status": "match"
+    },
+    {
+     "key": "g[0]_n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[1]_n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "g[2]_n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 5.382916334895071e-13,
+   "max_rel": 1.3165763330499389e-12
   },
   {
    "id": "QA-U-05",
    "area": "QA-U",
-   "title": "시계열 plot (규격선) — 독립 기준 없음",
-   "op": "ui",
-   "dataset": null,
+   "title": "시계열 plot (규격선·시퀀스 값)",
+   "op": "sheet",
+   "dataset": "charts",
    "tolerance": "default",
-   "declared": "UNVERIFIED",
-   "note": "시각화 계층",
+   "declared": "PASS",
+   "note": "유한값 시퀀스 통계와 규격선(LSL/USL/Target)의 값·존재 여부를 검증한다. 결측은 선에서 건너뛰지만 length는 원본 길이.",
    "args": {
-    "analysis": "timeseries"
-   },
-   "fields": [],
-   "verdict": "UNVERIFIED",
-   "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0,
-   "observed": {
     "analysis": "timeseries",
-    "engineFunction": "analyses.ts run* (worksheet transform / chart spec only)"
+    "emit": "timeseries",
+    "values": {
+     "variable": "C6",
+     "lsl": "40",
+     "usl": "60",
+     "target": "50"
+    }
    },
-   "reason": "시각화 계층"
+   "fields": [
+    {
+     "key": "length",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 60,
+     "reference": 60,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 57,
+     "reference": 57,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.27791766445437,
+     "reference": 50.277917664454385,
+     "abs": 1.4210854715202004e-14,
+     "rel": 2.826460477150753e-16,
+     "status": "match"
+    },
+    {
+     "key": "min",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 34.1266815417,
+     "reference": 34.1266815417,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "max",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 71.7307522185,
+     "reference": 71.7307522185,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "lsl",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 40,
+     "reference": 40.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "usl",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 60,
+     "reference": 60.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "target",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50,
+     "reference": 50.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 1.4210854715202004e-14,
+   "max_rel": 2.826460477150753e-16
   },
   {
    "id": "QA-U-06",
    "area": "QA-U",
-   "title": "정렬 (열 전체 행 이동) — 독립 기준 없음",
-   "op": "ui",
-   "dataset": null,
+   "title": "정렬 (열 전체 행 이동·결측 마지막)",
+   "op": "sheet",
+   "dataset": "charts",
    "tolerance": "default",
-   "declared": "UNVERIFIED",
-   "note": "시트 변환이라 src/lib 순수 함수가 없고 단위테스트(project.test.ts)가 담당",
+   "declared": "PASS",
+   "note": "오름차순·결측 마지막·안정 정렬. id 열이 함께 이동해 행 무결성을 검증한다.",
    "args": {
-    "analysis": "sort"
+    "analysis": "sort",
+    "emit": "sheet",
+    "emitColumns": [
+     "value",
+     "id"
+    ],
+    "values": {
+     "column": "C6",
+     "descending": false
+    }
    },
-   "fields": [],
-   "verdict": "UNVERIFIED",
+   "fields": [
+    {
+     "key": "columns",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7,
+     "reference": 7,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 34.1266815417,
+     "reference": 34.1266815417,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 41.5250608454,
+     "reference": 41.5250608454,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 43.2918817854,
+     "reference": 43.2918817854,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 43.5247460531,
+     "reference": 43.5247460531,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 43.6299719695,
+     "reference": 43.6299719695,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[5]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 43.7119630903,
+     "reference": 43.7119630903,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[6]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 44.950809051,
+     "reference": 44.950809051,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[7]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 45.6944633246,
+     "reference": 45.6944633246,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[8]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 45.7735110481,
+     "reference": 45.7735110481,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[9]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 46.3518966354,
+     "reference": 46.3518966354,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[10]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 46.9626001771,
+     "reference": 46.9626001771,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[11]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.4209362345,
+     "reference": 47.4209362345,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[12]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.6836418151,
+     "reference": 47.6836418151,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[13]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.7233198382,
+     "reference": 47.7233198382,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[14]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.8266369444,
+     "reference": 47.8266369444,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[15]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.9469446828,
+     "reference": 47.9469446828,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[16]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 48.5162856281,
+     "reference": 48.5162856281,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[17]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 48.9675736179,
+     "reference": 48.9675736179,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[18]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.0662763655,
+     "reference": 49.0662763655,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[19]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.2341042296,
+     "reference": 49.2341042296,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[20]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.2628231142,
+     "reference": 49.2628231142,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[21]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.4158299753,
+     "reference": 49.4158299753,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[22]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.4675130988,
+     "reference": 49.4675130988,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[23]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.5041325434,
+     "reference": 49.5041325434,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[24]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.7949348406,
+     "reference": 49.7949348406,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[25]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.9486091958,
+     "reference": 49.9486091958,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[26]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.0959136058,
+     "reference": 50.0959136058,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[27]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.1044167327,
+     "reference": 50.1044167327,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[28]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.2474222646,
+     "reference": 50.2474222646,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[29]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.3168146264,
+     "reference": 50.3168146264,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[30]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.729249057,
+     "reference": 50.729249057,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[31]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.8557887605,
+     "reference": 50.8557887605,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[32]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.8628985738,
+     "reference": 50.8628985738,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[33]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.8735781356,
+     "reference": 50.8735781356,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[34]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 51.0986195263,
+     "reference": 51.0986195263,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[35]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 51.2923306817,
+     "reference": 51.2923306817,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[36]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 51.5171476698,
+     "reference": 51.5171476698,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[37]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 51.5181843274,
+     "reference": 51.5181843274,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[38]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 51.5226111088,
+     "reference": 51.5226111088,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[39]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 51.7831819515,
+     "reference": 51.7831819515,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[40]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 51.8595501916,
+     "reference": 51.8595501916,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[41]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 51.9376743947,
+     "reference": 51.9376743947,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[42]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 52.0817428437,
+     "reference": 52.0817428437,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[43]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 52.3017978492,
+     "reference": 52.3017978492,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[44]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 52.5584073897,
+     "reference": 52.5584073897,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[45]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 52.6765086041,
+     "reference": 52.6765086041,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[46]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 53.8433076875,
+     "reference": 53.8433076875,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[47]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 54.1456662159,
+     "reference": 54.1456662159,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[48]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 54.2075486416,
+     "reference": 54.2075486416,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[49]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 54.4544644738,
+     "reference": 54.4544644738,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[50]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 54.5297274706,
+     "reference": 54.5297274706,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[51]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 55.3725375461,
+     "reference": 55.3725375461,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[52]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 55.8744381073,
+     "reference": 55.8744381073,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[53]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 57.4343523671,
+     "reference": 57.4343523671,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[54]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 57.6089969637,
+     "reference": 57.6089969637,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[55]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 59.0825292411,
+     "reference": 59.0825292411,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[56]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 71.7307522185,
+     "reference": 71.7307522185,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "value[57]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "NaN"
+     },
+     "status": "match",
+     "both_undefined": true
+    },
+    {
+     "key": "value[58]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "NaN"
+     },
+     "status": "match",
+     "both_undefined": true
+    },
+    {
+     "key": "value[59]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "NaN"
+     },
+     "status": "match",
+     "both_undefined": true
+    },
+    {
+     "key": "id[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 27,
+     "reference": 27.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50,
+     "reference": 50.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 32,
+     "reference": 32.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 48,
+     "reference": 48.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[5]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 56,
+     "reference": 56.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[6]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[7]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 37,
+     "reference": 37.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[8]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[9]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 28,
+     "reference": 28.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[10]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8,
+     "reference": 8.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[11]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 51,
+     "reference": 51.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[12]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[13]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 17,
+     "reference": 17.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[14]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3,
+     "reference": 3.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[15]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12,
+     "reference": 12.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[16]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 14,
+     "reference": 14.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[17]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 18,
+     "reference": 18.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[18]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 58,
+     "reference": 58.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[19]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 41,
+     "reference": 41.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[20]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4,
+     "reference": 4.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[21]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 60,
+     "reference": 60.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[22]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 19,
+     "reference": 19.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[23]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 22,
+     "reference": 22.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[24]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 40,
+     "reference": 40.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[25]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 24,
+     "reference": 24.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[26]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[27]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 35,
+     "reference": 35.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[28]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 25,
+     "reference": 25.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[29]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[30]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 43,
+     "reference": 43.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[31]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 55,
+     "reference": 55.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[32]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 16,
+     "reference": 16.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[33]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 57,
+     "reference": 57.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[34]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6,
+     "reference": 6.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[35]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 46,
+     "reference": 46.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[36]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 53,
+     "reference": 53.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[37]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 26,
+     "reference": 26.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[38]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 33,
+     "reference": 33.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[39]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[40]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 31,
+     "reference": 31.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[41]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 36,
+     "reference": 36.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[42]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49,
+     "reference": 49.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[43]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 44,
+     "reference": 44.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[44]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 21,
+     "reference": 21.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[45]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47,
+     "reference": 47.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[46]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[47]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 42,
+     "reference": 42.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[48]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 39,
+     "reference": 39.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[49]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 15,
+     "reference": 15.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[50]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 45,
+     "reference": 45.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[51]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 29,
+     "reference": 29.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[52]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 23,
+     "reference": 23.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[53]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 54,
+     "reference": 54.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[54]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 59,
+     "reference": 59.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[55]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 38,
+     "reference": 38.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[56]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7,
+     "reference": 7.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[57]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 13,
+     "reference": 13.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[58]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 34,
+     "reference": 34.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "id[59]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 52,
+     "reference": 52.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
    "errors": [],
    "max_abs": 0.0,
-   "max_rel": 0.0,
-   "observed": {
-    "analysis": "sort",
-    "engineFunction": "analyses.ts run* (worksheet transform / chart spec only)"
-   },
-   "reason": "시트 변환이라 src/lib 순수 함수가 없고 단위테스트(project.test.ts)가 담당"
+   "max_rel": 0.0
   },
   {
    "id": "QA-U-07",
    "area": "QA-U",
-   "title": "표준화 (Z 점수 저장) — 독립 기준 없음",
-   "op": "ui",
-   "dataset": null,
+   "title": "표준화 (Z 점수 저장·결측 보존)",
+   "op": "sheet",
+   "dataset": "charts",
    "tolerance": "default",
-   "declared": "UNVERIFIED",
-   "note": "시트 저장 변환이라 러너에만 존재",
+   "declared": "PASS",
+   "note": "z=(x−m)/s(표본 표준편차)를 새 열로 저장하고 결측은 null로 보존한다. z의 평균≈0·표준편차≈1도 함께 검증.",
    "args": {
-    "analysis": "standardize"
-   },
-   "fields": [],
-   "verdict": "UNVERIFIED",
-   "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0,
-   "observed": {
     "analysis": "standardize",
-    "engineFunction": "analyses.ts run* (worksheet transform / chart spec only)"
+    "emit": "sheet",
+    "emitColumns": [
+     "Std value"
+    ],
+    "values": {
+     "column": "C6",
+     "storeIn": ""
+    }
    },
-   "reason": "시트 저장 변환이라 러너에만 존재"
+   "fields": [
+    {
+     "key": "columns",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8,
+     "reference": 8,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.9289436373334722e-15,
+     "reference": 1.6507263392452986e-16,
+     "abs": 2.7638710034089424e-15,
+     "rel": 16.743362831858406,
+     "status": "match"
+    },
+    {
+     "key": "z_sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.0000000000000002,
+     "reference": 0.9999999999999999,
+     "abs": 3.3306690738754696e-16,
+     "rel": 3.33066907387547e-16,
+     "status": "match"
+    },
+    {
+     "key": "Std value[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.0394093267270497,
+     "reference": -1.0394093267270523,
+     "abs": 2.6645352591003757e-15,
+     "rel": 2.563509091736368e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.2971270646628987,
+     "reference": -1.2971270646629016,
+     "abs": 2.886579864025407e-15,
+     "rel": 2.2253639929836585e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.4782864829178941,
+     "reference": -0.4782864829178969,
+     "abs": 2.7755575615628914e-15,
+     "rel": 5.803127750192652e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.19806217961829944,
+     "reference": -0.19806217961830222,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.4013566683512413e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.6956681217299421,
+     "reference": 0.6956681217299393,
+     "abs": 2.7755575615628914e-15,
+     "rel": 3.989772529264137e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[5]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.16013286598101506,
+     "reference": 0.16013286598101228,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.7332841353704382e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[6]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4.185812217886807,
+     "reference": 4.185812217886804,
+     "abs": 2.6645352591003757e-15,
+     "rel": 6.365634960197902e-16,
+     "status": "match"
+    },
+    {
+     "key": "Std value[7]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.64687472463282,
+     "reference": -0.6468747246328228,
+     "abs": 2.7755575615628914e-15,
+     "rel": 4.2907188298914376e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[8]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.007589457614122134,
+     "reference": 0.007589457614119361,
+     "abs": 2.772955476348926e-15,
+     "rel": 3.6536938702841475e-13,
+     "status": "match"
+    },
+    {
+     "key": "Std value[9]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.5061872602167782,
+     "reference": -0.506187260216781,
+     "abs": 2.7755575615628914e-15,
+     "rel": 5.483262380752578e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[10]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.035512081655278756,
+     "reference": -0.03551208165528153,
+     "abs": 2.7755575615628914e-15,
+     "rel": 7.815812062231213e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[11]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.45481240073857265,
+     "reference": -0.45481240073857543,
+     "abs": 2.7755575615628914e-15,
+     "rel": 6.102642665537768e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[12]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "Std value[13]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.34372431683170557,
+     "reference": -0.34372431683170834,
+     "abs": 2.7755575615628914e-15,
+     "rel": 8.074952587430229e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[14]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.8149151861071084,
+     "reference": 0.8149151861071057,
+     "abs": 2.7755575615628914e-15,
+     "rel": 3.4059465437401914e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[15]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.11413970640573053,
+     "reference": 0.11413970640572775,
+     "abs": 2.7755575615628914e-15,
+     "rel": 2.431719555766799e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[16]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.49844540431166967,
+     "reference": -0.49844540431167245,
+     "abs": 2.7755575615628914e-15,
+     "rel": 5.568428432790536e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[17]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.25567036868180076,
+     "reference": -0.25567036868180354,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.0856000153139499e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[18]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.15812368868092616,
+     "reference": -0.15812368868092894,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.7553078762054247e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[19]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.878886200402392,
+     "reference": -0.8788862004023947,
+     "abs": 2.7755575615628914e-15,
+     "rel": 3.1580397556499496e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[20]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.4449622603787029,
+     "reference": 0.4449622603787001,
+     "abs": 2.7755575615628914e-15,
+     "rel": 6.237737014372094e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[21]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.15097861336545926,
+     "reference": -0.15097861336546203,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.8383779660529257e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[22]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.0919761483406767,
+     "reference": 1.0919761483406738,
+     "abs": 2.886579864025407e-15,
+     "rel": 2.6434458924874377e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[23]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.06425367277570793,
+     "reference": -0.06425367277571069,
+     "abs": 2.761679773755077e-15,
+     "rel": 4.298088583037471e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[24]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.005950170220079804,
+     "reference": -0.005950170220082576,
+     "abs": 2.7720881146109377e-15,
+     "rel": 4.658838339203794e-13,
+     "status": "match"
+    },
+    {
+     "key": "Std value[25]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.2419970814633669,
+     "reference": 0.24199708146336416,
+     "abs": 2.7478019859472624e-15,
+     "rel": 1.1354690599288286e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[26]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -3.1513803607761783,
+     "reference": -3.151380360776181,
+     "abs": 2.6645352591003757e-15,
+     "rel": 8.455136968753921e-16,
+     "status": "match"
+    },
+    {
+     "key": "Std value[27]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.7660333532939694,
+     "reference": -0.7660333532939722,
+     "abs": 2.7755575615628914e-15,
+     "rel": 3.623285526182234e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[28]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.9940468282807766,
+     "reference": 0.9940468282807738,
+     "abs": 2.7755575615628914e-15,
+     "rel": 2.7921798879065686e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[29]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.2937026166864297,
+     "reference": 0.29370261668642694,
+     "abs": 2.7755575615628914e-15,
+     "rel": 9.45023096108888e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[30]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3086033568037221,
+     "reference": 0.3086033568037193,
+     "abs": 2.7755575615628914e-15,
+     "rel": 8.993931855797106e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[31]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.3630941992058019,
+     "reference": -1.3630941992058045,
+     "abs": 2.6645352591003757e-15,
+     "rel": 1.9547697148537827e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[32]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.24286082166624548,
+     "reference": 0.2428608216662427,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.142859330920517e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[33]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "Std value[34]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.033852977242824274,
+     "reference": -0.03385297724282704,
+     "abs": 2.768618667658984e-15,
+     "rel": 8.178360939422586e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[35]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3238467151126112,
+     "reference": 0.32384671511260843,
+     "abs": 2.7755575615628914e-15,
+     "rel": 8.570590443067395e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[36]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.8943097532195663,
+     "reference": -0.8943097532195691,
+     "abs": 2.7755575615628914e-15,
+     "rel": 3.1035751892123692e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[37]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.7179291910551178,
+     "reference": 1.717929191055115,
+     "abs": 2.6645352591003757e-15,
+     "rel": 1.5510157653610132e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[38]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.7667377154512528,
+     "reference": 0.76673771545125,
+     "abs": 2.7755575615628914e-15,
+     "rel": 3.619957001762181e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[39]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.09423814834472985,
+     "reference": -0.09423814834473263,
+     "abs": 2.7755575615628914e-15,
+     "rel": 2.94525901698495e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[40]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.20366572155304605,
+     "reference": -0.20366572155304882,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.3628005441455408e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[41]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.7546634036434139,
+     "reference": 0.7546634036434111,
+     "abs": 2.7755575615628914e-15,
+     "rel": 3.6778748620416484e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[42]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.08806241676240772,
+     "reference": 0.08806241676240496,
+     "abs": 2.761679773755077e-15,
+     "rel": 3.136048129596729e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[43]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.39489338266721813,
+     "reference": 0.39489338266721535,
+     "abs": 2.7755575615628914e-15,
+     "rel": 7.028625151467554e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[44]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.8296002744932864,
+     "reference": 0.8296002744932837,
+     "abs": 2.7755575615628914e-15,
+     "rel": 3.3456565130215154e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[45]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.19792920095817504,
+     "reference": 0.19792920095817226,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.4022981693082472e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[46]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.4680058122663279,
+     "reference": 0.46800581226632515,
+     "abs": 2.7755575615628914e-15,
+     "rel": 5.9306048959567665e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[47]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.3176584273318181,
+     "reference": -1.3176584273318208,
+     "abs": 2.6645352591003757e-15,
+     "rel": 2.022174490619621e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[48]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3519569153062956,
+     "reference": 0.3519569153062928,
+     "abs": 2.7755575615628914e-15,
+     "rel": 7.88607196181227e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[49]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.7078309592287604,
+     "reference": -1.7078309592287633,
+     "abs": 2.886579864025407e-15,
+     "rel": 1.6902023285307774e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[50]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.5574455788418654,
+     "reference": -0.5574455788418682,
+     "abs": 2.7755575615628914e-15,
+     "rel": 4.979064624262165e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[51]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "Std value[52]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.2417948119666764,
+     "reference": 0.24179481196667363,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.1478978969761535e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[53]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.3963419024827244,
+     "reference": 1.3963419024827215,
+     "abs": 2.886579864025407e-15,
+     "rel": 2.0672443180950276e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[54]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.11275246113037635,
+     "reference": 0.11275246113037357,
+     "abs": 2.7755575615628914e-15,
+     "rel": 2.4616381174629667e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[55]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.2811292050635867,
+     "reference": -1.2811292050635894,
+     "abs": 2.6645352591003757e-15,
+     "rel": 2.079833359952262e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[56]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.11622347021565894,
+     "reference": 0.11622347021565617,
+     "abs": 2.7755575615628914e-15,
+     "rel": 2.388121397866335e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[57]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.23641178698704898,
+     "reference": -0.23641178698705176,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.1740351853585492e-14,
+     "status": "match"
+    },
+    {
+     "key": "Std value[58]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.4304180281524834,
+     "reference": 1.4304180281524805,
+     "abs": 2.886579864025407e-15,
+     "rel": 2.017997401608323e-15,
+     "status": "match"
+    },
+    {
+     "key": "Std value[59]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.1682079434799755,
+     "reference": -0.16820794347997828,
+     "abs": 2.7755575615628914e-15,
+     "rel": 1.650075201052122e-14,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 2.886579864025407e-15,
+   "max_rel": 16.743362831858406
   },
   {
    "id": "QA-U-08",
    "area": "QA-U",
-   "title": "코드 변환 (1=10, 2=20) — 독립 기준 없음",
-   "op": "ui",
-   "dataset": null,
+   "title": "코드 변환 (1=10, 2=20, 3=30·미매핑 보존)",
+   "op": "sheet",
+   "dataset": "charts",
    "tolerance": "default",
-   "declared": "UNVERIFIED",
-   "note": "시트 저장 변환이라 러너에만 존재",
+   "declared": "PASS",
+   "note": "매핑 1→10·2→20·3→30, fallback 미지정이면 미매핑 값(9)을 보존하고 결측은 null로 유지한다.",
    "args": {
-    "analysis": "recode"
+    "analysis": "recode",
+    "emit": "sheet",
+    "emitColumns": [
+     "Recode code"
+    ],
+    "values": {
+     "column": "C7",
+     "mapping": "1=10, 2=20, 3=30",
+     "fallback": ""
+    }
    },
-   "fields": [],
-   "verdict": "UNVERIFIED",
+   "fields": [
+    {
+     "key": "columns",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8,
+     "reference": 8,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count:10",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 15,
+     "reference": 15,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count:20",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count:30",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 18,
+     "reference": 18,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "count:9",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 17,
+     "reference": 17,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[5]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[6]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[7]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[8]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[9]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[10]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[11]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[12]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[13]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[14]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[15]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[16]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[17]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[18]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[19]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[20]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[21]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[22]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[23]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[24]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[25]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[26]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[27]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[28]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[29]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[30]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[31]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[32]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[33]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[34]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[35]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[36]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[37]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[38]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[39]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[40]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[41]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[42]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[43]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[44]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[45]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[46]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[47]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[48]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[49]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[50]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[51]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[52]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[53]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[54]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[55]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[56]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[57]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[58]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "Recode code[59]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 30.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
    "errors": [],
    "max_abs": 0.0,
-   "max_rel": 0.0,
-   "observed": {
-    "analysis": "recode",
-    "engineFunction": "analyses.ts run* (worksheet transform / chart spec only)"
-   },
-   "reason": "시트 저장 변환이라 러너에만 존재"
+   "max_rel": 0.0
   },
   {
    "id": "QA-U-09",
    "area": "QA-U",
-   "title": "난수 생성 (시드) — 독립 기준 없음",
-   "op": "ui",
-   "dataset": null,
+   "title": "난수 생성 (시드 결정성·길이·모멘트)",
+   "op": "sheet",
+   "dataset": "charts",
    "tolerance": "default",
-   "declared": "UNVERIFIED",
-   "note": "생성기 자체가 대상이라 독립 기준값이 없고, 분포 검정은 표본오차 때문에 PASS/FAIL 판정에 부적합",
+   "declared": "PASS",
+   "note": "생성기 자체가 대상이라 독립 기준값은 모평균/모표준편차(10/2)뿐이다. 허용오차는 표본오차에서 온다: n=5000 정규 표본의 평균 표준오차 σ/√n=0.0283 → 4σ=0.113, s의 표준오차≈σ/√(2n)=0.02 → 4σ=0.08. 동일 시드 재실행 차이(repeat_max_diff)와 유한성은 정확 일치로 검증하고, 결정성 회귀테스트와 E2E도 함께 둔다.",
    "args": {
-    "analysis": "random"
-   },
-   "fields": [],
-   "verdict": "UNVERIFIED",
-   "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0,
-   "observed": {
     "analysis": "random",
-    "engineFunction": "analyses.ts run* (worksheet transform / chart spec only)"
+    "emit": "sheet",
+    "emitColumns": [
+     "Random data"
+    ],
+    "runs": 2,
+    "values": {
+     "distribution": "normal",
+     "count": 5000,
+     "mean": 10,
+     "sd": 2,
+     "min": 0,
+     "max": 10,
+     "seed": 20261121,
+     "storeIn": "Random data"
+    }
    },
-   "reason": "생성기 자체가 대상이라 독립 기준값이 없고, 분포 검정은 표본오차 때문에 PASS/FAIL 판정에 부적합"
+   "fields": [
+    {
+     "key": "columns",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8,
+     "reference": 8,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5000,
+     "reference": 5000,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "moment_mean",
+     "kind": "number",
+     "adapter": 9.967346963666989,
+     "reference": 10.0,
+     "abs": 0.03265303633301109,
+     "rel": 0.003265303633301109,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "moment_sd",
+     "kind": "number",
+     "adapter": 2.0000151585950343,
+     "reference": 2.0,
+     "abs": 1.5158595034314715e-05,
+     "rel": 7.579297517157357e-06,
+     "status": "match"
+    },
+    {
+     "key": "repeat_max_diff",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "all_finite",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.03265303633301109,
+   "max_rel": 0.003265303633301109
   },
   {
    "id": "QA-X-01",
@@ -22559,8 +26072,8 @@
    "op": "t1",
    "dataset": "constant_zero",
    "tolerance": "default",
-   "declared": "REVIEW",
-   "note": "se=0이면 t는 0/±∞/NaN 정책 문제 — 엔진은 |m−μ0|≤1e-12이면 0, 아니면 ±∞(paired) 규칙을 쓰고 t1은 NaN을 낸다. 정책 차이로 REVIEW.",
+   "declared": "PASS",
+   "note": "se=0 규약(QA-X-04/05/06): t와 p는 정의 불가(NaN) — 0도 ±∞도 아니다. CI는 추정값의 축퇴구간 [m, m]. scipy ttest_1samp도 NaN을 낸다.",
    "args": {
     "column": "flat",
     "mu0": 5
@@ -22633,7 +26146,7 @@
      "status": "match"
     }
    ],
-   "verdict": "REVIEW",
+   "verdict": "PASS",
    "errors": [],
    "max_abs": 0.0,
    "max_rel": 0.0
@@ -22645,8 +26158,8 @@
    "op": "t2",
    "dataset": "constant_zero",
    "tolerance": "default",
-   "declared": "REVIEW",
-   "note": "분산 0 두 집단: se=0, t=NaN, F=0/0 — 양쪽 모두 정의 불가.",
+   "declared": "PASS",
+   "note": "분산 0 두 집단: se=0이면 t·p 정의 불가(NaN). scipy.stats.ttest_ind는 여기서 p=0.0을 내므로 참조 엔진이 같은 NaN 규약을 명시적으로 구현한다.",
    "args": {
     "column": "flat",
     "column2": "zeros"
@@ -22672,8 +26185,11 @@
      "adapter": {
       "__special": "NaN"
      },
-     "reference": 0.0,
-     "status": "mismatch"
+     "reference": {
+      "__special": "NaN"
+     },
+     "status": "match",
+     "both_nan": true
     },
     {
      "key": "se",
@@ -22712,10 +26228,125 @@
      "both_undefined": true
     }
    ],
-   "verdict": "REVIEW",
-   "errors": [
-    "p: one side undefined (NaN vs 0)"
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-X-06",
+   "area": "QA-X",
+   "title": "대응표본 상수 차이 → t NaN (0/±∞ 규약 폐지)",
+   "op": "paired",
+   "dataset": "constant_zero",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "모든 차이가 5로 동일: 이전 규약은 |m−μ₀|≤1e-12이면 t=0, 아니면 ±∞였지만 상수 자료는 방향에 대한 근거도 없으므로 t·p 모두 NaN으로 통일. m−μ₀=0인 경계(정확히 일치)에서도 NaN.",
+   "args": {
+    "column": "flat",
+    "column2": "zeros",
+    "mu0": 5
+   },
+   "fields": [
+    {
+     "key": "t",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "NaN"
+     },
+     "reference": {
+      "__special": "NaN"
+     },
+     "status": "match",
+     "both_nan": true
+    },
+    {
+     "key": "p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "NaN"
+     },
+     "reference": {
+      "__special": "NaN"
+     },
+     "status": "match",
+     "both_nan": true
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "df",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean_b",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "difference_vs_mu0",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "stdev",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
    ],
+   "verdict": "PASS",
+   "errors": [],
    "max_abs": 0.0,
    "max_rel": 0.0
   }
@@ -22768,6 +26399,12 @@
    "rows": 20,
    "seed": 11014,
    "description": "Exactly two failures out of 20 (the minimum fitWeibull accepts), 18 units censored at t=60"
+  },
+  {
+   "name": "charts",
+   "rows": 60,
+   "seed": 11025,
+   "description": "Chart/transform data: 60 rows; defect categories 15/11/8/6/5/4/3/2/1 + 5 blanks, machine M1-M3 x20, x~N(50,8) with y=1.5+0.6x+N(0,2), value~N(50,4) with 2 outliers and 3 blanks, code in {1,2,3,9}"
   },
   {
    "name": "constant_zero",
@@ -22995,7 +26632,17 @@
   "QA-I-02": "numpy elementwise evaluation of the same documented formula",
   "QA-I-03": "numpy elementwise evaluation of the same documented formula",
   "QA-I-04": "numpy elementwise evaluation of the same documented formula",
+  "QA-U-01": "pandas value counts + documented 1-decimal display rule",
+  "QA-U-02": "documented bin rule (max(5,min(20,1+log2 n))) + scipy.stats.norm.pdf curve",
+  "QA-U-03": "numpy.quantile(method='weibull') + 1.5·IQR whisker rule",
+  "QA-U-04": "scipy.stats.linregress + first-appearance group mapping",
+  "QA-U-05": "numpy summary of the finite sequence + spec-limit echo",
+  "QA-U-06": "pandas.sort_values(stable, na_position='last')",
+  "QA-U-07": "(x − mean) / sample sd over the finite values",
+  "QA-U-08": "documented mapping/fallback rule",
+  "QA-U-09": "population parameters; tolerance covers the sampling error (see case note)",
   "QA-X-04": "scipy.stats.ttest_1samp + scipy.stats.t.ppf interval",
-  "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f"
+  "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f",
+  "QA-X-06": "scipy.stats.ttest_1samp on the paired differences (= ttest_rel)"
  }
 }

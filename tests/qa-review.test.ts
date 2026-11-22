@@ -358,14 +358,16 @@ describe('QA-11 non-positive values are reported, never dropped silently', () =>
 });
 
 describe('QA-12 paired t: CI on the observed difference, test on μ₀', () => {
-  it('gives t = 0, p = 1 and a CI centred on 3 when the difference equals μ₀', () => {
+  it('reports undefined t/p and a degenerate CI when every difference equals μ₀', () => {
     const a = [13, 15, 17, 19];
     const b = [10, 12, 14, 16];
     const r = pairedT(a, b, 3);
     expect(r.difference).toBeCloseTo(3, 12);
     expect(r.differenceVsMu0).toBeCloseTo(0, 12);
-    expect(r.t).toBe(0);
-    expect(r.p).toBeCloseTo(1, 12);
+    // Zero variance leaves the t statistic undefined (QA-X-06 convention):
+    // constant data prove neither agreement nor disagreement with μ₀.
+    expect(Number.isNaN(r.t)).toBe(true);
+    expect(Number.isNaN(r.p)).toBe(true);
     expect(r.ci[0]).toBeCloseTo(3, 12);
     expect(r.ci[1]).toBeCloseTo(3, 12);
   });
@@ -376,8 +378,14 @@ describe('QA-12 paired t: CI on the observed difference, test on μ₀', () => {
     const r = pairedT(a, b, 0, 0.95, 'two-sided');
     expect(r.difference).toBeCloseTo(3, 12);
     expect((r.ci[0] + r.ci[1]) / 2).toBeCloseTo(3, 10);
-    // t statistic still tests μ_d = 0 → (3 − 0)/se
-    expect(r.t).toBeGreaterThan(1);
+    // Constant differences still leave t undefined, whatever μ₀ is.
+    expect(Number.isNaN(r.t)).toBe(true);
+  });
+
+  it('keeps finite t and p whenever the differences vary', () => {
+    const r = pairedT([12, 14, 16, 18], [10, 11, 13, 15]);
+    expect(Number.isFinite(r.t)).toBe(true);
+    expect(Number.isFinite(r.p)).toBe(true);
   });
 });
 

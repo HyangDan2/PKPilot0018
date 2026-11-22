@@ -1,0 +1,1244 @@
+{
+ "area": "QA-U",
+ "cases": [
+  {
+   "id": "QA-U-01",
+   "title": "파레토 차트 (정렬·빈도·누적%)",
+   "op": "sheet",
+   "tolerance": "default",
+   "dataset": "charts",
+   "args": {
+    "analysis": "pareto",
+    "emit": "pareto",
+    "values": {
+     "category": "C2"
+    }
+   },
+   "fields": [
+    {
+     "key": "items"
+    },
+    {
+     "key": "total"
+    },
+    {
+     "key": "label[0]",
+     "kind": "string"
+    },
+    {
+     "key": "label[1]",
+     "kind": "string"
+    },
+    {
+     "key": "label[2]",
+     "kind": "string"
+    },
+    {
+     "key": "label[3]",
+     "kind": "string"
+    },
+    {
+     "key": "label[4]",
+     "kind": "string"
+    },
+    {
+     "key": "label[5]",
+     "kind": "string"
+    },
+    {
+     "key": "label[6]",
+     "kind": "string"
+    },
+    {
+     "key": "label[7]",
+     "kind": "string"
+    },
+    {
+     "key": "label[8]",
+     "kind": "string"
+    },
+    {
+     "key": "count[0]"
+    },
+    {
+     "key": "count[1]"
+    },
+    {
+     "key": "count[2]"
+    },
+    {
+     "key": "count[3]"
+    },
+    {
+     "key": "count[4]"
+    },
+    {
+     "key": "count[5]"
+    },
+    {
+     "key": "count[6]"
+    },
+    {
+     "key": "count[7]"
+    },
+    {
+     "key": "count[8]"
+    },
+    {
+     "key": "pct[0]"
+    },
+    {
+     "key": "pct[1]"
+    },
+    {
+     "key": "pct[2]"
+    },
+    {
+     "key": "pct[3]"
+    },
+    {
+     "key": "pct[4]"
+    },
+    {
+     "key": "pct[5]"
+    },
+    {
+     "key": "pct[6]"
+    },
+    {
+     "key": "pct[7]"
+    },
+    {
+     "key": "pct[8]"
+    },
+    {
+     "key": "cum[0]"
+    },
+    {
+     "key": "cum[1]"
+    },
+    {
+     "key": "cum[2]"
+    },
+    {
+     "key": "cum[3]"
+    },
+    {
+     "key": "cum[4]"
+    },
+    {
+     "key": "cum[5]"
+    },
+    {
+     "key": "cum[6]"
+    },
+    {
+     "key": "cum[7]"
+    },
+    {
+     "key": "cum[8]"
+    }
+   ],
+   "note": "빈도·내림 정렬은 불변 검증, %·누적%는 러너 표의 표시 규칙(소수 1자리 반올림)을 양쪽이 같은 규칙으로 계산해 비교한다. 결측 5행은 세지 않는다."
+  },
+  {
+   "id": "QA-U-02",
+   "title": "히스토그램 (빈 경계·도수 합·정규곡선)",
+   "op": "sheet",
+   "tolerance": "default",
+   "dataset": "charts",
+   "args": {
+    "analysis": "histogram",
+    "emit": "histogram",
+    "values": {
+     "variable": "C6",
+     "bins": 0,
+     "normal": true
+    }
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "bins"
+    },
+    {
+     "key": "bin_lo0"
+    },
+    {
+     "key": "bin_hi_last"
+    },
+    {
+     "key": "count[0]"
+    },
+    {
+     "key": "count[1]"
+    },
+    {
+     "key": "count[2]"
+    },
+    {
+     "key": "count[3]"
+    },
+    {
+     "key": "count[4]"
+    },
+    {
+     "key": "count[5]"
+    },
+    {
+     "key": "count[6]"
+    },
+    {
+     "key": "curve_mean"
+    },
+    {
+     "key": "curve_sd"
+    },
+    {
+     "key": "curve_x[0]"
+    },
+    {
+     "key": "curve_x[60]"
+    },
+    {
+     "key": "curve_x[120]"
+    },
+    {
+     "key": "curve_y[0]"
+    },
+    {
+     "key": "curve_y[60]"
+    },
+    {
+     "key": "curve_y[120]"
+    }
+   ],
+   "note": "빈 규칙(자동: max(5, min(20, ceil(1+log2 n)))=7)과 도수 합=n은 문서화된 시각화 규칙을 독립 구현해 검증한다. 정규곡선은 n·binWidth·φ(x; m, s), 121점 격자."
+  },
+  {
+   "id": "QA-U-03",
+   "title": "상자그림 (사분위·수염·이상치)",
+   "op": "sheet",
+   "tolerance": "default",
+   "dataset": "charts",
+   "args": {
+    "analysis": "boxplot",
+    "emit": "boxplot",
+    "values": {
+     "variables": [
+      "C6"
+     ]
+    }
+   },
+   "fields": [
+    {
+     "key": "groups"
+    },
+    {
+     "key": "g[0]_label",
+     "kind": "string"
+    },
+    {
+     "key": "g[0]_n"
+    },
+    {
+     "key": "g[0]_q1"
+    },
+    {
+     "key": "g[0]_median"
+    },
+    {
+     "key": "g[0]_q3"
+    },
+    {
+     "key": "g[0]_iqr"
+    },
+    {
+     "key": "g[0]_low_fence"
+    },
+    {
+     "key": "g[0]_high_fence"
+    },
+    {
+     "key": "g[0]_whisker_low"
+    },
+    {
+     "key": "g[0]_whisker_high"
+    },
+    {
+     "key": "g[0]_mean"
+    },
+    {
+     "key": "g[0]_outliers"
+    },
+    {
+     "key": "g[0]_outlier[0]"
+    },
+    {
+     "key": "g[0]_outlier[1]"
+    }
+   ],
+   "note": "사분위는 type-6(h=(n+1)p, QA-A-01과 동일), 수염은 1.5·IQR 울타리 안쪽의 극값, 울타리 밖은 이상치로 나열한다."
+  },
+  {
+   "id": "QA-U-04",
+   "title": "산점도 (적합선 기울기·절편·군별 매핑)",
+   "op": "sheet",
+   "tolerance": "default",
+   "dataset": "charts",
+   "args": {
+    "analysis": "scatter",
+    "emit": "scatter",
+    "values": {
+     "y": "C5",
+     "x": "C4",
+     "by": [
+      "C3"
+     ]
+    }
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "slope"
+    },
+    {
+     "key": "intercept"
+    },
+    {
+     "key": "groups"
+    },
+    {
+     "key": "g[0]_label",
+     "kind": "string"
+    },
+    {
+     "key": "g[1]_label",
+     "kind": "string"
+    },
+    {
+     "key": "g[2]_label",
+     "kind": "string"
+    },
+    {
+     "key": "g[0]_n"
+    },
+    {
+     "key": "g[1]_n"
+    },
+    {
+     "key": "g[2]_n"
+    }
+   ],
+   "note": "적합선은 최소제곱 회귀(QA-A-23과 동일 정의, scipy linregress로 검증), 군별 매핑은 x·y가 모두 수치인 행의 by 라벨 첫등장 순."
+  },
+  {
+   "id": "QA-U-05",
+   "title": "시계열 plot (규격선·시퀀스 값)",
+   "op": "sheet",
+   "tolerance": "default",
+   "dataset": "charts",
+   "args": {
+    "analysis": "timeseries",
+    "emit": "timeseries",
+    "values": {
+     "variable": "C6",
+     "lsl": "40",
+     "usl": "60",
+     "target": "50"
+    }
+   },
+   "fields": [
+    {
+     "key": "length"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "min"
+    },
+    {
+     "key": "max"
+    },
+    {
+     "key": "lsl"
+    },
+    {
+     "key": "usl"
+    },
+    {
+     "key": "target"
+    }
+   ],
+   "note": "유한값 시퀀스 통계와 규격선(LSL/USL/Target)의 값·존재 여부를 검증한다. 결측은 선에서 건너뛰지만 length는 원본 길이."
+  },
+  {
+   "id": "QA-U-06",
+   "title": "정렬 (열 전체 행 이동·결측 마지막)",
+   "op": "sheet",
+   "tolerance": "default",
+   "dataset": "charts",
+   "args": {
+    "analysis": "sort",
+    "emit": "sheet",
+    "emitColumns": [
+     "value",
+     "id"
+    ],
+    "values": {
+     "column": "C6",
+     "descending": false
+    }
+   },
+   "fields": [
+    {
+     "key": "columns"
+    },
+    {
+     "key": "value[0]"
+    },
+    {
+     "key": "value[1]"
+    },
+    {
+     "key": "value[2]"
+    },
+    {
+     "key": "value[3]"
+    },
+    {
+     "key": "value[4]"
+    },
+    {
+     "key": "value[5]"
+    },
+    {
+     "key": "value[6]"
+    },
+    {
+     "key": "value[7]"
+    },
+    {
+     "key": "value[8]"
+    },
+    {
+     "key": "value[9]"
+    },
+    {
+     "key": "value[10]"
+    },
+    {
+     "key": "value[11]"
+    },
+    {
+     "key": "value[12]"
+    },
+    {
+     "key": "value[13]"
+    },
+    {
+     "key": "value[14]"
+    },
+    {
+     "key": "value[15]"
+    },
+    {
+     "key": "value[16]"
+    },
+    {
+     "key": "value[17]"
+    },
+    {
+     "key": "value[18]"
+    },
+    {
+     "key": "value[19]"
+    },
+    {
+     "key": "value[20]"
+    },
+    {
+     "key": "value[21]"
+    },
+    {
+     "key": "value[22]"
+    },
+    {
+     "key": "value[23]"
+    },
+    {
+     "key": "value[24]"
+    },
+    {
+     "key": "value[25]"
+    },
+    {
+     "key": "value[26]"
+    },
+    {
+     "key": "value[27]"
+    },
+    {
+     "key": "value[28]"
+    },
+    {
+     "key": "value[29]"
+    },
+    {
+     "key": "value[30]"
+    },
+    {
+     "key": "value[31]"
+    },
+    {
+     "key": "value[32]"
+    },
+    {
+     "key": "value[33]"
+    },
+    {
+     "key": "value[34]"
+    },
+    {
+     "key": "value[35]"
+    },
+    {
+     "key": "value[36]"
+    },
+    {
+     "key": "value[37]"
+    },
+    {
+     "key": "value[38]"
+    },
+    {
+     "key": "value[39]"
+    },
+    {
+     "key": "value[40]"
+    },
+    {
+     "key": "value[41]"
+    },
+    {
+     "key": "value[42]"
+    },
+    {
+     "key": "value[43]"
+    },
+    {
+     "key": "value[44]"
+    },
+    {
+     "key": "value[45]"
+    },
+    {
+     "key": "value[46]"
+    },
+    {
+     "key": "value[47]"
+    },
+    {
+     "key": "value[48]"
+    },
+    {
+     "key": "value[49]"
+    },
+    {
+     "key": "value[50]"
+    },
+    {
+     "key": "value[51]"
+    },
+    {
+     "key": "value[52]"
+    },
+    {
+     "key": "value[53]"
+    },
+    {
+     "key": "value[54]"
+    },
+    {
+     "key": "value[55]"
+    },
+    {
+     "key": "value[56]"
+    },
+    {
+     "key": "value[57]"
+    },
+    {
+     "key": "value[58]"
+    },
+    {
+     "key": "value[59]"
+    },
+    {
+     "key": "id[0]"
+    },
+    {
+     "key": "id[1]"
+    },
+    {
+     "key": "id[2]"
+    },
+    {
+     "key": "id[3]"
+    },
+    {
+     "key": "id[4]"
+    },
+    {
+     "key": "id[5]"
+    },
+    {
+     "key": "id[6]"
+    },
+    {
+     "key": "id[7]"
+    },
+    {
+     "key": "id[8]"
+    },
+    {
+     "key": "id[9]"
+    },
+    {
+     "key": "id[10]"
+    },
+    {
+     "key": "id[11]"
+    },
+    {
+     "key": "id[12]"
+    },
+    {
+     "key": "id[13]"
+    },
+    {
+     "key": "id[14]"
+    },
+    {
+     "key": "id[15]"
+    },
+    {
+     "key": "id[16]"
+    },
+    {
+     "key": "id[17]"
+    },
+    {
+     "key": "id[18]"
+    },
+    {
+     "key": "id[19]"
+    },
+    {
+     "key": "id[20]"
+    },
+    {
+     "key": "id[21]"
+    },
+    {
+     "key": "id[22]"
+    },
+    {
+     "key": "id[23]"
+    },
+    {
+     "key": "id[24]"
+    },
+    {
+     "key": "id[25]"
+    },
+    {
+     "key": "id[26]"
+    },
+    {
+     "key": "id[27]"
+    },
+    {
+     "key": "id[28]"
+    },
+    {
+     "key": "id[29]"
+    },
+    {
+     "key": "id[30]"
+    },
+    {
+     "key": "id[31]"
+    },
+    {
+     "key": "id[32]"
+    },
+    {
+     "key": "id[33]"
+    },
+    {
+     "key": "id[34]"
+    },
+    {
+     "key": "id[35]"
+    },
+    {
+     "key": "id[36]"
+    },
+    {
+     "key": "id[37]"
+    },
+    {
+     "key": "id[38]"
+    },
+    {
+     "key": "id[39]"
+    },
+    {
+     "key": "id[40]"
+    },
+    {
+     "key": "id[41]"
+    },
+    {
+     "key": "id[42]"
+    },
+    {
+     "key": "id[43]"
+    },
+    {
+     "key": "id[44]"
+    },
+    {
+     "key": "id[45]"
+    },
+    {
+     "key": "id[46]"
+    },
+    {
+     "key": "id[47]"
+    },
+    {
+     "key": "id[48]"
+    },
+    {
+     "key": "id[49]"
+    },
+    {
+     "key": "id[50]"
+    },
+    {
+     "key": "id[51]"
+    },
+    {
+     "key": "id[52]"
+    },
+    {
+     "key": "id[53]"
+    },
+    {
+     "key": "id[54]"
+    },
+    {
+     "key": "id[55]"
+    },
+    {
+     "key": "id[56]"
+    },
+    {
+     "key": "id[57]"
+    },
+    {
+     "key": "id[58]"
+    },
+    {
+     "key": "id[59]"
+    }
+   ],
+   "note": "오름차순·결측 마지막·안정 정렬. id 열이 함께 이동해 행 무결성을 검증한다."
+  },
+  {
+   "id": "QA-U-07",
+   "title": "표준화 (Z 점수 저장·결측 보존)",
+   "op": "sheet",
+   "tolerance": "default",
+   "dataset": "charts",
+   "args": {
+    "analysis": "standardize",
+    "emit": "sheet",
+    "emitColumns": [
+     "Std value"
+    ],
+    "values": {
+     "column": "C6",
+     "storeIn": ""
+    }
+   },
+   "fields": [
+    {
+     "key": "columns"
+    },
+    {
+     "key": "z_mean"
+    },
+    {
+     "key": "z_sd"
+    },
+    {
+     "key": "Std value[0]"
+    },
+    {
+     "key": "Std value[1]"
+    },
+    {
+     "key": "Std value[2]"
+    },
+    {
+     "key": "Std value[3]"
+    },
+    {
+     "key": "Std value[4]"
+    },
+    {
+     "key": "Std value[5]"
+    },
+    {
+     "key": "Std value[6]"
+    },
+    {
+     "key": "Std value[7]"
+    },
+    {
+     "key": "Std value[8]"
+    },
+    {
+     "key": "Std value[9]"
+    },
+    {
+     "key": "Std value[10]"
+    },
+    {
+     "key": "Std value[11]"
+    },
+    {
+     "key": "Std value[12]"
+    },
+    {
+     "key": "Std value[13]"
+    },
+    {
+     "key": "Std value[14]"
+    },
+    {
+     "key": "Std value[15]"
+    },
+    {
+     "key": "Std value[16]"
+    },
+    {
+     "key": "Std value[17]"
+    },
+    {
+     "key": "Std value[18]"
+    },
+    {
+     "key": "Std value[19]"
+    },
+    {
+     "key": "Std value[20]"
+    },
+    {
+     "key": "Std value[21]"
+    },
+    {
+     "key": "Std value[22]"
+    },
+    {
+     "key": "Std value[23]"
+    },
+    {
+     "key": "Std value[24]"
+    },
+    {
+     "key": "Std value[25]"
+    },
+    {
+     "key": "Std value[26]"
+    },
+    {
+     "key": "Std value[27]"
+    },
+    {
+     "key": "Std value[28]"
+    },
+    {
+     "key": "Std value[29]"
+    },
+    {
+     "key": "Std value[30]"
+    },
+    {
+     "key": "Std value[31]"
+    },
+    {
+     "key": "Std value[32]"
+    },
+    {
+     "key": "Std value[33]"
+    },
+    {
+     "key": "Std value[34]"
+    },
+    {
+     "key": "Std value[35]"
+    },
+    {
+     "key": "Std value[36]"
+    },
+    {
+     "key": "Std value[37]"
+    },
+    {
+     "key": "Std value[38]"
+    },
+    {
+     "key": "Std value[39]"
+    },
+    {
+     "key": "Std value[40]"
+    },
+    {
+     "key": "Std value[41]"
+    },
+    {
+     "key": "Std value[42]"
+    },
+    {
+     "key": "Std value[43]"
+    },
+    {
+     "key": "Std value[44]"
+    },
+    {
+     "key": "Std value[45]"
+    },
+    {
+     "key": "Std value[46]"
+    },
+    {
+     "key": "Std value[47]"
+    },
+    {
+     "key": "Std value[48]"
+    },
+    {
+     "key": "Std value[49]"
+    },
+    {
+     "key": "Std value[50]"
+    },
+    {
+     "key": "Std value[51]"
+    },
+    {
+     "key": "Std value[52]"
+    },
+    {
+     "key": "Std value[53]"
+    },
+    {
+     "key": "Std value[54]"
+    },
+    {
+     "key": "Std value[55]"
+    },
+    {
+     "key": "Std value[56]"
+    },
+    {
+     "key": "Std value[57]"
+    },
+    {
+     "key": "Std value[58]"
+    },
+    {
+     "key": "Std value[59]"
+    }
+   ],
+   "note": "z=(x−m)/s(표본 표준편차)를 새 열로 저장하고 결측은 null로 보존한다. z의 평균≈0·표준편차≈1도 함께 검증."
+  },
+  {
+   "id": "QA-U-08",
+   "title": "코드 변환 (1=10, 2=20, 3=30·미매핑 보존)",
+   "op": "sheet",
+   "tolerance": "default",
+   "dataset": "charts",
+   "args": {
+    "analysis": "recode",
+    "emit": "sheet",
+    "emitColumns": [
+     "Recode code"
+    ],
+    "values": {
+     "column": "C7",
+     "mapping": "1=10, 2=20, 3=30",
+     "fallback": ""
+    }
+   },
+   "fields": [
+    {
+     "key": "columns"
+    },
+    {
+     "key": "count:10"
+    },
+    {
+     "key": "count:20"
+    },
+    {
+     "key": "count:30"
+    },
+    {
+     "key": "count:9"
+    },
+    {
+     "key": "Recode code[0]"
+    },
+    {
+     "key": "Recode code[1]"
+    },
+    {
+     "key": "Recode code[2]"
+    },
+    {
+     "key": "Recode code[3]"
+    },
+    {
+     "key": "Recode code[4]"
+    },
+    {
+     "key": "Recode code[5]"
+    },
+    {
+     "key": "Recode code[6]"
+    },
+    {
+     "key": "Recode code[7]"
+    },
+    {
+     "key": "Recode code[8]"
+    },
+    {
+     "key": "Recode code[9]"
+    },
+    {
+     "key": "Recode code[10]"
+    },
+    {
+     "key": "Recode code[11]"
+    },
+    {
+     "key": "Recode code[12]"
+    },
+    {
+     "key": "Recode code[13]"
+    },
+    {
+     "key": "Recode code[14]"
+    },
+    {
+     "key": "Recode code[15]"
+    },
+    {
+     "key": "Recode code[16]"
+    },
+    {
+     "key": "Recode code[17]"
+    },
+    {
+     "key": "Recode code[18]"
+    },
+    {
+     "key": "Recode code[19]"
+    },
+    {
+     "key": "Recode code[20]"
+    },
+    {
+     "key": "Recode code[21]"
+    },
+    {
+     "key": "Recode code[22]"
+    },
+    {
+     "key": "Recode code[23]"
+    },
+    {
+     "key": "Recode code[24]"
+    },
+    {
+     "key": "Recode code[25]"
+    },
+    {
+     "key": "Recode code[26]"
+    },
+    {
+     "key": "Recode code[27]"
+    },
+    {
+     "key": "Recode code[28]"
+    },
+    {
+     "key": "Recode code[29]"
+    },
+    {
+     "key": "Recode code[30]"
+    },
+    {
+     "key": "Recode code[31]"
+    },
+    {
+     "key": "Recode code[32]"
+    },
+    {
+     "key": "Recode code[33]"
+    },
+    {
+     "key": "Recode code[34]"
+    },
+    {
+     "key": "Recode code[35]"
+    },
+    {
+     "key": "Recode code[36]"
+    },
+    {
+     "key": "Recode code[37]"
+    },
+    {
+     "key": "Recode code[38]"
+    },
+    {
+     "key": "Recode code[39]"
+    },
+    {
+     "key": "Recode code[40]"
+    },
+    {
+     "key": "Recode code[41]"
+    },
+    {
+     "key": "Recode code[42]"
+    },
+    {
+     "key": "Recode code[43]"
+    },
+    {
+     "key": "Recode code[44]"
+    },
+    {
+     "key": "Recode code[45]"
+    },
+    {
+     "key": "Recode code[46]"
+    },
+    {
+     "key": "Recode code[47]"
+    },
+    {
+     "key": "Recode code[48]"
+    },
+    {
+     "key": "Recode code[49]"
+    },
+    {
+     "key": "Recode code[50]"
+    },
+    {
+     "key": "Recode code[51]"
+    },
+    {
+     "key": "Recode code[52]"
+    },
+    {
+     "key": "Recode code[53]"
+    },
+    {
+     "key": "Recode code[54]"
+    },
+    {
+     "key": "Recode code[55]"
+    },
+    {
+     "key": "Recode code[56]"
+    },
+    {
+     "key": "Recode code[57]"
+    },
+    {
+     "key": "Recode code[58]"
+    },
+    {
+     "key": "Recode code[59]"
+    }
+   ],
+   "note": "매핑 1→10·2→20·3→30, fallback 미지정이면 미매핑 값(9)을 보존하고 결측은 null로 유지한다."
+  },
+  {
+   "id": "QA-U-09",
+   "title": "난수 생성 (시드 결정성·길이·모멘트)",
+   "op": "sheet",
+   "tolerance": "default",
+   "dataset": "charts",
+   "args": {
+    "analysis": "random",
+    "emit": "sheet",
+    "emitColumns": [
+     "Random data"
+    ],
+    "runs": 2,
+    "values": {
+     "distribution": "normal",
+     "count": 5000,
+     "mean": 10,
+     "sd": 2,
+     "min": 0,
+     "max": 10,
+     "seed": 20261121,
+     "storeIn": "Random data"
+    }
+   },
+   "fields": [
+    {
+     "key": "columns"
+    },
+    {
+     "key": "n"
+    },
+    {
+     "key": "mean",
+     "tol": "moment_mean"
+    },
+    {
+     "key": "sd",
+     "tol": "moment_sd"
+    },
+    {
+     "key": "repeat_max_diff"
+    },
+    {
+     "key": "all_finite"
+    }
+   ],
+   "note": "생성기 자체가 대상이라 독립 기준값은 모평균/모표준편차(10/2)뿐이다. 허용오차는 표본오차에서 온다: n=5000 정규 표본의 평균 표준오차 σ/√n=0.0283 → 4σ=0.113, s의 표준오차≈σ/√(2n)=0.02 → 4σ=0.08. 동일 시드 재실행 차이(repeat_max_diff)와 유한성은 정확 일치로 검증하고, 결정성 회귀테스트와 E2E도 함께 둔다."
+  }
+ ]
+}

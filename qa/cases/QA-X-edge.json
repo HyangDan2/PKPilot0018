@@ -70,8 +70,7 @@
      "key": "ci_high"
     }
    ],
-   "verdict": "REVIEW",
-   "note": "se=0이면 t는 0/±∞/NaN 정책 문제 — 엔진은 |m−μ0|≤1e-12이면 0, 아니면 ±∞(paired) 규칙을 쓰고 t1은 NaN을 낸다. 정책 차이로 REVIEW."
+   "note": "se=0 규약(QA-X-04/05/06): t와 p는 정의 불가(NaN) — 0도 ±∞도 아니다. CI는 추정값의 축퇴구간 [m, m]. scipy ttest_1samp도 NaN을 낸다."
   },
   {
    "id": "QA-X-05",
@@ -100,8 +99,49 @@
      "key": "f"
     }
    ],
-   "verdict": "REVIEW",
-   "note": "분산 0 두 집단: se=0, t=NaN, F=0/0 — 양쪽 모두 정의 불가."
+   "note": "분산 0 두 집단: se=0이면 t·p 정의 불가(NaN). scipy.stats.ttest_ind는 여기서 p=0.0을 내므로 참조 엔진이 같은 NaN 규약을 명시적으로 구현한다."
+  },
+  {
+   "id": "QA-X-06",
+   "title": "대응표본 상수 차이 → t NaN (0/±∞ 규약 폐지)",
+   "op": "paired",
+   "tolerance": "default",
+   "dataset": "constant_zero",
+   "args": {
+    "column": "flat",
+    "column2": "zeros",
+    "mu0": 5
+   },
+   "fields": [
+    {
+     "key": "t"
+    },
+    {
+     "key": "p"
+    },
+    {
+     "key": "se"
+    },
+    {
+     "key": "df"
+    },
+    {
+     "key": "mean"
+    },
+    {
+     "key": "mean_b"
+    },
+    {
+     "key": "difference"
+    },
+    {
+     "key": "difference_vs_mu0"
+    },
+    {
+     "key": "stdev"
+    }
+   ],
+   "note": "모든 차이가 5로 동일: 이전 규약은 |m−μ₀|≤1e-12이면 t=0, 아니면 ±∞였지만 상수 자료는 방향에 대한 근거도 없으므로 t·p 모두 NaN으로 통일. m−μ₀=0인 경계(정확히 일치)에서도 NaN."
   }
  ]
 }

@@ -15,11 +15,12 @@ open qa/reports/latest.html
 | path | 역할 |
 | --- | --- |
 | `qa/datasets/generate.py` → `qa/datasets/*.json` | 고정 시드 golden 데이터 24종(10대 데이터 유형: 균형·소표본·대규모·결측·상수·이상치·불균형·경계·중도절단·부분군 변화). 시드·생성식·라이브러리 버전을 파일에 함께 저장. |
-| `qa/build_cases.py` → `qa/cases/*.json` | 케이스 155건(필드 목록·허용오차 클래스·기대 오류·REVIEW/UNVERIFIED 선언). |
+| `qa/build_cases.py` → `qa/cases/*.json` | 케이스 156건(필드 목록·허용오차 클래스·기대 오류·선언). |
 | `qa/adapters/sigrun/cli.ts` | **출하 엔진을 그대로** 호출하는 JSON CLI. `npm`의 esbuild로 번들해 Node 22/24에서 실행. 계산식을 복제하지 않는다. NaN/±Infinity/null은 `{"__special": …}`로 태그. |
 | `qa/reference/engine.py`, `formulas.py` | SciPy/statsmodels API 우선, 미지원 항목만 공개 공식으로 독립 구현(`independent_formula`). |
 | `qa/compare.py`, `qa/tolerances.json` | `|a−e| ≤ atol + rtol|e|` 비교, 5단계 판정(PASS/FAIL/REVIEW/UNVERIFIED/ERROR), HTML/JSON 보고서. |
 | `qa/experiments/qa_f_bootstrap.py` | QA-F 수치 실험(소수 고장 보정 규칙, 중도절단 메커니즘, Type I 오차). |
+| `qa/experiments/qa_f_calibration.py` → `qa/reports/calibration_weibull.json` | Weibull AD 검정의 대규모 캘리브레이션: 시나리오 3종 × 진리 2~3종 × 1,000 시뮬레이션, α=1/5/10% 실측 제1종 오류·검정력(윌슨 95% 구간). |
 | `qa/inventory.md` | Phase 1 인벤토리(분석 40종 + 모듈 21개 + 기존 테스트 매핑). |
 
 ## Rules the harness enforces

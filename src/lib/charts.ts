@@ -139,6 +139,89 @@ function emptyChart(w: number, h: number, label: string, message = 'No finite da
     `<text x="${w / 2}" y="${h / 2}" text-anchor="middle" font-size="${FS + 1}" fill="${C.label}">${esc(message)}</text></svg>`;
 }
 
+export interface HistogramCurvePoint {
+  x: number;
+  /** expected frequency of the normal density at x (n · binWidth · φ) */
+  y: number;
+}
+
+/**
+ * The normal-reference curve of a histogram, as pure numbers.
+ *
+ * Extracted from drawHistogram so the same rule can be checked by the QA
+ * harness: 120 steps from the data minimum to its maximum, height
+ * n · binWidth · φ(x; mean, s) with the sample standard deviation. The renderer
+ * clips the height to the plot's y range; the values here are not clipped.
+ */
+export function histogramCurve(
+  values: number[],
+  bins?: number,
+  steps = 120,
+): { mean: number; sd: number; binWidth: number; points: HistogramCurvePoint[] } {
+  const finite = values.filter((v) => isFinite(v));
+  const [min, max] = extent(finite);
+  const rule = histogramBins(finite, bins);
+  const binWidth = (max - min) / rule.length || 1;
+  const m = mean(finite);
+  const s = stdev(finite);
+  const points: HistogramCurvePoint[] = [];
+  if (!isFinite(m) || !isFinite(s) || !(s > 0)) return { mean: m, sd: s, binWidth, points };
+  for (let i = 0; i <= steps; i += 1) {
+    const x = min + ((max - min) * i) / steps;
+    points.push({ x, y: normalPdf(x, m, s) * finite.length * binWidth });
+  }
+  return { mean: m, sd: s, binWidth, points };
+}
+
+export interface BoxplotStats {
+  n: number;
+  q1: number;
+  median: number;
+  q3: number;
+  iqr: number;
+  lowFence: number;
+  highFence: number;
+  /** smallest / largest observation inside the 1.5·IQR fences */
+  whiskerLow: number;
+  whiskerHigh: number;
+  outliers: number[];
+  mean: number;
+}
+
+/**
+ * Boxplot summary of one group as pure numbers: type-6 quantiles (h = (n+1)p),
+ * whiskers at the most extreme observations inside Q1 − 1.5·IQR and
+ * Q3 + 1.5·IQR, everything beyond them an outlier. drawBoxplot draws exactly
+ * these numbers.
+ */
+export function boxplotStats(raw: number[]): BoxplotStats {
+  const v = raw.filter((x) => isFinite(x)).sort((a, b) => a - b);
+  const n = v.length;
+  if (!n) {
+    return { n: 0, q1: NaN, median: NaN, q3: NaN, iqr: NaN, lowFence: NaN, highFence: NaN, whiskerLow: NaN, whiskerHigh: NaN, outliers: [], mean: NaN };
+  }
+  const q1 = quantileOf(v, 0.25);
+  const median = quantileOf(v, 0.5);
+  const q3 = quantileOf(v, 0.75);
+  const iqr = q3 - q1;
+  const lowFence = q1 - 1.5 * iqr;
+  const highFence = q3 + 1.5 * iqr;
+  const inner = v.filter((x) => x >= lowFence && x <= highFence);
+  return {
+    n,
+    q1,
+    median,
+    q3,
+    iqr,
+    lowFence,
+    highFence,
+    whiskerLow: inner.length ? inner[0] : q1,
+    whiskerHigh: inner.length ? inner[inner.length - 1] : q3,
+    outliers: v.filter((x) => x < lowFence || x > highFence),
+    mean: mean(v),
+  };
+}
+
 export function histogramBins(values: number[], binCount?: number): { lo: number; hi: number; count: number }[] {
   const [min, max] = extent(values);
   const n = values.length || 1;
@@ -195,17 +278,9 @@ function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>): string 
     g += `<rect x="${(x0 + 0.4).toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(0.8, x1 - x0 - 0.8).toFixed(1)}" height="${(box.y + box.h - y).toFixed(1)}" fill="${C.series[0]}" opacity="0.72" rx="1.5"/>`;
   });
   if (spec.normal && values.length > 2) {
-    const m = mean(values);
-    const s = stdev(values);
-    const binWidth = (rawMax - rawMin) / bins.length || 1;
-    if (isFinite(m) && isFinite(s) && s > 0) {
-      const pts: string[] = [];
-      const steps = 120;
-      for (let i = 0; i <= steps; i += 1) {
-        const xv = rawMin + ((rawMax - rawMin) * i) / steps;
-        const yv = normalPdf(xv, m, s) * values.length * binWidth;
-        pts.push(`${sx(xv).toFixed(1)},${sy(Math.min(yMax, yv)).toFixed(1)}`);
-      }
+    const curve = histogramCurve(values, spec.bins);
+    if (curve.points.length > 1) {
+      const pts = curve.points.map((pt) => `${sx(pt.x).toFixed(1)},${sy(Math.min(yMax, pt.y)).toFixed(1)}`);
       g += `<polyline points="${pts.join(' ')}" fill="none" stroke="${C.series[0]}" stroke-width="2"/>`;
     }
   }
@@ -250,15 +325,9 @@ function drawBoxplot(spec: Extract<ChartSpec, { kind: 'boxplot' }>): string {
   spec.groups.forEach((group, i) => {
     const v = [...group.values].filter((x) => isFinite(x)).sort((a, b) => a - b);
     if (!v.length) return;
-    const q1 = quantileOf(v, 0.25);
-    const med = quantileOf(v, 0.5);
-    const q3 = quantileOf(v, 0.75);
-    const iqr = q3 - q1;
-    const lowFence = q1 - 1.5 * iqr;
-    const highFence = q3 + 1.5 * iqr;
-    const inner = v.filter((x) => x >= lowFence && x <= highFence);
-    const whiskLo = inner.length ? inner[0] : q1;
-    const whiskHi = inner.length ? inner[inner.length - 1] : q3;
+    const stats = boxplotStats(v);
+    const { q1, q3, whiskerLow: whiskLo, whiskerHigh: whiskHi } = stats;
+    const med = stats.median;
     const cx = box.x + slot * (i + 0.5);
     const bw = Math.min(52, slot * 0.5);
     const color = C.series[i % C.series.length];
@@ -267,8 +336,8 @@ function drawBoxplot(spec: Extract<ChartSpec, { kind: 'boxplot' }>): string {
     g += `<line x1="${(cx - bw / 4).toFixed(1)}" y1="${sy(whiskLo).toFixed(1)}" x2="${(cx + bw / 4).toFixed(1)}" y2="${sy(whiskLo).toFixed(1)}" stroke="${C.axis}" stroke-width="1.2"/>`;
     g += `<rect x="${(cx - bw / 2).toFixed(1)}" y="${sy(q3).toFixed(1)}" width="${bw}" height="${Math.max(1, sy(q1) - sy(q3)).toFixed(1)}" fill="${color}" opacity="0.18" stroke="${color}" stroke-width="1.4" rx="3"/>`;
     g += `<line x1="${(cx - bw / 2).toFixed(1)}" y1="${sy(med).toFixed(1)}" x2="${(cx + bw / 2).toFixed(1)}" y2="${sy(med).toFixed(1)}" stroke="${color}" stroke-width="2.2"/>`;
-    g += `<circle cx="${cx}" cy="${sy(mean(v)).toFixed(1)}" r="2.4" fill="${C.surface}" stroke="${color}" stroke-width="1.4"/>`;
-    v.filter((x) => x < lowFence || x > highFence).forEach((out) => {
+    g += `<circle cx="${cx}" cy="${sy(stats.mean).toFixed(1)}" r="2.4" fill="${C.surface}" stroke="${color}" stroke-width="1.4"/>`;
+    stats.outliers.forEach((out) => {
       g += `<circle cx="${cx}" cy="${sy(out).toFixed(1)}" r="2.6" fill="none" stroke="${C.alarm}" stroke-width="1.2" opacity="0.85"/>`;
     });
     g += `<text x="${cx}" y="${(box.y + box.h + 30).toFixed(1)}" text-anchor="middle" font-size="${FS}" fill="${C.label}">${esc(truncate(group.label, 12))}</text>`;

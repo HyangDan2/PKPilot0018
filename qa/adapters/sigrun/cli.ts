@@ -38,6 +38,9 @@ import { gageRR, type GrrRow } from '../../../src/lib/gagerr';
 import { fitGlm, type ModelFactor, type ModelTerm } from '../../../src/lib/glm';
 import { evaluateFormula } from '../../../src/lib/calc';
 import { makeWorksheet } from '../../../src/lib/datasets';
+import { defaultValues, findAnalysis, type RunContext } from '../../../src/lib/analyses';
+import { boxplotStats, histogramBins, histogramCurve } from '../../../src/lib/charts';
+import type { Block, ChartSpec, Worksheet } from '../../../src/types';
 import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, ccdDesign, factorialDesign } from '../../../src/lib/doe';
 import { fitLognormalReliability, fitWeibull, type WeibullInput } from '../../../src/lib/reliability';
 import { solvePower, type PowerMethod, type PowerSpec } from '../../../src/lib/power';
@@ -113,6 +116,16 @@ const rawNums = (ds: Dataset, column: string): (number | null)[] =>
 
 const texts = (ds: Dataset, column: string): (string | null)[] =>
   (ds.columns[column] ?? []).map((v) => (v === null || v === undefined ? null : String(v)));
+
+/** A Worksheet whose columns mirror a QA dataset (ids C1…Cn in file order). */
+function sheetFromDataset(ds: Dataset): Worksheet {
+  const columns = Object.entries(ds.columns).map(([name, values]) => ({
+    name,
+    type: values.every((v) => typeof v === 'number' || v === null) ? ('numeric' as const) : ('text' as const),
+    values: values as (number | string | null)[],
+  }));
+  return makeWorksheet(ds.name || 'QA', columns);
+}
 
 function panel(bag: Bag, prefix: string, p: SpcPanel): void {
   bag.put(`${prefix}.center`, p.center);
@@ -586,6 +599,12 @@ const ops: Record<string, Op> = {
       bag.put(`term:${t.name}:p`, t.p);
     });
     bag.put('aliased', r.aliased.join(','));
+    bag.put('aliased_count', r.aliased.length);
+    // Fitted values and residuals are invariant across generalised inverses:
+    // every least-squares solution projects y onto the same column space, so
+    // they identify a rank-deficient fit where term-level SS cannot.
+    r.fitted.forEach((v, i) => bag.put(`fitted[${i}]`, v));
+    r.residuals.forEach((v, i) => bag.put(`residuals[${i}]`, v));
   },
 
   doecreate(bag, ds, args) {
@@ -756,6 +775,164 @@ const ops: Record<string, Op> = {
   ui(bag, ds, args) {
     bag.put('analysis', String(args.analysis));
     bag.put('engineFunction', 'analyses.ts run* (worksheet transform / chart spec only)');
+  },
+
+  /* ── QA-U: the shipped analysis runners and chart rules, verified ──────
+     These ops call the SAME run functions the browser UI calls
+     (findAnalysis(id).run) and read the numbers back out of the resulting
+     chart specs / sheet patches, so what is verified here is what renders. */
+
+  /** A Worksheet whose columns mirror a QA dataset, ids C1…Cn in file order. */
+  sheet(bag, ds, args) {
+    const sheet = sheetFromDataset(ds);
+    const def = findAnalysis(String(args.analysis));
+    if (!def) throw new Error(`unknown analysis ${args.analysis}`);
+    const values: Record<string, unknown> = { ...defaultValues(def), ...(args.values as object ?? {}) };
+    const result = def.run({ lang: 'en', sheet, values });
+    const emit = String(args.emit);
+    const chartOf = (kind: string): Extract<ChartSpec, { kind: never }> | ChartSpec =>
+      (result.blocks.filter((b) => b.type === 'chart') as Extract<Block, { type: 'chart' }>[])
+        .map((b) => b.chart)
+        .find((c) => c.kind === kind) as ChartSpec;
+    switch (emit) {
+      case 'pareto': {
+        const chart = chartOf('pareto') as Extract<ChartSpec, { kind: 'pareto' }>;
+        const table = result.blocks.find((b) => b.type === 'table') as Extract<Block, { type: 'table' }>;
+        bag.put('items', chart.items.length);
+        bag.put('total', chart.items.reduce((a, b) => a + b.count, 0));
+        chart.items.forEach((item, i) => {
+          bag.put(`label[${i}]`, item.label);
+          bag.put(`count[${i}]`, item.count);
+          // Percent / cumulative come from the runner's own table strings.
+          const row = table.rows[i] as (string | number)[];
+          bag.put(`pct[${i}]`, typeof row[2] === 'string' ? Number.parseFloat(row[2]) : row[2]);
+          bag.put(`cum[${i}]`, typeof row[3] === 'string' ? Number.parseFloat(row[3]) : row[3]);
+        });
+        break;
+      }
+      case 'histogram': {
+        const chart = chartOf('histogram') as Extract<ChartSpec, { kind: 'histogram' }>;
+        const data = chart.values.filter((v) => isFinite(v));
+        bag.put('n', data.length);
+        const bins = histogramBins(data, chart.bins);
+        bag.put('bins', bins.length);
+        bag.put('bin_lo0', bins[0].lo);
+        bag.put('bin_hi_last', bins[bins.length - 1].hi);
+        bins.forEach((b, i) => bag.put(`count[${i}]`, b.count));
+        const curve = histogramCurve(data, chart.bins);
+        bag.put('curve_mean', curve.mean);
+        bag.put('curve_sd', curve.sd);
+        const last = curve.points.length - 1;
+        [0, Math.floor(last / 2), last].forEach((i) => {
+          bag.put(`curve_x[${i}]`, curve.points[i].x);
+          bag.put(`curve_y[${i}]`, curve.points[i].y);
+        });
+        break;
+      }
+      case 'boxplot': {
+        const chart = chartOf('boxplot') as Extract<ChartSpec, { kind: 'boxplot' }>;
+        bag.put('groups', chart.groups.length);
+        chart.groups.forEach((group, gi) => {
+          const s = boxplotStats(group.values);
+          bag.put(`g[${gi}]_label`, group.label);
+          bag.put(`g[${gi}]_n`, s.n);
+          bag.put(`g[${gi}]_q1`, s.q1);
+          bag.put(`g[${gi}]_median`, s.median);
+          bag.put(`g[${gi}]_q3`, s.q3);
+          bag.put(`g[${gi}]_iqr`, s.iqr);
+          bag.put(`g[${gi}]_low_fence`, s.lowFence);
+          bag.put(`g[${gi}]_high_fence`, s.highFence);
+          bag.put(`g[${gi}]_whisker_low`, s.whiskerLow);
+          bag.put(`g[${gi}]_whisker_high`, s.whiskerHigh);
+          bag.put(`g[${gi}]_mean`, s.mean);
+          bag.put(`g[${gi}]_outliers`, s.outliers.length);
+          s.outliers.forEach((v, oi) => bag.put(`g[${gi}]_outlier[${oi}]`, v));
+        });
+        break;
+      }
+      case 'scatter': {
+        const chart = chartOf('scatter') as Extract<ChartSpec, { kind: 'scatter' }>;
+        bag.put('n', chart.points.length);
+        bag.put('slope', chart.fit?.slope ?? NaN);
+        bag.put('intercept', chart.fit?.intercept ?? NaN);
+        bag.put('groups', chart.groups?.length ?? 0);
+        (chart.groups ?? []).forEach((label, gi) => {
+          bag.put(`g[${gi}]_label`, label);
+          bag.put(`g[${gi}]_n`, chart.points.filter((p) => p.g === label).length);
+        });
+        break;
+      }
+      case 'timeseries': {
+        const chart = chartOf('timeseries') as Extract<ChartSpec, { kind: 'timeseries' }>;
+        const finite = chart.values.filter((v) => isFinite(v));
+        bag.put('length', chart.values.length);
+        bag.put('n', finite.length);
+        bag.put('mean', finite.reduce((a, b) => a + b, 0) / finite.length);
+        bag.put('min', Math.min(...finite));
+        bag.put('max', Math.max(...finite));
+        bag.put('lsl', chart.lsl);
+        bag.put('usl', chart.usl);
+        bag.put('target', chart.target);
+        break;
+      }
+      case 'sheet': {
+        const runOnce = (): Worksheet => {
+          const r = def.run({ lang: 'en', sheet, values: { ...values } });
+          if (!r.sheetPatch) throw new Error('no sheetPatch');
+          return r.sheetPatch;
+        };
+        const patched = runOnce();
+        (args.emitColumns as string[]).forEach((name) => {
+          const col = patched.columns.find((c) => c.name === name);
+          if (!col) throw new Error(`column ${name} missing after ${args.analysis}`);
+          col.values.forEach((v, i) => bag.put(`${name}[${i}]`, v));
+        });
+        bag.put('columns', patched.columns.length);
+        // Analysis-specific summaries of the patched sheet.
+        const numeric = (name: string): number[] =>
+          (patched.columns.find((c) => c.name === name)?.values ?? [])
+            .map((v) => (typeof v === 'number' && isFinite(v) ? v : NaN));
+        if (args.analysis === 'standardize') {
+          const z = numeric('Std value').filter((v) => isFinite(v));
+          bag.put('z_mean', z.reduce((a, b) => a + b, 0) / z.length);
+          const m = z.reduce((a, b) => a + b, 0) / z.length;
+          bag.put('z_sd', Math.sqrt(z.reduce((a, b) => a + (b - m) ** 2, 0) / (z.length - 1)));
+        }
+        if (args.analysis === 'recode') {
+          const all = (patched.columns.find((c) => c.name === 'Recode code')?.values ?? []);
+          const tallies: Record<string, number> = {};
+          all.forEach((v) => {
+            if (typeof v !== 'number' || !isFinite(v)) return;
+            const key = String(v);
+            tallies[key] = (tallies[key] ?? 0) + 1;
+          });
+          [10, 20, 30, 9].forEach((value) => bag.put(`count:${value}`, tallies[String(value)] ?? 0));
+        }
+        if (args.analysis === 'random') {
+          const data = numeric('Random data');
+          const finite = data.filter((v) => isFinite(v));
+          bag.put('n', finite.length);
+          bag.put('mean', finite.reduce((a, b) => a + b, 0) / finite.length);
+          const m = finite.reduce((a, b) => a + b, 0) / finite.length;
+          bag.put('sd', Math.sqrt(finite.reduce((a, b) => a + (b - m) ** 2, 0) / (finite.length - 1)));
+          bag.put('all_finite', finite.length === data.length ? 1 : 0);
+          if (Number(args.runs) >= 2) {
+            const second = runOnce().columns.find((c) => c.name === 'Random data')?.values ?? [];
+            let maxDiff = 0;
+            for (let i = 0; i < Math.max(second.length, data.length); i += 1) {
+              const a = typeof second[i] === 'number' ? (second[i] as number) : NaN;
+              const b = data[i];
+              if (isFinite(a) && isFinite(b)) maxDiff = Math.max(maxDiff, Math.abs(a - b));
+              else if (isFinite(a) !== isFinite(b)) maxDiff = Infinity;
+            }
+            bag.put('repeat_max_diff', maxDiff);
+          }
+        }
+        break;
+      }
+      default:
+        throw new Error(`unknown emit ${emit}`);
+    }
   },
 
   /** Deliberately failing guard: proves the comparator reports engine errors. */

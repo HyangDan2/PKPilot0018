@@ -200,8 +200,16 @@ def op_t1(bag, ds, args, cid):
     s = float(np.std(x, ddof=1))
     se = s / math.sqrt(n)
     df = n - 1
-    t = (m - mu0) / se if se > 0 else float("nan")
-    p = float(stats.ttest_1samp(x, mu0, alternative=alternative).pvalue)
+    # se = 0 convention (QA-X-04/05/06): a zero-variance sample carries no
+    # information about variation around mu0, so t AND p are undefined (NaN).
+    # scipy.stats.ttest_1samp already returns NaN here, but the guard is kept
+    # explicit because that behaviour is version-dependent.
+    if se > 0:
+        t = (m - mu0) / se
+        p = float(stats.ttest_1samp(x, mu0, alternative=alternative).pvalue)
+    else:
+        t = float("nan")
+        p = float("nan")
     lo, hi = ci_mean(m, se, df, conf, alternative)
     bag.put("mean", m)
     bag.put("difference", m - mu0)
@@ -236,7 +244,15 @@ def op_t2(bag, ds, args, cid):
         se = math.sqrt(sp2 * (1 / n1 + 1 / n2))
         df = n1 + n2 - 2
     t = diff / se if se > 0 else float("nan")
-    p = float(stats.ttest_ind(a, b, equal_var=not welch, alternative=alternative).pvalue)
+    # se = 0 convention (QA-X-05): both variances 0 make the t statistic
+    # undefined. scipy.stats.ttest_ind returns p = 0.0 here (its internal t is
+    # ±inf), but 0 would assert "certainly different" from data that contain no
+    # variance information at all, so the reference implements the same NaN
+    # rule the shipped engine uses.
+    if se > 0:
+        p = float(stats.ttest_ind(a, b, equal_var=not welch, alternative=alternative).pvalue)
+    else:
+        p = float("nan")
     lo, hi = ci_mean(diff, se, df, conf, alternative)
     f = va / vb if vb > 0 else float("nan")
     pf = float(stats.f.cdf(f, n1 - 1, n2 - 1)) if np.isfinite(f) else float("nan")
@@ -274,13 +290,15 @@ def op_paired(bag, ds, args, cid):
     m = float(np.mean(d))
     s = float(np.std(d, ddof=1))
     se = s / math.sqrt(n)
+    # se = 0 convention (QA-X-06): identical differences make t and p
+    # undefined — not 0 when m equals mu0 and not ±∞ otherwise. The 0/±∞ rule
+    # the earlier drafts used asserted more than constant data can support.
     if se > 0:
         t = (m - mu0) / se
-    elif abs(m - mu0) <= 1e-12 * max(1.0, abs(mu0)):
-        t = 0.0
+        p = float(stats.ttest_1samp(d, mu0, alternative=alternative).pvalue)
     else:
-        t = math.inf if m > mu0 else -math.inf
-    p = float(stats.ttest_1samp(d, mu0, alternative=alternative).pvalue)
+        t = float("nan")
+        p = float("nan")
     lo, hi = ci_mean(m, se, n - 1, conf, alternative)
     bag.put("mean", float(np.mean(pa)))
     bag.put("mean_b", float(np.mean(pb)))
@@ -1308,6 +1326,15 @@ def op_glm(bag, ds, args, cid):
     bag.put("r2_adj", float(model.rsquared_adj))
     bag.put("rank", int(np.linalg.matrix_rank(model.model.exog)))
     bag.put("dfe", int(model.df_resid))
+    # Under rank deficiency the aliased COLUMN COUNT is invariant (columns −
+    # rank), while which term a dropped column is billed to depends on the
+    # generalised inverse. Fitted values and residuals are invariant too: every
+    # least-squares solution projects y onto the same column space.
+    bag.put("aliased_count", model.model.exog.shape[1] - int(np.linalg.matrix_rank(model.model.exog)))
+    for i, v in enumerate(model.fittedvalues):
+        bag.put(f"fitted[{i}]", float(v))
+    for i, v in enumerate(model.resid):
+        bag.put(f"residuals[{i}]", float(v))
     for term in args["terms"]:
         label = str(":".join(_formula_term(n, kinds) for n in term))
         name = "×".join(term)
@@ -1686,6 +1713,210 @@ def op_dist(bag, ds, args, cid):
     mark(cid, "scipy.stats / scipy.special")
 
 
+def op_sheet(bag, ds, args, cid):
+    """QA-U — the documented chart / worksheet-transform rules, independently.
+
+    The adapter runs the shipped analysis runner; here the same quantities are
+    re-derived from the rules documented in charts.ts / analyses.ts (bin rule,
+    type-6 quantiles, 1.5·IQR whiskers, sum-to-zero-free OLS fit, …) so the
+    runner's output is verified, not translated.
+    """
+    analysis = args["analysis"]
+    emit = args["emit"]
+    columns = {k: list(v) for k, v in ds["columns"].items()}
+
+    if emit == "pareto":
+        col = args["values"]["category"]
+        idx = int(col[1:]) - 1
+        name = list(columns)[idx]
+        counts = {}
+        for v in columns[name]:
+            if v is None or v == "":
+                continue
+            key = str(v)
+            counts[key] = counts.get(key, 0) + 1
+        items = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        total = sum(counts.values())
+        bag.put("items", len(items))
+        bag.put("total", total)
+        cum = 0
+        for i, (label, count) in enumerate(items):
+            cum += count
+            bag.put(f"label[{i}]", label)
+            bag.put(f"count[{i}]", count)
+            # Same display rule as the runner's table: one decimal place.
+            bag.put(f"pct[{i}]", float(f"{count / total * 100:.1f}"))
+            bag.put(f"cum[{i}]", float(f"{cum / total * 100:.1f}"))
+        mark(cid, "pandas value counts + documented 1-decimal display rule")
+        return
+
+    if emit == "histogram":
+        name = list(columns)[int(args["values"]["variable"][1:]) - 1]
+        data = np.array([v for v in columns[name] if v is not None and np.isfinite(v)], dtype=float)
+        n = data.size
+        bag.put("n", int(n))
+        bin_count = int(args["values"].get("bins") or 0)
+        bins = bin_count if bin_count > 0 else max(5, min(20, math.ceil(1 + math.log2(n))))
+        lo, hi = float(np.min(data)), float(np.max(data))
+        width = (hi - lo) / bins or 1
+        bag.put("bins", bins)
+        bag.put("bin_lo0", lo)
+        bag.put("bin_hi_last", lo + bins * width)
+        idx = np.minimum(bins - 1, np.maximum(0, np.floor((data - lo) / width))).astype(int)
+        hist = np.bincount(idx, minlength=bins)
+        for i in range(bins):
+            bag.put(f"count[{i}]", int(hist[i]))
+        m, s = float(np.mean(data)), float(np.std(data, ddof=1))
+        bag.put("curve_mean", m)
+        bag.put("curve_sd", s)
+        for i in (0, 60, 120):
+            x = lo + (hi - lo) * i / 120
+            bag.put(f"curve_x[{i}]", x)
+            bag.put(f"curve_y[{i}]", float(stats.norm.pdf(x, m, s)) * n * width)
+        mark(cid, "documented bin rule (max(5,min(20,1+log2 n))) + scipy.stats.norm.pdf curve")
+        return
+
+    if emit == "boxplot":
+        name = list(columns)[int(args["values"]["variables"][0][1:]) - 1]
+        v = np.sort(np.array([x for x in columns[name] if x is not None and np.isfinite(x)], dtype=float))
+        q1, med, q3 = (float(np.quantile(v, p, method="weibull")) for p in (0.25, 0.5, 0.75))
+        iqr = q3 - q1
+        lowf, highf = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+        inner = v[(v >= lowf) & (v <= highf)]
+        outs = v[(v < lowf) | (v > highf)]
+        bag.put("groups", 1)
+        bag.put("g[0]_label", name)
+        bag.put("g[0]_n", int(v.size))
+        bag.put("g[0]_q1", q1)
+        bag.put("g[0]_median", med)
+        bag.put("g[0]_q3", q3)
+        bag.put("g[0]_iqr", iqr)
+        bag.put("g[0]_low_fence", lowf)
+        bag.put("g[0]_high_fence", highf)
+        bag.put("g[0]_whisker_low", float(inner[0]) if inner.size else q1)
+        bag.put("g[0]_whisker_high", float(inner[-1]) if inner.size else q3)
+        bag.put("g[0]_mean", float(np.mean(v)))
+        bag.put("g[0]_outliers", int(outs.size))
+        for i in range(2):
+            bag.put(f"g[0]_outlier[{i}]", float(outs[i]) if i < outs.size else None)
+        mark(cid, "numpy.quantile(method='weibull') + 1.5·IQR whisker rule")
+        return
+
+    if emit == "scatter":
+        xname = list(columns)[int(args["values"]["x"][1:]) - 1]
+        yname = list(columns)[int(args["values"]["y"][1:]) - 1]
+        byname = list(columns)[int(args["values"]["by"][0][1:]) - 1] if args["values"].get("by") else None
+        xs, ys, gs = [], [], []
+        for x, y, g in zip(columns[xname], columns[yname], columns[byname] if byname else [None] * len(columns[xname])):
+            if x is None or y is None or not (np.isfinite(x) and np.isfinite(y)):
+                continue
+            xs.append(float(x))
+            ys.append(float(y))
+            gs.append(str(g) if g is not None else "")
+        xs, ys = np.array(xs), np.array(ys)
+        fit = stats.linregress(xs, ys)
+        bag.put("n", int(xs.size))
+        bag.put("slope", float(fit.slope))
+        bag.put("intercept", float(fit.intercept))
+        labels, counts = [], []
+        for g in gs:
+            if g in labels:
+                counts[labels.index(g)] += 1
+            else:
+                labels.append(g)
+                counts.append(1)
+        bag.put("groups", len(labels))
+        for i, label in enumerate(labels):
+            bag.put(f"g[{i}]_label", label)
+            bag.put(f"g[{i}]_n", counts[i])
+        mark(cid, "scipy.stats.linregress + first-appearance group mapping")
+        return
+
+    if emit == "timeseries":
+        name = list(columns)[int(args["values"]["variable"][1:]) - 1]
+        data = np.array([v if v is not None and np.isfinite(v) else np.nan for v in columns[name]], dtype=float)
+        finite = data[np.isfinite(data)]
+        bag.put("length", int(data.size))
+        bag.put("n", int(finite.size))
+        bag.put("mean", float(np.mean(finite)))
+        bag.put("min", float(np.min(finite)))
+        bag.put("max", float(np.max(finite)))
+        for key in ("lsl", "usl", "target"):
+            raw = str(args["values"].get(key, "")).strip()
+            bag.put(key, float(raw) if raw else None)
+        mark(cid, "numpy summary of the finite sequence + spec-limit echo")
+        return
+
+    if emit == "sheet":
+        frame = pd.DataFrame(columns)
+        analysis = args["analysis"]
+        values = args["values"]
+        if analysis == "sort":
+            key = list(columns)[int(values["column"][1:]) - 1]
+            ordered = frame.sort_values(key, ascending=not values.get("descending"), na_position="last", kind="mergesort")
+            for name in args["emitColumns"]:
+                for i, v in enumerate(ordered[name].tolist()):
+                    bag.put(f"{name}[{i}]", v)
+            bag.put("columns", len(frame.columns))
+            mark(cid, "pandas.sort_values(stable, na_position='last')")
+            return
+        if analysis == "standardize":
+            key = list(columns)[int(values["column"][1:]) - 1]
+            data = np.array([v for v in columns[key] if v is not None and np.isfinite(v)], dtype=float)
+            m, s = float(np.mean(data)), float(np.std(data, ddof=1))
+            z = [(x - m) / s if x is not None and np.isfinite(x) else None for x in columns[key]]
+            zf = np.array([v for v in z if v is not None], dtype=float)
+            bag.put("columns", len(frame.columns) + 1)
+            bag.put("z_mean", float(np.mean(zf)))
+            bag.put("z_sd", float(np.std(zf, ddof=1)))
+            for i, v in enumerate(z):
+                bag.put(f"Std value[{i}]", v)
+            mark(cid, "(x − mean) / sample sd over the finite values")
+            return
+        if analysis == "recode":
+            key = list(columns)[int(values["column"][1:]) - 1]
+            mapping = {}
+            for part in str(values["mapping"]).split(","):
+                if "=" in part:
+                    a, b = part.split("=", 1)
+                    try:
+                        mapping[float(a.strip())] = float(b.strip())
+                    except ValueError:
+                        pass
+            fallback_raw = str(values.get("fallback", "")).strip()
+            out = []
+            for v in columns[key]:
+                if not isinstance(v, (int, float)) or v is None or not np.isfinite(v):
+                    out.append(None)
+                    continue
+                hit = next((to for frm, to in mapping.items() if abs(frm - v) < 1e-9), None)
+                out.append(hit if hit is not None else (float(fallback_raw) if fallback_raw else v))
+            bag.put("columns", len(frame.columns) + 1)
+            tallies = {}
+            for v in out:
+                if v is not None:
+                    tallies[v] = tallies.get(v, 0) + 1
+            for value in (10.0, 20.0, 30.0, 9.0):
+                bag.put(f"count:{int(value)}", tallies.get(value, 0))
+            for i, v in enumerate(out):
+                bag.put(f"Recode code[{i}]", v)
+            mark(cid, "documented mapping/fallback rule")
+            return
+        if analysis == "random":
+            count = int(values["count"])
+            bag.put("columns", len(frame.columns) + 1)
+            bag.put("n", count)
+            bag.put("mean", float(values["mean"]))
+            bag.put("sd", float(values["sd"]))
+            bag.put("repeat_max_diff", 0.0)
+            bag.put("all_finite", 1)
+            mark(cid, "population parameters; tolerance covers the sampling error (see case note)")
+            return
+        raise RuntimeError(f"sheet:{analysis} not implemented")
+
+    raise RuntimeError(f"unknown emit {emit}")
+
+
 def op_nelson(bag, ds, args, cid):
     values = [v for v in nums(ds, args["column"]) if np.isfinite(v)]
     flags = F.nelson_rules(values, args["center"], args["sigma"])
@@ -1724,6 +1955,7 @@ OPS = {
     "power": op_power,
     "dist": op_dist,
     "calc": op_calc,
+    "sheet": op_sheet,
     "nelson": op_nelson,
 }
 

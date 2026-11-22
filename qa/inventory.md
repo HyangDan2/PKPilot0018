@@ -1,8 +1,8 @@
 # Sigrún 통계 엔진 인벤토리 · QA Phase 1
 
-- 대상: `HyangDan2/PKPilot0018`, `main` `0bfe385` (QA 착수 시점)
+- 대상: `HyangDan2/PKPilot0018`, `main` `0bfe385` (QA 착수 시점) — 이후 후속 QA(REVIEW 3·UNVERIFIED 9 해소, Section 7)로 케이스 확장
 - 범위: `src/lib/` 전체 (통계 엔진 12개 모듈 + 유틸 9개) 및 `analyses.ts`의 **분석 40종**
-- 방법: 엔진을 브라우저 UI 없이 Node에서 직접 호출하는 어댑터(`qa/adapters/sigrun/`)와 Python 독립 기준 엔진(`qa/reference/`)을 만들어 케이스 155건으로 대조. 산출물은 `qa/reports/latest.html`.
+- 방법: 엔진을 브라우저 UI 없이 Node에서 직접 호출하는 어댑터(`qa/adapters/sigrun/`)와 Python 독립 기준 엔진(`qa/reference/`)을 만들어 케이스 156건으로 대조. 산출물은 `qa/reports/latest.html`.
 - 표기: **검증** 열의 `PASS n`은 `qa/cases`의 통과 케이스 수, `REVIEW`/`UNVERIFIED`는 5단계 판정에서 PASS로 합산하지 않는 항목이다.
 
 ## 0. 요약
@@ -11,9 +11,9 @@
 | --- | --- |
 | `analyses.ts` 분석 ID | 40 (계산 31 / 시각화·유틸 9) |
 | `src/lib` 모듈 | 21 (통계 12 + 지원 9) |
-| 수치 검증 케이스 | 155 (PASS 143 · FAIL 0 · REVIEW 3 · UNVERIFIED 9 · ERROR 0) |
-| 10대 데이터 유형 | 전부 구성 (`qa/datasets/`, 24개 파일) |
-| 기존 단위 테스트 | 11개 파일 262건 (QA-01~QA-15 포함) |
+| 수치 검증 케이스 | 156 (PASS 156 · FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0 — 후속 QA 종료 시점) |
+| 10대 데이터 유형 | 전부 구성 (`qa/datasets/`, 25개 파일, 차트·변환용 `charts` 추가) |
+| 기존 단위 테스트 | 12개 파일 280건 (QA-01~QA-15 + followup-qa 회귀 포함) |
 
 ## 1. 분석 40종 인벤토리
 
@@ -23,12 +23,12 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `desc` 기술통계 | `analyses.ts runDescriptive` → `stats.summarize`, `mean` | 수치 열 1개 이상, 선택 `By` 열 | N, N*, 합, 평균, SE Mean, 표준편차, 분산, 변동계수, 최소·Q1·중앙값·Q3·최대, IQR, 범위, 왜도, 첨도 | 평균·s는 n−1; 사분위는 **type-6**(h=(n+1)p, Excel R-7/Minitab); 왜도 G1=n/((n−1)(n−2))Σz³, 첨도 G2(초과) — `scipy.stats.skew/kurtosis(bias=False)` 정의와 동일 | NumPy `quantile(method='weibull')`, SciPy skew/kurtosis | PASS 6 (QA-A-01~06) |
 | 2 | `normality` 정규성 검정 | `analyses.ts runNormality` → `stats.adNormality` | 수치 열, n≥3, s>0 | A², A*, p, 평균·sd, 확률도 | A²=−n−(1/n)Σ(2i−1)[lnFᵢ+ln(1−F_{n+1−i})] (F=적합 정규), A*=A²(1+0.75/n+2.25/n²), p는 D'Agostino & Stephens(1986) 구간식 | SciPy `anderson('norm')` (A²) + 공개 p식 | PASS 4 (QA-A-07~10) — `ad_erf` 클래스: 엔진 normalCdf의 A&S erf 오차 |
-| 3 | `t1` 1표본 t | `runT1` → `stats.tTest1` | 수치 열, μ₀, 신뢰수준, 대립가설 | 평균, 차이, SE, df, t, p, CI, n, s | t=(x̄−μ₀)/(s/√n), df=n−1, CI는 t분위수; 단측 CI는 반대쪽 ±∞ | SciPy `ttest_1samp`, `t.ppf` | PASS 5 (QA-A-11~14, QA-X-04 REVIEW) |
-| 4 | `t2` 2표본 t | `runT2` → `stats.tTest2` | 두 수치 열, Welch/등분산, 신뢰수준, 대립가설 | 두 평균·s·n, 차이, SE, df, t, p, CI, 등분산 F검정 | Welch df=(s₁²/n₁+s₂²/n₂)²/[s₁⁴/(n₁²(n₁−1))+…]; pooled는 sp²(1/n₁+1/n₂), df=n₁+n₂−2; F검정 p=2·min(F,1−F) | SciPy `ttest_ind(equal_var=…)`, `f.cdf` | PASS 4 (QA-A-15~17, QA-X-05 REVIEW) |
-| 5 | `paired` 대응표본 t | `runPaired` → `stats.pairedT` | 두 수치 열(행 대응), μ₀, 신뢰수준, 대립가설 | 짝 수, 두 평균, 차이, μ₀ 대비 차이, SE, df, t, p, CI | 행별 d=A−B(양쪽 유효한 행만), t=(d̄−μ₀)/(s_d/√n), **CI는 d̄ 중심**(μ₀는 검정에만) | SciPy `ttest_rel`(μ₀=0) + `ttest_1samp(d, μ₀)` | PASS 3 (QA-A-18~20) |
+| 3 | `t1` 1표본 t | `runT1` → `stats.tTest1` | 수치 열, μ₀, 신뢰수준, 대립가설 | 평균, 차이, SE, df, t, p, CI, n, s | t=(x̄−μ₀)/(s/√n), df=n−1, CI는 t분위수; 단측 CI는 반대쪽 ±∞; s=0이면 t·p는 NaN(QA-X 규약) | SciPy `ttest_1samp`, `t.ppf` | PASS 6 (QA-A-11~14, QA-X-04) |
+| 4 | `t2` 2표본 t | `runT2` → `stats.tTest2` | 두 수치 열, Welch/등분산, 신뢰수준, 대립가설 | 두 평균·s·n, 차이, SE, df, t, p, CI, 등분산 F검정 | Welch df=(s₁²/n₁+s₂²/n₂)²/[…]; pooled는 sp²(1/n₁+1/n₂), df=n₁+n₂−2; F검정 p=2·min(F,1−F); s=0이면 t·p는 NaN(QA-X 규약) | SciPy `ttest_ind(equal_var=…)`, `f.cdf` | PASS 5 (QA-A-15~17, QA-X-05) |
+| 5 | `paired` 대응표본 t | `runPaired` → `stats.pairedT` | 두 수치 열(행 대응), μ₀, 신뢰수준, 대립가설 | 짝 수, 두 평균, 차이, μ₀ 대비 차이, SE, df, t, p, CI | 행별 d=A−B(양쪽 유효한 행만), t=(d̄−μ₀)/(s_d/√n), **CI는 d̄ 중심**(μ₀는 검정에만); s_d=0이면 t·p는 NaN(구 0/±∞ 규약 폐기, QA-X-06) | SciPy `ttest_rel`(μ₀=0) + `ttest_1samp(d, μ₀)` | PASS 4 (QA-A-18~20, QA-X-06) |
 | 6 | `anova` 일원 ANOVA + Tukey | `runAnova` → `stats.anovaOneWay`, `tukeyHSD`, `groupingLetters` | 반응 수치 열 + 요인 열, 신뢰수준 | SS/df/MS(Between·Within), F, p, 풀링 s, q, 쌍별 diff·SE·CI·p, 컴팩트 문자 | SSB=Σnᵢ(x̄ᵢ−x̄)², SSW=ΣΣ(x−x̄ᵢ)²; Tukey 반폭=q_{α,k,df}/√2·√(MSW(1/nᵢ+1/nⱼ)), p=P(Q>√2|d|/SE) | SciPy `f_oneway`, `studentized_range` | PASS 3 (QA-A-21·22, QA-B-01) — `studentized_range` 클래스 |
 | 7 | `regression` 다중회귀 | `runRegression` → `stats.regress` | 반응 열 + 예측변수 1개 이상 | 항별 계수·SE·t·p·VIF, ANOVA 표, R²·R²adj·R²pred, s, 잔차 | 정규방정식 XᵀXβ=Xᵀy(가우스 소거+역행렬), VIF=1/(1−R²ⱼ), R²pred=1−PRESS/SST(hat 대각) | statsmodels OLS + `variance_inflation_factor` + PRESS | PASS 2 · FAIL→수정 0 (QA-A-23·24) · 경계 2 (QA-X-02·03) |
-| 24 | `glm` 일반선형모형 | `runGlm` → `glm.fitGlm`, `buildDesign` | 반응 열 + 요인(범주/수치) + 교호작용 옵션 | 항별 df·Type I SS·Type III SS·MS·F·p, dfe, SSE, MSE, s, R², rank, alias | Sum-to-zero(deviation) 코딩, Householder QR + 열 피벗(정규방정식 회피), Type I=순차 SS, Type III=열 제거 후 재적합 SS 차 | statsmodels `ols` + `anova_lm(typ=1/3)` `C(f, Sum)` | PASS 4 (QA-B-02~05) · REVIEW 1 (QA-B-06 alias 선택 정책) |
+| 24 | `glm` 일반선형모형 | `runGlm` → `glm.fitGlm`, `buildDesign` | 반응 열 + 요인(범주/수치) + 교호작용 옵션 | 항별 df·Type I SS·Type III SS·MS·F·p, dfe, SSE, MSE, s, R², rank, alias | Sum-to-zero(deviation) 코딩, Householder QR + 열 피벗(정규방정식 회피), Type I=순차 SS, Type III=열 제거 후 재적합 SS 차; rank-deficient는 모형 불변량(fitted·residuals·SSE·R²·alias 수)으로 검증 | statsmodels `ols` + `anova_lm(typ=1/3)` `C(f, Sum)` | PASS 5 (QA-B-02~06 — B-06은 모형 불변량 기준) |
 
 ### 1.2 관리도 (SPC)
 
@@ -77,15 +77,15 @@
 | # | ID / 명칭 | 구현 | 입력 | 출력 | 방법 | 검증 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 30 | `calculator` 수식 계산 | `runCalculator` → `calc.evaluateFormula` | 수식 문자열, 저장 열 | 행별 결과(또는 상수), 오류 행 수 | 자체 토크나이저·재귀하강 파서, 집계함수 처리 | PASS 4 (QA-I-01~04) |
-| 31 | `pareto` 파레토 | `analyses.runPareto` | 범주 열 | 항목·건수·%·누적% | 러너 내부(정렬+누적) | UNVERIFIED (QA-U-01) |
-| 32 | `histogram` 히스토그램 | `runHistogram` → `charts.histogramBins` | 수치 열, 빈 수, 규격 | 빈 경계·건수, 정규곡선 | 빈 수 휴리스틱 max(5,min(20,⌈1+log₂n⌉)) — 시각화 규칙 | UNVERIFIED (QA-U-02) |
-| 33 | `boxplot` 상자그림 | `runBoxplot` | 수치 열, By | 사분위·수염·이상치 | 수염은 표시 규칙 | UNVERIFIED (QA-U-03) |
-| 34 | `scatter` 산점도 | `runScatter` → `stats.regress` | y, x, By | 점·적합선 | 적합선은 회귀(검증됨), 점 배치는 시각화 | UNVERIFIED (QA-U-04) |
-| 35 | `timeseries` 시계열 | `runTimeseries` | 수치 열, 규격 | 점·규격선 | 시각화 | UNVERIFIED (QA-U-05) |
-| 36 | `random` 난수 생성 | `runRandom` → `random.generateRandom` | 분포, 개수, 모수, 시드 | 생성 열 | mulberry32 + Box–Muller | UNVERIFIED (QA-U-06) |
-| 37 | `sort` 정렬 | `runSort` | 열, 오름/내림 | 행 재배열 시트 | 러너 내부 시트 변환 | UNVERIFIED (QA-U-07) |
-| 38 | `standardize` 표준화 | `runStandardize` | 열 | Z 열 | (x−x̄)/s | UNVERIFIED (QA-U-08) |
-| 39 | `recode` 코드 변환 | `runRecode` | 열, 매핑, 기본값 | 변환 열 | 러너 내부 | UNVERIFIED (QA-U-09) |
+| 31 | `pareto` 파레토 | `analyses.runPareto` | 범주 열 | 항목·건수·%·누적% | 러너 실호출 + 독립 value_counts 대조 | PASS (QA-U-01) |
+| 32 | `histogram` 히스토그램 | `runHistogram` → `charts.histogramBins`, `charts.histogramCurve` | 수치 열, 빈 수, 규격 | 빈 경계·건수, 정규곡선 | 빈 규칙 max(5,min(20,⌈1+log₂n⌉))과 121점 정규곡선을 문서 기준으로 독립 재구현해 대조 | PASS (QA-U-02) |
+| 33 | `boxplot` 상자그림 | `runBoxplot` → `charts.boxplotStats` | 수치 열, By | 사분위·수염·이상치 | type-6 사분위 + 1.5·IQR 수염 규칙 독립 재구현(`numpy.quantile(method='weibull')`) | PASS (QA-U-03) |
+| 34 | `scatter` 산점도 | `runScatter` → `stats.regress` | y, x, By | 점·적합선 | 적합선은 `scipy.stats.linregress`, 군별 매핑은 첫등장 순 독립 대조 | PASS (QA-U-04) |
+| 35 | `timeseries` 시계열 | `runTimeseries` | 수치 열, 규격 | 점·규격선 | 유한 시퀀스 통계 + 규격선 값·존재 독립 대조 | PASS (QA-U-05) |
+| 36 | `random` 난수 생성 | `runRandom` → `random.generateRandom` | 분포, 개수, 모수, 시드 | 생성 열 | 모평균/모표준편차 대비 4×표본오차 허용오차 + 동일 시드 재실행 차이 0 검증 | PASS (QA-U-09) |
+| 37 | `sort` 정렬 | `runSort` | 열, 오름/내림 | 행 재배열 시트 | `pandas.sort_values`(안정, 결측 마지막)와 열 전체 대조(id 열 동반 이동) | PASS (QA-U-06) |
+| 38 | `standardize` 표준화 | `runStandardize` | 열 | Z 열 | (x−x̄)/s 독립 재계산 + z 평균≈0·s≈1 | PASS (QA-U-07) |
+| 39 | `recode` 코드 변환 | `runRecode` | 열, 매핑, 기본값 | 변환 열 | 매핑·미매핑 보존·결측 보존 독립 대조 | PASS (QA-U-08) |
 | 40 | (내부) 분포함수 | `dist.ts` 전 함수 | x, 모수 | pdf/cdf/분위수 | 정규(A&S erf, Acklam 역), t/F(불완전베타), 감마(급수+CF), studentized range(Simpson), 비중심 t/F | PASS 24 (QA-A-25~48) — `prob`·`normal_inv`·`nct_quad`·`studentized_range` 클래스 |
 
 ## 2. `src/lib` 모듈 인벤토리
@@ -104,9 +104,9 @@
 | `power.ts` | 17.3 KB | `solvePower`, `powerAt`, `powerCurve`, `differenceRange` | 검정력 | PASS 21 |
 | `dist.ts` | 14.6 KB | 정규·t·F·χ²·감마·베이불·로그노말·비중심 t/F·studentized range·`logGamma` | 분포 코어 | PASS 24 |
 | `calc.ts` | 11.1 KB | `evaluateFormula`, `formulaColumns` | 수식 엔진 | PASS 4 |
-| `charts.ts` | 49.5 KB | `histogramBins`, `renderChart`, `inlineTheme` | SVG 차트 | UNVERIFIED(차트) / 단위테스트 24 |
+| `charts.ts` | 49.5 KB | `histogramBins`, `histogramCurve`, `boxplotStats`, `renderChart`, `inlineTheme` | SVG 차트 | PASS 3 (QA-U-02·03) / 단위테스트 24 |
 | `datasets.ts` | 10.7 KB | `makeWorksheet`, 샘플 데이터셋 정의 | 워크시트 생성 | 간접(어댑터 사용) |
-| `random.ts` | 1.5 KB | `mulberry32`, `normalRandom`, `generateRandom` | PRNG | UNVERIFIED |
+| `random.ts` | 1.5 KB | `mulberry32`, `normalRandom`, `generateRandom` | PRNG | PASS (QA-U-09 모멘트·결정성) |
 | `format.ts` | 1.2 KB | `fmt`, `fmtP`, `fmtInt`, `fmtTime`, `fmtDate` | 표시 형식 | UNVERIFIED(표시) |
 | `i18n.ts` | 79.4 KB | `t` | 다국어 문구 | 단위테스트 4 |
 | `project.ts` | 10.6 KB | 프로젝트 직렬화, CSV 파서, 구분자 감지 | 입출력 | 단위테스트 23 |
@@ -116,7 +116,7 @@
 
 ## 3. 기존 테스트 재사용 현황
 
-`npm test` = 11개 파일 **262건** (전부 통과). 새 QA 체계는 이를 대체하지 않고 **중복 없이 보완**한다.
+`npm test` = 12개 파일 **280건** (전부 통과). 새 QA 체계는 이를 대체하지 않고 **중복 없이 보완**한다.
 
 | 파일 | 건수 | 다루는 범위 | 이번 QA와의 관계 |
 | --- | --- | --- | --- |
