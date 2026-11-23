@@ -46,7 +46,8 @@ const MENU = (page, name) => page.getByRole('menuitem', { name, exact: true });
     await page.screenshot({ path: `${OUT}/ui-detach.png` });
     await page.close();
 
-    const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const mobileCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const mobile = await mobileCtx.newPage();
     await mobile.goto(BASE, { waitUntil: 'networkidle' });
     await mobile.waitForSelector('[data-testid=menubar]');
     await mobile.click('[data-testid=sample-button]');
