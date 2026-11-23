@@ -186,6 +186,46 @@ export function IconCheck({ size, className }: IconProps) {
   );
 }
 
+export function IconDetach({ size, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M14 4h6v6" />
+      <path d="M20 4l-7.5 7.5" />
+      <path d="M18 13v5.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H11" />
+    </svg>
+  );
+}
+
+export function IconDock({ size, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M4 10V4.8h5.2" />
+      <path d="M4 4.8 10 10.8" />
+      <path d="M20 14v5.2h-5.2" />
+      <path d="M20 19.2 14 13.2" />
+      <rect x="9" y="9" width="6" height="6" rx="1" />
+    </svg>
+  );
+}
+
+export function IconCopy({ size, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9" />
+    </svg>
+  );
+}
+
+export function IconLayout({ size, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M9.5 4.5v15M9.5 12h11" />
+    </svg>
+  );
+}
+
 export function IconLayers({ size, className }: IconProps) {
   return (
     <svg {...base(size, className)}>

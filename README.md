@@ -27,20 +27,34 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 ## Interface
 
-- Classic Minitab menu bar — `File · Edit · Data · Calc · Stat · Graph · View · Help` with two-level submenus.
+- One slim top bar (40 px) holds the whole chrome: the HD2Lab dual-skew `.mark` wordmark sits
+  directly beside the `File · Edit · Data · Calc · Stat · Graph · View · Help` menus, and
+  `KO | EN`, the theme toggle and the `⋮` workspace/kebab menu close the same line.
 - `Ctrl+E` (`⌘E`) reopens the last analysis dialog with the same selections.
-- `KO | EN` toggle translates the menu bar, toolbar, navigator, panel headers, dialogs and help.
+- `KO | EN` toggle translates the top bar, toolbar, navigator, panel headers, dialogs and help.
 - Soft Iris (light) and Navy & Lavender (dark) themes, both defined in `src/styles/tokens.css`.
+- Panel layout presets (`View ▸ Panel layout`, also in the `⋮` menu): *Balanced*, *Worksheet
+  focus*, *Results & charts focus*, *Full focus* (navigator folded away).
+- Detach any panel — navigator, output, worksheet — into a floating window from the panel header,
+  drag it by its title bar, and dock it back from the window header. The detached panel is the
+  same live panel, so charts, worksheets and selections keep their state.
+- Charts copy to the clipboard as PNG (`navigator.clipboard.write` + `ClipboardItem`) from the
+  card header (all charts of the card) or the per-chart button; browsers without clipboard-image
+  support get the identical PNG downloaded instead, with a notice that says so.
 
 ## Development
 
 ```bash
 npm install
 npm run dev        # http://localhost:5178
-npm test           # 262 unit tests (statistics, SPC, parser, project files, charts, i18n, QA-F regressions)
+npm test           # 286 unit tests (statistics, SPC, parser, project files, charts, layout, i18n, QA-F regressions)
 npm run qa:stats   # independent reference QA → qa/reports/latest.html
 npm run typecheck  # tsc --noEmit
 npm run build      # production bundle in dist/
+
+# live browser E2E for the compact top bar, sample-dropdown layer, chart clipboard,
+# floating panels and layout presets (needs playwright + a preview server on :4178)
+PART=ui node tools/e2e_ui_compact.cjs     # ui · panels · mobile (or no PART for all)
 ```
 
 The statistical engine is dependency-free: `src/lib/dist.ts` (normal, t, F and studentized-range

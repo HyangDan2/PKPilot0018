@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AnalysisMeta, Column, Lang, OutputDoc, Settings, Theme, Worksheet } from './types';
-import { Header } from './components/Header';
+import { Brand, HeaderActions } from './components/Header';
 import { MenuBar, type MenuAction } from './components/MenuBar';
+import { FloatPanel } from './components/FloatPanel';
 import { Toolbar } from './components/Toolbar';
 import { Navigator } from './components/Navigator';
 import { OutputPanel } from './components/OutputPanel';
@@ -14,6 +15,8 @@ import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { loadAutosave, saveAutosave } from './lib/db';
 import { fmtInt } from './lib/format';
 import { t } from './lib/i18n';
+import { DEFAULT_NAV, DEFAULT_OUTPUT, clampNav, clampOutput, findPreset, floatRect, type FloatRect, type LayoutPresetId, type PanelId } from './lib/layout';
+import { IconDetach } from './components/Icons';
 import {
   PROJECT_ACCEPT,
   csvToWorksheet,
@@ -33,8 +36,6 @@ import {
 import { XLSX_ACCEPT, readXlsxRows, workbookToWorksheets, writeXlsx, xlsxFileName } from './lib/xlsx';
 
 const SETTINGS_KEY = 'sigrun.settings.v1';
-const DEFAULT_NAV = 254;
-const DEFAULT_OUTPUT = 52;
 const ENGINE_VERSION = 'sigrun-1.2';
 
 function readSettings(): Settings {
@@ -105,6 +106,16 @@ function legacyCopy(text: string): boolean {
   }
 }
 
+/** The empty dock a detached panel leaves behind, with its way back. */
+function DetachSlot({ lang, label, onDock, testId, className }: { lang: Lang; label: string; onDock: () => void; testId: string; className?: string }) {
+  return (
+    <div className={`detach-slot ${className ?? ''}`.trim()} data-testid={testId}>
+      <span className="mono-note">{label}</span>
+      <button type="button" className="btn ghost" onClick={onDock}>{t(lang, 'panel.dock')}</button>
+    </div>
+  );
+}
+
 export default function App() {
   const boot = useRef<{ worksheets: Worksheet[]; activeSheetId: string } | null>(null);
   if (!boot.current) {
@@ -134,6 +145,9 @@ export default function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [navW, setNavW] = useState(DEFAULT_NAV);
   const [outputH, setOutputH] = useState(DEFAULT_OUTPUT);
+  const [navHidden, setNavHidden] = useState(false);
+  const [layoutPreset, setLayoutPreset] = useState<LayoutPresetId>('balanced');
+  const [detached, setDetached] = useState<Record<PanelId, FloatRect | null>>({ navigator: null, output: null, worksheet: null });
   const [mobileTab, setMobileTab] = useState<'output' | 'worksheet'>('output');
   const [navOpen, setNavOpen] = useState(false);
   const [autosave, setAutosave] = useState<'saved' | 'saving'>('saved');
@@ -765,6 +779,30 @@ export default function App() {
     document.body.style.cursor = 'row-resize';
   };
 
+  /* ── layout presets & detached panels ─────────────────────────────── */
+
+  const applyLayout = (id: LayoutPresetId) => {
+    const preset = findPreset(id);
+    setNavW(clampNav(preset.navWidth));
+    setOutputH(clampOutput(preset.outputHeight));
+    setNavHidden(preset.navHidden);
+    setLayoutPreset(preset.id);
+    toast(t(lang, 'toast.layout', { name: t(lang, preset.labelKey) }));
+  };
+
+  const detachPanel = (id: PanelId) => {
+    setDetached((prev) => ({ ...prev, [id]: prev[id] ? null : floatRect(id, window.innerWidth, window.innerHeight) }));
+  };
+
+  const dockPanel = (id: PanelId) => {
+    setDetached((prev) => ({ ...prev, [id]: null }));
+    toast(t(lang, 'panel.docked'));
+  };
+
+  const movePanel = (id: PanelId, next: { x: number; y: number }) => {
+    setDetached((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id] as FloatRect, ...next } } : prev));
+  };
+
   /* ── menu actions ──────────────────────────────────────────────────── */
 
   const onAction = (action: MenuAction) => {
@@ -794,7 +832,12 @@ export default function App() {
       case 'theme': setSettings((prev) => ({ ...prev, theme: prev.theme === 'dark' ? 'light' : 'dark' })); break;
       case 'langKo': setSettings((prev) => ({ ...prev, lang: 'ko' })); break;
       case 'langEn': setSettings((prev) => ({ ...prev, lang: 'en' })); break;
-      case 'resetLayout': setNavW(DEFAULT_NAV); setOutputH(DEFAULT_OUTPUT); break;
+      case 'resetLayout': applyLayout('balanced'); break;
+      case 'toggleNav': setNavHidden((value) => !value); break;
+      case 'layoutBalanced': applyLayout('balanced'); break;
+      case 'layoutSheet': applyLayout('sheet'); break;
+      case 'layoutResults': applyLayout('results'); break;
+      case 'layoutFocus': applyLayout('focus'); break;
       default: break;
     }
   };
@@ -810,23 +853,139 @@ export default function App() {
     if (renameSheet(renameTarget.id, renameTarget.draft)) setRenameTarget(null);
   };
 
+  const navNode = (floating: boolean) => (
+    <Navigator
+      lang={lang}
+      floating={floating}
+      open={floating ? true : navOpen}
+      outputs={outputs}
+      worksheets={worksheets}
+      activeSheetId={sheet.id}
+      focusedOutput={focusedOutput}
+      onSelectOutput={(id) => { setFocusedOutput(id); setMobileTab('output'); setNavOpen(false); setTimeout(() => document.getElementById(`card-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 30); }}
+      onDeleteOutput={(id) => { setOutputs((prev) => prev.filter((o) => o.id !== id)); toast(t(lang, 'toast.outputDeleted')); }}
+      onSelectSheet={(id) => { setActiveSheetId(id); setSelection({ row: 0, col: 0 }); setRange({ r0: 0, c0: 0, r1: 0, c1: 0 }); setMobileTab('worksheet'); setNavOpen(false); }}
+      onAddSheet={() => addSheet()}
+      onRenameSheet={renameSheet}
+      onDeleteSheet={deleteSheet}
+      onClose={floating ? undefined : () => setNavOpen(false)}
+      onDetach={floating ? undefined : () => detachPanel('navigator')}
+    />
+  );
+
+  const outputNode = (floating: boolean) => (
+    <section className={`panel output-panel${floating ? ' floating' : ''}`} data-hidden={floating ? false : mobileTab !== 'output'}>
+      <div className="panel-head">
+        <span className="panel-title">{t(lang, 'panel.output')}</span>
+        <span className="panel-count">{outputs.length}</span>
+        <span className="spacer" />
+        <span className="mono-note">{t(lang, 'status.last')} · {lastTitle}</span>
+        {!floating && (
+          <button type="button" className="detach-btn" onClick={() => detachPanel('output')} title={t(lang, 'panel.detach')} aria-label={t(lang, 'panel.detach')} data-testid="detach-output">
+            <IconDetach size={14} />
+          </button>
+        )}
+      </div>
+      <OutputPanel
+        lang={lang}
+        outputs={outputs}
+        focusedOutput={focusedOutput}
+        onFocus={setFocusedOutput}
+        onDelete={(id) => { setOutputs((prev) => prev.filter((o) => o.id !== id)); toast(t(lang, 'toast.outputDeleted')); }}
+        onToggleCollapse={(id) => setOutputs((prev) => prev.map((o) => (o.id === id ? { ...o, collapsed: !o.collapsed } : o)))}
+        onToast={toast}
+        onRerun={rerunWithOptions}
+        onReproduce={reproduce}
+        onUpdateBlocks={updateOutputBlocks}
+      />
+    </section>
+  );
+
+  const worksheetNode = (floating: boolean) => (
+    <section className={`panel worksheet-panel${floating ? ' floating' : ''}`} data-hidden={floating ? false : mobileTab !== 'worksheet'}>
+      <div className="panel-head">
+        <span className="panel-title">{t(lang, 'panel.worksheet')}</span>
+        <span className="panel-count">
+          {fmtInt(rowCount(sheet))} × {sheet.columns.length}
+        </span>
+        <span className="spacer" />
+        <span className="grid-hint">{t(lang, 'hint.grid')}</span>
+        {!floating && (
+          <button type="button" className="detach-btn" onClick={() => detachPanel('worksheet')} title={t(lang, 'panel.detach')} aria-label={t(lang, 'panel.detach')} data-testid="detach-worksheet">
+            <IconDetach size={14} />
+          </button>
+        )}
+      </div>
+      <WorksheetGrid
+        lang={lang}
+        sheet={sheet}
+        selection={selection}
+        range={range}
+        onSelect={(cell, extend) => {
+          setSelection(cell);
+          setRange((prev) => (extend ? { ...prev, r1: cell.row, c1: cell.col } : { r0: cell.row, c0: cell.col, r1: cell.row, c1: cell.col }));
+        }}
+        onEdit={editCell}
+        onPaste={pasteCells}
+        onCopy={() => void copyRange()}
+        onClear={clearRange}
+        onAddColumn={addColumn}
+        onRenameColumn={renameColumn}
+      />
+      <div className="ws-tabs">
+        {worksheets.map((ws) => (
+          <button
+            key={ws.id}
+            type="button"
+            className={`ws-tab${ws.id === sheet.id ? ' current' : ''}`}
+            onClick={() => setActiveSheetId(ws.id)}
+            onDoubleClick={() => setRenameTarget({ id: ws.id, draft: ws.name })}
+            data-testid={`sheet-tab-${ws.id}`}
+          >
+            {ws.name}
+            {worksheets.length > 1 && (
+              <span
+                className="x"
+                role="button"
+                tabIndex={-1}
+                onClick={(event) => { event.stopPropagation(); deleteSheet(ws.id); }}
+                aria-label={t(lang, 'nav.delete')}
+              >
+                ×
+              </span>
+            )}
+          </button>
+        ))}
+        <button type="button" className="ws-addtab" onClick={() => addSheet()} aria-label={t(lang, 'nav.addSheet')} data-testid="add-sheet-tab">+</button>
+        <span className="grid-hint">
+          {t(lang, 'status.rows', { n: fmtInt(rowCount(sheet)) })} · {t(lang, 'status.cols', { n: sheet.columns.length })}
+        </span>
+      </div>
+    </section>
+  );
+
   return (
     <div className="app">
-      <Header
-        settings={settings}
-        onToggleTheme={() => setTheme(settings.theme === 'dark' ? 'light' : 'dark')}
-        onLang={setLang}
-        onHelp={() => setHelp('help')}
-        onSaveProject={saveProject}
-        onOpenProject={() => void openProject()}
-        onNewSheet={() => addSheet()}
-        onResetLayout={() => onAction('resetLayout')}
-      />
-
       <MenuBar
         lang={lang}
         canUndo={past.current.length > 0}
         canRedo={future.current.length > 0}
+        navVisible={!navHidden}
+        layoutPreset={layoutPreset}
+        brand={<Brand lang={lang} />}
+        actions={(
+          <HeaderActions
+            settings={settings}
+            onToggleTheme={() => setTheme(settings.theme === 'dark' ? 'light' : 'dark')}
+            onLang={setLang}
+            onHelp={() => setHelp('help')}
+            onSaveProject={saveProject}
+            onOpenProject={() => void openProject()}
+            onNewSheet={() => addSheet()}
+            onResetLayout={() => applyLayout('balanced')}
+            onLayout={applyLayout}
+          />
+        )}
         onAction={onAction}
         onAnalysis={openAnalysis}
         onSample={loadSample}
@@ -857,129 +1016,92 @@ export default function App() {
       </div>
 
       <div className="workspace" style={{ '--nav-w': `${navW}px` } as React.CSSProperties}>
-        <Navigator
-          lang={lang}
-          open={navOpen}
-          outputs={outputs}
-          worksheets={worksheets}
-          activeSheetId={sheet.id}
-          focusedOutput={focusedOutput}
-          onSelectOutput={(id) => { setFocusedOutput(id); setMobileTab('output'); setNavOpen(false); setTimeout(() => document.getElementById(`card-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 30); }}
-          onDeleteOutput={(id) => { setOutputs((prev) => prev.filter((o) => o.id !== id)); toast(t(lang, 'toast.outputDeleted')); }}
-          onSelectSheet={(id) => { setActiveSheetId(id); setSelection({ row: 0, col: 0 }); setRange({ r0: 0, c0: 0, r1: 0, c1: 0 }); setMobileTab('worksheet'); setNavOpen(false); }}
-          onAddSheet={() => addSheet()}
-          onRenameSheet={renameSheet}
-          onDeleteSheet={deleteSheet}
-          onClose={() => setNavOpen(false)}
-        />
+        {!navHidden && !detached.navigator && navNode(false)}
+        {!navHidden && detached.navigator && (
+          <DetachSlot className="nav-slot" lang={lang} label={t(lang, 'panel.navigatorDetached')} onDock={() => dockPanel('navigator')} testId="dock-slot-navigator" />
+        )}
         {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
-        <div
-          className="splitter"
-          onPointerDown={beginNavDrag}
-          role="separator"
-          aria-orientation="vertical"
-          tabIndex={0}
-          aria-label={t(lang, 'view.navigator')}
-          aria-valuenow={Math.round(navW)}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowLeft') { event.preventDefault(); setNavW((w) => Math.max(180, w - 24)); }
-            if (event.key === 'ArrowRight') { event.preventDefault(); setNavW((w) => Math.min(430, w + 24)); }
-          }}
-        />
-
-        <div className="main-panels" style={{ '--output-h': `${outputH}%` } as React.CSSProperties}>
-          <section className="panel output-panel" data-hidden={mobileTab !== 'output'}>
-            <div className="panel-head">
-              <span className="panel-title">{t(lang, 'panel.output')}</span>
-              <span className="panel-count">{outputs.length}</span>
-              <span className="spacer" />
-              <span className="mono-note">{t(lang, 'status.last')} · {lastTitle}</span>
-            </div>
-            <OutputPanel
-              lang={lang}
-              outputs={outputs}
-              focusedOutput={focusedOutput}
-              onFocus={setFocusedOutput}
-              onDelete={(id) => { setOutputs((prev) => prev.filter((o) => o.id !== id)); toast(t(lang, 'toast.outputDeleted')); }}
-              onToggleCollapse={(id) => setOutputs((prev) => prev.map((o) => (o.id === id ? { ...o, collapsed: !o.collapsed } : o)))}
-              onToast={toast}
-              onRerun={rerunWithOptions}
-              onReproduce={reproduce}
-              onUpdateBlocks={updateOutputBlocks}
-            />
-          </section>
-
+        {!navHidden && !detached.navigator && (
           <div
-            className="splitter horizontal"
-            onPointerDown={beginOutputDrag}
+            className="splitter"
+            onPointerDown={beginNavDrag}
             role="separator"
-            aria-orientation="horizontal"
+            aria-orientation="vertical"
             tabIndex={0}
-            aria-label={t(lang, 'panel.output')}
-            aria-valuenow={Math.round(outputH)}
+            aria-label={t(lang, 'view.navigator')}
+            aria-valuenow={Math.round(navW)}
             onKeyDown={(event) => {
-              if (event.key === 'ArrowUp') { event.preventDefault(); setOutputH((h) => Math.min(82, h + 4)); }
-              if (event.key === 'ArrowDown') { event.preventDefault(); setOutputH((h) => Math.max(18, h - 4)); }
+              if (event.key === 'ArrowLeft') { event.preventDefault(); setNavW((w) => clampNav(w - 24)); }
+              if (event.key === 'ArrowRight') { event.preventDefault(); setNavW((w) => clampNav(w + 24)); }
             }}
           />
+        )}
 
-          <section className="panel worksheet-panel" data-hidden={mobileTab !== 'worksheet'}>
-            <div className="panel-head">
-              <span className="panel-title">{t(lang, 'panel.worksheet')}</span>
-              <span className="panel-count">
-                {fmtInt(rowCount(sheet))} × {sheet.columns.length}
-              </span>
-              <span className="spacer" />
-              <span className="grid-hint">{t(lang, 'hint.grid')}</span>
-            </div>
-            <WorksheetGrid
-              lang={lang}
-              sheet={sheet}
-              selection={selection}
-              range={range}
-              onSelect={(cell, extend) => {
-                setSelection(cell);
-                setRange((prev) => (extend ? { ...prev, r1: cell.row, c1: cell.col } : { r0: cell.row, c0: cell.col, r1: cell.row, c1: cell.col }));
+        <div className="main-panels" style={{ '--output-h': `${outputH}%` } as React.CSSProperties} data-testid="main-panels">
+          {detached.output
+            ? <DetachSlot className="output-slot" lang={lang} label={t(lang, 'panel.outputDetached')} onDock={() => dockPanel('output')} testId="dock-slot-output" />
+            : outputNode(false)}
+
+          {!detached.output && (
+            <div
+              className="splitter horizontal"
+              onPointerDown={beginOutputDrag}
+              role="separator"
+              aria-orientation="horizontal"
+              tabIndex={0}
+              aria-label={t(lang, 'panel.output')}
+              aria-valuenow={Math.round(outputH)}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowUp') { event.preventDefault(); setOutputH((h) => clampOutput(h + 4)); }
+                if (event.key === 'ArrowDown') { event.preventDefault(); setOutputH((h) => clampOutput(h - 4)); }
               }}
-              onEdit={editCell}
-              onPaste={pasteCells}
-              onCopy={() => void copyRange()}
-              onClear={clearRange}
-              onAddColumn={addColumn}
-              onRenameColumn={renameColumn}
             />
-            <div className="ws-tabs">
-              {worksheets.map((ws) => (
-                <button
-                  key={ws.id}
-                  type="button"
-                  className={`ws-tab${ws.id === sheet.id ? ' current' : ''}`}
-                  onClick={() => setActiveSheetId(ws.id)}
-                  onDoubleClick={() => setRenameTarget({ id: ws.id, draft: ws.name })}
-                  data-testid={`sheet-tab-${ws.id}`}
-                >
-                  {ws.name}
-                  {worksheets.length > 1 && (
-                    <span
-                      className="x"
-                      role="button"
-                      tabIndex={-1}
-                      onClick={(event) => { event.stopPropagation(); deleteSheet(ws.id); }}
-                      aria-label={t(lang, 'nav.delete')}
-                    >
-                      ×
-                    </span>
-                  )}
-                </button>
-              ))}
-              <button type="button" className="ws-addtab" onClick={() => addSheet()} aria-label={t(lang, 'nav.addSheet')} data-testid="add-sheet-tab">+</button>
-              <span className="grid-hint">
-                {t(lang, 'status.rows', { n: fmtInt(rowCount(sheet)) })} · {t(lang, 'status.cols', { n: sheet.columns.length })}
-              </span>
-            </div>
-          </section>
+          )}
+
+          {detached.worksheet
+            ? <DetachSlot className="worksheet-slot" lang={lang} label={t(lang, 'panel.worksheetDetached')} onDock={() => dockPanel('worksheet')} testId="dock-slot-worksheet" />
+            : worksheetNode(false)}
         </div>
       </div>
+
+      {detached.navigator && (
+        <FloatPanel
+          lang={lang}
+          title={t(lang, 'panel.navigator')}
+          testId="float-navigator"
+          rect={detached.navigator}
+          onRect={(next) => movePanel('navigator', next)}
+          onDock={() => dockPanel('navigator')}
+        >
+          {navNode(true)}
+        </FloatPanel>
+      )}
+
+      {detached.output && (
+        <FloatPanel
+          lang={lang}
+          title={t(lang, 'panel.output')}
+          testId="float-output"
+          rect={detached.output}
+          onRect={(next) => movePanel('output', next)}
+          onDock={() => dockPanel('output')}
+        >
+          {outputNode(true)}
+        </FloatPanel>
+      )}
+
+      {detached.worksheet && (
+        <FloatPanel
+          lang={lang}
+          title={t(lang, 'panel.worksheet')}
+          testId="float-worksheet"
+          rect={detached.worksheet}
+          onRect={(next) => movePanel('worksheet', next)}
+          onDock={() => dockPanel('worksheet')}
+        >
+          {worksheetNode(true)}
+        </FloatPanel>
+      )}
 
       <footer className="statusbar">
         <span><b>{sheet.name}</b></span>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Lang, OutputDoc, Worksheet } from '../types';
 import { t } from '../lib/i18n';
 import { fmtTime } from '../lib/format';
-import { IconChart, IconPlus, IconTable, IconTrash, IconX } from './Icons';
+import { IconChart, IconDetach, IconPlus, IconTable, IconTrash, IconX } from './Icons';
 
 interface Props {
   lang: Lang;
@@ -17,24 +17,32 @@ interface Props {
   onRenameSheet: (id: string, name: string) => void;
   onDeleteSheet: (id: string) => void;
   onClose?: () => void;
+  /** lift this pane into a floating window (dock it back from that window) */
+  onDetach?: () => void;
+  floating?: boolean;
   /** mobile drawer state: without this the aside stays translated off-screen */
   open?: boolean;
 }
 
 export function Navigator({
   lang, outputs, worksheets, activeSheetId, focusedOutput,
-  onSelectOutput, onDeleteOutput, onSelectSheet, onAddSheet, onRenameSheet, onDeleteSheet, onClose, open,
+  onSelectOutput, onDeleteOutput, onSelectSheet, onAddSheet, onRenameSheet, onDeleteSheet, onClose, onDetach, floating, open,
 }: Props) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
 
   return (
-    <aside className={`navigator${open ? ' open' : ''}`} data-testid="navigator">
+    <aside className={`navigator${open ? ' open' : ''}${floating ? ' floating' : ''}`} data-testid="navigator">
       <div className="nav-section outputs">
         <div className="nav-head">
           <span className="mono-note">{t(lang, 'nav.output')}</span>
           <span className="panel-count">{outputs.length}</span>
           <span className="spacer" />
+          {onDetach && (
+            <button type="button" className="nav-detach" onClick={onDetach} aria-label={t(lang, 'panel.detach')} title={t(lang, 'panel.detach')} data-testid="detach-navigator">
+              <IconDetach size={14} />
+            </button>
+          )}
           {onClose && (
             <button type="button" className="nav-close" onClick={onClose} aria-label={t(lang, 'close')}><IconX size={14} /></button>
           )}

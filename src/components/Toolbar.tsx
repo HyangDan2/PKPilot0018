@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Lang } from '../types';
 import { t } from '../lib/i18n';
 import { DATASETS } from '../lib/datasets';
@@ -16,42 +17,92 @@ interface Props {
   onExportCsv: () => void;
 }
 
+interface Anchor { left: number; top: number; width: number }
+
 export function Toolbar({ lang, sheetName, sheetColumns, canRerun, onSample, onAnalysis, onNewSheet, onRerun, onExportCsv }: Props) {
   const [sampleOpen, setSampleOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
+  const [anchor, setAnchor] = useState<Anchor>({ left: 0, top: 0, width: 280 });
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * The toolbar scrolls horizontally (`overflow-x: auto`), and that clipping
+   * context used to trap the dropdown behind the panels. The list is rendered
+   * in a body-level portal with fixed coordinates, so no ancestor can clip or
+   * under-stack it.
+   */
+  const measure = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.max(280, Math.min(360, window.innerWidth - 16));
+    const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+    setAnchor({ left, top: rect.bottom + 6, width });
+  };
 
   useEffect(() => {
+    if (!sampleOpen) return;
     const onDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setSampleOpen(false);
+      const target = event.target as Node;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setSampleOpen(false);
     };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSampleOpen(false);
+    };
+    const onResize = () => { measure(); };
     document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, []);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [sampleOpen]);
+
+  const toggle = () => {
+    if (!sampleOpen) measure();
+    setSampleOpen((value) => !value);
+  };
 
   return (
     <div className="toolbar" data-testid="toolbar">
-      <div ref={ref} style={{ position: 'relative' }}>
-        <button type="button" className="tool-btn primary-sample" onClick={() => setSampleOpen((v) => !v)} aria-expanded={sampleOpen} data-testid="sample-button">
-          <IconLayers size={15} /><span>{t(lang, 'tb.sample')}</span><IconChevronDown size={12} />
-        </button>
-        {sampleOpen && (
-          <div className="menu-pop" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, minWidth: 280 }} role="menu">
-            <p className="mono-note" style={{ padding: '4px 8px 2px' }}>{t(lang, 'sample.load')}</p>
-            {DATASETS.map((ds) => (
-              <button
-                key={ds.id}
-                type="button"
-                className="menu-item"
-                role="menuitem"
-                onClick={() => { setSampleOpen(false); onSample(ds.id); }}
-                data-testid={`sample-${ds.id}`}
-              >
-                <span className="mi-label">{t(lang, ds.nameKey)}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <button
+        type="button"
+        ref={buttonRef}
+        className="tool-btn primary-sample"
+        onClick={toggle}
+        aria-expanded={sampleOpen}
+        aria-haspopup="menu"
+        data-testid="sample-button"
+      >
+        <IconLayers size={15} /><span>{t(lang, 'tb.sample')}</span><IconChevronDown size={12} />
+      </button>
+
+      {sampleOpen && createPortal(
+        <div
+          ref={menuRef}
+          className="menu-pop sample-pop"
+          style={{ position: 'fixed', left: anchor.left, top: anchor.top, minWidth: anchor.width, zIndex: 130 }}
+          role="menu"
+          data-testid="sample-menu"
+        >
+          <p className="mono-note" style={{ padding: '4px 8px 2px' }}>{t(lang, 'sample.load')}</p>
+          {DATASETS.map((ds) => (
+            <button
+              key={ds.id}
+              type="button"
+              className="menu-item"
+              role="menuitem"
+              onClick={() => { setSampleOpen(false); onSample(ds.id); }}
+              data-testid={`sample-${ds.id}`}
+            >
+              <span className="mi-label">{t(lang, ds.nameKey)}</span>
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
 
       <span className="tool-sep" />
 
