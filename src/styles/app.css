@@ -596,7 +596,8 @@ a { color: inherit; }
 
 /* ── worksheet grid ───────────────────────────────────────────────────── */
 
-.grid-wrap { flex: 1 1 auto; overflow: auto; background: var(--surface); min-height: 0; }
+.grid-wrap { flex: 1 1 auto; overflow: auto; background: var(--surface); min-height: 0; user-select: none; }
+.grid-wrap:focus-visible { outline: none; }
 
 .ws-grid { border-collapse: separate; border-spacing: 0; font-size: 12px; table-layout: fixed; }
 .ws-grid th, .ws-grid td { border-right: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); padding: 0; }
@@ -673,7 +674,11 @@ a { color: inherit; }
   cursor: cell;
   background: var(--surface);
 }
-.ws-cell.sel { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.ws-cell.sel { background: var(--accent-soft); box-shadow: none; }
+.ws-cell.sel.active { box-shadow: inset 0 0 0 2px var(--accent); }
+.ws-cell.cut { box-shadow: inset 0 0 0 1px var(--danger); }
+.ws-cell.cut.sel.active { box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 1px var(--danger); }
+.ws-rownum.sel, .ws-colhead.sel { background: var(--accent-soft); color: var(--accent-text); }
 .ws-cell.null { color: var(--text-secondary); }
 .ws-cell.num { text-align: right; }
 .ws-cell.editing { padding: 0; }
@@ -688,6 +693,79 @@ a { color: inherit; }
 }
 .ws-addcol { background: var(--surface-2); color: var(--text-secondary); text-align: center; cursor: pointer; }
 .ws-addcol:hover { background: var(--accent-soft); color: var(--accent-text); }
+.ws-addcol-head {
+  background: var(--surface-2);
+  position: sticky; top: 0; z-index: 5;
+  width: 46px; min-width: 46px;
+  padding: 0 !important;
+}
+.ws-addcol-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 50px;
+  border: 0; background: transparent;
+  color: var(--text-secondary); cursor: pointer;
+}
+.ws-addcol-btn:hover, .ws-addcol-btn:focus-visible { background: var(--accent-soft); color: var(--accent-text); outline: none; }
+.ws-addcol-gap { background: transparent; border-right: 0 !important; }
+
+/* ── context menu ─────────────────────────────────────────────────────── */
+.ctx-menu {
+  position: fixed;
+  z-index: 120;
+  min-width: 224px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 14px 36px rgba(20, 18, 40, 0.2);
+}
+.ctx-list { list-style: none; margin: 0; padding: 0; }
+.ctx-row { position: relative; }
+.ctx-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  padding: 6px 10px 6px 6px;
+  border: 0; border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text);
+  font-size: 12px; text-align: left;
+  cursor: pointer;
+}
+.ctx-item:hover:not(:disabled), .ctx-item:focus-visible { background: var(--accent-soft); color: var(--accent-text); outline: none; }
+.ctx-item:disabled { opacity: 0.45; cursor: default; }
+.ctx-row.danger .ctx-item { color: var(--danger); }
+.ctx-check { width: 12px; font-size: 10px; color: var(--accent-text); }
+.ctx-label { flex: 1 1 auto; }
+.ctx-kbd { color: var(--text-secondary); font-family: var(--mono); font-size: 10px; }
+.ctx-arrow { color: var(--text-secondary); }
+.ctx-sep { height: 1px; margin: 4px 6px; background: var(--border-soft); list-style: none; }
+.ctx-submenu { min-width: 200px; }
+
+/* ── find & replace panel ─────────────────────────────────────────────── */
+.find-panel {
+  position: fixed;
+  right: 16px; bottom: 46px;
+  z-index: 110;
+  width: min(380px, calc(100vw - 24px));
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 14px 36px rgba(20, 18, 40, 0.18);
+}
+.find-head { display: flex; align-items: center; gap: 8px; }
+.find-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.find-row { display: flex; align-items: center; gap: 8px; }
+.find-label { width: 70px; flex: 0 0 auto; font-size: 11px; color: var(--text-secondary); }
+.find-row .text-input { flex: 1 1 auto; height: 26px; }
+.find-opts { display: flex; gap: 14px; font-size: 11px; color: var(--text-body); }
+.find-opts .check { display: inline-flex; align-items: center; gap: 5px; }
+.find-opts input { accent-color: var(--accent); width: 13px; height: 13px; }
+.find-foot { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.find-status { font-size: 11px; color: var(--text-secondary); font-family: var(--mono); }
+.btn.sm { height: 24px; padding: 3px 8px; font-size: 11px; }
+.col-desc-input { width: 100%; resize: vertical; font-family: inherit; font-size: 12px; line-height: 1.5; }
 
 .ws-tabs {
   display: flex;

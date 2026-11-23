@@ -244,9 +244,25 @@ export function pickFile(accept: string): Promise<File | null> {
   });
 }
 
+/** Highest column number this sheet has ever used (the sequence survives a
+ *  delete, so an id is never handed out twice). */
+export function columnSequence(ws: Worksheet): number {
+  let highest = Number.isFinite(ws.columnSeq) ? Number(ws.columnSeq) : 0;
+  for (const column of ws.columns) {
+    const match = /^C(\d+)$/.exec(column.id);
+    if (match) highest = Math.max(highest, Number(match[1]));
+  }
+  return highest;
+}
+
+/**
+ * Next free column identifier. Ids are never reused: after C3 is deleted a new
+ * column becomes C4+ rather than C3, so an analysis that stored "C3" cannot
+ * silently start reading a different column.
+ */
 export function newColumnId(ws: Worksheet): string {
   const used = new Set(ws.columns.map((c) => c.id));
-  let i = 1;
+  let i = columnSequence(ws) + 1;
   while (used.has(`C${i}`)) i += 1;
   return `C${i}`;
 }
