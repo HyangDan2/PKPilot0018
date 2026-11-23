@@ -110,9 +110,10 @@ function rowCount(sheet: Worksheet): number {
 
 interface GroupRow { keys: string[]; rows: number[] }
 
-function buildGroups(sheet: Worksheet, byRefs: string[]): GroupRow[] {
+function buildGroups(sheet: Worksheet, byRefs: string[] | string | undefined): GroupRow[] {
   const rows = rowCount(sheet);
-  const byCols = byRefs.map((ref) => findColumn(sheet, ref)).filter((c): c is Column => Boolean(c));
+  const refs = refList({ by: byRefs }, 'by');
+  const byCols = refs.map((ref) => findColumn(sheet, ref)).filter((c): c is Column => Boolean(c));
   if (!byCols.length) return [{ keys: [], rows: Array.from({ length: rows }, (_, i) => i) }];
   const map = new Map<string, GroupRow>();
   for (let r = 0; r < rows; r += 1) {
@@ -157,6 +158,28 @@ function labelOf(sheet: Worksheet, ref: unknown): string {
   return col ? col.name || col.id : '—';
 }
 
+/** A column that has to hold numbers. A text or date column is refused by name. */
+function numericColumn(sheet: Worksheet, ref: unknown): Column {
+  const col = findColumn(sheet, ref);
+  if (!col) throw new Error('req.input');
+  if (col.type !== 'numeric') throw new Error(`res.numericOnly|col=${col.name || col.id}`);
+  return col;
+}
+
+/** The same rule for an optional column: an empty slot is simply not there. */
+function optionalNumericColumn(sheet: Worksheet, ref: unknown): Column | undefined {
+  const col = findColumn(sheet, ref);
+  if (!col) return undefined;
+  if (col.type !== 'numeric') throw new Error(`res.numericOnly|col=${col.name || col.id}`);
+  return col;
+}
+
+/** The same rule for a list slot: every named column has to be numeric. */
+function numericColumns(sheet: Worksheet, refs: string[]): Column[] {
+  if (!refs.length) throw new Error('req.input');
+  return refs.map((ref) => numericColumn(sheet, ref));
+}
+
 function altSymbol(a: Alt): string {
   return a === 'less' ? '<' : a === 'greater' ? '>' : '≠';
 }
@@ -169,8 +192,11 @@ function tableTitle(key: string): string {
 
 function runDescriptive(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const variableRefs = (values.variables as string[]) ?? [];
-  const byRefs = (values.by as string[]) ?? [];
+  const variableRefs = refList(values, 'variables');
+  const byRefs = refList(values, 'by');
+  if (!variableRefs.length) throw new Error('req.input');
+  // Descriptive statistics are numeric: a text column has no mean to report.
+  numericColumns(sheet, variableRefs);
   const byCols = byRefs.map((ref) => findColumn(sheet, ref)).filter((c): c is Column => Boolean(c));
   const groups = buildGroups(sheet, byRefs);
   const headers = [
@@ -218,9 +244,8 @@ function runDescriptive(ctx: RunContext): RunResult {
 
 function runNormality(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const ref = values.variable;
-  const col = findColumn(sheet, ref);
-  const data = numValues(sheet, ref);
+  const col = numericColumn(sheet, values.variable);
+  const data = numValues(sheet, values.variable);
   const ad = adNormality(data);
   if (ad.n < 7) throw new Error('res.insufficient');
   if (!(ad.sd > 0) || !isFinite(ad.sd)) throw new Error('res.zeroVariance');
@@ -278,9 +303,8 @@ function normalCdfLocal(z: number): number {
 
 function runT1(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const ref = values.variable;
-  const col = findColumn(sheet, ref);
-  const data = numValues(sheet, ref);
+  const col = numericColumn(sheet, values.variable);
+  const data = numValues(sheet, values.variable);
   if (clean(data).length < 2) throw new Error('res.insufficient');
   if (!(stdev(clean(data)) > 0)) throw new Error('res.zeroVariance');
   const mu = num(values.hypMean, 0);
@@ -322,8 +346,8 @@ function runT2(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
   const refA = values.sample1;
   const refB = values.sample2;
-  const colA = findColumn(sheet, refA);
-  const colB = findColumn(sheet, refB);
+  const colA = numericColumn(sheet, refA);
+  const colB = numericColumn(sheet, refB);
   const a = numValues(sheet, refA);
   const b = numValues(sheet, refB);
   if (clean(a).length < 2 || clean(b).length < 2) throw new Error('res.insufficient');
@@ -380,8 +404,8 @@ function runT2(ctx: RunContext): RunResult {
 
 function runPaired(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const colA = findColumn(sheet, values.first);
-  const colB = findColumn(sheet, values.second);
+  const colA = numericColumn(sheet, values.first);
+  const colB = numericColumn(sheet, values.second);
   const a = numValues(sheet, values.first);
   const b = numValues(sheet, values.second);
   if (clean(a).length < 2) throw new Error('res.insufficient');
@@ -444,9 +468,9 @@ function runPaired(ctx: RunContext): RunResult {
 
 function runAnova(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const response = findColumn(sheet, values.response);
+  const response = numericColumn(sheet, values.response);
   const factor = findColumn(sheet, values.factor);
-  if (!response || !factor) throw new Error('res.insufficient');
+  if (!factor) throw new Error('req.input');
   const groupsMap = new Map<string, number[]>();
   const rows = rowCount(sheet);
   for (let r = 0; r < rows; r += 1) {
@@ -607,14 +631,12 @@ function logGammaLocal(x: number): number {
 
 function runRegression(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const response = findColumn(sheet, values.response);
-  const predictorRefs = (values.predictors as string[]) ?? [];
-  const predictors = predictorRefs
-    .map((ref) => findColumn(sheet, ref))
-    .filter((c): c is Column => Boolean(c))
+  const response = numericColumn(sheet, values.response);
+  const predictorRefs = refList(values, 'predictors');
+  if (!predictorRefs.length) throw new Error('req.input');
+  const predictors = numericColumns(sheet, predictorRefs)
     .map((c) => ({ name: c.name || c.id, values: c.values.map((v) => (typeof v === 'number' ? v : null)) }));
-  if (!response) throw new Error('res.insufficient');
-  if (!predictors.length) throw new Error('dlg.required');
+  if (!predictors.length) throw new Error('req.input');
   let result;
   try {
     result = regress(
@@ -708,7 +730,7 @@ function violationRows(panels: { titleKey: string; points: number[]; violations:
 
 function runImr(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const col = findColumn(sheet, values.variable);
+  const col = numericColumn(sheet, values.variable);
   const data = clean(numValues(sheet, values.variable));
   if (data.length < 5) throw new Error('res.insufficient');
   const result = imrChart(data);
@@ -734,7 +756,7 @@ function runImr(ctx: RunContext): RunResult {
 
 function runXbarR(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const col = findColumn(sheet, values.variable);
+  const col = numericColumn(sheet, values.variable);
   const subgroup = Math.round(num(values.subgroup, 5));
   const data = numValues(sheet, values.variable);
   if (clean(data).length < (subgroup < 2 ? 5 : subgroup * 3)) throw new Error('res.insufficient');
@@ -800,9 +822,8 @@ function spcIssueText(lang: Lang, issues: SpcIssue[]): string {
 
 function runPChart(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const defectsCol = findColumn(sheet, values.defects);
-  const sizesCol = findColumn(sheet, values.sizes);
-  if (!defectsCol) throw new Error('dlg.required');
+  const defectsCol = numericColumn(sheet, values.defects);
+  const sizesCol = optionalNumericColumn(sheet, values.sizes);
   const defects: number[] = [];
   const sizes: number[] = [];
   const rows = rowCount(sheet);
@@ -841,7 +862,7 @@ function runPChart(ctx: RunContext): RunResult {
 
 function runCapability(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const col = findColumn(sheet, values.variable);
+  const col = numericColumn(sheet, values.variable);
   const data = numValues(sheet, values.variable);
   if (clean(data).length < 5) throw new Error('res.insufficient');
   const lslValue = str(values.lsl).trim() === '' ? null : num(values.lsl, NaN);
@@ -911,7 +932,7 @@ function runCapability(ctx: RunContext): RunResult {
 function runPareto(ctx: RunContext): RunResult {
   const { sheet, values } = ctx;
   const col = findColumn(sheet, values.category);
-  if (!col) throw new Error('dlg.required');
+  if (!col) throw new Error('req.input');
   const counts = new Map<string, number>();
   col.values.forEach((v) => {
     if (v === null || v === undefined || v === '') return;
@@ -939,7 +960,7 @@ function runPareto(ctx: RunContext): RunResult {
 
 function runHistogram(ctx: RunContext): RunResult {
   const { sheet, values } = ctx;
-  const col = findColumn(sheet, values.variable);
+  const col = numericColumn(sheet, values.variable);
   const data = clean(numValues(sheet, values.variable));
   if (!data.length) throw new Error('res.insufficient');
   const bins = Math.round(num(values.bins, 0));
@@ -972,8 +993,9 @@ function runHistogram(ctx: RunContext): RunResult {
 
 function runBoxplot(ctx: RunContext): RunResult {
   const { sheet, values } = ctx;
-  const refs = (values.variables as string[]) ?? [];
-  const byRefs = (values.by as string[]) ?? [];
+  const refs = refList(values, 'variables');
+  const byRefs = refList(values, 'by');
+  numericColumns(sheet, refs);
   const groups: { label: string; values: number[] }[] = [];
   if (byRefs.length) {
     const response = findColumn(sheet, refs[0]);
@@ -1017,65 +1039,262 @@ function correlation(xs: number[], ys: number[]): number {
   return sxy / Math.sqrt(sxx * syy);
 }
 
+/**
+ * Column references held by one slot. A dialog list slot is normally an array;
+ * analyses saved before a slot became multi-valued kept a bare string, and a
+ * project saved with a single X-Y scatterplot must still reopen and re-run.
+ */
+export function refList(values: Record<string, unknown>, key: string): string[] {
+  const raw = values[key];
+  const list: unknown[] = typeof raw === 'string' ? [raw] : Array.isArray(raw) ? raw : [];
+  const out: string[] = [];
+  list.forEach((item) => {
+    if (typeof item !== 'string' || !item) return;
+    if (out.some((ref) => ref.toLowerCase() === item.toLowerCase())) return;
+    out.push(item);
+  });
+  return out;
+}
+
+/** Padded [min, max] range over finite values, for a shared scatterplot scale. */
+function paddedDomain(values: number[], frac: number): [number, number] {
+  let lo = Infinity;
+  let hi = -Infinity;
+  values.forEach((v) => {
+    if (!isFinite(v)) return;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  });
+  if (lo === Infinity) return [0, 1];
+  if (lo === hi) {
+    lo -= 0.5;
+    hi += 0.5;
+  }
+  const span = hi - lo || 1;
+  return [lo - span * frac, hi + span * frac];
+}
+
+type ScatterLayout = 'individual' | 'panel' | 'overlay';
+
+interface ScatterPoint { x: number; y: number; g?: string }
+
+interface ScatterCombo {
+  yName: string;
+  xName: string;
+  label: string;
+  points: ScatterPoint[];
+  groups?: string[];
+  fit: { intercept: number; slope: number };
+  r: number;
+  r2: number;
+  p: number;
+  skipped: number;
+}
+
+function equationOf(fit: { intercept: number; slope: number }): string {
+  return `${fmt(fit.slope)} x ${fit.intercept >= 0 ? '+' : '−'} ${fmt(Math.abs(fit.intercept))}`;
+}
+
 function runScatter(ctx: RunContext): RunResult {
-  const { sheet, values } = ctx;
-  const xCol = findColumn(sheet, values.x);
-  const yCol = findColumn(sheet, values.y);
-  if (!xCol || !yCol) throw new Error('dlg.required');
-  const points: { x: number; y: number; g?: string }[] = [];
-  const byRef = ((values.by as string[]) ?? [])[0];
-  const byCol = findColumn(sheet, byRef);
-  const rows = Math.min(xCol.values.length, yCol.values.length);
-  for (let r = 0; r < rows; r += 1) {
-    const x = xCol.values[r];
-    const y = yCol.values[r];
-    if (typeof x !== 'number' || typeof y !== 'number') continue;
-    points.push(byCol ? { x, y, g: String(byCol.values[r] ?? '') } : { x, y });
+  const { lang, sheet, values } = ctx;
+  const yRefs = refList(values, 'y');
+  const xRefs = refList(values, 'x');
+  if (!yRefs.length || !xRefs.length) throw new Error('req.input');
+
+  const yCols = yRefs.map((ref) => findColumn(sheet, ref));
+  const xCols = xRefs.map((ref) => findColumn(sheet, ref));
+  const missingRefs = yCols.findIndex((c) => !c) >= 0 || xCols.findIndex((c) => !c) >= 0;
+  if (missingRefs) throw new Error('req.input');
+  const ys = yCols as Column[];
+  const xs = xCols as Column[];
+  // A text or date column has no numeric pairs to plot; name it by its own label.
+  numericColumns(sheet, [...yRefs, ...xRefs]);
+
+  const mode = str(values.mode) === 'pairs' ? 'pairs' : 'each';
+  const layoutRaw = str(values.layout);
+  const layout: ScatterLayout = layoutRaw === 'panel' || layoutRaw === 'overlay' ? layoutRaw : 'individual';
+  const wantFit = values.fit === undefined ? true : bool(values.fit, true);
+  const showStats = values.stats === undefined ? true : bool(values.stats, true);
+
+  // XY Pairs takes the k-th Y with the k-th X; the two lists must line up.
+  const pairs: { y: Column; x: Column }[] = [];
+  if (mode === 'pairs') {
+    if (ys.length !== xs.length) throw new Error('res.scatterPairsCount');
+    ys.forEach((y, i) => pairs.push({ y, x: xs[i] }));
+  } else {
+    ys.forEach((y) => xs.forEach((x) => pairs.push({ y, x })));
   }
-  if (points.length < 2) throw new Error('res.insufficient');
-  const xSpan = stdev(points.map((p) => p.x));
-  const ySpan = stdev(points.map((p) => p.y));
-  if (!(xSpan > 0)) throw new Error('res.constantPredictor');
-  if (!(ySpan > 0)) throw new Error('res.zeroVariance');
-  let reg;
-  try {
-    reg = regress(
-      points.map((p) => p.y),
-      [{ name: xCol.name || xCol.id, values: points.map((p) => p.x) }],
-    );
-  } catch {
-    throw new Error('res.singular');
-  }
-  const r = correlation(points.map((p) => p.x), points.map((p) => p.y));
-  const groups = byCol ? [...new Set(points.map((p) => p.g ?? ''))] : undefined;
-  return {
-    subtitle: `${yCol.name} vs ${xCol.name}`,
-    blocks: [
-      {
-        type: 'chart',
-        chart: {
-          kind: 'scatter',
-          points,
-          fit: { intercept: reg.coefficients[0].coef, slope: reg.coefficients[1].coef },
-          groups,
-          xLabel: xCol.name || xCol.id,
-          yLabel: yCol.name || yCol.id,
-        },
-      },
-      {
-        type: 'table',
-        headers: ['R²', 'Pearson r', '@th.coef', '@th.p'],
-        rows: [[`${(reg.r2 * 100).toFixed(1)}%`, fmt(r), `${fmt(reg.coefficients[1].coef)} x ${reg.coefficients[0].coef >= 0 ? '+' : '−'} ${fmt(Math.abs(reg.coefficients[0].coef))}`, fmtP(reg.coefficients[1].p)]],
-        align: ['r', 'r', 'l', 'r'],
-      },
-      { type: 'text', lines: [`n = ${points.length}`] },
-    ],
+
+  const byCols = refList(values, 'by')
+    .map((ref) => findColumn(sheet, ref))
+    .filter((col): col is Column => Boolean(col));
+  const byNames = byCols.map((col) => col.name || col.id);
+
+  // A wall of plots is neither readable nor cheap to draw: cap one run.
+  const MAX_COMBOS = 36;
+  if (pairs.length > MAX_COMBOS) throw new Error(`res.scatterTooMany|max=${MAX_COMBOS}`);
+
+  const results: ScatterCombo[] = [];
+  const issues: { label: string; key: string }[] = [];
+  pairs.forEach(({ y, x }) => {
+    const yName = y.name || y.id;
+    const xName = x.name || x.id;
+    const label = `${yName} vs ${xName}`;
+    const points: ScatterPoint[] = [];
+    let skipped = 0;
+    // Each X-Y combination selects its own complete rows: a pair missing X or
+    // Y is dropped for that combination only, never for its neighbours.
+    const span = Math.max(x.values.length, y.values.length);
+    for (let r = 0; r < span; r += 1) {
+      const xv = x.values[r];
+      const yv = y.values[r];
+      const blank = (xv === null || xv === undefined || xv === '') && (yv === null || yv === undefined || yv === '');
+      if (blank) continue;
+      if (typeof xv !== 'number' || typeof yv !== 'number' || !isFinite(xv) || !isFinite(yv)) {
+        skipped += 1;
+        continue;
+      }
+      points.push(byCols.length ? { x: xv, y: yv, g: byCols.map((col) => textOf(col, r)).join(' / ') } : { x: xv, y: yv });
+    }
+    if (points.length < 2) {
+      issues.push({ label, key: 'res.insufficient' });
+      return;
+    }
+    if (!(stdev(points.map((p) => p.x)) > 0)) {
+      issues.push({ label, key: 'res.constantPredictor' });
+      return;
+    }
+    if (!(stdev(points.map((p) => p.y)) > 0)) {
+      issues.push({ label, key: 'res.zeroVariance' });
+      return;
+    }
+    let reg: ReturnType<typeof regress>;
+    try {
+      reg = regress(points.map((p) => p.y), [{ name: xName, values: points.map((p) => p.x) }]);
+    } catch {
+      issues.push({ label, key: 'res.singular' });
+      return;
+    }
+    results.push({
+      yName,
+      xName,
+      label,
+      points,
+      groups: byCols.length ? [...new Set(points.map((p) => p.g ?? ''))] : undefined,
+      fit: { intercept: reg.coefficients[0].coef, slope: reg.coefficients[1].coef },
+      r: correlation(points.map((p) => p.x), points.map((p) => p.y)),
+      r2: reg.r2,
+      p: reg.coefficients[1].p,
+      skipped,
+    });
+  });
+
+  // Nothing could be plotted: report why for the combination the user sees first.
+  if (!results.length) throw new Error(issues[0]?.key ?? 'res.insufficient');
+
+  const allPoints = results.flatMap((combo) => combo.points);
+  const shareX = layout === 'overlay' || bool(values.commonX, false);
+  const shareY = layout === 'overlay' || bool(values.commonY, false);
+  const xDomain: [number, number] | undefined = shareX ? paddedDomain(allPoints.map((p) => p.x), 0.05) : undefined;
+  const yDomain: [number, number] | undefined = shareY ? paddedDomain(allPoints.map((p) => p.y), 0.08) : undefined;
+
+  const notesFor = (combo: ScatterCombo): string[] => [
+    `Pearson r = ${fmt(combo.r, 3)}`,
+    `R² = ${(combo.r2 * 100).toFixed(1)}%`,
+    `y = ${equationOf(combo.fit)}`,
+  ];
+
+  const chartFor = (combo: ScatterCombo): ChartSpec => ({
+    kind: 'scatter',
+    points: combo.points,
+    fit: wantFit ? combo.fit : null,
+    groups: combo.groups,
+    legend: Boolean(combo.groups && combo.groups.length > 1),
+    xLabel: combo.xName,
+    yLabel: combo.yName,
+    notes: showStats ? notesFor(combo) : undefined,
+    xDomain,
+    yDomain,
+  });
+
+  const statRow = (combo: ScatterCombo): (string | number)[] => [
+    combo.yName,
+    combo.xName,
+    fmtInt(combo.points.length),
+    fmt(combo.r),
+    `${(combo.r2 * 100).toFixed(1)}%`,
+    equationOf(combo.fit),
+    fmtP(combo.p),
+  ];
+
+  const blocks: Block[] = [];
+  const summaryTable: Block = {
+    type: 'table',
+    headers: ['@th.y', '@th.x', '@th.n', '@th.r', '@th.r2', '@th.equation', '@th.p'],
+    rows: results.map(statRow),
+    align: ['l', 'l', 'r', 'r', 'r', 'l', 'r'],
   };
+
+  if (layout === 'overlay') {
+    const xNames = [...new Set(results.map((combo) => combo.xName))];
+    const yNames = [...new Set(results.map((combo) => combo.yName))];
+    blocks.push({
+      type: 'chart',
+      chart: {
+        kind: 'scatter',
+        points: [],
+        series: results.map((combo) => ({ label: combo.label, points: combo.points, fit: wantFit ? combo.fit : null })),
+        legend: true,
+        xLabel: xNames.length === 1 ? xNames[0] : 'X',
+        yLabel: yNames.length === 1 ? yNames[0] : 'Y',
+        xDomain,
+        yDomain,
+      },
+    });
+    if (byCols.length) blocks.push({ type: 'text', lines: [t(lang, 'res.scatterOverlayBy', { by: byNames.join(', ') })] });
+    if (showStats) blocks.push(summaryTable);
+  } else if (layout === 'panel') {
+    blocks.push({ type: 'chartgrid', charts: results.map((combo) => ({ chart: chartFor(combo), title: combo.label })) });
+    if (showStats) blocks.push(summaryTable);
+  } else {
+    results.forEach((combo) => {
+      blocks.push({ type: 'chart', chart: chartFor(combo), caption: results.length > 1 ? combo.label : undefined });
+      if (showStats) {
+        blocks.push({
+          type: 'table',
+          title: results.length > 1 ? combo.label : undefined,
+          headers: ['R²', 'Pearson r', '@th.coef', '@th.p'],
+          rows: [[`${(combo.r2 * 100).toFixed(1)}%`, fmt(combo.r), equationOf(combo.fit), fmtP(combo.p)]],
+          align: ['r', 'r', 'l', 'r'],
+        });
+      }
+      blocks.push({
+        type: 'text',
+        lines: [combo.skipped
+          ? t(lang, 'res.scatterNskipped', { n: combo.points.length, miss: combo.skipped })
+          : t(lang, 'res.scatterN', { n: combo.points.length })],
+      });
+    });
+  }
+
+  if (issues.length) {
+    blocks.push({
+      type: 'text',
+      lines: issues.map((issue) => `· ${issue.label} — ${t(lang, issue.key)}`),
+    });
+  }
+
+  const yNames = [...new Set(results.map((combo) => combo.yName))];
+  const xNames = [...new Set(results.map((combo) => combo.xName))];
+  const subtitle = results.length === 1
+    ? results[0].label
+    : `${yNames.join(', ')} vs ${xNames.join(', ')}`;
+  return { subtitle, blocks };
 }
 
 function runTimeseries(ctx: RunContext): RunResult {
   const { sheet, values } = ctx;
-  const col = findColumn(sheet, values.variable);
+  const col = numericColumn(sheet, values.variable);
   const data = numValues(sheet, values.variable).map((v) => (typeof v === 'number' ? v : NaN));
   if (!clean(data).length) throw new Error('res.insufficient');
   const s = summarize(data);
@@ -1173,7 +1392,7 @@ function runRandom(ctx: RunContext): RunResult {
 function runSort(ctx: RunContext): RunResult {
   const { sheet, values } = ctx;
   const keyCol = findColumn(sheet, values.column);
-  if (!keyCol) throw new Error('dlg.required');
+  if (!keyCol) throw new Error('req.input');
   const rows = rowCount(sheet);
   const order = Array.from({ length: rows }, (_, i) => i).sort((a, b) => {
     const av = keyCol.values[a];
@@ -1195,13 +1414,14 @@ function runSort(ctx: RunContext): RunResult {
 
 function runStandardize(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
+  const column = numericColumn(sheet, values.column);
   const data = numValues(sheet, values.column);
   const cleaned = clean(data);
   if (cleaned.length < 2) throw new Error('res.insufficient');
   const m = mean(cleaned);
   const s = stdev(cleaned);
   const z = data.map((v) => (typeof v === 'number' ? (v - m) / s : null));
-  const name = targetName(ctx, `Std ${labelOf(sheet, values.column)}`);
+  const name = targetName(ctx, `Std ${column.name || column.id}`);
   const patch = withColumn(sheet, name, z);
   return {
     subtitle: name,
@@ -1215,15 +1435,17 @@ function runStandardize(ctx: RunContext): RunResult {
 
 function runRecode(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
+  const column = numericColumn(sheet, values.column);
   const data = numValues(sheet, values.column);
   const mapping = str(values.mapping)
     .split(',')
     .map((part) => part.split('='))
     .map(([from, to]) => [Number(from), Number(to)] as [number, number])
     .filter(([from, to]) => isFinite(from) && isFinite(to));
+  if (!mapping.length) throw new Error('res.recodeNoMapping');
   const fallbackRaw = str(values.fallback).trim();
   const fallback = fallbackRaw === '' ? NaN : Number(fallbackRaw);
-  const name = targetName(ctx, `Recode ${labelOf(sheet, values.column)}`);
+  const name = targetName(ctx, `Recode ${column.name || column.id}`);
   const recoded = data.map((v) => {
     if (typeof v !== 'number') return null;
     const hit = mapping.find(([from]) => Math.abs(from - v) < 1e-9);
@@ -1265,8 +1487,7 @@ function runGageRR(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
   const partCol = findColumn(sheet, values.part);
   const opCol = findColumn(sheet, values.operator);
-  const measCol = findColumn(sheet, values.measurement);
-  if (!partCol || !opCol || !measCol) throw new Error('dlg.required');
+  const measCol = numericColumn(sheet, values.measurement);  if (!partCol || !opCol) throw new Error('req.input');
   const rows: GrrRow[] = [];
   const count = rowCount(sheet);
   for (let r = 0; r < count; r += 1) {
@@ -1453,7 +1674,7 @@ function normalProbChart(data: number[], xLabel: string, height = 220): ChartSpe
 
 function runSixpack(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const col = findColumn(sheet, values.variable);
+  const col = numericColumn(sheet, values.variable);
   const data = numValues(sheet, values.variable);
   if (clean(data).length < 5) throw new Error('res.insufficient');
   const lslValue = str(values.lsl).trim() === '' ? null : num(values.lsl, NaN);
@@ -1604,7 +1825,7 @@ function logTicks(min: number, max: number): { v: number; label: string }[] {
 
 function runNonnormal(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const col = findColumn(sheet, values.variable);
+  const col = numericColumn(sheet, values.variable);
   const data = numValues(sheet, values.variable);
   const validCount = clean(data).filter((v) => v > 0).length;
   // Weibull / lognormal / gamma live on (0, ∞): a zero or negative value cannot
@@ -1725,7 +1946,7 @@ function runNonnormal(ctx: RunContext): RunResult {
 
 function runXbarS(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const col = findColumn(sheet, values.variable);
+  const col = numericColumn(sheet, values.variable);
   const groupCol = findColumn(sheet, values.groups);
   const data = numValues(sheet, values.variable);
   const size = Math.max(2, Math.round(num(values.subgroup, 5)));
@@ -1772,8 +1993,7 @@ function countRows(col: Column | undefined): number[] {
 
 function runNpChart(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const col = findColumn(sheet, values.defectives);
-  if (!col) throw new Error('dlg.required');
+  const col = numericColumn(sheet, values.defectives);
   const counts = countRows(col);
   const size = Math.round(num(values.sampleSize, 100));
   let result;
@@ -1797,8 +2017,7 @@ function runNpChart(ctx: RunContext): RunResult {
 
 function runCChart(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const col = findColumn(sheet, values.defects);
-  if (!col) throw new Error('dlg.required');
+  const col = numericColumn(sheet, values.defects);
   const counts = countRows(col);
   let result;
   try {
@@ -1821,9 +2040,8 @@ function runCChart(ctx: RunContext): RunResult {
 
 function runUChart(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const col = findColumn(sheet, values.defects);
-  const sizeCol = findColumn(sheet, values.unitSizes);
-  if (!col) throw new Error('dlg.required');
+  const col = numericColumn(sheet, values.defects);
+  const sizeCol = optionalNumericColumn(sheet, values.unitSizes);
   const counts = countRows(col);
   const constSize = Math.round(num(values.unitSize, 1));
   const sizes = sizeCol ? countRows(sizeCol) : counts.map(() => constSize);
@@ -1850,9 +2068,8 @@ function runUChart(ctx: RunContext): RunResult {
 
 function runWeibull(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const timeCol = findColumn(sheet, values.time);
-  const censorCol = findColumn(sheet, values.censor);
-  if (!timeCol) throw new Error('dlg.required');
+  const timeCol = numericColumn(sheet, values.time);
+  const censorCol = optionalNumericColumn(sheet, values.censor);
   const censoredIsOne = str(values.censorCode) !== '0=censored';
   const rows: WeibullInput[] = [];
   const total = rowCount(sheet);
@@ -2066,11 +2283,10 @@ function interactionChart(a: ModelFactor, b: ModelFactor, y: (number | null)[], 
 
 function runGlm(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const response = findColumn(sheet, values.response);
-  const refs = (values.factors as string[]) ?? [];
+  const response = numericColumn(sheet, values.response);
+  const refs = refList(values, 'factors');
   const columns = refs.map((ref) => findColumn(sheet, ref)).filter((c): c is Column => Boolean(c));
-  if (!response) throw new Error('dlg.required');
-  if (columns.length < 2) throw new Error('res.needFactors');
+  if (!columns.length) throw new Error('res.needFactors');
   const factors = columns.map(factorFromColumn);
   const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
   const terms: ModelTerm[] = factors.map((f) => ({ name: f.name, factors: [f.name] }));
@@ -2199,10 +2415,9 @@ function runDoeCreate(ctx: RunContext): RunResult {
 
 function runDoeAnalyze(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const response = findColumn(sheet, values.response);
-  const refs = (values.factors as string[]) ?? [];
+  const response = numericColumn(sheet, values.response);
+  const refs = refList(values, 'factors');
   const columns = refs.map((ref) => findColumn(sheet, ref)).filter((c): c is Column => Boolean(c));
-  if (!response) throw new Error('dlg.required');
   if (columns.length < 2) throw new Error('res.needFactors');
   const order = Math.max(1, Math.min(3, Math.round(num(values.order, 2))));
   const factors = columns.map(factorFromColumn);
@@ -2315,10 +2530,9 @@ function runRsmCreate(ctx: RunContext): RunResult {
 
 function runRsmAnalyze(ctx: RunContext): RunResult {
   const { sheet, values, lang } = ctx;
-  const response = findColumn(sheet, values.response);
-  const refs = (values.factors as string[]) ?? [];
+  const response = numericColumn(sheet, values.response);
+  const refs = refList(values, 'factors');
   const columns = refs.map((ref) => findColumn(sheet, ref)).filter((c): c is Column => Boolean(c));
-  if (!response) throw new Error('dlg.required');
   if (columns.length < 2) throw new Error('res.needFactors');
   const factors = columns.map(factorFromColumn);
   const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
@@ -2687,9 +2901,35 @@ export const ANALYSES: AnalysisDef[] = [
     id: 'scatter',
     titleKey: 'an.scatter',
     slots: [
-      { key: 'y', label: 'slot.response', kind: 'col', required: true },
-      { key: 'x', label: 'slot.variable', kind: 'col', required: true },
+      { key: 'y', label: 'slot.yVars', kind: 'vars', required: true },
+      { key: 'x', label: 'slot.xVars', kind: 'vars', required: true },
+      {
+        key: 'mode',
+        label: 'slot.scatterMode',
+        kind: 'select',
+        options: [
+          { value: 'each', label: 'opt.scatterEach' },
+          { value: 'pairs', label: 'opt.scatterPairs' },
+        ],
+        defaultValue: 'each',
+      },
       { key: 'by', label: 'slot.by', kind: 'vars' },
+      {
+        key: 'layout',
+        label: 'slot.scatterLayout',
+        kind: 'select',
+        group: 'graphs',
+        options: [
+          { value: 'individual', label: 'opt.scatterIndividual' },
+          { value: 'panel', label: 'opt.scatterPanel' },
+          { value: 'overlay', label: 'opt.scatterOverlay' },
+        ],
+        defaultValue: 'individual',
+      },
+      { key: 'commonX', label: 'opt.commonX', kind: 'check', group: 'graphs', defaultValue: false },
+      { key: 'commonY', label: 'opt.commonY', kind: 'check', group: 'graphs', defaultValue: false },
+      { key: 'fit', label: 'opt.fitLine', kind: 'check', group: 'graphs', defaultValue: true },
+      { key: 'stats', label: 'opt.scatterStats', kind: 'check', group: 'graphs', defaultValue: true },
     ],
     run: runScatter,
   },

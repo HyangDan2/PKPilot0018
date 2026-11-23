@@ -20,8 +20,26 @@ function columnMeta(sheet: Worksheet, ref: string): { id: string; name: string; 
   return { id: col.id, name: col.name, type: col.type, n };
 }
 
+export function normalizeValues(def: AnalysisDef, initial?: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...defaultValues(def), ...(initial ?? {}) };
+  def.slots.forEach((slot) => {
+    const value = next[slot.key];
+    // A single-column slot became a list when the analysis gained multi-variable
+    // support: projects saved before that still hold one column id as a string.
+    if (slot.kind === 'vars') {
+      if (typeof value === 'string') next[slot.key] = value ? [value] : [];
+      else if (!Array.isArray(value)) next[slot.key] = [];
+    }
+    if (slot.kind === 'col' && Array.isArray(value)) {
+      const first = value.find((item) => typeof item === 'string');
+      next[slot.key] = typeof first === 'string' ? first : '';
+    }
+  });
+  return next;
+}
+
 export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun }: Props) {
-  const [values, setValues] = useState<Record<string, unknown>>(() => ({ ...defaultValues(def), ...(initial ?? {}) }));
+  const [values, setValues] = useState<Record<string, unknown>>(() => normalizeValues(def, initial));
   const [active, setActive] = useState<string>(() => def.slots.find((s) => s.kind === 'vars' || s.kind === 'col')?.key ?? '');
   const [tab, setTab] = useState<'main' | 'options' | 'graphs'>('main');
   const [picked, setPicked] = useState<string>('');

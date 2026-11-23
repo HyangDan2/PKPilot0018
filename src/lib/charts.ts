@@ -386,34 +386,98 @@ function truncate(text: string, len: number): string {
   return text.length > len ? `${text.slice(0, len - 1)}…` : text;
 }
 
+function fitLine(
+  box: Box,
+  fit: { intercept: number; slope: number },
+  xMin: number,
+  xMax: number,
+  sx: (v: number) => number,
+  sy: (v: number) => number,
+  color: string,
+): string {
+  const x1 = xMin + (xMax - xMin) * 0.03;
+  const x2 = xMax - (xMax - xMin) * 0.03;
+  const y1 = fit.intercept + fit.slope * x1;
+  const y2 = fit.intercept + fit.slope * x2;
+  // A steep fit can predict outside the padded y range: clip the line to the plot.
+  const fitClip = `sigrun-clip-${(clipSeq += 1)}`;
+  return `<defs><clipPath id="${fitClip}"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath></defs>`
+    + `<g clip-path="url(#${fitClip})"><line x1="${sx(x1).toFixed(1)}" y1="${sy(y1).toFixed(1)}" x2="${sx(x2).toFixed(1)}" y2="${sy(y2).toFixed(1)}" stroke="${color}" stroke-width="2" opacity="0.9"/></g>`;
+}
+
+function scatterLegend(
+  box: Box,
+  entries: { label: string; color: string }[],
+): string {
+  if (entries.length < 2) return '';
+  const maxRows = 8;
+  const shown = entries.slice(0, maxRows);
+  const width = Math.min(box.w * 0.62, 74 + Math.max(...shown.map((e) => Math.min(22, e.label.length))) * 4.6);
+  const rows = shown.length + (entries.length > maxRows ? 1 : 0);
+  const top = box.y + 6;
+  const left = box.x + box.w - width - 6;
+  let g = `<g><rect x="${left.toFixed(1)}" y="${top}" width="${width.toFixed(1)}" height="${(rows * 11.5 + 4).toFixed(1)}" rx="3" fill="${C.surface}" opacity="0.82" stroke="${C.grid}"/>`;
+  shown.forEach((entry, i) => {
+    const cy = top + 8 + i * 11.5;
+    g += `<circle cx="${(left + 7).toFixed(1)}" cy="${cy.toFixed(1)}" r="3" fill="${entry.color}" opacity="0.85"/>`;
+    g += `<text x="${(left + 14).toFixed(1)}" y="${(cy + 3).toFixed(1)}" font-size="8.6" fill="${C.label}">${esc(truncate(entry.label, 22))}</text>`;
+  });
+  if (entries.length > maxRows) {
+    const cy = top + 8 + maxRows * 11.5;
+    g += `<text x="${(left + 7).toFixed(1)}" y="${(cy + 3).toFixed(1)}" font-size="8.6" fill="${C.label}">+${entries.length - maxRows} more</text>`;
+  }
+  return `${g}</g>`;
+}
+
+function scatterNotes(box: Box, notes: string[]): string {
+  if (!notes.length) return '';
+  const width = Math.min(box.w * 0.66, 10 + Math.max(...notes.map((n) => n.length)) * 5.2);
+  let g = `<rect x="${(box.x + 6).toFixed(1)}" y="${(box.y + 5).toFixed(1)}" width="${width.toFixed(1)}" height="${(notes.length * 10.6 + 5).toFixed(1)}" rx="3" fill="${C.surface}" opacity="0.82" stroke="${C.grid}"/>`;
+  notes.forEach((line, i) => {
+    g += `<text x="${(box.x + 11).toFixed(1)}" y="${(box.y + 14 + i * 10.6).toFixed(1)}" font-family="${MONO}" font-size="8.6" fill="${C.label}">${esc(line)}</text>`;
+  });
+  return g;
+}
+
 function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>): string {
   const h = spec.height ?? 260;
   const box: Box = { x: 58, y: 18, w: W - 80, h: h - 64 };
-  if (!spec.points.length) return emptyChart(W, h, spec.title ?? 'Scatterplot');
-  const xs = spec.points.map((p) => p.x);
-  const ys = spec.points.map((p) => p.y);
-  const [xMin, xMax] = pad(extent(xs), 0.05);
-  const [yMin, yMax] = pad(extent(ys), 0.08);
+  const series = spec.series && spec.series.length
+    ? spec.series
+    : spec.points.length
+      ? [{ label: '', points: spec.points as { x: number; y: number }[], fit: spec.fit ?? null }]
+      : [];
+  const all = series.flatMap((s) => s.points);
+  if (!all.length) return emptyChart(W, h, spec.title ?? 'Scatterplot');
+  const [xMin, xMax] = spec.xDomain ?? pad(extent(all.map((p) => p.x)), 0.05);
+  const [yMin, yMax] = spec.yDomain ?? pad(extent(all.map((p) => p.y)), 0.08);
   const xTicks = ticks(xMin, xMax, 5);
   const yTicks = ticks(yMin, yMax, 5);
   const { sx, sy } = scales(box, xMin, xMax, yMin, yMax);
   let g = axes(box, xTicks, yTicks, niceStep((xMax - xMin) / 5), niceStep((yMax - yMin) / 5), sx, sy, spec.xLabel, spec.yLabel);
   const groups = spec.groups ?? [];
-  spec.points.forEach((p) => {
-    const idx = p.g ? groups.indexOf(p.g) : 0;
-    const color = C.series[(idx < 0 ? 0 : idx) % C.series.length];
-    g += `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3.1" fill="${color}" opacity="0.78"/>`;
+  const multi = series.length > 1;
+  series.forEach((s, si) => {
+    const base = multi ? si : 0;
+    s.points.forEach((p) => {
+      const grouped = !multi && 'g' in p && (p as { g?: string }).g;
+      const idx = grouped ? groups.indexOf((p as { g?: string }).g ?? '') : base;
+      const color = C.series[(idx < 0 ? 0 : idx) % C.series.length];
+      g += `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3.1" fill="${color}" opacity="0.78"/>`;
+    });
   });
-  if (spec.fit) {
-    const x1 = xMin + (xMax - xMin) * 0.03;
-    const x2 = xMax - (xMax - xMin) * 0.03;
-    const y1 = spec.fit.intercept + spec.fit.slope * x1;
-    const y2 = spec.fit.intercept + spec.fit.slope * x2;
-    // A steep fit can predict outside the padded y range: clip the line to the plot.
-    const fitClip = `sigrun-clip-${(clipSeq += 1)}`;
-    g += `<defs><clipPath id="${fitClip}"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath></defs>`;
-    g += `<g clip-path="url(#${fitClip})"><line x1="${sx(x1).toFixed(1)}" y1="${sy(y1).toFixed(1)}" x2="${sx(x2).toFixed(1)}" y2="${sy(y2).toFixed(1)}" stroke="${C.series[4]}" stroke-width="2" opacity="0.9"/></g>`;
+  series.forEach((s, si) => {
+    if (!s.fit) return;
+    const color = multi ? C.series[si % C.series.length] : C.series[4];
+    g += fitLine(box, s.fit, xMin, xMax, sx, sy, color);
+  });
+  if (spec.legend) {
+    const entries = multi
+      ? series.map((s, i) => ({ label: s.label, color: C.series[i % C.series.length] }))
+      : groups.map((label, i) => ({ label, color: C.series[i % C.series.length] }));
+    g += scatterLegend(box, entries);
   }
+  if (spec.notes?.length) g += scatterNotes(box, spec.notes);
   return open(W, h, spec.title ?? 'Scatterplot') + g + '</svg>';
 }
 
