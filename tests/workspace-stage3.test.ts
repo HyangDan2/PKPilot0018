@@ -31,10 +31,11 @@ function fakeStorage(seed: Record<string, string> = {}) {
 }
 
 describe('workspace default', () => {
-  it('opens as a three-panel desktop', () => {
-    expect(DEFAULT_WORKSPACE.layout).toBe('tri');
+  it('opens on the Phase 1 classic shell', () => {
+    expect(DEFAULT_WORKSPACE.layout).toBe('classic');
     expect(DEFAULT_WORKSPACE.drawerOpen).toBe(false);
-    expect(WORKSPACE_LAYOUTS.map((l) => l.id)).toEqual(['tri', 'focus', 'classic']);
+    expect(WORKSPACE_KEY).toBe('sigrun.workspace.v2');
+    expect(WORKSPACE_LAYOUTS.map((l) => l.id)).toEqual(['classic', 'tri', 'focus']);
     expect(new Set(WORKSPACE_LAYOUTS.map((l) => l.hintKey)).size).toBe(3);
   });
 
@@ -163,11 +164,11 @@ describe('workspace persistence', () => {
     expect(JSON.parse(storage.data[WORKSPACE_KEY]).layout).toBe('focus');
   });
 
-  it('repairs a partial, broken or hostile record', () => {
+  it('falls back to classic and ignores the record Stage 3 left under v1', () => {
     const partial = normalizeWorkspace({ layout: 'focus' });
     expect(partial.layout).toBe('focus');
     expect(partial.navW).toBe(DEFAULT_WORKSPACE.navW);
-    expect(normalizeWorkspace({ layout: 'nope', navW: 5, outputH: 100 }).layout).toBe('tri');
+    expect(normalizeWorkspace({ layout: 'nope', navW: 5, outputH: 100 }).layout).toBe('classic');
     expect(normalizeWorkspace({ navW: 5 }).navW).toBe(180);
     expect(normalizeWorkspace({ outputH: 100 }).outputH).toBe(82);
     expect(normalizeWorkspace({ outputW: -20 }).outputW).toBe(MIN_OUTPUT_W);
@@ -176,12 +177,17 @@ describe('workspace persistence', () => {
     expect(normalizeWorkspace(null)).toEqual(DEFAULT_WORKSPACE);
     expect(readWorkspace(fakeStorage({ [WORKSPACE_KEY]: '{not json' }))).toEqual(DEFAULT_WORKSPACE);
     expect(readWorkspace(null)).toEqual(DEFAULT_WORKSPACE);
+    // a Stage 3 record (always 'tri' unless the visitor chose otherwise) is left behind
+    expect(readWorkspace(fakeStorage({ 'sigrun.workspace.v1': JSON.stringify({ ...DEFAULT_WORKSPACE, layout: 'tri' }) })).layout).toBe('classic');
+    // a layout chosen under v2 is restored
+    expect(readWorkspace(fakeStorage({ [WORKSPACE_KEY]: JSON.stringify({ ...DEFAULT_WORKSPACE, layout: 'tri' }) })).layout).toBe('tri');
+    expect(readWorkspace(fakeStorage({ [WORKSPACE_KEY]: JSON.stringify({ ...DEFAULT_WORKSPACE, layout: 'focus' }) })).layout).toBe('focus');
   });
 
   it('survives a storage that refuses to write', () => {
     const blocked = { getItem: () => null, setItem: () => { throw new Error('blocked'); } };
     expect(writeWorkspace(blocked, DEFAULT_WORKSPACE)).toBe(false);
     expect(writeWorkspace(null, DEFAULT_WORKSPACE)).toBe(false);
-    expect(serializeWorkspace(DEFAULT_WORKSPACE)).toContain('"layout":"tri"');
+    expect(serializeWorkspace(DEFAULT_WORKSPACE)).toContain('"layout":"classic"');
   });
 });

@@ -38,17 +38,19 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 - Panel layout presets (`View ▸ Panel layout`, also in the `⋮` menu): *Balanced*, *Worksheet
   focus*, *Results & charts focus*, *Full focus* (navigator folded away). The same four presets
   move the three-panel output column or the classic split, whichever is on screen.
-- Three workspace arrangements, switched from the toolbar (`3-panel · Focus · Classic`), from
-  `View ▸ Workspace layout` and from the `⋮` menu:
-  - **Three-panel** (default) — `[ Navigator ][ Output ][ Worksheet ]` left to right, each column
+- Three workspace arrangements, switched from the toolbar (`Classic (default) · 3-panel (extra) ·
+  Focus (drawer)`), from `View ▸ Workspace layout` and from the `⋮` menu:
+  - **Classic** (default) — the Phase 1 shell, output above worksheet, the four emphasis presets
+    acting on the stacked split exactly as they did before Stage 3.
+  - **3-panel** (extra) — `[ Navigator ][ Output ][ Worksheet ]` left to right, each column
     with its own minimum width and a drag splitter (arrow keys work too); charts and the virtual
     grid re-measure through `ResizeObserver` as a column changes width.
-  - **Focus mode** — the output takes the full workspace and the worksheet slides in from the right
-    as a resizable drawer. The drawer is the same live grid: cell editing, selection, copy/paste,
-    its own right-click menus, and a one-click rerun of the last analysis against the edited sheet.
-  - **Classic mode** — the Phase 1 shell, output above worksheet.
+  - **Focus** (drawer, extra) — the output takes the full workspace and the worksheet slides in
+    from the right as a resizable drawer. The drawer is the same live grid: cell editing,
+    selection, copy/paste, its own right-click menus, and a one-click rerun of the last analysis
+    against the edited sheet.
   The chosen arrangement, every column width and the drawer width are stored in `localStorage`
-  (`sigrun.workspace.v1`) and come back after a reload. A desktop narrower than 1200 px folds the
+  (`sigrun.workspace.v2`) and come back after a reload. A desktop narrower than 1200 px folds the
   three panels back to classic on its own (the stored choice is kept), and the phone/tablet shell
   below 1024 px is unchanged.
 - Right-click a result card: copy the results as text, copy or save the chart image, export its

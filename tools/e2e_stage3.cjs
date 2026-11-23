@@ -168,22 +168,76 @@ async function runViewport(browser, viewport) {
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-testid=worksheet-grid]', { timeout: 15000 });
 
-  /* ── 1. default three-panel desktop ──────────────────────────────── */
+  /* ── 1. the default: the classic Phase 1 shell ───────────────────── */
   if (!PART || PART.has('1')) {
-    console.log(`\n── 1. default three-panel workspace (${tag}) ──`);
+    console.log(`\n── 1. default workspace — classic shell (${tag}) ──`);
     const layout = await layoutOf(page);
-    check(`${tag} · 1: opens as the three-panel layout`, layout === 'tri', String(layout));
+    check(`${tag} · 1: opens in the classic arrangement`, layout === 'classic', String(layout));
     const nav = await box(page, '[data-testid=navigator]');
-    const out = await box(page, '.workspace > .output-panel');
-    const sheet = await box(page, '.workspace > .worksheet-panel');
-    check(`${tag} · 1: navigator · output · worksheet sit left to right`,
-      Boolean(nav && out && sheet) && nav.x < out.x && out.x < sheet.x,
-      nav && out && sheet ? `${Math.round(nav.x + nav.width)} | ${Math.round(out.x)}–${Math.round(out.x + out.width)} | ${Math.round(sheet.x)}` : 'missing panels');
-    check(`${tag} · 1: every column has real width`,
-      Boolean(nav && out && sheet) && nav.width >= 176 && out.width >= 320 && sheet.width >= 340,
-      nav && out && sheet ? `${Math.round(nav.width)} / ${Math.round(out.width)} / ${Math.round(sheet.width)}` : '');
+    const out = await box(page, '.main-panels > .output-panel');
+    const sheet = await box(page, '.main-panels > .worksheet-panel');
+    check(`${tag} · 1: navigator on the left, output stacked above the worksheet`,
+      Boolean(nav && out && sheet) && nav.x < out.x && out.y < sheet.y && Math.abs(out.x - sheet.x) <= 2,
+      nav && out && sheet ? `nav ${Math.round(nav.x + nav.width)} | out y ${Math.round(out.y)}–${Math.round(out.y + out.height)} | sheet y ${Math.round(sheet.y)}` : 'missing panels');
+    check(`${tag} · 1: the stacked splitter is back`, (await page.locator('[data-testid=splitter-output-h]').count()) === 1);
+    check(`${tag} · 1: both stacked panes have real size`,
+      Boolean(out && sheet) && out.height > 120 && sheet.height > 120,
+      out && sheet ? `${Math.round(out.height)} / ${Math.round(sheet.height)}` : '');
+
+    /* the header keeps the official mark alone */
+    const brandText = (await page.locator('[data-testid=brand]').innerText()).trim();
+    const brandBox = await box(page, '[data-testid=brand]');
+    check(`${tag} · 1: the header shows no wordmark text`, brandText === '', JSON.stringify(brandText));
+    check(`${tag} · 1: the dual-skew .mark is what is left`,
+      (await page.locator('[data-testid=brand] .mark').count()) === 1 && Boolean(brandBox) && brandBox.width <= 44,
+      brandBox ? `${Math.round(brandBox.width)}px wide` : 'missing');
+    check(`${tag} · 1: the brand keeps its accessible name`,
+      /HD2Lab/.test((await page.locator('[data-testid=brand]').getAttribute('aria-label')) || ''),
+      (await page.locator('[data-testid=brand]').getAttribute('aria-label')) || '');
+    check(`${tag} · 1: the logo no longer prints an svg`,
+      (await page.locator('[data-testid=brand] svg').count()) === 0);
+
+    /* classic is first, the two extras follow */
+    const order = await page.locator('[data-testid=ws-switch] [data-testid^=ws-layout-]')
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-testid')));
+    check(`${tag} · 1: toolbar order is classic · 3-panel · focus`,
+      order.join(',') === 'ws-layout-classic,ws-layout-tri,ws-layout-focus', order.join(','));
+    check(`${tag} · 1: classic is the pressed switch`,
+      (await page.locator('[data-testid=ws-layout-classic]').getAttribute('aria-pressed')) === 'true');
+
+    /* the default survives a reload */
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('[data-testid=worksheet-grid]', { timeout: 15000 });
+    check(`${tag} · 1: classic comes back after a reload`, (await layoutOf(page)) === 'classic', String(await layoutOf(page)));
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('sigrun.workspace.v2') || 'null'));
+    check(`${tag} · 1: the workspace is stored under v2`, Boolean(stored) && stored.layout === 'classic', JSON.stringify(stored));
+
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(`${tag} · 1: no horizontal page overflow`, overflow <= 1, `${overflow}px`);
+  }
+
+  /* ── 1b. Help ▸ About Sigrún wears the full lock-up ──────────────── */
+  if (!PART || PART.has('1b')) {
+    console.log(`\n── 1b. About Sigrún banner (${tag}) ──`);
+    await page.click('[data-testid=menu-help]');
+    await page.waitForTimeout(160);
+    await page.click('[data-testid=menu-item-about]');
+    await page.waitForSelector('[data-testid=about-brand]', { timeout: 8000 });
+    const banner = page.locator('[data-testid=about-brand]');
+    await page.waitForTimeout(250);
+    check(`${tag} · 1b: the about banner is drawn`, (await banner.count()) === 1);
+    const bannerText = (await banner.innerText()).replace(/\s+/g, ' ').trim();
+    check(`${tag} · 1b: the banner carries mark · HD2Lab · Sigrún · badge`,
+      (await banner.locator('.mark').count()) === 1 && /HD2Lab/.test(bannerText) && /Sigrún/.test(bannerText) && /STATISTICAL WORKSPACE/.test(bannerText),
+      bannerText);
+    const bannerBox = await banner.boundingBox();
+    const descBox = await box(page, '.help-body > p');
+    check(`${tag} · 1b: the banner sits above the description`,
+      Boolean(bannerBox && descBox) && bannerBox.y + bannerBox.height <= descBox.y + 2,
+      bannerBox && descBox ? `banner ${Math.round(bannerBox.y)}–${Math.round(bannerBox.y + bannerBox.height)}, description ${Math.round(descBox.y)}` : 'missing');
+    await page.click('.modal-foot .btn');
+    await page.waitForTimeout(250);
+    check(`${tag} · 1b: the modal closes again`, (await page.locator('[data-testid=about-brand]').count()) === 0);
   }
 
   /* ── 2. splitter widths ──────────────────────────────────────────── */
@@ -341,7 +395,7 @@ async function runViewport(browser, viewport) {
     check(`${tag} · 7: the drawer is open again`, reopened === 1, String(reopened));
     const width = (await box(page, '[data-testid=worksheet-drawer]')).width;
     check(`${tag} · 7: the drawer keeps its width`, Math.abs(width - drawerW) <= 3, `${Math.round(drawerW)} → ${Math.round(width)}`);
-    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('sigrun.workspace.v1') || 'null'));
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('sigrun.workspace.v2') || 'null'));
     check(`${tag} · 7: the workspace is stored in localStorage`, Boolean(stored) && stored.layout === 'focus', JSON.stringify(stored));
     check(`${tag} · 7: worksheet data survives the layout switch`, (await page.locator(`${cell(6, 1)}`).innerText()).trim() === '4242',
       (await page.locator(`${cell(6, 1)}`).innerText()).trim());
@@ -569,7 +623,10 @@ async function shots(browser) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-testid=worksheet-grid]');
-  await page.evaluate(() => localStorage.removeItem('sigrun.workspace.v1'));
+  await page.evaluate(() => {
+    localStorage.removeItem('sigrun.workspace.v1');
+    localStorage.removeItem('sigrun.workspace.v2');
+  });
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForSelector('[data-testid=worksheet-grid]');
   await loadSample(page, 'regression');
@@ -584,6 +641,40 @@ async function shots(browser) {
   await page.evaluate(() => { const node = document.querySelector('[data-testid=output-panel]'); if (node) node.scrollTop = 0; });
   await page.mouse.move(900, 600);
   await page.waitForTimeout(300);
+  const overflowClassic = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  check('shots: the classic default has no horizontal overflow', overflowClassic <= 1, `${overflowClassic}px`);
+  check('shots: the default is the classic arrangement', (await layoutOf(page)) === 'classic', String(await layoutOf(page)));
+  await page.screenshot({ path: `${SHOTS}/fix-header-classic-pc.png` });
+  check('shots: fix-header-classic-pc.png saved', fs.existsSync(`${SHOTS}/fix-header-classic-pc.png`), `${SHOTS}/fix-header-classic-pc.png`);
+
+  /* the about modal with the brand banner */
+  await page.click('[data-testid=menu-help]');
+  await page.waitForTimeout(200);
+  await page.click('[data-testid=menu-item-about]');
+  await page.waitForSelector('[data-testid=about-brand]');
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: `${SHOTS}/fix-about-modal.png` });
+  check('shots: fix-about-modal.png saved', fs.existsSync(`${SHOTS}/fix-about-modal.png`), `${SHOTS}/fix-about-modal.png`);
+  await page.click('.modal-foot .btn');
+  await page.waitForTimeout(300);
+
+  /* the same banner in Navy & Lavender */
+  await page.click('[data-testid=theme-toggle]');
+  await page.waitForTimeout(350);
+  await page.click('[data-testid=menu-help]');
+  await page.waitForTimeout(200);
+  await page.click('[data-testid=menu-item-about]');
+  await page.waitForSelector('[data-testid=about-brand]');
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: `${SHOTS}/fix-about-modal-dark.png` });
+  check('shots: fix-about-modal-dark.png saved', fs.existsSync(`${SHOTS}/fix-about-modal-dark.png`), `${SHOTS}/fix-about-modal-dark.png`);
+  await page.click('.modal-foot .btn');
+  await page.waitForTimeout(300);
+  await page.click('[data-testid=theme-toggle]');
+  await page.waitForTimeout(350);
+
+  await page.click('[data-testid=ws-layout-tri]');
+  await page.waitForTimeout(3300);
   const overflowTri = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check('shots: three-panel page has no horizontal overflow', overflowTri <= 1, `${overflowTri}px`);
   await page.screenshot({ path: `${SHOTS}/stage3-3panel-pc.png` });

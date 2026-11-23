@@ -1,33 +1,42 @@
 # Stage 3 — workspace arrangements, focus drawer, output menu
 
 Sigrún's Stage 3 turns the single stacked shell into three desktop arrangements while keeping the
-Phase 1 shell available as **Classic**. This note records what was built, where it lives, and how it
-is verified.
+Phase 1 shell — **Classic** — as the default, so the two new ones are extras a visitor can pick.
+This note records what was built, where it lives, and how it is verified.
+
+After the Stage 3 review the Phase 1 arrangement was restored as the default (`classic`, with the
+four emphasis presets acting on the stacked split as before) and `tri` / `focus` stayed available as
+additions. The storage key moved to `sigrun.workspace.v2` so the `tri` record Stage 3 had written for
+everyone under v1 is left behind.
 
 ## The three arrangements
 
 | id | Layout | Controls |
 | --- | --- | --- |
-| `tri` (default) | `[ Navigator ][ Output ][ Worksheet ]` | navigator splitter, output/worksheet splitter |
-| `focus` | `[ Navigator ][ Output ]` + worksheet drawer sliding in from the right | drawer edge (width), drawer close/tab |
-| `classic` | `[ Navigator ]` + output stacked over worksheet | stacked splitter (the Phase 1 shell) |
+| `classic` (default) | `[ Navigator ]` + output stacked over worksheet | stacked splitter (the Phase 1 shell) |
+| `tri` (extra) | `[ Navigator ][ Output ][ Worksheet ]` | navigator splitter, output/worksheet splitter |
+| `focus` (extra) | `[ Navigator ][ Output ]` + worksheet drawer sliding in from the right | drawer edge (width), drawer close/tab |
 
 Switches live in three places, all wired to the same state: the toolbar segmented control
-(`data-testid="ws-layout-tri|focus|classic"`), `View ▸ Workspace layout`, and the `⋮` menu.
-The four older emphasis presets (`Balanced`, `Worksheet focus`, `Results & charts focus`,
-`Full focus`) are kept and now act on whichever arrangement is on screen: in three-panel mode they
-change the output column width, in Classic they change the stacked split.
+(`data-testid="ws-layout-classic|tri|focus"`, in that order), `View ▸ Workspace layout`, and the `⋮`
+menu. The four older emphasis presets (`Balanced`, `Worksheet focus`, `Results & charts focus`,
+`Full focus`) are kept and act on whichever arrangement is on screen: in Classic (and anywhere the
+three-panel layout folds back) they change the stacked split, in three-panel mode the output column
+width.
 
 Widths are clamped so no column collapses: navigator 180–430 px, output ≥ 320 px,
 worksheet ≥ 340 px, drawer 320–960 px (also ≤ viewport − 200).
 
 ## Persistence
 
-`localStorage["sigrun.workspace.v1"]`
+`localStorage["sigrun.workspace.v2"]`
 
 ```json
-{ "layout": "tri", "navW": 254, "outputW": 520, "outputH": 52, "drawerW": 460, "drawerOpen": false }
+{ "layout": "classic", "navW": 254, "outputW": 520, "outputH": 52, "drawerW": 460, "drawerOpen": false }
 ```
+
+A record under the older `sigrun.workspace.v1` key is ignored, so a visitor whose browser still holds
+Stage 3's `tri` starts on Classic; a layout chosen under v2 is restored on reload.
 
 `readWorkspace` / `normalizeWorkspace` repair missing, malformed or out-of-range records, and a
 blocked storage (private mode, quota) silently keeps the defaults. Widths are re-clamped against
