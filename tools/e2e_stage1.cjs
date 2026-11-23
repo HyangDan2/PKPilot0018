@@ -23,7 +23,8 @@ const { chromium } = loadPlaywright();
 
 const ROOT = path.resolve(__dirname, '..', 'dist');
 const PORT = Number(process.env.PORT || 4183);
-const BASE = `http://127.0.0.1:${PORT}/PKPilot0018/`;
+const LIVE = process.env.LIVE === '1';
+const BASE = LIVE ? 'https://hyangdan2.github.io/PKPilot0018/' : `http://127.0.0.1:${PORT}/PKPilot0018/`;
 const OUT = '/workspace/work/pkpilot0018';
 const EXE = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
 const PART = process.env.PART || 'all';
@@ -490,7 +491,7 @@ async function launch() {
 }
 
 (async () => {
-  const server = await serve();
+  const server = LIVE ? null : await serve();
   const parts = PART === 'all' ? ['selection', 'menus', 'column', 'shots'] : [PART];
   try {
     for (const part of parts) {
@@ -509,7 +510,7 @@ async function launch() {
       await new Promise((resolve) => setTimeout(resolve, 1200));
     }
   } finally {
-    server.close();
+    server?.close();
   }
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed (${PART})`);
