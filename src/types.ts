@@ -10,12 +10,16 @@ export interface Column {
   name: string;
   type: ColType;
   values: (number | string | null)[];
+  /** Optional note shown on the column header (Minitab's column description). */
+  description?: string;
 }
 
 export interface Worksheet {
   id: string;
   name: string;
   columns: Column[];
+  /** Highest C-number ever handed out on this sheet; keeps ids from being reused. */
+  columnSeq?: number;
 }
 
 export interface ChartMargins { top?: number; right?: number; bottom?: number; left?: number }

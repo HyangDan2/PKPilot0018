@@ -7,9 +7,9 @@ import { IconCheck, IconChevron } from './Icons';
 
 export type MenuAction =
   | 'new' | 'save' | 'open' | 'importCsv' | 'exportCsv' | 'importXlsx' | 'exportXlsx' | 'exportXlsxCurrent'
-  | 'print' | 'undo' | 'redo' | 'copy' | 'paste'
-  | 'clear' | 'insertRow' | 'deleteRow' | 'addColumn' | 'newSheet' | 'renameSheet' | 'deleteSheet'
-  | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout' | 'toggleNav'
+  | 'print' | 'undo' | 'redo' | 'copy' | 'cut' | 'paste'
+  | 'clear' | 'insertRow' | 'deleteRow' | 'insertColumn' | 'deleteColumn' | 'addColumn' | 'newSheet' | 'renameSheet' | 'deleteSheet'
+  | 'findReplace' | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout' | 'toggleNav'
   | 'layoutBalanced' | 'layoutSheet' | 'layoutResults' | 'layoutFocus';
 
 interface MenuLeaf {
@@ -82,10 +82,14 @@ function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, lay
         { labelKey: 'edit.undo', action: 'undo', kbd: '⌘Z', disabled: !canUndo },
         { labelKey: 'edit.redo', action: 'redo', kbd: '⇧⌘Z', disabled: !canRedo },
         { labelKey: 'edit.copy', action: 'copy', separatorBefore: true, kbd: '⌘C' },
+        { labelKey: 'edit.cut', action: 'cut', kbd: '⌘X' },
         { labelKey: 'edit.paste', action: 'paste', kbd: '⌘V' },
         { labelKey: 'edit.clear', action: 'clear', kbd: 'Del' },
+        { labelKey: 'edit.findReplace', action: 'findReplace', kbd: '⌘F' },
         { labelKey: 'edit.insertRow', action: 'insertRow', separatorBefore: true },
         { labelKey: 'edit.deleteRow', action: 'deleteRow' },
+        { labelKey: 'edit.insertColumn', action: 'insertColumn' },
+        { labelKey: 'edit.deleteColumn', action: 'deleteColumn' },
       ],
     },
     {

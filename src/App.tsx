@@ -6,7 +6,9 @@ import { FloatPanel } from './components/FloatPanel';
 import { Toolbar } from './components/Toolbar';
 import { Navigator } from './components/Navigator';
 import { OutputPanel } from './components/OutputPanel';
-import { WorksheetGrid, type GridCell, type GridRange } from './components/WorksheetGrid';
+import { WorksheetGrid, type GridContextTarget } from './components/WorksheetGrid';
+import { ContextMenu, type ContextMenuItem } from './components/ContextMenu';
+import { FindReplacePanel } from './components/FindReplacePanel';
 import { AnalysisDialog } from './components/AnalysisDialog';
 import { HelpModal } from './components/HelpModal';
 import { ImportDialog, type PreviewSheet } from './components/ImportDialog';
@@ -37,6 +39,7 @@ import {
   downloadFile,
   looksLikeMinitabBinary,
   makeOutputId,
+  columnSequence,
   newColumnId,
   parseCsv,
   parseNumberCell,
@@ -46,6 +49,42 @@ import {
   serializeProject,
   worksheetToCsv,
 } from './lib/project';
+import {
+  clampSelection,
+  coversCell,
+  createSelection,
+  describeSelection,
+  extendTo,
+  gridSize as computeGridSize,
+  normalizeRange,
+  pasteRange,
+  selectAll,
+  selectColumn,
+  selectRow,
+  selectedColumns,
+  selectedRows,
+  selectionToText,
+  type Cell,
+  type Range,
+  type SelectionState,
+} from './lib/selection';
+import {
+  deleteCellsShiftUp,
+  deleteColumns,
+  deleteRows as deleteRowsAt,
+  duplicateColumn,
+  insertCellsShiftDown,
+  insertColumn,
+  insertRows,
+  replaceAll as replaceAllInSheet,
+  replaceOne as replaceOneInSheet,
+  setColumnDescription as setColumnDescriptionAt,
+  setColumnType as setColumnTypeAt,
+  sortByColumn,
+  findMatches,
+  type FindMatch,
+  type FindOptions,
+} from './lib/sheetOps';
 import { XLSX_ACCEPT, readXlsxRows, workbookToWorksheets, writeXlsx, xlsxFileName } from './lib/xlsx';
 
 const SETTINGS_KEY = 'sigrun.settings.v1';
@@ -176,8 +215,12 @@ export default function App() {
     autoHeader: boolean;
   }>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; draft: string } | null>(null);
-  const [selection, setSelection] = useState<GridCell>({ row: 0, col: 0 });
-  const [range, setRange] = useState<GridRange>({ r0: 0, c0: 0, r1: 0, c1: 0 });
+  const [sel, setSel] = useState<SelectionState>(() => createSelection({ row: 0, col: 0 }));
+  const [cutMark, setCutMark] = useState<{ text: string; ranges: Range[] } | null>(null);
+  const [ctx, setCtx] = useState<null | { x: number; y: number; target: GridContextTarget; sheetId?: string }>(null);
+  const [findOpen, setFindOpen] = useState(false);
+  const [findSeed, setFindSeed] = useState('');
+  const [colDialog, setColDialog] = useState<null | { index: number; kind: 'name' | 'description'; draft: string }>(null);
   const [focusedOutput, setFocusedOutput] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [navW, setNavW] = useState(DEFAULT_NAV);
@@ -196,6 +239,10 @@ export default function App() {
   const future = useRef<HistorySnapshot[]>([]);
   const sheet = worksheets.find((w) => w.id === activeSheetId) ?? worksheets[0];
   const lang = settings.lang;
+  const selection = sel.activeCell;
+  const grid = computeGridSize(sheet);
+  const selectionText = sel.mode === 'all' ? t(lang, 'sel.all') : describeSelection(sel, sheet);
+  const selectCell = (cell: Cell) => setSel(createSelection(cell));
 
   const toast = useCallback((text: string) => {
     const id = Date.now() + Math.random();
@@ -229,6 +276,17 @@ export default function App() {
       /* ignore */
     }
   }, [settings]);
+
+  /* A column insert/delete changes the grid width: pull the selection back in. */
+  useEffect(() => {
+    setSel((prev) => clampSelection(prev, computeGridSize(sheet)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheet.columns.length]);
+
+  /* A cut marker belongs to the sheet it was copied from. */
+  useEffect(() => {
+    setCutMark(null);
+  }, [activeSheetId]);
 
   useEffect(() => {
     try {
@@ -296,8 +354,8 @@ export default function App() {
     setWorksheets(nextSheets);
     const nextActive = nextSheets.some((w) => w.id === snapshot.activeSheetId) ? snapshot.activeSheetId : nextSheets[0].id;
     setActiveSheetId(nextActive);
-    setSelection({ row: 0, col: 0 });
-    setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
+    setSel(createSelection({ row: 0, col: 0 }));
+    setCutMark(null);
     forceHistory((v) => v + 1);
   };
 
@@ -353,40 +411,103 @@ export default function App() {
     mutateActiveSheet((ws) => ({ ...ws, columns: ws.columns.map((c, i) => (i === col ? { ...c, name } : c)) }), false);
   };
 
+  /* ── selection-driven worksheet edits ─────────────────────────────── */
+
+  const primarySelection = (): Range => normalizeRange(sel.ranges[0] ?? { r0: selection.row, c0: selection.col, r1: selection.row, c1: selection.col });
+
+  /** Runs of consecutive row numbers, bottom-first, so deletions never shift
+   *  the rows that are still to be deleted. */
+  const rowBlocks = (rows: number[]): [number, number][] => {
+    const blocks: [number, number][] = [];
+    for (const row of rows) {
+      const last = blocks[blocks.length - 1];
+      if (last && row === last[1] + 1) last[1] = row;
+      else blocks.push([row, row]);
+    }
+    return blocks;
+  };
+
   const addColumn = () => {
-    mutateActiveSheet((ws) => {
-      const rows = Math.max(30, ...ws.columns.map((c) => c.values.length));
-      const id = newColumnId(ws);
-      return { ...ws, columns: [...ws.columns, { id, name: '', type: 'numeric' as const, values: Array.from({ length: rows }, () => null) }] };
-    });
+    const result = insertColumn(sheet, sheet.columns.length);
+    applySheets((list) => list.map((ws) => (ws.id === sheet.id ? result.sheet : ws)));
+    setSel(createSelection({ row: selection.row, col: result.index }));
     toast(t(lang, 'toast.columnAdded'));
   };
 
-  const clearRange = (target: GridRange) => {
-    const r0 = Math.min(target.r0, target.r1);
-    const r1 = Math.max(target.r0, target.r1);
-    const c0 = Math.min(target.c0, target.c1);
-    const c1 = Math.max(target.c0, target.c1);
+  const insertColumnAt = (at: number) => {
+    const result = insertColumn(sheet, at);
+    applySheets((list) => list.map((ws) => (ws.id === sheet.id ? result.sheet : ws)));
+    setSel(createSelection({ row: selection.row, col: result.index }));
+    toast(t(lang, 'toast.columnInserted'));
+  };
+
+  const deleteSelectedColumns = () => {
+    const cols = selectedColumns(sel);
+    if (!cols.length) return;
+    if (cols.length >= sheet.columns.length) {
+      toast(t(lang, 'toast.lastColumn'));
+      return;
+    }
+    const blocks = rowBlocks(cols).reverse();
+    mutateActiveSheet((ws) => blocks.reduce((next, [a, b]) => deleteColumns(next, a, b) ?? next, ws));
+    setSel(createSelection({ row: selection.row, col: Math.max(0, Math.min(cols[0], sheet.columns.length - cols.length - 1)) }));
+    toast(t(lang, 'toast.columnsDeleted', { n: cols.length }));
+  };
+
+  const duplicateColumnAt = (index: number) => {
+    const result = duplicateColumn(sheet, index);
+    if (!result) return;
+    applySheets((list) => list.map((ws) => (ws.id === sheet.id ? result.sheet : ws)));
+    setSel(createSelection({ row: selection.row, col: result.index }));
+    toast(t(lang, 'toast.columnDuplicated'));
+  };
+
+  const sortColumnAt = (index: number, direction: 'asc' | 'desc') => {
+    mutateActiveSheet((ws) => sortByColumn(ws, index, direction));
+    toast(t(lang, 'toast.sorted', { column: sheet.columns[index]?.id ?? '' }));
+  };
+
+  const changeColumnType = (index: number, type: 'numeric' | 'text' | 'date') => {
+    mutateActiveSheet((ws) => setColumnTypeAt(ws, index, type));
+    toast(t(lang, 'toast.typeChanged', { column: sheet.columns[index]?.id ?? '' }));
+  };
+
+  const saveColumnDescription = (index: number, description: string) => {
+    mutateActiveSheet((ws) => setColumnDescriptionAt(ws, index, description));
+    toast(t(lang, 'toast.colDescSaved'));
+  };
+
+  const clearSelection = () => {
+    const targets = sel.ranges.map(normalizeRange);
     mutateActiveSheet((ws) => ({
       ...ws,
       columns: ws.columns.map((c, index) => {
-        if (index < c0 || index > c1) return c;
-        const values = pad(c.values, r1 + 1);
-        for (let r = r0; r <= r1; r += 1) values[r] = null;
+        const hits = targets.filter((r) => index >= r.c0 && index <= r.c1);
+        if (!hits.length) return c;
+        const values = pad(c.values, Math.max(...hits.map((r) => r.r1)) + 1);
+        for (const r of hits) for (let row = r.r0; row <= r.r1; row += 1) values[row] = null;
         return { ...c, values };
       }),
     }));
+    setCutMark(null);
     toast(t(lang, 'toast.cleared'));
   };
 
   /**
    * Paste through the RFC-4180 parser, so quoted commas ("1,200"), quoted line
    * breaks and tab/semicolon separated blocks all land in the right cells.
+   * A multi-block selection has no single landing corner, so paste refuses and
+   * explains instead of writing into the first block by surprise.
    */
   const pasteCells = (row: number, col: number, text: string) => {
+    if (!pasteRange(sel)) {
+      toast(t(lang, 'toast.pasteMulti'));
+      return;
+    }
     const rows = parseCsv(text);
     if (!rows.length) return;
     const width = Math.max(...rows.map((r) => r.length));
+    const cutting = cutMark && cutMark.text.replace(/\r/g, '').trim() === text.replace(/\r/g, '').trim() ? cutMark : null;
     mutateActiveSheet((ws) => {
       const columns = ws.columns.map((c) => ({ ...c, values: [...c.values] }));
       const needed = col + width - columns.length;
@@ -395,6 +516,16 @@ export default function App() {
         const probe = rows.map((r) => (r[nextIndex] ?? '').trim()).filter((v) => v !== '');
         const numeric = probe.length > 0 && probe.every((v) => parseNumberCell(v) !== null);
         columns.push({ id: newColumnId({ ...ws, columns }), name: '', type: numeric ? 'numeric' : 'text', values: [] });
+      }
+      if (cutting) {
+        for (const r of cutting.ranges) {
+          columns.forEach((c, index) => {
+            if (index < r.c0 || index > r.c1) return;
+            const values = pad(c.values, r.r1 + 1);
+            for (let row2 = r.r0; row2 <= r.r1; row2 += 1) values[row2] = null;
+            c.values = values;
+          });
+        }
       }
       const targetRows = row + rows.length;
       columns.forEach((c) => { c.values = pad(c.values, targetRows); });
@@ -411,58 +542,213 @@ export default function App() {
           target.values[row + r] = numeric !== null ? numeric : cell;
         });
       });
-      return { ...ws, columns };
+      return { ...ws, columns, columnSeq: columnSequence({ ...ws, columns }) };
     });
+    setCutMark(null);
+    setSel(extendTo(createSelection({ row, col }), { row: row + rows.length - 1, col: col + width - 1 }));
     toast(t(lang, 'toast.pasted'));
   };
 
-  const copyRange = async () => {
-    const r0 = Math.min(range.r0, range.r1);
-    const r1 = Math.max(range.r0, range.r1);
-    const c0 = Math.min(range.c0, range.c1);
-    const c1 = Math.max(range.c0, range.c1);
-    const lines: string[] = [];
-    for (let r = r0; r <= r1; r += 1) {
-      const cells: string[] = [];
-      for (let c = c0; c <= c1; c += 1) {
-        const value = sheet.columns[c]?.values[r];
-        cells.push(value === null || value === undefined ? '' : String(value));
-      }
-      lines.push(cells.join('\t'));
+  const copySelection = async (cut = false) => {
+    const text = selectionToText(sheet, sel, grid);
+    if (!text) {
+      toast(t(lang, 'toast.copyEmpty'));
+      return;
     }
-    const text = lines.join('\n');
+    let ok = false;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('unsupported');
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      ok = legacyCopy(text);
+    }
+    if (!ok) {
+      // Report the real outcome: a silent failure must not look like success.
+      setCutMark(null);
+      toast(t(lang, 'toast.copyFailed'));
+      return;
+    }
+    setCutMark(cut ? { text, ranges: sel.ranges.map(normalizeRange) } : null);
+    toast(t(lang, cut ? 'toast.cut' : 'toast.copied'));
+  };
+
+  const copyRows = async () => {
+    const primary = primarySelection();
+    const range: Range = { r0: primary.r0, c0: 0, r1: primary.r1, c1: Math.max(0, sheet.columns.length - 1) };
+    const text = selectionToText(sheet, { ...sel, ranges: [range], mode: 'row' }, grid);
     try {
       if (!navigator.clipboard?.writeText) throw new Error('unsupported');
       await navigator.clipboard.writeText(text);
       toast(t(lang, 'toast.copied'));
     } catch {
-      // Report the real outcome: a silent failure must not look like success.
       toast(t(lang, legacyCopy(text) ? 'toast.copied' : 'toast.copyFailed'));
     }
   };
 
-  const insertRow = () => {
-    mutateActiveSheet((ws) => ({
-      ...ws,
-      columns: ws.columns.map((c) => {
-        const values = pad(c.values, selection.row + 1);
-        values.splice(selection.row, 0, null);
-        return { ...c, values };
-      }),
-    }));
-    toast(t(lang, 'toast.rowInserted'));
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) { toast(t(lang, 'toast.pasteEmpty')); return; }
+      pasteCells(selection.row, selection.col, text);
+    } catch {
+      toast(t(lang, 'toast.pasteFailed'));
+    }
   };
 
-  const deleteRow = () => {
-    mutateActiveSheet((ws) => ({
-      ...ws,
-      columns: ws.columns.map((c) => {
-        const values = pad(c.values, Math.max(30, selection.row + 1)).slice();
-        values.splice(selection.row, 1);
-        return { ...c, values };
-      }),
-    }));
-    toast(t(lang, 'toast.rowDeleted'));
+  const insertRowsHere = (at: number) => {
+    const primary = primarySelection();
+    const count = primary.r1 - primary.r0 + 1;
+    mutateActiveSheet((ws) => insertRows(ws, at, count));
+    setSel(createSelection({ row: at, col: primary.c0 }));
+    toast(t(lang, 'toast.rowsInserted', { n: count }));
+  };
+
+  const deleteSelectedRows = () => {
+    const rows = selectedRows(sel);
+    if (!rows.length) return;
+    const blocks = rowBlocks(rows).reverse();
+    mutateActiveSheet((ws) => blocks.reduce((next, [a, b]) => deleteRowsAt(next, a, b), ws));
+    setSel(createSelection({ row: Math.min(rows[0], Math.max(0, grid.rows - blocks.reduce((n, [a, b]) => n + (b - a + 1), 0))), col: selection.col }));
+    toast(t(lang, 'toast.rowsDeleted', { n: rows.length }));
+  };
+
+  const insertCellsHere = () => {
+    const primary = primarySelection();
+    mutateActiveSheet((ws) => insertCellsShiftDown(ws, primary));
+    toast(t(lang, 'toast.cellsInserted'));
+  };
+
+  const deleteCellsHere = () => {
+    const primary = primarySelection();
+    mutateActiveSheet((ws) => deleteCellsShiftUp(ws, primary));
+    toast(t(lang, 'toast.cellsDeleted'));
+  };
+
+  /* ── find & replace ───────────────────────────────────────────────── */
+
+  const applyReplaceAll = (query: string, replacement: string, options: FindOptions): number => {
+    const result = replaceAllInSheet(sheet, query, replacement, options);
+    if (result.count) applySheets((list) => list.map((ws) => (ws.id === sheet.id ? result.sheet : ws)));
+    toast(t(lang, result.count ? 'toast.replacedAll' : 'toast.findNoMatch', { n: result.count }));
+    return result.count;
+  };
+
+  const applyReplaceOne = (match: FindMatch, query: string, replacement: string, options: FindOptions) => {
+    const nextSheet = replaceOneInSheet(sheet, match, query, replacement, options);
+    applySheets((list) => list.map((ws) => (ws.id === sheet.id ? nextSheet : ws)));
+    toast(t(lang, 'toast.replacedOne'));
+  };
+
+  const openFindAt = (query: string) => {
+    setFindSeed(query);
+    setFindOpen(true);
+    const first = findMatches(sheet, query)[0];
+    if (first) selectCell(first);
+  };
+
+  /* ── context menu ─────────────────────────────────────────────────── */
+
+  const openGridContext = (target: GridContextTarget, at: { x: number; y: number }) => {
+    if (target.kind === 'cell') {
+      if (!coversCell(sel, target.cell.row, target.cell.col, grid)) setSel(createSelection(target.cell));
+    } else if (target.kind === 'row') {
+      if (!(sel.mode === 'row' && coversCell(sel, target.cell.row, 0, grid))) setSel(selectRow(sel, target.cell.row, grid));
+    } else if (target.kind === 'column') {
+      if (!(sel.mode === 'column' && coversCell(sel, 0, target.cell.col, grid))) setSel(selectColumn(sel, target.cell.col, grid));
+    } else {
+      setSel(createSelection(target.cell));
+    }
+    setCtx({ x: at.x, y: at.y, target });
+  };
+
+  const contextItems = (): ContextMenuItem[] => {
+    if (!ctx) return [];
+    const target = ctx.target;
+    const sep = (id: string): ContextMenuItem => ({ id, label: '', separator: true });
+    if (ctx.sheetId) {
+      return [
+        { id: 'sheet-rename', label: t(lang, 'ctx.sheetRename'), onSelect: () => setRenameTarget({ id: ctx.sheetId as string, draft: worksheets.find((w) => w.id === ctx.sheetId)?.name ?? '' }) },
+        { id: 'sheet-new', label: t(lang, 'ctx.sheetNew'), onSelect: () => addSheet() },
+        { id: 'sheet-delete', label: t(lang, 'ctx.sheetDelete'), danger: true, disabled: worksheets.length <= 1, onSelect: () => deleteSheet(ctx.sheetId as string) },
+      ];
+    }
+    if (target.kind === 'cell') {
+      const primary = primarySelection();
+      const column = sheet.columns[target.cell.col];
+      return [
+        { id: 'copy', label: t(lang, 'ctx.copy'), kbd: 'Ctrl+C', onSelect: () => void copySelection(false) },
+        { id: 'cut', label: t(lang, 'ctx.cut'), kbd: 'Ctrl+X', onSelect: () => void copySelection(true) },
+        { id: 'paste', label: t(lang, 'ctx.paste'), kbd: 'Ctrl+V', onSelect: () => void pasteFromClipboard() },
+        { id: 'clear', label: t(lang, 'ctx.clear'), kbd: 'Del', onSelect: clearSelection },
+        sep('s1'),
+        { id: 'insert-cell', label: t(lang, 'ctx.insertCell'), onSelect: insertCellsHere },
+        { id: 'delete-cell', label: t(lang, 'ctx.deleteCell'), onSelect: deleteCellsHere },
+        sep('s2'),
+        { id: 'row-above', label: t(lang, 'ctx.rowAbove'), onSelect: () => insertRowsHere(primary.r0) },
+        { id: 'row-below', label: t(lang, 'ctx.rowBelow'), onSelect: () => insertRowsHere(primary.r1 + 1) },
+        { id: 'row-delete', label: t(lang, 'ctx.rowDelete'), danger: true, onSelect: deleteSelectedRows },
+        sep('s3'),
+        { id: 'col-left', label: t(lang, 'ctx.colLeft'), onSelect: () => insertColumnAt(primary.c0) },
+        { id: 'col-right', label: t(lang, 'ctx.colRight'), onSelect: () => insertColumnAt(primary.c1 + 1) },
+        { id: 'col-delete', label: t(lang, 'ctx.colDelete'), danger: true, onSelect: deleteSelectedColumns },
+        sep('s4'),
+        { id: 'find', label: t(lang, 'ctx.find'), onSelect: () => openFindAt(column?.values[target.cell.row] !== null && column?.values[target.cell.row] !== undefined ? String(column.values[target.cell.row]) : '') },
+      ];
+    }
+    if (target.kind === 'column') {
+      const index = target.cell.col;
+      const column = sheet.columns[index];
+      if (!column) return [];
+      const typeItem = (type: 'numeric' | 'text' | 'date', labelKey: string): ContextMenuItem => ({
+        id: `type-${type}`,
+        label: t(lang, labelKey),
+        checked: column.type === type,
+        onSelect: () => changeColumnType(index, type),
+      });
+      return [
+        { id: 'rename-col', label: t(lang, 'ctx.renameCol'), onSelect: () => setColDialog({ index, kind: 'name', draft: column.name }) },
+        sep('s1'),
+        { id: 'insert-col-left', label: t(lang, 'ctx.colLeft'), onSelect: () => insertColumnAt(index) },
+        { id: 'insert-col-right', label: t(lang, 'ctx.colRight'), onSelect: () => insertColumnAt(index + 1) },
+        { id: 'duplicate-col', label: t(lang, 'ctx.duplicateCol'), onSelect: () => duplicateColumnAt(index) },
+        { id: 'delete-col', label: t(lang, 'ctx.colDelete'), danger: true, onSelect: deleteSelectedColumns },
+        sep('s2'),
+        {
+          id: 'col-type',
+          label: t(lang, 'ctx.colType'),
+          children: [typeItem('numeric', 'ctx.typeNumeric'), typeItem('text', 'ctx.typeText'), typeItem('date', 'ctx.typeDate')],
+        },
+        {
+          id: 'col-sort',
+          label: t(lang, 'ctx.sort'),
+          children: [
+            { id: 'sort-asc', label: t(lang, 'ctx.sortAsc'), onSelect: () => sortColumnAt(index, 'asc') },
+            { id: 'sort-desc', label: t(lang, 'ctx.sortDesc'), onSelect: () => sortColumnAt(index, 'desc') },
+          ],
+        },
+        { id: 'col-desc', label: t(lang, 'ctx.colDesc'), onSelect: () => setColDialog({ index, kind: 'description', draft: column.description ?? '' }) },
+      ];
+    }
+    if (target.kind === 'row') {
+      return [
+        { id: 'row-insert-above', label: t(lang, 'ctx.rowAbove'), onSelect: () => insertRowsHere(target.cell.row) },
+        { id: 'row-insert-below', label: t(lang, 'ctx.rowBelow'), onSelect: () => insertRowsHere(target.cell.row + 1) },
+        { id: 'row-delete', label: t(lang, 'ctx.rowDelete'), danger: true, onSelect: deleteSelectedRows },
+        sep('s1'),
+        { id: 'row-copy', label: t(lang, 'ctx.rowCopy'), onSelect: () => void copyRows() },
+        { id: 'row-extend', label: t(lang, 'ctx.rowExtend', { row: target.cell.row + 1 }), onSelect: () => setSel(selectRow(sel, target.cell.row, grid, true)) },
+      ];
+    }
+    return [
+      { id: 'empty-paste', label: t(lang, 'ctx.paste'), kbd: 'Ctrl+V', onSelect: () => void pasteFromClipboard() },
+      sep('s1'),
+      { id: 'empty-addcol', label: t(lang, 'ctx.addColumn'), onSelect: addColumn },
+      { id: 'empty-row', label: t(lang, 'ctx.rowAtEnd'), onSelect: () => insertRowsHere(target.cell.row) },
+      sep('s2'),
+      { id: 'empty-selectall', label: t(lang, 'ctx.selectAll'), kbd: 'Ctrl+A', onSelect: () => setSel(selectAll(grid)) },
+      { id: 'empty-find', label: t(lang, 'ctx.find'), onSelect: () => openFindAt('') },
+    ];
   };
 
   /* ── sheets ────────────────────────────────────────────────────────── */
@@ -480,8 +766,7 @@ export default function App() {
     const created: Worksheet = { ...base, id: base.id, name: uniqueSheetName(worksheets, base.name) };
     applySheets((list) => [...list, created]);
     setActiveSheetId(created.id);
-    setSelection({ row: 0, col: 0 });
-    setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
+    setSel(createSelection({ row: 0, col: 0 }));
     toast(t(lang, 'toast.sheetAdded'));
   };
 
@@ -511,8 +796,7 @@ export default function App() {
     applySheets(() => next);
     if (activeSheetId === id) {
       setActiveSheetId(next[0].id);
-      setSelection({ row: 0, col: 0 });
-      setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
+      setSel(createSelection({ row: 0, col: 0 }));
     }
     toast(t(lang, 'toast.sheetDeleted'));
   };
@@ -712,8 +996,7 @@ export default function App() {
       const named = imported.map((ws) => ({ ...ws, name: uniqueSheetName(worksheets, ws.name) }));
       applySheets((list) => [...list, ...named]);
       setActiveSheetId(named[0].id);
-      setSelection({ row: 0, col: 0 });
-      setRange({ r0: 0, c0: 0, r1: 0, c1: 0 });
+      setSel(createSelection({ row: 0, col: 0 }));
       toast(t(lang, 'file.xlsxImported', { n: imported.length }));
     } catch {
       toast(t(lang, 'file.error'));
@@ -790,6 +1073,12 @@ export default function App() {
       if (mod && event.key.toLowerCase() === 's') {
         event.preventDefault();
         saveProject();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        setFindSeed('');
+        setFindOpen(true);
         return;
       }
       if (typing) return;
@@ -891,12 +1180,16 @@ export default function App() {
       case 'print': window.print(); break;
       case 'undo': undo(); break;
       case 'redo': redo(); break;
-      case 'copy': void copyRange(); break;
+      case 'copy': void copySelection(false); break;
+      case 'cut': void copySelection(true); break;
       case 'paste': void navigator.clipboard?.readText?.().then((text) => text && pasteCells(selection.row, selection.col, text)).catch(() => toast(t(lang, 'toast.pasteFailed'))); break;
-      case 'clear': clearRange(range); break;
-      case 'insertRow': insertRow(); break;
-      case 'deleteRow': deleteRow(); break;
+      case 'clear': clearSelection(); break;
+      case 'insertRow': insertRowsHere(primarySelection().r0); break;
+      case 'deleteRow': deleteSelectedRows(); break;
+      case 'insertColumn': insertColumnAt(primarySelection().c1 + 1); break;
+      case 'deleteColumn': deleteSelectedColumns(); break;
       case 'addColumn': addColumn(); break;
+      case 'findReplace': setFindSeed(''); setFindOpen(true); break;
       case 'newSheet': addSheet(); break;
       case 'renameSheet': setRenameTarget({ id: sheet.id, draft: sheet.name }); break;
       case 'deleteSheet': deleteSheet(activeSheetId); break;
@@ -926,6 +1219,13 @@ export default function App() {
     if (renameSheet(renameTarget.id, renameTarget.draft)) setRenameTarget(null);
   };
 
+  const commitColDialog = () => {
+    if (!colDialog) return;
+    if (colDialog.kind === 'name') renameColumn(colDialog.index, colDialog.draft);
+    else saveColumnDescription(colDialog.index, colDialog.draft.trim());
+    setColDialog(null);
+  };
+
   const navNode = (floating: boolean) => (
     <Navigator
       lang={lang}
@@ -937,7 +1237,7 @@ export default function App() {
       focusedOutput={focusedOutput}
       onSelectOutput={(id) => { setFocusedOutput(id); setMobileTab('output'); setNavOpen(false); setTimeout(() => document.getElementById(`card-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 30); }}
       onDeleteOutput={(id) => { setOutputs((prev) => prev.filter((o) => o.id !== id)); toast(t(lang, 'toast.outputDeleted')); }}
-      onSelectSheet={(id) => { setActiveSheetId(id); setSelection({ row: 0, col: 0 }); setRange({ r0: 0, c0: 0, r1: 0, c1: 0 }); setMobileTab('worksheet'); setNavOpen(false); }}
+      onSelectSheet={(id) => { setActiveSheetId(id); setSel(createSelection({ row: 0, col: 0 })); setMobileTab('worksheet'); setNavOpen(false); }}
       onAddSheet={() => addSheet()}
       onRenameSheet={renameSheet}
       onDeleteSheet={deleteSheet}
@@ -992,18 +1292,17 @@ export default function App() {
       <WorksheetGrid
         lang={lang}
         sheet={sheet}
-        selection={selection}
-        range={range}
-        onSelect={(cell, extend) => {
-          setSelection(cell);
-          setRange((prev) => (extend ? { ...prev, r1: cell.row, c1: cell.col } : { r0: cell.row, c0: cell.col, r1: cell.row, c1: cell.col }));
-        }}
+        selection={sel}
+        onSelectionChange={setSel}
         onEdit={editCell}
         onPaste={pasteCells}
-        onCopy={() => void copyRange()}
-        onClear={clearRange}
+        onCopy={() => void copySelection(false)}
+        onCut={() => void copySelection(true)}
+        onClear={clearSelection}
         onAddColumn={addColumn}
         onRenameColumn={renameColumn}
+        onContextMenu={openGridContext}
+        cutRanges={cutMark?.ranges}
       />
       <div className="ws-tabs">
         {worksheets.map((ws) => (
@@ -1013,6 +1312,12 @@ export default function App() {
             className={`ws-tab${ws.id === sheet.id ? ' current' : ''}`}
             onClick={() => setActiveSheetId(ws.id)}
             onDoubleClick={() => setRenameTarget({ id: ws.id, draft: ws.name })}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              setActiveSheetId(ws.id);
+              setSel(createSelection({ row: 0, col: 0 }));
+              setCtx({ x: event.clientX, y: event.clientY, target: { kind: 'empty', cell: { row: 0, col: 0 } }, sheetId: ws.id });
+            }}
             data-testid={`sheet-tab-${ws.id}`}
           >
             {ws.name}
@@ -1184,7 +1489,7 @@ export default function App() {
 
       <footer className="statusbar">
         <span><b>{sheet.name}</b></span>
-        <span>{t(lang, 'status.cell')} <b>{cellLabel}</b></span>
+        <span>{t(lang, 'status.cell')} <b>{selectionText || cellLabel}</b></span>
         <span>{t(lang, 'status.cols', { n: sheet.columns.length })}</span>
         <span>{t(lang, 'status.last')} <b>{lastTitle}</b></span>
         <span className="spacer" />
@@ -1238,6 +1543,78 @@ export default function App() {
       )}
 
       {help && <HelpModal lang={lang} initial={help} onClose={() => setHelp(null)} />}
+
+      {ctx && (
+        <ContextMenu
+          x={ctx.x}
+          y={ctx.y}
+          items={contextItems()}
+          onClose={() => setCtx(null)}
+          label={t(lang, 'ctx.title')}
+        />
+      )}
+
+      {findOpen && (
+        <FindReplacePanel
+          lang={lang}
+          sheet={sheet}
+          onSelect={(cell) => selectCell(cell)}
+          onReplaceAll={applyReplaceAll}
+          onReplaceOne={applyReplaceOne}
+          onClose={() => setFindOpen(false)}
+          initialQuery={findSeed}
+        />
+      )}
+
+      {colDialog && (
+        <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setColDialog(null); }}>
+          <div className="modal rename-modal" role="dialog" aria-modal="true" aria-label={t(lang, colDialog.kind === 'name' ? 'ctx.renameCol' : 'ctx.colDesc')} data-testid="col-dialog">
+            <div className="modal-head">
+              <div>
+                <h3>{t(lang, colDialog.kind === 'name' ? 'ctx.renameCol' : 'ctx.colDesc')}</h3>
+                <div className="modal-sub">{sheet.columns[colDialog.index]?.id} · {colDialog.draft.trim() || sheet.columns[colDialog.index]?.id}</div>
+              </div>
+              <span className="spacer" />
+            </div>
+            <div className="modal-body">
+              <div className="slot">
+                {colDialog.kind === 'name' ? (
+                  <input
+                    className="text-input"
+                    autoFocus
+                    value={colDialog.draft}
+                    placeholder={sheet.columns[colDialog.index]?.id}
+                    onChange={(event) => setColDialog({ ...colDialog, draft: event.target.value })}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') { event.preventDefault(); commitColDialog(); }
+                      if (event.key === 'Escape') setColDialog(null);
+                    }}
+                    data-testid="col-dialog-input"
+                  />
+                ) : (
+                  <textarea
+                    className="text-input col-desc-input"
+                    rows={4}
+                    autoFocus
+                    value={colDialog.draft}
+                    placeholder={t(lang, 'col.descPlaceholder')}
+                    onChange={(event) => setColDialog({ ...colDialog, draft: event.target.value })}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') setColDialog(null);
+                    }}
+                    data-testid="col-dialog-input"
+                  />
+                )}
+              </div>
+            </div>
+            <div className="modal-foot">
+              <span className="spacer" />
+              <button type="button" className="btn ghost" onClick={() => setColDialog(null)}>{t(lang, 'dlg.cancel')}</button>
+              <button type="button" className="btn primary" onClick={commitColDialog} data-testid="col-dialog-ok">{t(lang, 'dlg.ok')}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {pendingImport && (
         <ImportDialog
