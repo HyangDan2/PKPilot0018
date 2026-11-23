@@ -2,11 +2,12 @@
    Sigrún — workspace layouts (Stage 3)
 
    Three desktop arrangements, plus the phone/tablet tab layout that the
-   stylesheet already owns:
+   stylesheet already owns. Classic is the Phase 1 shell and therefore the
+   default; the other two are extras a visitor can pick:
 
-     tri      [ Navigator ] [ Output ] [ Worksheet ]      ← default
-     focus    [ Navigator ] [ Output ] [ Worksheet drawer ]
-     classic  [ Navigator ] [ Output over Worksheet ]     ← the Phase 1 shell
+     classic  [ Navigator ] [ Output over Worksheet ]     ← default (Phase 1 shell)
+     tri      [ Navigator ] [ Output ] [ Worksheet ]      ← extra
+     focus    [ Navigator ] [ Output ] [ Worksheet drawer ] ← extra
 
    Kept free of React so widths, storage and the responsive fallbacks can be
    unit-tested without a browser.
@@ -33,7 +34,11 @@ export interface WorkspaceState {
   drawerOpen: boolean;
 }
 
-export const WORKSPACE_KEY = 'sigrun.workspace.v1';
+/** v2: Classic became the default again, so the record Stage 3 wrote under
+ *  `sigrun.workspace.v1` (always `tri` unless someone picked otherwise) is left
+ *  behind and every visitor starts on the Phase 1 shell. A choice made now is
+ *  stored under v2 and comes back after a reload. */
+export const WORKSPACE_KEY = 'sigrun.workspace.v2';
 
 /** Each column keeps enough room for its own header and contents. */
 export const MIN_OUTPUT_W = 320;
@@ -51,13 +56,13 @@ export const MOBILE_MAX = 1024;
 export const TRI_MIN = 1200;
 
 export const WORKSPACE_LAYOUTS: { id: WorkspaceLayout; labelKey: string; hintKey: string }[] = [
+  { id: 'classic', labelKey: 'ws.layout.classic', hintKey: 'ws.layout.classic.hint' },
   { id: 'tri', labelKey: 'ws.layout.tri', hintKey: 'ws.layout.tri.hint' },
   { id: 'focus', labelKey: 'ws.layout.focus', hintKey: 'ws.layout.focus.hint' },
-  { id: 'classic', labelKey: 'ws.layout.classic', hintKey: 'ws.layout.classic.hint' },
 ];
 
 export const DEFAULT_WORKSPACE: WorkspaceState = {
-  layout: 'tri',
+  layout: 'classic',
   navW: 254,
   outputW: 520,
   outputH: 52,

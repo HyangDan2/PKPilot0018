@@ -6,10 +6,23 @@ import type { LayoutPresetId } from '../lib/layout';
 import { LAYOUT_PRESETS } from '../lib/layout';
 import { WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../lib/workspace';
 
-/** The HD2Lab wordmark: the official dual-skew `.mark` (CSS), never an SVG logo. */
+/** The HD2Lab wordmark: the official dual-skew `.mark` (CSS), never an SVG logo.
+ *  The top bar keeps the mark alone — the name and the badge live in the
+ *  Help ▸ About Sigrún banner — so the menu row gets the room back. */
 export function Brand({ lang }: { lang: Lang }) {
   return (
-    <div className="brand" data-testid="brand" aria-label={`HD2Lab Sigrún — ${t(lang, 'brand.tag')}`}>
+    <div className="brand" data-testid="brand" aria-label={`HD2Lab Sigrún — ${t(lang, 'brand.tag')}`} title={`HD2Lab Sigrún — ${t(lang, 'brand.tag')}`}>
+      <span className="brand-mark" aria-hidden><span className="mark" /></span>
+    </div>
+  );
+}
+
+/** The full lock-up — mark · `HD2Lab` · divider · `Sigrún` · `STATISTICAL WORKSPACE`.
+ *  It sits at the top of Help ▸ About Sigrún, waiting for the visitor who asks
+ *  what the workspace is, instead of eating the header on every screen. */
+export function BrandBanner({ lang }: { lang: Lang }) {
+  return (
+    <div className="about-brand" data-testid="about-brand" aria-label={`HD2Lab Sigrún — ${t(lang, 'brand.tag')}`}>
       <span className="brand-mark" aria-hidden><span className="mark" /></span>
       <span className="brand-name">HD2Lab</span>
       <span className="brand-div" aria-hidden />
