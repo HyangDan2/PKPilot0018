@@ -15,7 +15,20 @@ import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { loadAutosave, saveAutosave } from './lib/db';
 import { fmtInt } from './lib/format';
 import { t } from './lib/i18n';
-import { DEFAULT_NAV, DEFAULT_OUTPUT, clampNav, clampOutput, findPreset, floatRect, type FloatRect, type LayoutPresetId, type PanelId } from './lib/layout';
+import {
+  DEFAULT_FLOAT_SIZES,
+  DEFAULT_NAV,
+  DEFAULT_OUTPUT,
+  clampFloatSize,
+  clampNav,
+  clampOutput,
+  findPreset,
+  fitFloatRect,
+  floatRect,
+  type FloatRect,
+  type LayoutPresetId,
+  type PanelId,
+} from './lib/layout';
 import { IconDetach } from './components/Icons';
 import {
   PROJECT_ACCEPT,
@@ -36,7 +49,31 @@ import {
 import { XLSX_ACCEPT, readXlsxRows, workbookToWorksheets, writeXlsx, xlsxFileName } from './lib/xlsx';
 
 const SETTINGS_KEY = 'sigrun.settings.v1';
+const FLOAT_SIZES_KEY = 'sigrun.floatSizes.v1';
 const ENGINE_VERSION = 'sigrun-1.2';
+
+type FloatSizes = Record<PanelId, { w: number; h: number }>;
+
+/** Remember the size each panel was last resized to, so a re-detached or
+ *  reloaded window opens at a familiar size instead of the factory default. */
+function readFloatSizes(): FloatSizes {
+  const sizes: FloatSizes = {
+    navigator: { ...DEFAULT_FLOAT_SIZES.navigator },
+    output: { ...DEFAULT_FLOAT_SIZES.output },
+    worksheet: { ...DEFAULT_FLOAT_SIZES.worksheet },
+  };
+  try {
+    const raw = JSON.parse(localStorage.getItem(FLOAT_SIZES_KEY) || 'null') as Partial<Record<PanelId, Partial<{ w: number; h: number }>>> | null;
+    for (const id of Object.keys(sizes) as PanelId[]) {
+      const stored = raw?.[id];
+      if (!stored || !Number.isFinite(stored.w) || !Number.isFinite(stored.h)) continue;
+      sizes[id] = clampFloatSize(id, Number(stored.w), Number(stored.h), 0, 0, 4096, 4096);
+    }
+  } catch {
+    /* a broken or blocked storage keeps the defaults */
+  }
+  return sizes;
+}
 
 function readSettings(): Settings {
   try {
@@ -148,6 +185,7 @@ export default function App() {
   const [navHidden, setNavHidden] = useState(false);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPresetId>('balanced');
   const [detached, setDetached] = useState<Record<PanelId, FloatRect | null>>({ navigator: null, output: null, worksheet: null });
+  const [floatSizes, setFloatSizes] = useState<FloatSizes>(readFloatSizes);
   const [mobileTab, setMobileTab] = useState<'output' | 'worksheet'>('output');
   const [navOpen, setNavOpen] = useState(false);
   const [autosave, setAutosave] = useState<'saved' | 'saving'>('saved');
@@ -191,6 +229,36 @@ export default function App() {
       /* ignore */
     }
   }, [settings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FLOAT_SIZES_KEY, JSON.stringify(floatSizes));
+    } catch {
+      /* ignore */
+    }
+  }, [floatSizes]);
+
+  /* A viewport resize pulls floating windows fully back on screen. */
+  useEffect(() => {
+    const fitPanels = () => {
+      setDetached((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const id of Object.keys(prev) as PanelId[]) {
+          const rect = prev[id];
+          if (!rect) continue;
+          const fitted = fitFloatRect(rect, window.innerWidth, window.innerHeight);
+          if (fitted.x !== rect.x || fitted.y !== rect.y || fitted.w !== rect.w || fitted.h !== rect.h) {
+            next[id] = fitted;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    };
+    window.addEventListener('resize', fitPanels);
+    return () => window.removeEventListener('resize', fitPanels);
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -791,7 +859,7 @@ export default function App() {
   };
 
   const detachPanel = (id: PanelId) => {
-    setDetached((prev) => ({ ...prev, [id]: prev[id] ? null : floatRect(id, window.innerWidth, window.innerHeight) }));
+    setDetached((prev) => ({ ...prev, [id]: prev[id] ? null : floatRect(id, window.innerWidth, window.innerHeight, floatSizes[id]) }));
   };
 
   const dockPanel = (id: PanelId) => {
@@ -801,6 +869,11 @@ export default function App() {
 
   const movePanel = (id: PanelId, next: { x: number; y: number }) => {
     setDetached((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id] as FloatRect, ...next } } : prev));
+  };
+
+  const resizePanel = (id: PanelId, next: FloatRect) => {
+    setDetached((prev) => (prev[id] ? { ...prev, [id]: next } : prev));
+    setFloatSizes((prev) => (prev[id].w === next.w && prev[id].h === next.h ? prev : { ...prev, [id]: { w: next.w, h: next.h } }));
   };
 
   /* ── menu actions ──────────────────────────────────────────────────── */
@@ -1067,10 +1140,12 @@ export default function App() {
       {detached.navigator && (
         <FloatPanel
           lang={lang}
+          panelId="navigator"
           title={t(lang, 'panel.navigator')}
           testId="float-navigator"
           rect={detached.navigator}
           onRect={(next) => movePanel('navigator', next)}
+          onResize={(next) => resizePanel('navigator', next)}
           onDock={() => dockPanel('navigator')}
         >
           {navNode(true)}
@@ -1080,10 +1155,12 @@ export default function App() {
       {detached.output && (
         <FloatPanel
           lang={lang}
+          panelId="output"
           title={t(lang, 'panel.output')}
           testId="float-output"
           rect={detached.output}
           onRect={(next) => movePanel('output', next)}
+          onResize={(next) => resizePanel('output', next)}
           onDock={() => dockPanel('output')}
         >
           {outputNode(true)}
@@ -1093,10 +1170,12 @@ export default function App() {
       {detached.worksheet && (
         <FloatPanel
           lang={lang}
+          panelId="worksheet"
           title={t(lang, 'panel.worksheet')}
           testId="float-worksheet"
           rect={detached.worksheet}
           onRect={(next) => movePanel('worksheet', next)}
+          onResize={(next) => resizePanel('worksheet', next)}
           onDock={() => dockPanel('worksheet')}
         >
           {worksheetNode(true)}
