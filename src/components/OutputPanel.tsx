@@ -4,7 +4,7 @@ import { fmtTime } from '../lib/format';
 import { resolveLabel, t } from '../lib/i18n';
 import { downloadBlob, downloadFile } from '../lib/project';
 import { inlineTheme, renderChart } from '../lib/charts';
-import { IconChevronDown, IconDownload, IconPrinter, IconRerun, IconTrash, IconX } from './Icons';
+import { IconChevronDown, IconCopy, IconDownload, IconPrinter, IconRerun, IconTrash, IconX } from './Icons';
 
 interface Props {
   lang: Lang;
@@ -52,26 +52,56 @@ function tableCsv(blocks: Block[], lang: Lang): string {
   return lines.join('\r\n');
 }
 
+const SVG_WIDTH = 560;
+
+function escText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Split a rendered chart into its inner markup and its intrinsic height. */
+function chartBody(svg: string): { inner: string; h: number } {
+  const viewBox = /viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/.exec(svg);
+  return {
+    inner: svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''),
+    h: viewBox ? Number(viewBox[2]) : 260,
+  };
+}
+
+function captionMarkup(label: string): string {
+  if (!label) return '';
+  return `<text x="10" y="14" font-family="ui-monospace, Menlo, monospace" font-size="10" letter-spacing="1" fill="#7C7690">${escText(label.toUpperCase())}</text>`;
+}
+
+/** One chart as a self-contained, theme-inlined SVG document (for export and clipboard). */
+export function chartSvgDoc(chart: ChartSpec, lang: Lang, caption?: string): string {
+  const { inner, h } = chartBody(renderChart(chart));
+  const label = caption ? resolveLabel(lang, caption) : '';
+  const header = label ? 20 : 0;
+  const total = h + header + 10;
+  const doc = `<svg xmlns="http://www.w3.org/2000/svg" width="${SVG_WIDTH}" height="${total}" viewBox="0 0 ${SVG_WIDTH} ${total}">`
+    + `<rect width="${SVG_WIDTH}" height="${total}" fill="#FFFFFF"/>`
+    + `<g transform="translate(0 ${header})">${captionMarkup(label)}${inner}</g></svg>`;
+  return inlineTheme(doc);
+}
+
 export function composeSvg(blocks: Block[], lang: Lang, title: string): string | null {
   const charts = chartsOf(blocks);
   if (!charts.length) return null;
-  const width = 560;
   let y = 0;
   const parts: string[] = [];
   charts.forEach(({ chart, title: chartTitle }) => {
-    const svg = renderChart(chart);
-    const viewBox = /viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/.exec(svg);
-    const h = viewBox ? Number(viewBox[2]) : 260;
-    const inner = svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+    const { inner, h } = chartBody(renderChart(chart));
     const label = chartTitle ? resolveLabel(lang, chartTitle) : '';
     const header = label ? 20 : 0;
-    parts.push(`<g transform="translate(0 ${y})"><text x="10" y="14" font-family="ui-monospace, Menlo, monospace" font-size="10" letter-spacing="1" fill="#7C7690">${label.toUpperCase()}</text><g transform="translate(0 ${header})">${inner}</g></g>`);
+    parts.push(`<g transform="translate(0 ${y})">${captionMarkup(label)}<g transform="translate(0 ${header})">${inner}</g></g>`);
     y += h + header + 10;
   });
   const total = Math.max(60, y);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${total}" viewBox="0 0 ${width} ${total}"><title>${title}</title><rect width="${width}" height="${total}" fill="#FFFFFF"/>${parts.join('')}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SVG_WIDTH}" height="${total}" viewBox="0 0 ${SVG_WIDTH} ${total}"><title>${escText(title)}</title><rect width="${SVG_WIDTH}" height="${total}" fill="#FFFFFF"/>${parts.join('')}</svg>`;
   return inlineTheme(svg);
 }
+
+type CopyOutcome = 'copied' | 'unsupported' | 'denied';
 
 /** Rasterise a standalone SVG at 2× with a white background. */
 async function svgToPng(svg: string, scale = 2): Promise<Blob | null> {
@@ -102,6 +132,22 @@ async function svgToPng(svg: string, scale = 2): Promise<Blob | null> {
     return null;
   } finally {
     URL.revokeObjectURL(url);
+  }
+}
+
+/*
+ * Clipboard images need two things this browser may not have: the async
+ * ClipboardItem API and the permission to write to the clipboard. Both are
+ * reported separately so the caller can fall back to a PNG download instead of
+ * claiming a copy that never happened.
+ */
+async function writePngToClipboard(blob: Blob): Promise<CopyOutcome> {
+  if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) return 'unsupported';
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    return 'copied';
+  } catch {
+    return 'denied';
   }
 }
 
@@ -173,6 +219,35 @@ export function OutputPanel({
     onToast(t(lang, 'card.pngSaved'));
   };
 
+  const copyPng = async (svg: string, fileName: string) => {
+    const blob = await svgToPng(svg, 2);
+    if (!blob) {
+      onToast(t(lang, 'card.pngFailed'));
+      return;
+    }
+    const outcome = await writePngToClipboard(blob);
+    if (outcome === 'copied') {
+      onToast(t(lang, 'card.copied'));
+      return;
+    }
+    // Never let a blocked copy look like a success: hand over the same PNG.
+    downloadBlob(fileName, blob);
+    onToast(t(lang, outcome === 'denied' ? 'card.copyDenied' : 'card.copyUnsupported'));
+  };
+
+  const handleCopy = async (output: OutputDoc) => {
+    const svg = composeSvg(output.blocks, lang, t(lang, output.titleKey));
+    if (!svg) {
+      onToast(t(lang, 'card.noChart'));
+      return;
+    }
+    await copyPng(svg, `sigrun-${output.titleKey.replace('an.', '')}-${output.id}.png`);
+  };
+
+  const handleCopyOne = async (chart: ChartSpec, caption?: string) => {
+    await copyPng(chartSvgDoc(chart, lang, caption), `sigrun-chart-${Date.now()}.png`);
+  };
+
   const handleCsv = (output: OutputDoc) => {
     const csv = tableCsv(output.blocks, lang);
     if (!csv.trim()) {
@@ -235,6 +310,9 @@ export function OutputPanel({
               <button type="button" onClick={() => onReproduce(output)} title={t(lang, 'card.reproduce')} aria-label={t(lang, 'card.reproduce')} data-testid="card-reproduce">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h5" /></svg>
               </button>
+              <button type="button" onClick={() => void handleCopy(output)} title={t(lang, 'card.copy')} aria-label={t(lang, 'card.copy')} data-testid="card-copy">
+                <IconCopy size={14} />
+              </button>
               <button type="button" onClick={() => handleCsv(output)} title={t(lang, 'card.csv')} aria-label={t(lang, 'card.csv')} data-testid="card-csv">
                 <IconDownload size={14} />
               </button>
@@ -261,6 +339,7 @@ export function OutputPanel({
                   block={block}
                   lang={lang}
                   onEditChart={(chartIndex, chart) => openEditor(output, index, chartIndex, chart)}
+                  onCopyChart={(chart, caption) => void handleCopyOne(chart, caption)}
                 />
               ))}
             </div>
@@ -328,8 +407,13 @@ export function OutputPanel({
 }
 
 function BlockView({
-  block, lang, onEditChart,
-}: { block: Block; lang: Lang; onEditChart: (chartIndex: number, chart: ChartSpec) => void }) {
+  block, lang, onEditChart, onCopyChart,
+}: {
+  block: Block;
+  lang: Lang;
+  onEditChart: (chartIndex: number, chart: ChartSpec) => void;
+  onCopyChart: (chart: ChartSpec, caption?: string) => void;
+}) {
   const compact = typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
   if (block.type === 'text') {
     return (
@@ -346,6 +430,16 @@ function BlockView({
         {block.caption && <h5>{resolveLabel(lang, block.caption)}</h5>}
         <div className="chart-holder">
           <div dangerouslySetInnerHTML={{ __html: renderChart(block.chart, compact ? 380 : undefined) }} />
+          <button
+            type="button"
+            className="chart-copy-btn"
+            onClick={() => onCopyChart(block.chart, block.caption)}
+            title={t(lang, 'card.copyOne')}
+            aria-label={t(lang, 'card.copyOne')}
+            data-testid="chart-copy"
+          >
+            <IconCopy size={13} />
+          </button>
           <button
             type="button"
             className="chart-edit-btn"
@@ -368,6 +462,16 @@ function BlockView({
             <h5>{resolveLabel(lang, item.title)}</h5>
             <div className="chart-holder">
               <div dangerouslySetInnerHTML={{ __html: renderChart(item.chart, compact ? 380 : undefined) }} />
+              <button
+                type="button"
+                className="chart-copy-btn"
+                onClick={() => onCopyChart(item.chart, item.title)}
+                title={t(lang, 'card.copyOne')}
+                aria-label={t(lang, 'card.copyOne')}
+                data-testid={`chart-copy-${i}`}
+              >
+                <IconCopy size={13} />
+              </button>
               <button
                 type="button"
                 className="chart-edit-btn"

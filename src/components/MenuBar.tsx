@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Lang } from '../types';
 import { t } from '../lib/i18n';
 import { DATASETS } from '../lib/datasets';
-import { IconChevron } from './Icons';
+import { LAYOUT_PRESETS } from '../lib/layout';
+import { IconCheck, IconChevron } from './Icons';
 
 export type MenuAction =
   | 'new' | 'save' | 'open' | 'importCsv' | 'exportCsv' | 'importXlsx' | 'exportXlsx' | 'exportXlsxCurrent'
   | 'print' | 'undo' | 'redo' | 'copy' | 'paste'
   | 'clear' | 'insertRow' | 'deleteRow' | 'addColumn' | 'newSheet' | 'renameSheet' | 'deleteSheet'
-  | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout';
+  | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout' | 'toggleNav'
+  | 'layoutBalanced' | 'layoutSheet' | 'layoutResults' | 'layoutFocus';
 
 interface MenuLeaf {
   labelKey: string;
@@ -20,6 +22,8 @@ interface MenuLeaf {
   kbd?: string;
   separatorBefore?: boolean;
   disabled?: boolean;
+  /** menu shows a check mark (the active layout preset) */
+  active?: boolean;
   children?: MenuLeaf[];
 }
 
@@ -32,12 +36,25 @@ interface Props {
   lang: Lang;
   canUndo: boolean;
   canRedo: boolean;
+  navVisible: boolean;
+  layoutPreset: string;
+  /** wordmark rendered at the left end of the same bar as the menus */
+  brand?: ReactNode;
+  /** language · theme · kebab group rendered at the right end */
+  actions?: ReactNode;
   onAction: (action: MenuAction) => void;
   onAnalysis: (id: string, preset?: Record<string, unknown>) => void;
   onSample: (id: string) => void;
 }
 
-function buildMenus(canUndo: boolean, canRedo: boolean): MenuDef[] {
+const PRESET_ACTIONS: Record<string, MenuAction> = {
+  balanced: 'layoutBalanced',
+  sheet: 'layoutSheet',
+  results: 'layoutResults',
+  focus: 'layoutFocus',
+};
+
+function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, layoutPreset: string): MenuDef[] {
   return [
     {
       labelKey: 'menu.file',
@@ -180,6 +197,15 @@ function buildMenus(canUndo: boolean, canRedo: boolean): MenuDef[] {
             { labelKey: 'view.korean', action: 'langKo' },
           ],
         },
+        { labelKey: navVisible ? 'view.hideNavigator' : 'view.showNavigator', action: 'toggleNav', separatorBefore: true },
+        {
+          labelKey: 'view.layout',
+          children: LAYOUT_PRESETS.map((preset) => ({
+            labelKey: preset.labelKey,
+            action: PRESET_ACTIONS[preset.id],
+            active: preset.id === layoutPreset,
+          })),
+        },
         { labelKey: 'view.resetLayout', action: 'resetLayout', separatorBefore: true },
       ],
     },
@@ -193,11 +219,13 @@ function buildMenus(canUndo: boolean, canRedo: boolean): MenuDef[] {
   ];
 }
 
-export function MenuBar({ lang, canUndo, canRedo, onAction, onAnalysis, onSample }: Props) {
+export function MenuBar({
+  lang, canUndo, canRedo, navVisible, layoutPreset, brand, actions, onAction, onAnalysis, onSample,
+}: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const [sub, setSub] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
-  const menus = buildMenus(canUndo, canRedo);
+  const menus = buildMenus(canUndo, canRedo, navVisible, layoutPreset);
 
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
@@ -235,7 +263,9 @@ export function MenuBar({ lang, canUndo, canRedo, onAction, onAnalysis, onSample
   };
 
   return (
-    <div className="menubar" ref={ref} role="menubar" data-testid="menubar">
+    <div className="menubar" ref={ref} data-testid="menubar">
+      {brand}
+      <div className="menubar-menus" role="menubar" aria-label={t(lang, 'nav.menu')}>
       {menus.map((menu, index) => (
         <div className="menu-root" key={menu.labelKey}>
           <button
@@ -276,6 +306,7 @@ export function MenuBar({ lang, canUndo, canRedo, onAction, onAnalysis, onSample
                     onClick={() => (item.children ? setSub(item.labelKey) : pick(item))}
                   >
                     <span className="mi-label">{t(lang, item.labelKey)}</span>
+                    {item.active && <span className="mi-check"><IconCheck size={11} /></span>}
                     {item.kbd && <span className="mi-kbd">{item.kbd}</span>}
                     {item.children && <span className="mi-arrow"><IconChevron size={12} /></span>}
                   </button>
@@ -293,6 +324,7 @@ export function MenuBar({ lang, canUndo, canRedo, onAction, onAnalysis, onSample
                             data-testid={`menu-item-${child.analysis ?? child.action ?? child.sample ?? ''}`}
                           >
                             <span className="mi-label">{t(lang, child.labelKey)}</span>
+                            {child.active && <span className="mi-check"><IconCheck size={11} /></span>}
                             {child.kbd && <span className="mi-kbd">{child.kbd}</span>}
                           </button>
                         </div>
@@ -305,6 +337,9 @@ export function MenuBar({ lang, canUndo, canRedo, onAction, onAnalysis, onSample
           )}
         </div>
       ))}
+      </div>
+      <span className="header-spacer" />
+      {actions}
     </div>
   );
 }
