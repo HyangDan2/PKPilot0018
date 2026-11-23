@@ -4,12 +4,15 @@ import type { Lang } from '../types';
 import { t } from '../lib/i18n';
 import { DATASETS } from '../lib/datasets';
 import { IconChart, IconChevronDown, IconDownload, IconGrid, IconLayers, IconPlus, IconRerun, IconSigma, IconTable } from './Icons';
+import { WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../lib/workspace';
 
 interface Props {
   lang: Lang;
   sheetName: string;
   sheetColumns: number;
   canRerun: boolean;
+  workspaceLayout: WorkspaceLayout;
+  onWorkspaceLayout: (id: WorkspaceLayout) => void;
   onSample: (id: string) => void;
   onAnalysis: (id: string) => void;
   onNewSheet: () => void;
@@ -19,7 +22,9 @@ interface Props {
 
 interface Anchor { left: number; top: number; width: number }
 
-export function Toolbar({ lang, sheetName, sheetColumns, canRerun, onSample, onAnalysis, onNewSheet, onRerun, onExportCsv }: Props) {
+export function Toolbar({
+  lang, sheetName, sheetColumns, canRerun, workspaceLayout, onWorkspaceLayout, onSample, onAnalysis, onNewSheet, onRerun, onExportCsv,
+}: Props) {
   const [sampleOpen, setSampleOpen] = useState(false);
   const [anchor, setAnchor] = useState<Anchor>({ left: 0, top: 0, width: 280 });
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -133,6 +138,25 @@ export function Toolbar({ lang, sheetName, sheetColumns, canRerun, onSample, onA
       <button type="button" className="tool-btn" onClick={onExportCsv} data-testid="quick-export">
         <IconDownload size={15} /><span>{t(lang, 'tb.export')}</span>
       </button>
+
+      <span className="tool-sep" />
+
+      <div className="ws-switch" role="group" aria-label={t(lang, 'view.workspace')} data-testid="ws-switch">
+        {WORKSPACE_LAYOUTS.map((layout) => (
+          <button
+            key={layout.id}
+            type="button"
+            className="ws-switch-btn"
+            aria-pressed={workspaceLayout === layout.id}
+            onClick={() => onWorkspaceLayout(layout.id)}
+            title={t(lang, layout.hintKey)}
+            data-testid={`ws-layout-${layout.id}`}
+          >
+            <span className={`ws-icon ws-icon-${layout.id}`} aria-hidden />
+            <span className="ws-switch-label">{t(lang, `ws.short.${layout.id}`)}</span>
+          </button>
+        ))}
+      </div>
 
       <span className="tool-sep" />
       <span className="sheet-pill" title={sheetName}>

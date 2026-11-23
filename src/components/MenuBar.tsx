@@ -3,6 +3,7 @@ import type { Lang } from '../types';
 import { t } from '../lib/i18n';
 import { DATASETS } from '../lib/datasets';
 import { LAYOUT_PRESETS } from '../lib/layout';
+import { WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../lib/workspace';
 import { IconCheck, IconChevron } from './Icons';
 
 export type MenuAction =
@@ -10,7 +11,8 @@ export type MenuAction =
   | 'print' | 'undo' | 'redo' | 'copy' | 'cut' | 'paste'
   | 'clear' | 'insertRow' | 'deleteRow' | 'insertColumn' | 'deleteColumn' | 'addColumn' | 'newSheet' | 'renameSheet' | 'deleteSheet'
   | 'findReplace' | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout' | 'toggleNav'
-  | 'layoutBalanced' | 'layoutSheet' | 'layoutResults' | 'layoutFocus';
+  | 'layoutBalanced' | 'layoutSheet' | 'layoutResults' | 'layoutFocus'
+  | 'wsTri' | 'wsFocus' | 'wsClassic' | 'toggleDrawer';
 
 interface MenuLeaf {
   labelKey: string;
@@ -38,6 +40,7 @@ interface Props {
   canRedo: boolean;
   navVisible: boolean;
   layoutPreset: string;
+  workspaceLayout: WorkspaceLayout;
   /** wordmark rendered at the left end of the same bar as the menus */
   brand?: ReactNode;
   /** language · theme · kebab group rendered at the right end */
@@ -54,7 +57,13 @@ const PRESET_ACTIONS: Record<string, MenuAction> = {
   focus: 'layoutFocus',
 };
 
-function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, layoutPreset: string): MenuDef[] {
+const WORKSPACE_ACTIONS: Record<WorkspaceLayout, MenuAction> = {
+  tri: 'wsTri',
+  focus: 'wsFocus',
+  classic: 'wsClassic',
+};
+
+function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, layoutPreset: string, workspaceLayout: WorkspaceLayout): MenuDef[] {
   return [
     {
       labelKey: 'menu.file',
@@ -203,6 +212,14 @@ function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, lay
         },
         { labelKey: navVisible ? 'view.hideNavigator' : 'view.showNavigator', action: 'toggleNav', separatorBefore: true },
         {
+          labelKey: 'view.workspace',
+          children: WORKSPACE_LAYOUTS.map((layout) => ({
+            labelKey: layout.labelKey,
+            action: WORKSPACE_ACTIONS[layout.id],
+            active: layout.id === workspaceLayout,
+          })),
+        },
+        {
           labelKey: 'view.layout',
           children: LAYOUT_PRESETS.map((preset) => ({
             labelKey: preset.labelKey,
@@ -224,12 +241,12 @@ function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, lay
 }
 
 export function MenuBar({
-  lang, canUndo, canRedo, navVisible, layoutPreset, brand, actions, onAction, onAnalysis, onSample,
+  lang, canUndo, canRedo, navVisible, layoutPreset, workspaceLayout, brand, actions, onAction, onAnalysis, onSample,
 }: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const [sub, setSub] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
-  const menus = buildMenus(canUndo, canRedo, navVisible, layoutPreset);
+  const menus = buildMenus(canUndo, canRedo, navVisible, layoutPreset, workspaceLayout);
 
   useEffect(() => {
     const onDown = (event: MouseEvent) => {

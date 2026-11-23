@@ -19,8 +19,6 @@ import { fmtInt } from './lib/format';
 import { t } from './lib/i18n';
 import {
   DEFAULT_FLOAT_SIZES,
-  DEFAULT_NAV,
-  DEFAULT_OUTPUT,
   clampFloatSize,
   clampNav,
   clampOutput,
@@ -31,7 +29,21 @@ import {
   type LayoutPresetId,
   type PanelId,
 } from './lib/layout';
-import { IconDetach } from './components/Icons';
+import {
+  applyPresetToWorkspace,
+  clampDrawerW,
+  clampOutputW,
+  dragNav,
+  dragOutput,
+  resolveWorkspace,
+  setWorkspaceLayout,
+  triWidths,
+  writeWorkspace,
+  readWorkspace,
+  type WorkspaceLayout,
+  type WorkspaceState,
+} from './lib/workspace';
+import { IconDetach, IconRerun, IconX } from './components/Icons';
 import {
   PROJECT_ACCEPT,
   csvToWorksheet,
@@ -223,8 +235,7 @@ export default function App() {
   const [colDialog, setColDialog] = useState<null | { index: number; kind: 'name' | 'description'; draft: string }>(null);
   const [focusedOutput, setFocusedOutput] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [navW, setNavW] = useState(DEFAULT_NAV);
-  const [outputH, setOutputH] = useState(DEFAULT_OUTPUT);
+  const [ws, setWs] = useState<WorkspaceState>(readWorkspace);
   const [navHidden, setNavHidden] = useState(false);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPresetId>('balanced');
   const [detached, setDetached] = useState<Record<PanelId, FloatRect | null>>({ navigator: null, output: null, worksheet: null });
@@ -234,11 +245,15 @@ export default function App() {
   const [autosave, setAutosave] = useState<'saved' | 'saving'>('saved');
   const [hydrated, setHydrated] = useState(false);
   const [, forceHistory] = useState(0);
+  const [viewportW, setViewportW] = useState<number>(() => (typeof window === 'undefined' ? 1440 : window.innerWidth));
 
   const past = useRef<HistorySnapshot[]>([]);
   const future = useRef<HistorySnapshot[]>([]);
   const sheet = worksheets.find((w) => w.id === activeSheetId) ?? worksheets[0];
   const lang = settings.lang;
+  /* Stage 3 workspace: what is stored, and what this viewport can actually paint. */
+  const effectiveLayout = resolveWorkspace(ws.layout, viewportW);
+  const triCols = triWidths(viewportW, ws.navW, ws.outputW);
   const selection = sel.activeCell;
   const grid = computeGridSize(sheet);
   const selectionText = sel.mode === 'all' ? t(lang, 'sel.all') : describeSelection(sel, sheet);
@@ -295,6 +310,27 @@ export default function App() {
       /* ignore */
     }
   }, [floatSizes]);
+
+  /* ── Stage 3 workspace: viewport tracking and saved layout ─────────── */
+
+  useEffect(() => {
+    const onResize = () => setViewportW(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    writeWorkspace(typeof localStorage === 'undefined' ? null : localStorage, ws);
+  }, [ws]);
+
+  /* A narrower window can leave the output column below its legal minimum. */
+  useEffect(() => {
+    setWs((prev) => {
+      const outputW = clampOutputW(prev.outputW, viewportW, prev.navW);
+      const drawerW = clampDrawerW(prev.drawerW, viewportW);
+      return outputW === prev.outputW && drawerW === prev.drawerW ? prev : { ...prev, outputW, drawerW };
+    });
+  }, [viewportW]);
 
   /* A viewport resize pulls floating windows fully back on screen. */
   useEffect(() => {
@@ -920,6 +956,18 @@ export default function App() {
     setDialog({ def, initial: { ...lastDialog.values } });
   }, [lastDialog]);
 
+  /** One-click rerun for the worksheet drawer: no dialog, the current sheet. */
+  const rerunNow = () => {
+    if (!lastDialog) {
+      toast(t(lang, 'toast.noLastAnalysis'));
+      return;
+    }
+    const def = findAnalysis(lastDialog.analysisId);
+    if (!def) return;
+    const error = execute(def, { ...lastDialog.values });
+    toast(error ?? t(lang, 'toast.rerunDone'));
+  };
+
   const loadSample = (id: string) => {
     const def = DATASETS.find((ds) => ds.id === id);
     if (!def) return;
@@ -1111,12 +1159,17 @@ export default function App() {
 
   /* ── drag splitters ────────────────────────────────────────────────── */
 
-  const beginNavDrag = (event: React.PointerEvent) => {
+  /** One pointer drag, shared by every splitter and the drawer edge. */
+  const beginDrag = (
+    event: React.PointerEvent,
+    cursor: string,
+    onMove: (dx: number, dy: number) => void,
+  ) => {
     (event.currentTarget as HTMLElement).focus();
     event.preventDefault();
     const startX = event.clientX;
-    const startW = navW;
-    const move = (e: PointerEvent) => setNavW(Math.min(430, Math.max(180, startW + e.clientX - startX)));
+    const startY = event.clientY;
+    const move = (e: PointerEvent) => onMove(e.clientX - startX, e.clientY - startY);
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
@@ -1124,38 +1177,68 @@ export default function App() {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-    document.body.style.cursor = 'col-resize';
+    document.body.style.cursor = cursor;
   };
 
+  const beginNavDrag = (event: React.PointerEvent) => {
+    const start = { navW: ws.navW, outputW: ws.outputW };
+    beginDrag(event, 'col-resize', (dx) => {
+      const rects = dragNav(viewportW, start.navW, start.outputW, dx);
+      setWs((prev) => (prev.navW === rects.nav ? prev : { ...prev, navW: rects.nav }));
+    });
+  };
+
+  /** Splitter between the output and worksheet columns (three-panel mode). */
+  const beginOutputWidthDrag = (event: React.PointerEvent) => {
+    const start = { navW: ws.navW, outputW: ws.outputW };
+    beginDrag(event, 'col-resize', (dx) => {
+      const rects = dragOutput(viewportW, start.navW, start.outputW, dx);
+      setWs((prev) => (prev.outputW === rects.output ? prev : { ...prev, outputW: rects.output }));
+    });
+  };
+
+  /** The left edge of the focus-mode worksheet drawer. */
+  const beginDrawerDrag = (event: React.PointerEvent) => {
+    const startW = ws.drawerW;
+    beginDrag(event, 'col-resize', (dx) => {
+      const next = clampDrawerW(startW - dx, viewportW);
+      setWs((prev) => (prev.drawerW === next ? prev : { ...prev, drawerW: next }));
+    });
+  };
+
+  /** The classic stacked splitter between output and worksheet. */
   const beginOutputDrag = (event: React.PointerEvent) => {
-    (event.currentTarget as HTMLElement).focus();
-    event.preventDefault();
     const container = (event.currentTarget as HTMLElement).parentElement;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const move = (e: PointerEvent) => {
-      const pct = ((e.clientY - rect.top) / rect.height) * 100;
-      setOutputH(Math.min(82, Math.max(18, pct)));
-    };
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      document.body.style.cursor = '';
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    document.body.style.cursor = 'row-resize';
+    const startY = event.clientY;
+    beginDrag(event, 'row-resize', (_dx, dy) => {
+      const pct = ((startY + dy - rect.top) / rect.height) * 100;
+      setWs((prev) => {
+        const next = clampOutput(pct);
+        return prev.outputH === next ? prev : { ...prev, outputH: next };
+      });
+    });
   };
 
   /* ── layout presets & detached panels ─────────────────────────────── */
 
   const applyLayout = (id: LayoutPresetId) => {
     const preset = findPreset(id);
-    setNavW(clampNav(preset.navWidth));
-    setOutputH(clampOutput(preset.outputHeight));
-    setNavHidden(preset.navHidden);
+    setWs((prev) => applyPresetToWorkspace(prev, preset.id, viewportW));
     setLayoutPreset(preset.id);
+    setNavHidden(preset.navHidden);
     toast(t(lang, 'toast.layout', { name: t(lang, preset.labelKey) }));
+  };
+
+  /** Stage 3: switch between the three desktop arrangements. */
+  const applyWorkspaceLayout = (id: WorkspaceLayout) => {
+    setWs((prev) => setWorkspaceLayout(prev, id, viewportW));
+    toast(t(lang, 'toast.workspace', { name: t(lang, `ws.layout.${id}`) }));
+  };
+
+  const setDrawerOpen = (open: boolean) => {
+    setWs((prev) => (prev.drawerOpen === open ? prev : { ...prev, drawerOpen: open }));
   };
 
   const detachPanel = (id: PanelId) => {
@@ -1209,12 +1292,16 @@ export default function App() {
       case 'theme': setSettings((prev) => ({ ...prev, theme: prev.theme === 'dark' ? 'light' : 'dark' })); break;
       case 'langKo': setSettings((prev) => ({ ...prev, lang: 'ko' })); break;
       case 'langEn': setSettings((prev) => ({ ...prev, lang: 'en' })); break;
-      case 'resetLayout': applyLayout('balanced'); break;
+      case 'resetLayout': setNavHidden(false); applyLayout('balanced'); break;
       case 'toggleNav': setNavHidden((value) => !value); break;
       case 'layoutBalanced': applyLayout('balanced'); break;
       case 'layoutSheet': applyLayout('sheet'); break;
       case 'layoutResults': applyLayout('results'); break;
       case 'layoutFocus': applyLayout('focus'); break;
+      case 'wsTri': applyWorkspaceLayout('tri'); break;
+      case 'wsFocus': applyWorkspaceLayout('focus'); break;
+      case 'wsClassic': applyWorkspaceLayout('classic'); break;
+      case 'toggleDrawer': setDrawerOpen(!ws.drawerOpen); break;
       default: break;
     }
   };
@@ -1277,6 +1364,7 @@ export default function App() {
         onFocus={setFocusedOutput}
         onDelete={(id) => { setOutputs((prev) => prev.filter((o) => o.id !== id)); toast(t(lang, 'toast.outputDeleted')); }}
         onToggleCollapse={(id) => setOutputs((prev) => prev.map((o) => (o.id === id ? { ...o, collapsed: !o.collapsed } : o)))}
+        onCollapseAll={(collapsed) => setOutputs((prev) => (prev.every((o) => Boolean(o.collapsed) === collapsed) ? prev : prev.map((o) => ({ ...o, collapsed }))))}
         onToast={toast}
         onRerun={rerunWithOptions}
         onReproduce={reproduce}
@@ -1285,8 +1373,11 @@ export default function App() {
     </section>
   );
 
-  const worksheetNode = (floating: boolean) => (
-    <section className={`panel worksheet-panel${floating ? ' floating' : ''}`} data-hidden={floating ? false : mobileTab !== 'worksheet'}>
+  const worksheetNode = (floating: boolean, variant: 'docked' | 'drawer' = 'docked') => (
+    <section
+      className={`panel worksheet-panel${floating ? ' floating' : ''}${variant === 'drawer' ? ' drawer-panel' : ''}`}
+      data-hidden={floating || variant === 'drawer' ? false : mobileTab !== 'worksheet'}
+    >
       <div className="panel-head">
         {!floating && <span className="panel-title">{t(lang, 'panel.worksheet')}</span>}
         <span className="panel-count">
@@ -1294,9 +1385,27 @@ export default function App() {
         </span>
         <span className="spacer" />
         <span className="grid-hint">{t(lang, 'hint.grid')}</span>
+        {variant === 'drawer' && (
+          <button
+            type="button"
+            className="detach-btn drawer-rerun"
+            onClick={rerunNow}
+            disabled={!lastDialog}
+            title={t(lang, 'drawer.rerun')}
+            aria-label={t(lang, 'drawer.rerun')}
+            data-testid="drawer-rerun"
+          >
+            <IconRerun size={14} />
+          </button>
+        )}
         {!floating && (
           <button type="button" className="detach-btn" onClick={() => detachPanel('worksheet')} title={t(lang, 'panel.detach')} aria-label={t(lang, 'panel.detach')} data-testid="detach-worksheet">
             <IconDetach size={14} />
+          </button>
+        )}
+        {variant === 'drawer' && (
+          <button type="button" className="detach-btn" onClick={() => setDrawerOpen(false)} title={t(lang, 'drawer.close')} aria-label={t(lang, 'drawer.close')} data-testid="drawer-close">
+            <IconX size={14} />
           </button>
         )}
       </div>
@@ -1353,6 +1462,36 @@ export default function App() {
     </section>
   );
 
+  /** Classic / phone shell: the output pane stacked over the worksheet. */
+  const stackedPanels = () => (
+    <div className="main-panels" style={{ '--output-h': `${ws.outputH}%` } as React.CSSProperties} data-testid="main-panels">
+      {detached.output
+        ? <DetachSlot className="output-slot" lang={lang} label={t(lang, 'panel.outputDetached')} onDock={() => dockPanel('output')} testId="dock-slot-output" />
+        : outputNode(false)}
+
+      {!detached.output && (
+        <div
+          className="splitter horizontal"
+          onPointerDown={beginOutputDrag}
+          role="separator"
+          aria-orientation="horizontal"
+          tabIndex={0}
+          aria-label={t(lang, 'panel.output')}
+          aria-valuenow={Math.round(ws.outputH)}
+          data-testid="splitter-output-h"
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowUp') { event.preventDefault(); setWs((prev) => ({ ...prev, outputH: clampOutput(prev.outputH + 4) })); }
+            if (event.key === 'ArrowDown') { event.preventDefault(); setWs((prev) => ({ ...prev, outputH: clampOutput(prev.outputH - 4) })); }
+          }}
+        />
+      )}
+
+      {detached.worksheet
+        ? <DetachSlot className="worksheet-slot" lang={lang} label={t(lang, 'panel.worksheetDetached')} onDock={() => dockPanel('worksheet')} testId="dock-slot-worksheet" />
+        : worksheetNode(false)}
+    </div>
+  );
+
   return (
     <div className="app">
       <MenuBar
@@ -1361,6 +1500,7 @@ export default function App() {
         canRedo={future.current.length > 0}
         navVisible={!navHidden}
         layoutPreset={layoutPreset}
+        workspaceLayout={ws.layout}
         brand={<Brand lang={lang} />}
         actions={(
           <HeaderActions
@@ -1373,6 +1513,8 @@ export default function App() {
             onNewSheet={() => addSheet()}
             onResetLayout={() => applyLayout('balanced')}
             onLayout={applyLayout}
+            workspaceLayout={ws.layout}
+            onWorkspaceLayout={applyWorkspaceLayout}
           />
         )}
         onAction={onAction}
@@ -1385,6 +1527,8 @@ export default function App() {
         sheetName={sheet.name}
         sheetColumns={sheet.columns.length}
         canRerun={Boolean(lastDialog)}
+        workspaceLayout={ws.layout}
+        onWorkspaceLayout={applyWorkspaceLayout}
         onSample={loadSample}
         onAnalysis={openAnalysis}
         onNewSheet={() => addSheet()}
@@ -1404,7 +1548,18 @@ export default function App() {
         </button>
       </div>
 
-      <div className="workspace" style={{ '--nav-w': `${navW}px` } as React.CSSProperties}>
+      <div
+        className={`workspace ws-${effectiveLayout}`}
+        data-layout={effectiveLayout}
+        data-drawer={ws.drawerOpen ? 'open' : 'closed'}
+        data-testid="workspace"
+        style={{
+          '--nav-w': `${ws.navW}px`,
+          '--output-w': `${triCols.output}px`,
+          '--drawer-w': `${ws.drawerW}px`,
+          '--output-h': `${ws.outputH}%`,
+        } as React.CSSProperties}
+      >
         {!navHidden && !detached.navigator && navNode(false)}
         {!navHidden && detached.navigator && (
           <DetachSlot className="nav-slot" lang={lang} label={t(lang, 'panel.navigatorDetached')} onDock={() => dockPanel('navigator')} testId="dock-slot-navigator" />
@@ -1418,39 +1573,88 @@ export default function App() {
             aria-orientation="vertical"
             tabIndex={0}
             aria-label={t(lang, 'view.navigator')}
-            aria-valuenow={Math.round(navW)}
+            aria-valuenow={Math.round(ws.navW)}
+            data-testid="splitter-nav"
             onKeyDown={(event) => {
-              if (event.key === 'ArrowLeft') { event.preventDefault(); setNavW((w) => clampNav(w - 24)); }
-              if (event.key === 'ArrowRight') { event.preventDefault(); setNavW((w) => clampNav(w + 24)); }
+              if (event.key === 'ArrowLeft') { event.preventDefault(); setWs((prev) => ({ ...prev, navW: clampNav(prev.navW - 24) })); }
+              if (event.key === 'ArrowRight') { event.preventDefault(); setWs((prev) => ({ ...prev, navW: clampNav(prev.navW + 24) })); }
             }}
           />
         )}
 
-        <div className="main-panels" style={{ '--output-h': `${outputH}%` } as React.CSSProperties} data-testid="main-panels">
-          {detached.output
-            ? <DetachSlot className="output-slot" lang={lang} label={t(lang, 'panel.outputDetached')} onDock={() => dockPanel('output')} testId="dock-slot-output" />
-            : outputNode(false)}
+        {(effectiveLayout === 'classic' || effectiveLayout === 'mobile') && stackedPanels()}
 
-          {!detached.output && (
-            <div
-              className="splitter horizontal"
-              onPointerDown={beginOutputDrag}
-              role="separator"
-              aria-orientation="horizontal"
-              tabIndex={0}
-              aria-label={t(lang, 'panel.output')}
-              aria-valuenow={Math.round(outputH)}
-              onKeyDown={(event) => {
-                if (event.key === 'ArrowUp') { event.preventDefault(); setOutputH((h) => clampOutput(h + 4)); }
-                if (event.key === 'ArrowDown') { event.preventDefault(); setOutputH((h) => clampOutput(h - 4)); }
-              }}
-            />
-          )}
+        {effectiveLayout === 'tri' && (
+          <>
+            {detached.output
+              ? <DetachSlot className="output-slot" lang={lang} label={t(lang, 'panel.outputDetached')} onDock={() => dockPanel('output')} testId="dock-slot-output" />
+              : outputNode(false)}
 
-          {detached.worksheet
-            ? <DetachSlot className="worksheet-slot" lang={lang} label={t(lang, 'panel.worksheetDetached')} onDock={() => dockPanel('worksheet')} testId="dock-slot-worksheet" />
-            : worksheetNode(false)}
-        </div>
+            {!detached.output && (
+              <div
+                className="splitter"
+                onPointerDown={beginOutputWidthDrag}
+                role="separator"
+                aria-orientation="vertical"
+                tabIndex={0}
+                aria-label={t(lang, 'panel.output')}
+                aria-valuenow={triCols.output}
+                data-testid="splitter-output"
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowLeft') { event.preventDefault(); setWs((prev) => ({ ...prev, outputW: clampOutputW(prev.outputW - 32, viewportW, prev.navW) })); }
+                  if (event.key === 'ArrowRight') { event.preventDefault(); setWs((prev) => ({ ...prev, outputW: clampOutputW(prev.outputW + 32, viewportW, prev.navW) })); }
+                }}
+              />
+            )}
+
+            {detached.worksheet
+              ? <DetachSlot className="worksheet-slot" lang={lang} label={t(lang, 'panel.worksheetDetached')} onDock={() => dockPanel('worksheet')} testId="dock-slot-worksheet" />
+              : worksheetNode(false)}
+          </>
+        )}
+
+        {effectiveLayout === 'focus' && (
+          <div className="focus-main" data-testid="focus-main">
+            {detached.output
+              ? <DetachSlot className="output-slot" lang={lang} label={t(lang, 'panel.outputDetached')} onDock={() => dockPanel('output')} testId="dock-slot-output" />
+              : outputNode(false)}
+
+            {ws.drawerOpen && (
+              <aside className="ws-drawer" id="worksheet-drawer" style={{ width: ws.drawerW }} data-testid="worksheet-drawer" aria-label={t(lang, 'panel.worksheet')}>
+                <div
+                  className="drawer-rz"
+                  role="separator"
+                  aria-orientation="vertical"
+                  tabIndex={0}
+                  aria-label={t(lang, 'drawer.resize')}
+                  aria-valuenow={Math.round(ws.drawerW)}
+                  data-testid="drawer-resize"
+                  onPointerDown={beginDrawerDrag}
+                  onKeyDown={(event) => {
+                    if (event.key === 'ArrowLeft') { event.preventDefault(); setWs((prev) => ({ ...prev, drawerW: clampDrawerW(prev.drawerW + 24, viewportW) })); }
+                    if (event.key === 'ArrowRight') { event.preventDefault(); setWs((prev) => ({ ...prev, drawerW: clampDrawerW(prev.drawerW - 24, viewportW) })); }
+                  }}
+                />
+                {detached.worksheet
+                  ? <DetachSlot className="worksheet-slot" lang={lang} label={t(lang, 'panel.worksheetDetached')} onDock={() => dockPanel('worksheet')} testId="dock-slot-worksheet" />
+                  : worksheetNode(false, 'drawer')}
+              </aside>
+            )}
+
+            <button
+              type="button"
+              className="drawer-tab"
+              onClick={() => setDrawerOpen(!ws.drawerOpen)}
+              aria-expanded={ws.drawerOpen}
+              aria-controls="worksheet-drawer"
+              title={ws.drawerOpen ? t(lang, 'drawer.close') : t(lang, 'drawer.open')}
+              data-testid="drawer-toggle"
+            >
+              <span className="drawer-tab-label">{t(lang, 'panel.worksheet')}</span>
+              <span className="drawer-tab-chevron" aria-hidden>{ws.drawerOpen ? '›' : '‹'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {detached.navigator && (

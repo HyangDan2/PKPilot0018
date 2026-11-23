@@ -343,8 +343,8 @@ async function partMenus(browser) {
   // menu near the bottom-right corner is clamped
   await page.evaluate(() => { const wrap = document.querySelector('.grid-wrap'); if (wrap) wrap.scrollTop = wrap.scrollHeight; });
   await page.waitForTimeout(400);
-  const gridBox2 = await page.locator('[data-testid=worksheet-grid]').boundingBox();
-  await page.mouse.click(gridBox2.x + 70, gridBox2.y + gridBox2.height - 26, { button: 'right' });
+  const gridBox2 = await page.locator('.grid-wrap').boundingBox();
+  await page.mouse.click(gridBox2.x + 90, gridBox2.y + gridBox2.height - 46, { button: 'right' });
   await page.waitForSelector('[data-testid=ctx-menu]');
   await page.waitForTimeout(250);
   const nearBox = await page.locator('[data-testid=ctx-menu]').evaluate((el) => {

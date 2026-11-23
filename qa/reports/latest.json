@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-23T12:51:40+09:00",
-  "commit": "928afee16ff1611c68985bc363ae60e514c3c15b",
+  "generated_at": "2026-11-23T13:36:38+09:00",
+  "commit": "8217293d2de128f5186ab2eee46ceaa277d9a9ea",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
    "node": "v22.20.0",
-   "commit": "928afee16ff1611c68985bc363ae60e514c3c15b",
+   "commit": "8217293d2de128f5186ab2eee46ceaa277d9a9ea",
    "cases": 156,
-   "generatedAt": "2026-11-23T03:51:25.192Z"
+   "generatedAt": "2026-11-23T04:36:13.008Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",

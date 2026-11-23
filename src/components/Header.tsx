@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Lang, Settings } from '../types';
 import { t } from '../lib/i18n';
-import { IconDots, IconDownload, IconExternal, IconLayout, IconMoon, IconPlus, IconSun } from './Icons';
+import { IconCheck, IconDots, IconDownload, IconExternal, IconLayout, IconMoon, IconPlus, IconSun } from './Icons';
 import type { LayoutPresetId } from '../lib/layout';
 import { LAYOUT_PRESETS } from '../lib/layout';
+import { WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../lib/workspace';
 
 /** The HD2Lab wordmark: the official dual-skew `.mark` (CSS), never an SVG logo. */
 export function Brand({ lang }: { lang: Lang }) {
@@ -28,11 +29,14 @@ interface ActionsProps {
   onNewSheet: () => void;
   onResetLayout: () => void;
   onLayout: (id: LayoutPresetId) => void;
+  workspaceLayout: WorkspaceLayout;
+  onWorkspaceLayout: (id: WorkspaceLayout) => void;
 }
 
 /** Language, theme and the kebab portal menu — the right end of the single top bar. */
 export function HeaderActions({
   settings, onToggleTheme, onLang, onHelp, onSaveProject, onOpenProject, onNewSheet, onResetLayout, onLayout,
+  workspaceLayout, onWorkspaceLayout,
 }: ActionsProps) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -116,6 +120,14 @@ export function HeaderActions({
             <button type="button" role="menuitem" className="menu-item" onClick={run(onToggleTheme)}>
               <span className="mi-label">{dark ? t(lang, 'theme.toLight') : t(lang, 'theme.toDark')}</span>
             </button>
+            <span className="menu-sep" />
+            <p className="mono-note" style={{ padding: '4px 8px 2px' }}>{t(lang, 'view.workspace')}</p>
+            {WORKSPACE_LAYOUTS.map((layout) => (
+              <button key={layout.id} type="button" role="menuitem" className="menu-item" onClick={run(() => onWorkspaceLayout(layout.id))} data-testid={`kebab-ws-${layout.id}`}>
+                <span className="mi-label">{t(lang, layout.labelKey)}</span>
+                <span className="mi-kbd">{workspaceLayout === layout.id ? <IconCheck size={12} /> : <IconLayout size={12} />}</span>
+              </button>
+            ))}
             <span className="menu-sep" />
             <p className="mono-note" style={{ padding: '4px 8px 2px' }}>{t(lang, 'view.layout')}</p>
             {LAYOUT_PRESETS.map((preset) => (

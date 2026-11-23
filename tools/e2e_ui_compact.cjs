@@ -283,6 +283,9 @@ async function partPanels(browser, errors) {
   check('navigator docks back', (await page.locator('.navigator').count()) === 1);
 
   const outH = async () => (await page.locator('.output-panel').boundingBox()).height;
+  // Stage 3: the height presets act on the classic stacked shell, so switch to it first.
+  await page.click('[data-testid=ws-layout-classic]');
+  await page.waitForTimeout(350);
   const balancedH = await outH();
   await pickLayout(page, 'Worksheet focus');
   const sheetH = await outH();
@@ -296,6 +299,9 @@ async function partPanels(browser, errors) {
   check('balanced preset restores the navigator', (await page.locator('[data-testid=navigator]').count()) === 1);
   const restoredH = await outH();
   check('balanced preset restores the split', Math.abs(restoredH - balancedH) <= 2, `${Math.round(restoredH)}`);
+
+  await page.click('[data-testid=ws-layout-tri]');
+  await page.waitForTimeout(350);
 
   await page.screenshot({ path: `${OUT}/ui-compact-pc.png` });
   await ctx.close();
