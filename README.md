@@ -25,7 +25,7 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 | Quality tools | Pareto chart with 80 % cumulative line |
 | Graphs | Histogram (normal overlay, spec limits), boxplot (groups, outliers), scatterplot (several Y × several X, XY pairs, individual/panel/overlaid layout, groups, shared scales, fit line and per-pair statistics), time series plot |
 | Calc | Column formula calculator (`C1 * 2 + 1`, `MEAN(C1)`, `SQRT`, `LN`, `LOG`, `ROUND`, …), seeded random data, sort, standardize, recode |
-| Workspace | Multiple worksheets, Excel/CSV multi-cell paste, undo/redo, `.mpx.json` projects, CSV import/export, IndexedDB autosave |
+| Workspace | Multiple worksheets, Excel/CSV multi-cell paste, undo/redo, `.mpx.json` projects, CSV import/export, IndexedDB autosave; three desktop arrangements (three-panel · focus drawer · classic) with saved widths |
 
 ## Interface
 
@@ -36,7 +36,26 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 - `KO | EN` toggle translates the top bar, toolbar, navigator, panel headers, dialogs and help.
 - Soft Iris (light) and Navy & Lavender (dark) themes, both defined in `src/styles/tokens.css`.
 - Panel layout presets (`View ▸ Panel layout`, also in the `⋮` menu): *Balanced*, *Worksheet
-  focus*, *Results & charts focus*, *Full focus* (navigator folded away).
+  focus*, *Results & charts focus*, *Full focus* (navigator folded away). The same four presets
+  move the three-panel output column or the classic split, whichever is on screen.
+- Three workspace arrangements, switched from the toolbar (`3-panel · Focus · Classic`), from
+  `View ▸ Workspace layout` and from the `⋮` menu:
+  - **Three-panel** (default) — `[ Navigator ][ Output ][ Worksheet ]` left to right, each column
+    with its own minimum width and a drag splitter (arrow keys work too); charts and the virtual
+    grid re-measure through `ResizeObserver` as a column changes width.
+  - **Focus mode** — the output takes the full workspace and the worksheet slides in from the right
+    as a resizable drawer. The drawer is the same live grid: cell editing, selection, copy/paste,
+    its own right-click menus, and a one-click rerun of the last analysis against the edited sheet.
+  - **Classic mode** — the Phase 1 shell, output above worksheet.
+  The chosen arrangement, every column width and the drawer width are stored in `localStorage`
+  (`sigrun.workspace.v1`) and come back after a reload. A desktop narrower than 1200 px folds the
+  three panels back to classic on its own (the stored choice is kept), and the phone/tablet shell
+  below 1024 px is unchanged.
+- Right-click a result card: copy the results as text, copy or save the chart image, export its
+  table, rerun the analysis on the current sheet, reproduce from the card's snapshot, collapse or
+  expand it, or delete it — the same actions as the card header, positioned near the pointer and
+  clamped to the viewport (`Esc` closes). Right-clicking the empty output copies every result or
+  collapses/expands all cards.
 - Detach any panel — navigator, output, worksheet — into a floating window from the panel header,
   drag it by its title bar, resize it from any edge or corner (the bottom-right grip also takes
   arrow keys), and dock it back from the window header. The detached panel is the
@@ -51,7 +70,7 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 ```bash
 npm install
 npm run dev        # http://localhost:5178
-npm test           # 567 unit tests (statistics, SPC, parser, project files, charts, layout, i18n, input audit, scatter Stage 2, QA-F regressions)
+npm test           # 583 unit tests (statistics, SPC, parser, project files, charts, layout, workspace layouts, i18n, input audit, scatter Stage 2, QA-F regressions)
 npm run qa:stats   # independent reference QA → qa/reports/latest.html
 npm run typecheck  # tsc --noEmit
 npm run build      # production bundle in dist/
@@ -62,6 +81,7 @@ npm run build      # production bundle in dist/
 PART=ui node tools/e2e_ui_compact.cjs     # ui · panels · mobile (or no PART for all)
 node tools/e2e_chart_axes.cjs             # Cure Study 2-sample t boxplot axis regression
 node tools/e2e_stage2.cjs                 # scatter Stage 2: Y×X, XY pairs, groups, save/reopen (LIVE=1 for Pages)
+node tools/e2e_stage3.cjs                 # Stage 3: 15 scenarios at 1366×768 and 1920×1080 + report screenshots
 ```
 
 The statistical engine is dependency-free: `src/lib/dist.ts` (normal, t, F and studentized-range

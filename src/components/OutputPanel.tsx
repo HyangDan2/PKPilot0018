@@ -4,6 +4,7 @@ import { fmtTime } from '../lib/format';
 import { resolveLabel, t } from '../lib/i18n';
 import { downloadBlob, downloadFile } from '../lib/project';
 import { inlineTheme, renderChart } from '../lib/charts';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { IconChevronDown, IconCopy, IconDownload, IconPrinter, IconRerun, IconTrash, IconX } from './Icons';
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
   onFocus: (id: string) => void;
   onDelete: (id: string) => void;
   onToggleCollapse: (id: string) => void;
+  onCollapseAll: (collapsed: boolean) => void;
   onToast: (message: string) => void;
   onRerun: (output: OutputDoc) => void;
   onReproduce: (output: OutputDoc) => void;
@@ -50,6 +52,58 @@ function tableCsv(blocks: Block[], lang: Lang): string {
     lines.push('');
   });
   return lines.join('\r\n');
+}
+
+/** The card as plain text: titles, text lines and tab-separated tables. */
+export function cardText(output: OutputDoc, lang: Lang): string {
+  const lines: string[] = [t(lang, output.titleKey)];
+  if (output.subtitle) lines.push(output.subtitle);
+  output.blocks.forEach((block) => {
+    if (block.type === 'text') {
+      block.lines.forEach((line) => lines.push(resolveLabel(lang, line)));
+      return;
+    }
+    if (block.type === 'chart') {
+      if (block.caption) lines.push(`[${resolveLabel(lang, block.caption)}]`);
+      return;
+    }
+    if (block.type === 'chartgrid') {
+      block.charts.forEach((item) => { if (item.title) lines.push(`[${resolveLabel(lang, item.title)}]`); });
+      return;
+    }
+    if (block.title) lines.push(resolveLabel(lang, block.title));
+    lines.push(block.headers.map((header) => resolveLabel(lang, header)).join('\t'));
+    block.rows.forEach((row) => {
+      lines.push(row.map((cell) => (typeof cell === 'string' ? resolveLabel(lang, cell) : String(cell))).join('\t'));
+    });
+  });
+  return lines.join('\n');
+}
+
+/** Clipboard text, with the textarea fallback older browsers still need. */
+async function writeTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through to the legacy path */
+  }
+  try {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    const ok = typeof document.execCommand === 'function' ? document.execCommand('copy') : false;
+    area.remove();
+    return ok;
+  } catch {
+    return false;
+  }
 }
 
 const SVG_WIDTH = 560;
@@ -158,11 +212,66 @@ function replaceChart(block: Block, chartIndex: number, chart: ChartSpec): Block
 }
 
 export function OutputPanel({
-  lang, outputs, focusedOutput, onFocus, onDelete, onToggleCollapse, onToast, onRerun, onReproduce, onUpdateBlocks,
+  lang, outputs, focusedOutput, onFocus, onDelete, onToggleCollapse, onCollapseAll, onToast, onRerun, onReproduce, onUpdateBlocks,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [edit, setEdit] = useState<ChartEdit | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; outputId: string | null } | null>(null);
   const [draft, setDraft] = useState({ title: '', xLabel: '', yLabel: '', bins: '', normal: false });
+
+  /** Copy text blocks and tables of one card (or every card) to the clipboard. */
+  const copyAsText = async (text: string) => {
+    if (!text.trim()) {
+      onToast(t(lang, 'toast.textCopyEmpty'));
+      return;
+    }
+    const ok = await writeTextToClipboard(text);
+    onToast(t(lang, ok ? 'toast.textCopied' : 'toast.textCopyFailed'));
+  };
+
+  const cardMenuItems = (output: OutputDoc): ContextMenuItem[] => [
+    { id: 'out-copy-text', label: t(lang, 'outctx.copyText'), onSelect: () => void copyAsText(cardText(output, lang)) },
+    { id: 'out-copy-chart', label: t(lang, 'outctx.copyChart'), onSelect: () => void handleCopy(output) },
+    { id: 'out-save-chart', label: t(lang, 'outctx.saveChart'), onSelect: () => void handlePng(output) },
+    { id: 'out-csv', label: t(lang, 'outctx.csv'), onSelect: () => handleCsv(output) },
+    { id: 'out-sep-1', label: '', separator: true },
+    { id: 'out-rerun', label: t(lang, 'outctx.rerun'), onSelect: () => onRerun(output) },
+    { id: 'out-reproduce', label: t(lang, 'outctx.reproduce'), onSelect: () => onReproduce(output) },
+    { id: 'out-sep-2', label: '', separator: true },
+    {
+      id: 'out-collapse',
+      label: t(lang, output.collapsed ? 'outctx.expand' : 'outctx.collapse'),
+      onSelect: () => onToggleCollapse(output.id),
+    },
+    { id: 'out-sep-3', label: '', separator: true },
+    { id: 'out-delete', label: t(lang, 'outctx.delete'), danger: true, onSelect: () => onDelete(output.id) },
+  ];
+
+  const areaMenuItems = (): ContextMenuItem[] => [
+    {
+      id: 'area-copy-all',
+      label: t(lang, 'outctx.copyAll'),
+      disabled: outputs.length === 0,
+      onSelect: () => void copyAsText(outputs.map((output) => cardText(output, lang)).join('\n\n')),
+    },
+    { id: 'area-sep-1', label: '', separator: true },
+    { id: 'area-collapse-all', label: t(lang, 'outctx.collapseAll'), disabled: !outputs.some((o) => !o.collapsed), onSelect: () => onCollapseAll(true) },
+    { id: 'area-expand-all', label: t(lang, 'outctx.expandAll'), disabled: !outputs.some((o) => o.collapsed), onSelect: () => onCollapseAll(false) },
+  ];
+
+  const openCardMenu = (event: React.MouseEvent, output: OutputDoc) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onFocus(output.id);
+    setMenu({ x: event.clientX, y: event.clientY, outputId: output.id });
+  };
+
+  const openAreaMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+    setMenu({ x: event.clientX, y: event.clientY, outputId: null });
+  };
+
+  const menuOutput = menu?.outputId ? outputs.find((output) => output.id === menu.outputId) : undefined;
 
   const openEditor = (output: OutputDoc, blockIndex: number, chartIndex: number, chart: ChartSpec) => {
     setEdit({ outputId: output.id, blockIndex, chartIndex, chart });
@@ -270,7 +379,7 @@ export function OutputPanel({
   };
 
   return (
-    <div className="output-scroll" ref={scrollRef} data-testid="output-panel">
+    <div className="output-scroll" ref={scrollRef} data-testid="output-panel" onContextMenu={openAreaMenu}>
       {outputs.length === 0 && (
         <div className="out-empty">
           <b>{t(lang, 'out.emptyTitle')}</b>
@@ -284,6 +393,7 @@ export function OutputPanel({
           id={`card-${output.id}`}
           className={`out-card${output.collapsed ? ' collapsed' : ''}${focusedOutput === output.id ? ' focused' : ''}`}
           onClick={() => onFocus(output.id)}
+          onContextMenu={(event) => openCardMenu(event, output)}
           data-testid="out-card"
         >
           <div className="out-head">
@@ -351,6 +461,16 @@ export function OutputPanel({
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0 10px' }}>
           <span className="mono-note">SIGRÚN · {outputs.length} · {t(lang, 'panel.cards', { n: outputs.length })}</span>
         </div>
+      )}
+
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label={t(lang, 'outctx.title')}
+          items={menuOutput ? cardMenuItems(menuOutput) : areaMenuItems()}
+          onClose={() => setMenu(null)}
+        />
       )}
 
       {edit && (

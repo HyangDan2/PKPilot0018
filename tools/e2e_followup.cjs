@@ -1,9 +1,20 @@
 /* Sigrún follow-up QA — live browser E2E for the chart rules and sheet
    transforms (QA-U-01…09) against the built app served by `vite preview`. */
-const { chromium } = require('/workspace/repos/PKPilot0011/node_modules/playwright');
+const { chromium } = (() => {
+  for (const candidate of [
+    process.env.PLAYWRIGHT_PATH,
+    '/workspace/repos/PKPilot0015/node_modules/playwright',
+    '/workspace/repos/PKPilot0011/node_modules/playwright',
+    '/workspace/tmp-pwlibs/root/usr/lib/node_modules/playwright',
+    'playwright',
+  ].filter(Boolean)) {
+    try { return require(candidate); } catch { /* next install */ }
+  }
+  throw new Error('playwright is not installed in any known location');
+})();
 
 const STEP = (m) => console.log('[step]', m);
-const BASE = 'http://localhost:4178/PKPilot0018/';
+const BASE = process.env.BASE || 'http://localhost:4178/PKPilot0018/';
 const OUT = '/workspace/downloads';
 
 async function openMenu(page, testid) {
