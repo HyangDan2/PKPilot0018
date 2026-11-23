@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { renderChart, ticks } from '../src/lib/charts';
+import { boxplotStats, renderChart, ticks } from '../src/lib/charts';
 import { capability } from '../src/lib/capability';
+import { DATASETS } from '../src/lib/datasets';
 import { imrChart, pChart, xbarRCharts } from '../src/lib/spc';
 import type { ChartSpec } from '../src/types';
 
@@ -163,6 +164,66 @@ describe('histogram geometry', () => {
     expect(withNaN).not.toContain('NaN');
     const empty = renderChart({ kind: 'histogram', values: [] });
     expect(empty).toContain('No finite data');
+  });
+});
+
+describe('axis ticks match the plotted scale', () => {
+  const cure = DATASETS.find((d) => d.id === 'comparison')!.build();
+  const column = (name: string) => cure.columns.find((c) => c.name === name)!.values as number[];
+  const hardness = column('Hardness');
+  const before = column('Before');
+
+  /** Y-axis tick labels and the y pixel each label is drawn at. */
+  function yTicksOf(svg: string): { value: number; pixel: number }[] {
+    return [...svg.matchAll(/<text x="47" y="([\d.]+)" text-anchor="end"[^>]*>([-\d.]+)<\/text>/g)].map((m) => ({
+      pixel: Number(m[1]) - 3, // the label baseline sits 3px below its tick
+      value: Number(m[2]),
+    }));
+  }
+
+  it('draws the Cure Study Hardness vs Before boxplot on the same scale as its tick labels', () => {
+    const svg = renderChart({
+      kind: 'boxplot',
+      groups: [{ label: 'Hardness', values: hardness }, { label: 'Before', values: before }],
+      yLabel: 'Hardness',
+      title: 'Hardness vs Before',
+    });
+    const marks = yTicksOf(svg);
+    expect(marks.length).toBeGreaterThanOrEqual(3);
+    const [first, second] = marks;
+    const slope = (second.pixel - first.pixel) / (second.value - first.value);
+    expect(slope).toBeLessThan(0);
+    // Every tick uses that one linear scale (positions are rounded to 0.1px).
+    marks.forEach((mark) => expect(Math.abs(mark.pixel - (first.pixel + (mark.value - first.value) * slope))).toBeLessThan(0.5));
+    const yAt = (value: number) => first.pixel + (value - first.value) * slope;
+
+    // The box top/bottom and the median line are drawn at q3/q1/median.
+    const box = /<rect x="[-\d.]+" y="([-\d.]+)" width="[-\d.]+" height="([-\d.]+)" fill="var\(--chart-1\)" opacity="0.18"/.exec(svg);
+    expect(box).not.toBeNull();
+    const top = Number(box![1]);
+    const height = Number(box![2]);
+    const stats = boxplotStats([...hardness].sort((a, b) => a - b));
+    expect(Math.abs(top - yAt(stats.q3))).toBeLessThan(0.5);
+    expect(Math.abs(top + height - yAt(stats.q1))).toBeLessThan(0.5);
+    const median = /<line x1="[-\d.]+" y1="([-\d.]+)" x2="[-\d.]+" y2="[-\d.]+" stroke="var\(--chart-1\)" stroke-width="2.2"/.exec(svg);
+    expect(median).not.toBeNull();
+    expect(Math.abs(Number(median![1]) - yAt(stats.median))).toBeLessThan(0.5);
+
+    // No plotted value falls outside the plot box (top 18, height 190).
+    const rawMin = Math.min(...hardness, ...before);
+    const rawMax = Math.max(...hardness, ...before);
+    expect(yAt(rawMin)).toBeLessThanOrEqual(208.5);
+    expect(yAt(rawMax)).toBeGreaterThanOrEqual(17.5);
+    // The old bug mapped 60..90 over the full height while the data spanned
+    // 55.4..91.9, so the lowest values landed below the plot: the tick scale
+    // must now place the outer data inside the box.
+    expect(yAt(rawMin)).toBeLessThan(208.5);
+  });
+
+  it('names the red hollow ring as a 1.5×IQR outlier', () => {
+    const svg = renderChart({ kind: 'boxplot', groups: [{ label: 'A', values: [1, 2, 3, 4, 5, 100] }] });
+    expect(svg).toContain('Outlier · 1.5×IQR');
+    expect(svg).toContain('<title>Outlier 100 · outside 1.5×IQR</title>');
   });
 });
 

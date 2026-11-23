@@ -195,10 +195,76 @@ async function partPanels(browser, errors) {
   check('floating window drags by its header', Math.abs(after.x - before.x) > 40 || Math.abs(after.y - before.y) > 30,
     `${Math.round(before.x)},${Math.round(before.y)} → ${Math.round(after.x)},${Math.round(after.y)}`);
   check('dragged window stays on screen', after.x + after.width <= 1441 && after.y + after.height <= 901 && after.x >= -after.width + 96);
+
+  // ── resize from the bottom-right corner ─────────────────────────────
+  const chartBefore = await page.locator('[data-testid=float-output] .chart-svg').first().boundingBox();
+  const grip = await page.locator('[data-testid=float-output-resize-se]').boundingBox();
+  check('bottom-right resize grip is visible', Boolean(grip) && grip.width >= 12 && grip.height >= 12,
+    grip ? `${Math.round(grip.width)}×${Math.round(grip.height)}` : 'missing');
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 140, grip.y + grip.height / 2 + 60, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForTimeout(350);
+  const resized = await page.locator('[data-testid=float-output]').boundingBox();
+  check('bottom-right corner grows the window', resized.width >= after.width + 100 && resized.height >= after.height + 40,
+    `${Math.round(after.width)}×${Math.round(after.height)} → ${Math.round(resized.width)}×${Math.round(resized.height)}`);
+  check('resized window stays inside the viewport', resized.x + resized.width <= 1441 && resized.y + resized.height <= 901,
+    `${Math.round(resized.x + resized.width)},${Math.round(resized.y + resized.height)}`);
+  const chartAfter = await page.locator('[data-testid=float-output] .chart-svg').first().boundingBox();
+  check('chart redraws at the new width', chartAfter.width > chartBefore.width + 15,
+    `${Math.round(chartBefore.width)} → ${Math.round(chartAfter.width)}`);
+  const overflowX = await page.evaluate(() => {
+    const body = document.querySelector('[data-testid=float-output] .float-body');
+    return body ? body.scrollWidth - body.clientWidth : -1;
+  });
+  check('resized body does not overflow sideways', overflowX <= 1, `${overflowX}px`);
+
   await page.click('[data-testid=float-output-dock]');
   await page.waitForTimeout(300);
   check('docking restores the docked output panel', (await page.locator('[data-testid=float-output]').count()) === 0
     && (await page.locator('.output-panel').count()) === 1);
+
+  // the last size survives docking, re-detaching and a page reload
+  await page.click('[data-testid=detach-output]');
+  await page.waitForTimeout(300);
+  const reopened = await page.locator('[data-testid=float-output]').boundingBox();
+  check('re-detached window reopens at the resized size', Math.abs(reopened.width - resized.width) <= 3 && Math.abs(reopened.height - resized.height) <= 3,
+    `${Math.round(reopened.width)}×${Math.round(reopened.height)} vs ${Math.round(resized.width)}×${Math.round(resized.height)}`);
+  await page.click('[data-testid=float-output-dock]');
+  await page.waitForTimeout(250);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('[data-testid=menubar]');
+  await page.waitForSelector('[data-testid=detach-output]');
+  await page.click('[data-testid=detach-output]');
+  await page.waitForTimeout(300);
+  const remembered = await page.locator('[data-testid=float-output]').boundingBox();
+  check('reloaded page re-detaches at the remembered size', Math.abs(remembered.width - resized.width) <= 3 && Math.abs(remembered.height - resized.height) <= 3,
+    `${Math.round(remembered.width)}×${Math.round(remembered.height)} vs ${Math.round(resized.width)}×${Math.round(resized.height)}`);
+
+  // west edge and the minimum-size floor
+  const westGrip = await page.locator('[data-testid=float-output-resize-w]').boundingBox();
+  const westBefore = await page.locator('[data-testid=float-output]').boundingBox();
+  await page.mouse.move(westGrip.x + westGrip.width / 2, westGrip.y + 80);
+  await page.mouse.down();
+  await page.mouse.move(westGrip.x + westGrip.width / 2 - 120, westGrip.y + 80, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const westAfter = await page.locator('[data-testid=float-output]').boundingBox();
+  check('west edge widens the window and keeps its right edge fixed', westAfter.width >= westBefore.width + 100
+    && Math.abs((westAfter.x + westAfter.width) - (westBefore.x + westBefore.width)) <= 2,
+    `x ${Math.round(westBefore.x)}→${Math.round(westAfter.x)}, w ${Math.round(westBefore.width)}→${Math.round(westAfter.width)}`);
+  const minGrip = await page.locator('[data-testid=float-output-resize-se]').boundingBox();
+  await page.mouse.move(minGrip.x + minGrip.width / 2, minGrip.y + minGrip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(5, 5, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const floored = await page.locator('[data-testid=float-output]').boundingBox();
+  check('resize stops at the minimum window size', Math.round(floored.width) === 360 && Math.round(floored.height) === 240,
+    `${Math.round(floored.width)}×${Math.round(floored.height)}`);
+  await page.click('[data-testid=float-output-dock]');
+  await page.waitForTimeout(250);
 
   await page.click('[data-testid=detach-worksheet]');
   await page.waitForTimeout(250);

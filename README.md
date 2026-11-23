@@ -36,8 +36,10 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 - Panel layout presets (`View ▸ Panel layout`, also in the `⋮` menu): *Balanced*, *Worksheet
   focus*, *Results & charts focus*, *Full focus* (navigator folded away).
 - Detach any panel — navigator, output, worksheet — into a floating window from the panel header,
-  drag it by its title bar, and dock it back from the window header. The detached panel is the
-  same live panel, so charts, worksheets and selections keep their state.
+  drag it by its title bar, resize it from any edge or corner (the bottom-right grip also takes
+  arrow keys), and dock it back from the window header. The detached panel is the
+  same live panel, so charts, worksheets and selections keep their state; the last size is
+  remembered across docking, re-detaching and page reloads, and charts redraw at the new width.
 - Charts copy to the clipboard as PNG (`navigator.clipboard.write` + `ClipboardItem`) from the
   card header (all charts of the card) or the per-chart button; browsers without clipboard-image
   support get the identical PNG downloaded instead, with a notice that says so.
@@ -47,14 +49,16 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 ```bash
 npm install
 npm run dev        # http://localhost:5178
-npm test           # 286 unit tests (statistics, SPC, parser, project files, charts, layout, i18n, QA-F regressions)
+npm test           # 295 unit tests (statistics, SPC, parser, project files, charts, layout, i18n, QA-F regressions)
 npm run qa:stats   # independent reference QA → qa/reports/latest.html
 npm run typecheck  # tsc --noEmit
 npm run build      # production bundle in dist/
 
 # live browser E2E for the compact top bar, sample-dropdown layer, chart clipboard,
-# floating panels and layout presets (needs playwright + a preview server on :4178)
+# floating panels (drag · resize · remembered size) and layout presets
+# (needs playwright + a preview server on :4178)
 PART=ui node tools/e2e_ui_compact.cjs     # ui · panels · mobile (or no PART for all)
+node tools/e2e_chart_axes.cjs             # Cure Study 2-sample t boxplot axis regression
 ```
 
 The statistical engine is dependency-free: `src/lib/dist.ts` (normal, t, F and studentized-range

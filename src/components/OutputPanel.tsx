@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Block, ChartSpec, Lang, OutputDoc } from '../types';
 import { fmtTime } from '../lib/format';
 import { resolveLabel, t } from '../lib/i18n';
@@ -406,6 +406,45 @@ export function OutputPanel({
   );
 }
 
+const CHART_MIN_WIDTH = 280;
+const CHART_MAX_WIDTH = 780;
+
+/**
+ * Renders a chart at the width its card actually has. A ResizeObserver feeds
+ * the measured width back in, so widening or narrowing a floating output
+ * window redraws the chart at that width instead of stretching a fixed SVG.
+ */
+function ChartCanvas({ chart, compact }: { chart: ChartSpec; compact: boolean }) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [measured, setMeasured] = useState(compact ? 380 : 560);
+
+  useEffect(() => {
+    const node = hostRef.current;
+    if (!node) return;
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      const next = Math.round(node.clientWidth);
+      if (next > 0) setMeasured((prev) => (Math.abs(prev - next) >= 1 ? next : prev));
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(read);
+    };
+    read();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    observer?.observe(node);
+    window.addEventListener('resize', schedule);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener('resize', schedule);
+    };
+  }, []);
+
+  const width = Math.max(CHART_MIN_WIDTH, Math.min(measured, CHART_MAX_WIDTH));
+  return <div ref={hostRef} className="chart-canvas" dangerouslySetInnerHTML={{ __html: renderChart(chart, width) }} />;
+}
+
 function BlockView({
   block, lang, onEditChart, onCopyChart,
 }: {
@@ -429,7 +468,7 @@ function BlockView({
       <div className="chart-card">
         {block.caption && <h5>{resolveLabel(lang, block.caption)}</h5>}
         <div className="chart-holder">
-          <div dangerouslySetInnerHTML={{ __html: renderChart(block.chart, compact ? 380 : undefined) }} />
+          <ChartCanvas chart={block.chart} compact={compact} />
           <button
             type="button"
             className="chart-copy-btn"
@@ -461,7 +500,7 @@ function BlockView({
           <div className="chart-card" key={i}>
             <h5>{resolveLabel(lang, item.title)}</h5>
             <div className="chart-holder">
-              <div dangerouslySetInnerHTML={{ __html: renderChart(item.chart, compact ? 380 : undefined) }} />
+              <ChartCanvas chart={item.chart} compact={compact} />
               <button
                 type="button"
                 className="chart-copy-btn"

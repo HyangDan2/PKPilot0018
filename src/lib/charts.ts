@@ -82,16 +82,33 @@ function open(w: number, h: number, label: string): string {
   return `<svg class="chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}" preserveAspectRatio="xMidYMid meet">`;
 }
 
-function axes(box: Box, xTicks: number[], yTicks: number[], xStep: number, yStep: number, xLabel?: string, yLabel?: string): string {
+function axes(
+  box: Box,
+  xTicks: number[],
+  yTicks: number[],
+  xStep: number,
+  yStep: number,
+  sx: (v: number) => number,
+  sy: (v: number) => number,
+  xLabel?: string,
+  yLabel?: string,
+): string {
   let g = '';
   const { x, y, w, h } = box;
+  // Ticks are positioned with the very same scale as the plotted data. A tick
+  // that the nice-number rounding pushed outside the plot domain is skipped so
+  // its grid line and label cannot sit outside the box.
+  const inPlotY = (py: number) => py >= y - 0.01 && py <= y + h + 0.01;
+  const inPlotX = (px: number) => px >= x - 0.01 && px <= x + w + 0.01;
   yTicks.forEach((t) => {
-    const yy = y + h - ((t - yTicks[0]) / (yTicks[yTicks.length - 1] - yTicks[0] || 1)) * h;
+    const yy = sy(t);
+    if (!inPlotY(yy)) return;
     g += `<line x1="${x}" y1="${yy.toFixed(1)}" x2="${x + w}" y2="${yy.toFixed(1)}" stroke="${C.grid}" stroke-width="1"/>`;
     g += `<text x="${x - 7}" y="${(yy + 3).toFixed(1)}" text-anchor="end" font-family="${MONO}" font-size="${FS}" fill="${C.label}">${esc(tickLabel(t, yStep))}</text>`;
   });
   xTicks.forEach((t) => {
-    const xx = x + ((t - xTicks[0]) / (xTicks[xTicks.length - 1] - xTicks[0] || 1)) * w;
+    const xx = sx(t);
+    if (!inPlotX(xx)) return;
     g += `<line x1="${xx.toFixed(1)}" y1="${y + h}" x2="${xx.toFixed(1)}" y2="${y + h + 4}" stroke="${C.axis}" stroke-width="1"/>`;
     g += `<text x="${xx.toFixed(1)}" y="${y + h + 16}" text-anchor="middle" font-family="${MONO}" font-size="${FS}" fill="${C.label}">${esc(tickLabel(t, xStep))}</text>`;
   });
@@ -265,6 +282,8 @@ function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>): string 
     yTicks,
     niceStep((hi - lo) / 6),
     niceStep(yMax / 4),
+    sx,
+    sy,
     spec.xLabel,
     spec.yLabel ?? 'Frequency',
   );
@@ -318,8 +337,9 @@ function drawBoxplot(spec: Extract<ChartSpec, { kind: 'boxplot' }>): string {
   const box: Box = { x: 54, y: 18, w: W - 74, h: h - 60 };
   const yTicks = ticks(yMin, yMax, 5);
   const yStep = niceStep((yMax - yMin) / 5);
-  const { sy } = scales(box, 0, 1, yMin, yMax);
-  let g = axes(box, [], yTicks, 1, yStep, undefined, spec.yLabel ?? 'Value');
+  const { sx, sy } = scales(box, 0, 1, yMin, yMax);
+  let g = axes(box, [], yTicks, 1, yStep, sx, sy, undefined, spec.yLabel ?? 'Value');
+  let hasOutliers = false;
   const k = spec.groups.length;
   const slot = box.w / Math.max(1, k);
   spec.groups.forEach((group, i) => {
@@ -337,12 +357,18 @@ function drawBoxplot(spec: Extract<ChartSpec, { kind: 'boxplot' }>): string {
     g += `<rect x="${(cx - bw / 2).toFixed(1)}" y="${sy(q3).toFixed(1)}" width="${bw}" height="${Math.max(1, sy(q1) - sy(q3)).toFixed(1)}" fill="${color}" opacity="0.18" stroke="${color}" stroke-width="1.4" rx="3"/>`;
     g += `<line x1="${(cx - bw / 2).toFixed(1)}" y1="${sy(med).toFixed(1)}" x2="${(cx + bw / 2).toFixed(1)}" y2="${sy(med).toFixed(1)}" stroke="${color}" stroke-width="2.2"/>`;
     g += `<circle cx="${cx}" cy="${sy(stats.mean).toFixed(1)}" r="2.4" fill="${C.surface}" stroke="${color}" stroke-width="1.4"/>`;
+    if (stats.outliers.length) hasOutliers = true;
     stats.outliers.forEach((out) => {
-      g += `<circle cx="${cx}" cy="${sy(out).toFixed(1)}" r="2.6" fill="none" stroke="${C.alarm}" stroke-width="1.2" opacity="0.85"/>`;
+      g += `<circle cx="${cx}" cy="${sy(out).toFixed(1)}" r="2.6" fill="none" stroke="${C.alarm}" stroke-width="1.2" opacity="0.85"><title>${esc(`Outlier ${fmt(out, 3)} · outside 1.5×IQR`)}</title></circle>`;
     });
     g += `<text x="${cx}" y="${(box.y + box.h + 30).toFixed(1)}" text-anchor="middle" font-size="${FS}" fill="${C.label}">${esc(truncate(group.label, 12))}</text>`;
     g += `<text x="${cx}" y="${(box.y + box.h + 41).toFixed(1)}" text-anchor="middle" font-family="${MONO}" font-size="8" fill="${C.label}">n=${v.length}</text>`;
   });
+  if (hasOutliers) {
+    // The hollow red ring is the 1.5×IQR outlier marker; name it above the plot.
+    g += `<circle cx="${W - 104}" cy="9" r="2.8" fill="none" stroke="${C.alarm}" stroke-width="1.2"/>`;
+    g += `<text x="${W - 97}" y="12" font-size="8.5" fill="${C.label}">Outlier · 1.5×IQR</text>`;
+  }
   return open(W, h, spec.title ?? 'Boxplot') + g + '</svg>';
 }
 
@@ -371,7 +397,7 @@ function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>): string {
   const xTicks = ticks(xMin, xMax, 5);
   const yTicks = ticks(yMin, yMax, 5);
   const { sx, sy } = scales(box, xMin, xMax, yMin, yMax);
-  let g = axes(box, xTicks, yTicks, niceStep((xMax - xMin) / 5), niceStep((yMax - yMin) / 5), spec.xLabel, spec.yLabel);
+  let g = axes(box, xTicks, yTicks, niceStep((xMax - xMin) / 5), niceStep((yMax - yMin) / 5), sx, sy, spec.xLabel, spec.yLabel);
   const groups = spec.groups ?? [];
   spec.points.forEach((p) => {
     const idx = p.g ? groups.indexOf(p.g) : 0;
@@ -383,7 +409,10 @@ function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>): string {
     const x2 = xMax - (xMax - xMin) * 0.03;
     const y1 = spec.fit.intercept + spec.fit.slope * x1;
     const y2 = spec.fit.intercept + spec.fit.slope * x2;
-    g += `<line x1="${sx(x1).toFixed(1)}" y1="${sy(y1).toFixed(1)}" x2="${sx(x2).toFixed(1)}" y2="${sy(y2).toFixed(1)}" stroke="${C.series[4]}" stroke-width="2" opacity="0.9"/>`;
+    // A steep fit can predict outside the padded y range: clip the line to the plot.
+    const fitClip = `sigrun-clip-${(clipSeq += 1)}`;
+    g += `<defs><clipPath id="${fitClip}"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath></defs>`;
+    g += `<g clip-path="url(#${fitClip})"><line x1="${sx(x1).toFixed(1)}" y1="${sy(y1).toFixed(1)}" x2="${sx(x2).toFixed(1)}" y2="${sy(y2).toFixed(1)}" stroke="${C.series[4]}" stroke-width="2" opacity="0.9"/></g>`;
   }
   return open(W, h, spec.title ?? 'Scatterplot') + g + '</svg>';
 }
@@ -400,7 +429,7 @@ function drawTimeseries(spec: Extract<ChartSpec, { kind: 'timeseries' }>): strin
   const yTicks = ticks(yMin - yPad, yMax + yPad, 5);
   const xTicks = ticks(1, values.length, 6);
   const { sx, sy } = scales(box, 1, Math.max(2, values.length), yTicks[0], yTicks[yTicks.length - 1]);
-  let g = axes(box, xTicks, yTicks, niceStep(Math.max(1, values.length / 6)), niceStep((yTicks[yTicks.length - 1] - yTicks[0]) / 5), spec.xLabel ?? 'Observation', spec.yLabel);
+  let g = axes(box, xTicks, yTicks, niceStep(Math.max(1, values.length / 6)), niceStep((yTicks[yTicks.length - 1] - yTicks[0]) / 5), sx, sy, spec.xLabel ?? 'Observation', spec.yLabel);
   const pts = values.map((v, i) => `${sx(i + 1).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
   g += `<polyline points="${pts}" fill="none" stroke="${C.series[0]}" stroke-width="1.6" opacity="0.85"/>`;
   values.forEach((v, i) => { g += `<circle cx="${sx(i + 1).toFixed(1)}" cy="${sy(v).toFixed(1)}" r="2.4" fill="${C.series[0]}"/>`; });
@@ -474,8 +503,8 @@ function drawControl(spec: Extract<ChartSpec, { kind: 'control' }>): string {
   const box: Box = { x: 60, y: 22, w: W - 84, h: h - 66 };
   const xTicks = ticks(1, Math.max(2, panel.points.length), 6);
   const yTicks = ticks(lo, hi, 5);
-  const { sy } = scales(box, 1, Math.max(2, panel.points.length), yTicks[0], yTicks[yTicks.length - 1]);
-  let g = axes(box, xTicks, yTicks, niceStep(Math.max(1, panel.points.length / 6)), niceStep((yTicks[yTicks.length - 1] - yTicks[0]) / 5), spec.xLabel ?? 'Observation', spec.yLabel);
+  const { sx, sy } = scales(box, 1, Math.max(2, panel.points.length), yTicks[0], yTicks[yTicks.length - 1]);
+  let g = axes(box, xTicks, yTicks, niceStep(Math.max(1, panel.points.length / 6)), niceStep((yTicks[yTicks.length - 1] - yTicks[0]) / 5), sx, sy, spec.xLabel ?? 'Observation', spec.yLabel);
   g += `<line x1="${box.x}" y1="${sy(panel.center).toFixed(1)}" x2="${box.x + box.w}" y2="${sy(panel.center).toFixed(1)}" stroke="${C.series[0]}" stroke-width="1.4"/>`;
   const step = box.w / Math.max(1, panel.points.length - 1);
   if (Array.isArray(panel.ucl)) {
@@ -509,8 +538,8 @@ function drawPareto(spec: Extract<ChartSpec, { kind: 'pareto' }>): string {
   const box: Box = { x: 54, y: 18, w: W - 88, h: h - 78 };
   const maxCount = Math.max(1, ...items.map((i) => i.count));
   const yTicks = ticks(0, maxCount * 1.1, 5);
-  const { sy } = scales(box, 0, 1, 0, yTicks[yTicks.length - 1]);
-  let g = axes(box, [], yTicks, 1, niceStep((yTicks[yTicks.length - 1]) / 5), undefined, 'Count');
+  const { sx, sy } = scales(box, 0, 1, 0, yTicks[yTicks.length - 1]);
+  let g = axes(box, [], yTicks, 1, niceStep((yTicks[yTicks.length - 1]) / 5), sx, sy, undefined, 'Count');
   const rightX = box.x + box.w;
   [0, 20, 40, 60, 80, 100].forEach((p) => {
     const yy = box.y + box.h - (p / 100) * box.h;
@@ -571,7 +600,7 @@ function drawCapability(spec: Extract<ChartSpec, { kind: 'capability' }>): strin
   const xTicks = ticks(lo, hi, 6);
   const yTicks = ticks(0, yMax, 4);
   const sc = scales(box, lo, hi, 0, yMax);
-  let g = axes(box, xTicks, yTicks, niceStep((hi - lo) / 6), niceStep(yMax / 4), spec.xLabel ?? 'Measurement', 'Frequency');
+  let g = axes(box, xTicks, yTicks, niceStep((hi - lo) / 6), niceStep(yMax / 4), sc.sx, sc.sy, spec.xLabel ?? 'Measurement', 'Frequency');
   // Bars sit on their real bin edges in x, matching the curve and ticks.
   counts.forEach((count, i) => {
     if (!count) return;
@@ -610,8 +639,8 @@ function drawInterval(spec: Extract<ChartSpec, { kind: 'interval' }>): string {
   const [lo, hi] = pad(extent(all), 0.12);
   const yTicks = ticks(lo, hi, 5);
   const yStep = niceStep((hi - lo) / 5);
-  const { sy } = scales(box, 0, 1, yTicks[0], yTicks[yTicks.length - 1]);
-  let g = axes(box, [], yTicks, 1, yStep, undefined, spec.yLabel);
+  const { sx, sy } = scales(box, 0, 1, yTicks[0], yTicks[yTicks.length - 1]);
+  let g = axes(box, [], yTicks, 1, yStep, sx, sy, undefined, spec.yLabel);
   const slot = box.w / Math.max(1, spec.groups.length);
   spec.groups.forEach((group, i) => {
     const cx = box.x + slot * (i + 0.5);
@@ -647,6 +676,7 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>): string {
   const { x, y, w, h: bh } = box;
   yTicks.forEach((t) => {
     const yy = sy(t);
+    if (yy < y - 0.01 || yy > y + bh + 0.01) return;
     g += `<line x1="${x}" y1="${yy.toFixed(1)}" x2="${x + w}" y2="${yy.toFixed(1)}" stroke="${C.grid}" stroke-width="1"/>`;
     g += `<text x="${x - 7}" y="${(yy + 3).toFixed(1)}" text-anchor="end" font-family="${MONO}" font-size="${FS}" fill="${C.label}">${esc(tickLabel(t, yStep))}</text>`;
   });
@@ -654,6 +684,7 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>): string {
   const labelEvery = Math.max(1, Math.ceil(xTicks.length / 8));
   xTicks.forEach((t, index) => {
     const xx = sx(t);
+    if (xx < x - 0.01 || xx > x + w + 0.01) return;
     g += `<line x1="${xx.toFixed(1)}" y1="${y + bh}" x2="${xx.toFixed(1)}" y2="${y + bh + 4}" stroke="${C.axis}"/>`;
     if (index % labelEvery === 0) {
       const label = spec.xLabels ? spec.xLabels[Math.round(t)] ?? '' : tickLabel(t, xStep);
@@ -705,8 +736,8 @@ function drawBar(spec: Extract<ChartSpec, { kind: 'bar' }>): string {
   const hi = Math.max(0, ...values);
   const [yMin, yMax] = pad([lo, hi === lo ? lo + 1 : hi], 0.1);
   const yTicks = ticks(yMin, yMax, 5);
-  const { sy } = scales(box, 0, 1, yTicks[0], yTicks[yTicks.length - 1]);
-  let g = axes(box, [], yTicks, 1, niceStep((yTicks[yTicks.length - 1] - yTicks[0]) / 5), undefined, spec.yLabel);
+  const { sx, sy } = scales(box, 0, 1, yTicks[0], yTicks[yTicks.length - 1]);
+  let g = axes(box, [], yTicks, 1, niceStep((yTicks[yTicks.length - 1] - yTicks[0]) / 5), sx, sy, undefined, spec.yLabel);
   const slot = box.w / Math.max(1, items.length);
   const barW = Math.min(58, slot * 0.62);
   const zero = sy(Math.max(yMin, Math.min(yMax, 0)));
