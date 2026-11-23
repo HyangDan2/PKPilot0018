@@ -876,7 +876,7 @@ export default function App() {
   const outputNode = (floating: boolean) => (
     <section className={`panel output-panel${floating ? ' floating' : ''}`} data-hidden={floating ? false : mobileTab !== 'output'}>
       <div className="panel-head">
-        <span className="panel-title">{t(lang, 'panel.output')}</span>
+        {!floating && <span className="panel-title">{t(lang, 'panel.output')}</span>}
         <span className="panel-count">{outputs.length}</span>
         <span className="spacer" />
         <span className="mono-note">{t(lang, 'status.last')} · {lastTitle}</span>
@@ -904,7 +904,7 @@ export default function App() {
   const worksheetNode = (floating: boolean) => (
     <section className={`panel worksheet-panel${floating ? ' floating' : ''}`} data-hidden={floating ? false : mobileTab !== 'worksheet'}>
       <div className="panel-head">
-        <span className="panel-title">{t(lang, 'panel.worksheet')}</span>
+        {!floating && <span className="panel-title">{t(lang, 'panel.worksheet')}</span>}
         <span className="panel-count">
           {fmtInt(rowCount(sheet))} × {sheet.columns.length}
         </span>

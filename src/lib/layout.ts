@@ -33,8 +33,8 @@ export interface FloatRect { x: number; y: number; w: number; h: number }
 
 const FLOAT_SIZES: Record<PanelId, { w: number; h: number }> = {
   navigator: { w: 306, h: 452 },
-  output: { w: 780, h: 460 },
-  worksheet: { w: 720, h: 440 },
+  output: { w: 780, h: 560 },
+  worksheet: { w: 720, h: 540 },
 };
 
 export function findPreset(id: string): LayoutPreset {
