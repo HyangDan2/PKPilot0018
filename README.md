@@ -7,7 +7,9 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 **Correctness review:** [docs/CODE_REVIEW_REMEDIATION_REPORT.md](docs/CODE_REVIEW_REMEDIATION_REPORT.md) — P0/P1/GLM-DOE-RSM fixes with their SciPy/statsmodels references and the QA-01…QA-15 matrix.
 
-**Independent statistics QA:** [`qa/reports/latest.html`](qa/reports/latest.html) — 155 cases compared against a NumPy/SciPy/statsmodels reference engine (`npm run qa:stats`, also run in CI by `.github/workflows/qa-stats.yml`). Inventory: [`qa/inventory.md`](qa/inventory.md).
+**Minitab feature gap audit:** [docs/MINITAB_FEATURE_GAP.md](docs/MINITAB_FEATURE_GAP.md) — all 40 analyses compared with the official Minitab dialogs (SUPPORTED / PARTIAL / MISSING / DIFFERENT), with code evidence, document links and P1/P2 priorities.
+
+**Independent statistics QA:** [`qa/reports/latest.html`](qa/reports/latest.html) — 156 cases compared against a NumPy/SciPy/statsmodels reference engine (`npm run qa:stats`, also run in CI by `.github/workflows/qa-stats.yml`). Inventory: [`qa/inventory.md`](qa/inventory.md).
 
 ## What is inside
 
@@ -21,7 +23,7 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 | Control charts | I-MR, Xbar-R (A₂, d₂, D₃, D₄), P chart, with all eight Nelson rules flagged on the chart and in a table |
 | Capability | Cp, Cpk, CPL, CPU, Pp, Ppk, PPL, PPU, Cpm, expected/observed PPM, DPMO, sigma level, histogram + normal curve |
 | Quality tools | Pareto chart with 80 % cumulative line |
-| Graphs | Histogram (normal overlay, spec limits), boxplot (groups, outliers), scatterplot (fit line, groups), time series plot |
+| Graphs | Histogram (normal overlay, spec limits), boxplot (groups, outliers), scatterplot (several Y × several X, XY pairs, individual/panel/overlaid layout, groups, shared scales, fit line and per-pair statistics), time series plot |
 | Calc | Column formula calculator (`C1 * 2 + 1`, `MEAN(C1)`, `SQRT`, `LN`, `LOG`, `ROUND`, …), seeded random data, sort, standardize, recode |
 | Workspace | Multiple worksheets, Excel/CSV multi-cell paste, undo/redo, `.mpx.json` projects, CSV import/export, IndexedDB autosave |
 
@@ -49,7 +51,7 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 ```bash
 npm install
 npm run dev        # http://localhost:5178
-npm test           # 295 unit tests (statistics, SPC, parser, project files, charts, layout, i18n, QA-F regressions)
+npm test           # 567 unit tests (statistics, SPC, parser, project files, charts, layout, i18n, input audit, scatter Stage 2, QA-F regressions)
 npm run qa:stats   # independent reference QA → qa/reports/latest.html
 npm run typecheck  # tsc --noEmit
 npm run build      # production bundle in dist/
@@ -59,6 +61,7 @@ npm run build      # production bundle in dist/
 # (needs playwright + a preview server on :4178)
 PART=ui node tools/e2e_ui_compact.cjs     # ui · panels · mobile (or no PART for all)
 node tools/e2e_chart_axes.cjs             # Cure Study 2-sample t boxplot axis regression
+node tools/e2e_stage2.cjs                 # scatter Stage 2: Y×X, XY pairs, groups, save/reopen (LIVE=1 for Pages)
 ```
 
 The statistical engine is dependency-free: `src/lib/dist.ts` (normal, t, F and studentized-range

@@ -91,6 +91,15 @@ export type ChartSpec =
       groups?: string[];
       xLabel?: string;
       yLabel?: string;
+      /** Several X-Y combinations drawn in one frame (overlaid layout). */
+      series?: { label: string; points: { x: number; y: number }[]; fit?: { intercept: number; slope: number } | null }[];
+      /** Fixed axis range so every panel of a grid can share one scale. */
+      xDomain?: [number, number];
+      yDomain?: [number, number];
+      /** Statistics written inside the plot (Pearson r, R², regression equation). */
+      notes?: string[];
+      /** Draw a legend for the series or the By groups. */
+      legend?: boolean;
     })
   | (ChartBase & {
       kind: 'timeseries';

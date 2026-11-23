@@ -833,9 +833,20 @@ export default function App() {
     setTimeout(() => document.getElementById(`card-${doc.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
   };
 
+  /**
+   * A run reports an interface message, or a message key that carries values:
+   * `res.numericOnly|col=Speed` turns into "Speed is not a numeric column…".
+   */
   const errorText = (error: unknown): string => {
     const message = error instanceof Error ? error.message : 'dlg.error';
-    return message.includes('.') ? t(lang, message) : message;
+    if (!message.includes('.')) return message;
+    const [key, ...rest] = message.split('|');
+    const vars: Record<string, string> = {};
+    rest.forEach((part) => {
+      const at = part.indexOf('=');
+      if (at > 0) vars[part.slice(0, at)] = part.slice(at + 1);
+    });
+    return t(lang, key, Object.keys(vars).length ? vars : undefined);
   };
 
   const execute = (def: AnalysisDef, values: Record<string, unknown>): string | null => {
