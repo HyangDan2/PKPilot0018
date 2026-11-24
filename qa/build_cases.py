@@ -744,7 +744,7 @@ V.append(case(
         ],
         "probes": [[0, 0], [10, 10], [20, 20], [5, 15], [15, 5]],
     },
-    [f("node_ratio", "feasible_area"), f("area_ratio_fine", "feasible_area"),
+    [f("node_ratio", "feasible_area"), f("area_ratio", "feasible_area"),
      f("feasible_nodes", "grid_count"), f("total_nodes"), f("narrow"),
      f("probe_feasible", kind="string"),
      f("response_0_node_ratio", "feasible_area"), f("response_1_node_ratio", "feasible_area")]
@@ -763,9 +763,9 @@ V.append(case(
             {"name": "Y1", "lsl": 50.0, "usl": 62.0, "target": 58.0},
             {"name": "Y2", "lsl": 28.0, "usl": 46.0, "target": 36.0},
         ],
-        "probes": [[20, 20], [10, 10], [30, 30]],
+        "probes": [[20, 20], [10, 10], [18, 18]],
     },
-    [f("node_ratio", "feasible_area"), f("area_ratio_fine", "feasible_area"),
+    [f("node_ratio", "feasible_area"), f("area_ratio", "feasible_area"),
      f("probe_feasible", kind="string"), f("interval_blocked", kind="string"),
      f("response_0_node_ratio", "feasible_area"), f("response_1_node_ratio", "feasible_area")],
     note=(
@@ -782,9 +782,9 @@ V.append(case(
             {"name": "Y1", "lsl": 50.0, "usl": 62.0, "target": 58.0},
             {"name": "Y2", "lsl": 28.0, "usl": 46.0, "target": 36.0},
         ],
-        "probes": [[20, 20], [10, 10], [30, 30]],
+        "probes": [[20, 20], [10, 10], [18, 18]],
     },
-    [f("node_ratio", "feasible_area"), f("area_ratio_fine", "feasible_area"),
+    [f("node_ratio", "feasible_area"), f("area_ratio", "feasible_area"),
      f("probe_feasible", kind="string"),
      f("response_0_node_ratio", "feasible_area"), f("response_1_node_ratio", "feasible_area")],
     note="예측구간은 ŷ±t·√(SE²+mse) 전체가 규격 안에 들어야 하므로 신뢰구간보다 항상 좁거나 같다(QA-V-04와 대조).",
@@ -801,7 +801,7 @@ V.append(case(
         "probes": [[0, 0], [10, 10]],
     },
     [f("feasible_nodes"), f("node_ratio"), f("narrow", kind="number"),
-     f("probe_feasible", kind="string"), f("area_ratio_fine")],
+     f("probe_feasible", kind="string"), f("area_ratio")],
     note="만족 격자점 0 → narrow=1 경고. 면적비 0.",
 ))
 areas["QA-V-stage3b-surface.json"] = ("QA-V", V)

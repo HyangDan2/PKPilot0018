@@ -270,7 +270,7 @@
      "tol": "feasible_area"
     },
     {
-     "key": "area_ratio_fine",
+     "key": "area_ratio",
      "tol": "feasible_area"
     },
     {
@@ -377,8 +377,8 @@
       10
      ],
      [
-      30,
-      30
+      18,
+      18
      ]
     ]
    },
@@ -388,7 +388,7 @@
      "tol": "feasible_area"
     },
     {
-     "key": "area_ratio_fine",
+     "key": "area_ratio",
      "tol": "feasible_area"
     },
     {
@@ -459,8 +459,8 @@
       10
      ],
      [
-      30,
-      30
+      18,
+      18
      ]
     ]
    },
@@ -470,7 +470,7 @@
      "tol": "feasible_area"
     },
     {
-     "key": "area_ratio_fine",
+     "key": "area_ratio",
      "tol": "feasible_area"
     },
     {
@@ -554,7 +554,7 @@
      "kind": "string"
     },
     {
-     "key": "area_ratio_fine"
+     "key": "area_ratio"
     }
    ],
    "note": "만족 격자점 0 → narrow=1 경고. 면적비 0."

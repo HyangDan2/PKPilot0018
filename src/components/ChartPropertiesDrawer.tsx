@@ -124,8 +124,8 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 }
 
 function NumberField({
-  label, value, onChange, min, max, step, placeholder,
-}: { label: string; value: number | null | undefined; onChange: (value: number | null) => void; min?: number; max?: number; step?: number; placeholder?: string }) {
+  label, value, onChange, min, max, step, placeholder, testId,
+}: { label: string; value: number | null | undefined; onChange: (value: number | null) => void; min?: number; max?: number; step?: number; placeholder?: string; testId?: string }) {
   return (
     <Row label={label}>
       <input
@@ -137,6 +137,7 @@ function NumberField({
         step={step}
         placeholder={placeholder}
         onChange={(event) => onChange(num(event.target.value))}
+        {...(testId ? { 'data-testid': testId } : {})}
       />
     </Row>
   );
@@ -151,11 +152,11 @@ function TextField({ label, value, onChange, placeholder }: { label: string; val
 }
 
 function SelectField<T extends string>({
-  label, value, options, onChange,
-}: { label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void }) {
+  label, value, options, onChange, testId,
+}: { label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void; testId?: string }) {
   return (
     <Row label={label}>
-      <select className="cd-input" value={value} onChange={(event) => onChange(event.target.value as T)}>
+      <select className="cd-input" value={value} onChange={(event) => onChange(event.target.value as T)} {...(testId ? { 'data-testid': testId } : {})}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
@@ -164,10 +165,10 @@ function SelectField<T extends string>({
   );
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
+function Toggle({ label, checked, onChange, testId }: { label: string; checked: boolean; onChange: (value: boolean) => void; testId?: string }) {
   return (
     <label className="cd-toggle">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} {...(testId ? { 'data-testid': testId } : {})} />
       <span>{label}</span>
     </label>
   );
@@ -1208,6 +1209,7 @@ export function ChartPropertiesDrawer({
               <Group title={tLabel('cd.section.surfaceGeometry')}>
                 <SelectField<ContourResolution>
                   label={tLabel('cd.resolution')}
+                  testId="cd-surface-resolution"
                   value={surfaceCfg.resolution}
                   options={[
                     { value: 'draft', label: tLabel('cd.res.draft') },
@@ -1219,6 +1221,7 @@ export function ChartPropertiesDrawer({
                 />
                 <SelectField<SurfaceRenderMode>
                   label={tLabel('cd.surface.renderMode')}
+                  testId="cd-surface-render-mode"
                   value={surfaceCfg.renderMode}
                   options={[
                     { value: 'surface', label: tLabel('cd.surface.mode.surface') },
@@ -1239,6 +1242,7 @@ export function ChartPropertiesDrawer({
                 <NumberField label={tLabel('cd.surface.zScale')} value={surfaceCfg.zScale} min={0.2} max={4} step={0.1} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), zScale: value ?? 1 }; })} />
                 <SelectField<SurfaceProjection>
                   label={tLabel('cd.surface.projection')}
+                  testId="cd-surface-projection"
                   value={surfaceCfg.projection}
                   options={[
                     { value: 'perspective', label: tLabel('cd.surface.perspective') },
@@ -1400,6 +1404,7 @@ export function ChartPropertiesDrawer({
               <Group title={tLabel('cd.section.feasibleBasis')}>
                 <SelectField<FeasibleBasis>
                   label={tLabel('cd.feasible.basis')}
+                  testId="cd-feasible-basis"
                   value={feasibleCfg.basis}
                   options={[
                     { value: 'mean', label: tLabel('cd.feasible.basis.mean') },
@@ -1419,6 +1424,7 @@ export function ChartPropertiesDrawer({
                 <NumberField label={tLabel('cd.feasible.alpha')} value={feasibleCfg.alpha} min={0.001} max={0.5} step={0.005} onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), alpha: value ?? 0.05 }; })} />
                 <SelectField<ContourResolution>
                   label={tLabel('cd.resolution')}
+                  testId="cd-feasible-resolution"
                   value={feasibleCfg.resolution}
                   options={[
                     { value: 'draft', label: tLabel('cd.res.draft') },

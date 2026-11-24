@@ -556,6 +556,14 @@ export function buildRsmModel(
   const actualTransform = codedBounds.map(({ min, max }) => {
     const center = (min + max) / 2;
     const halfRange = (max - min) / 2 || 1;
+    // A design laid out symmetrically about zero IS the coded design: the fit
+    // reads those levels directly, so its "actual" value is the coded one.
+    // Deriving center/halfRange from the levels on top of that would code the
+    // same factor twice (±1 → ±1.189 for a CCD) and report a design region
+    // wider than the design.
+    if (Math.abs(min + max) <= 1e-9) {
+      return { center: 0, halfRange: 1, low: min, high: max };
+    }
     return { center, halfRange, low: center - halfRange, high: center + halfRange };
   });
   return {

@@ -747,13 +747,20 @@ const ops: Record<string, Op> = {
     const model = storedQuadratic(ds, args.response, args.factors);
     const resolution = args.resolution ?? 21;
     const mode = (args.mode ?? 'actual') as 'actual' | 'coded';
+    // The grid interval is part of the case: both engines must evaluate the
+    // identical rectangle, not two "default" interpretations of it.
+    const xIndex = args.xIndex ?? 0;
+    const yIndex = args.yIndex ?? 1;
+    const factorRanges = args.factorRanges ?? (args.xRange && args.yRange
+      ? { [xIndex]: { min: args.xRange[0], max: args.xRange[1] }, [yIndex]: { min: args.yRange[0], max: args.yRange[1] } }
+      : {});
     const surface = buildModelSurface(model, {
-      xIndex: args.xIndex ?? 0,
-      yIndex: args.yIndex ?? 1,
+      xIndex,
+      yIndex,
       unitMode: mode,
       resolution,
       holdings: args.holdings ?? {},
-      factorRanges: args.factorRanges ?? {},
+      factorRanges,
     });
     const contour = modelSurface(model, {
       xName: surface.xName,

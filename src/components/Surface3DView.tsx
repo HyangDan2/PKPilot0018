@@ -340,6 +340,7 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
       className={`surface3d${dragging ? ' dragging' : ''}`}
       data-testid="surface3d"
       data-renderer={renderer}
+      data-render-mode={view.renderMode}
       data-projection={view.projection}
       data-azimuth={view.camera.azimuth.toFixed(1)}
       data-elevation={view.camera.elevation.toFixed(1)}

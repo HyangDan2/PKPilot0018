@@ -7,6 +7,20 @@
 > **분류**: `SUPPORTED` 구현·검증됨 / `PARTIAL` 일부만 / `MISSING` 없음 / `DIFFERENT` 다른 방식 / `UNKNOWN` 미확인
 > **공수**: S 0.5일 이하 · M 1–2일 · L 3일 이상
 
+## 검증 스냅샷 (2026-11-24, Stage 3B)
+
+| 항목 | 결과 |
+| --- | --- |
+| `npx tsc --noEmit` | 0 errors |
+| `npm test` | **795 / 795 PASS** (Stage 3A 749 + Stage 3B 신규 46) |
+| `npm run qa:stats` | **168 / 168 PASS, 0 FAIL** (Stage 3A 162 + QA-V 6) |
+| `npm run build` | 성공 (외부 CDN 없음, WebGL 셰이더·색상 맵 모두 로컬) |
+| 3D ↔ 2D 정합 | 같은 저장 모형을 컴파일 평가기(3D)와 행별 설계행렬(2D)로 계산해 노드별 최대차 ≤1e-10, QA-V-01/02는 차이 0을 `exact_zero`로 강제 |
+| 표면 상한 | Ultra 401×401 = 160 801 정점, 정점 버퍼 5.8 MB · 인덱스 3.8 MB, 생성 4 s 이내(테스트가 측정) |
+| 만족 영역 | 두 반응 규격을 21×21 격자에서 동시 판정, 격자 비율과 4배 격자 구적의 차이 ≤0.02, 수렴도 |Δ(2배 격자)|를 값으로 보고 (`tests/feasible.test.ts` 15건) |
+| 구간 기준 | 공분산 없는 모형은 `intervalBlocked`로 이름을 밝히고 기준을 비활성, 신뢰구간 ≥ 예측구간 제약을 테스트가 확인 |
+| 감사 집계 | 구역별 분류 집계가 §1 요약과 일치, 인용 심볼이 `src/`에 존재 (`tests/gap-doc.test.ts` 6건) |
+
 ## 검증 스냅샷 (2026-11-24, Phase 3A)
 
 | 항목 | 결과 |
@@ -46,16 +60,16 @@
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Minitab 그래프 편집 | 8 | 5 | 2 | 1 | 0 | 2 | 6 |
 | Minitab 축·눈금 편집 | 12 | 7 | 5 | 0 | 0 | 3 | 9 |
-| Minitab Contour Plot | 14 | 8 | 3 | 2 | 1 | 7 | 7 |
-| Minitab Surface Plot | 5 | 0 | 1 | 4 | 0 | 2 | 3 |
+| Minitab Contour Plot | 14 | 9 | 3 | 1 | 1 | 7 | 7 |
+| Minitab Surface Plot | 5 | 4 | 1 | 0 | 0 | 2 | 3 |
 | Origin Plot Details | 10 | 5 | 4 | 1 | 0 | 6 | 4 |
 | Origin Axis Dialog | 11 | 5 | 4 | 2 | 0 | 2 | 9 |
 | Origin Colormap/Contour | 11 | 4 | 4 | 3 | 0 | 5 | 6 |
-| **합계** | **71** | **34** | **23** | **13** | **1** | **27** | **44** |
+| **합계** | **71** | **39** | **23** | **8** | **1** | **27** | **44** |
 
 - **P0(정확성) 격차 없음.** Phase 1 [P0] 항목 — 등고선 16-case·안장 판정, 렌더 컨텍스트 격리, 축 정밀도, XML 이스케이프 — 은 모두 구현·검증됐다. 남은 것은 전부 UI 연결(P1)과 편의 기능(P2)이다.
 - **P1 27건**의 절반은 *엔진은 있고 화면이 없는* 항목이다. 모델(`ChartConfig`, `RsmViewConfig`)과 렌더러는 완성됐고 Phase 2 Drawer/ContextMenu가 이를 편집하면 된다(§9).
-- **MISSING 13건**은 대부분 3D Surface Plot(4), 축 분리·대칭로그(2), 다중 응답 오버레이(1), 수준별 개별 색(1)처럼 새 렌더러가 필요한 기능이다.
+- **MISSING 8건**은 축 분리·대칭로그(2), 수준별 개별 색(1), 주석·도형처럼 새 렌더러가 필요한 나머지 기능이다. 3D Surface Plot(4)과 다중 응답 오버레이(1)는 Stage 3B에서 구현됐다.
 - **DIFFERENT 1건**은 등고선 메쉬 보간 방식이다. Minitab은 방식을 고르게 하지만 Sigrún은 쌍선형 Marching Squares + 점근 판정기로 고정한다 — 결과가 해석적으로 정확한 쪽을 택했다.
 
 ---
@@ -118,7 +132,7 @@
 | Coded / Uncoded 단위 | 요인 단위 전환 | `unitMode`, `actualTransform` | SUPPORTED | `RsmViewConfig`, `codedToActual()` | 위 링크 | P1 | S |
 | Z 최소/최대 | Z 범위 지정 | `zMin` / `zMax` (컬러바·밴드 동시) | SUPPORTED | `computeContourLevels()` | [Define contour values](https://support.minitab.com/en-us/minitab/help-and-how-to/statistical-modeling/using-fitted-models/how-to/contour-plot/perform-the-analysis/define-the-contour-values/) | P1 | S |
 | 스펙 영역·목표값 | Overlaid contour의 feasible region | 축 눈금 ▸ Z 탭에서 목표값·허용폭·LSL/USL·만족 영역 음영을 직접 편집 | SUPPORTED | `ContourConfig`, `drawContour()`, `ChartPropertiesDrawer` | 위 링크 | P1 | S |
-| 다중 응답 오버레이 | Overlaid Contour Plot | 없음(단일 응답) | MISSING | — | [Overlaid contour](https://support.minitab.com/en-us/minitab/help-and-how-to/statistical-modeling/using-fitted-models/how-to/contour-plot/before-you-start/overview/) | P2 | L |
+| 다중 응답 오버레이 | Overlaid Contour Plot | 저장 모형 복수 선택 → 공통 요인 격자에서 반응별 규격 판정, 동시 만족 영역(Feasible Region), 반응별 영역·경계선·범례, Feasible Area Ratio, 예측 평균/신뢰구간/예측구간 기준 전환 | SUPPORTED | `buildOverlaid()`, `drawOverlaid()`, `FeasibleConfig`, `commonNumericFactors()` | [Overlaid contour](https://support.minitab.com/en-us/minitab/help-and-how-to/statistical-modeling/using-fitted-models/how-to/contour-plot/before-you-start/overview/) | P2 | M |
 | 해상도(격자) | (없음) | 41/101/201/401 프리셋 | SUPPORTED | `CONTOUR_RESOLUTIONS`, `resolutionPoints()` | — | P2 | S |
 
 > **기하 검증**: `tests/contour-geometry.test.ts` 가 해석적 평면 `Z = X + Y`, 포물면 `Z = X² + Y²`, 안장 `Z = X² − Y²`, 상호작용 `Z = XY`, 상수면, NaN 마스크를 정확해와 대조한다. 16개 케이스 전부와 두 안장 케이스의 두 선분, 꼭짓점 접점의 결정론적 처리도 포함한다.
@@ -133,13 +147,13 @@
 
 | 항목 | Minitab | Sigrún | 분류 | 코드 근거 | 공식 문서 | 우선순위 | 공수 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 3D Surface Plot | 매끈한 3D 곡면 | 없음 (2D 등고선만) | MISSING | — | [Overview](https://support.minitab.com/en-us/minitab/help-and-how-to/graphs/3d-surface-plot/before-you-start/overview/) | P1 | L |
-| 3D Wireframe | 격자 와이어프레임 | 없음 | MISSING | — | 위 링크 | P2 | L |
-| 회전·조명·시점 | 마우스 회전, 조명 | 없음 | MISSING | — | 위 링크 | P2 | L |
-| 메쉬·보간 | Mesh 설정 | 없음 | MISSING | — | 위 링크 | P2 | M |
-| 저장된 모형 표면 | Stored model → surface | 2D 등고선으로 대체(`rsmModel` 전달) | PARTIAL | `RsmModelPayload`, `buildAllPairContours()` | [Surface Plot](https://support.minitab.com/en-us/minitab/help-and-how-to/statistical-modeling/using-fitted-models/how-to/surface-plot/before-you-start/overview/) | P1 | M |
+| 3D Surface Plot | 매끈한 3D 곡면 | 저장 모형 → `surface3d` 차트, WebGL 캔버스(로컬 번들), 표면/와이어프레임/둘 다, 컬러바, Z 배율, Coded/Actual, 고정값, 실험점·정지점·최적점 | SUPPORTED | `drawSurface()`, `buildSurfaceGeometry()`, `SurfaceViewConfig` | [Overview](https://support.minitab.com/en-us/minitab/help-and-how-to/graphs/3d-surface-plot/before-you-start/overview/) | P1 | L |
+| 3D Wireframe | 격자 와이어프레임 | `renderMode: wireframe` (메쉬 간격·선 두께 조절) | SUPPORTED | `SurfaceViewConfig`, `buildSurfaceGeometry()` | 위 링크 | P2 | S |
+| 회전·조명·시점 | 마우스 회전, 조명 | 드래그 회전·휠 줌·Pan·터치 제스처, Top/Front/Side/Isometric, Perspective/Orthographic, 광원 방위·고도·주변광·확산광, 카메라 초기화 | SUPPORTED | `Surface3DView`, `cameraBasis()`, `cameraMatrix()` | 위 링크 | P2 | L |
+| 메쉬·보간 | Mesh 설정 | 메쉬 밀도·선 두께·불투명도·바닥 등고선 투영은 편집 가능, 보간 방식(쌍선형 고정)은 선택 불가 | PARTIAL | `SurfaceViewConfig.meshDensity`, `buildSurfaceGeometry()` | 위 링크 | P2 | M |
+| 저장된 모형 표면 | Stored model → surface | 모형 관리자에서 3D 표면 진입(활성), 드로어에서 요인 쌍·고정값·범위·단위 재슬라이스, 실험점·정지점 표시 | SUPPORTED | `materializeSurface()`, `buildModelSurface()`, `RsmModelPayload` | [Surface Plot](https://support.minitab.com/en-us/minitab/help-and-how-to/statistical-modeling/using-fitted-models/how-to/surface-plot/before-you-start/overview/) | P1 | M |
 
-> 3D 표면은 Phase 1 범위 밖이다. `RsmModelPayload` 가 이미 임의 격자 예측을 제공하므로(`rsmPredictSurface`) Phase 3에서 정사영 렌더러만 얹으면 된다.
+> **Stage 3B 구현** — 3D 표면은 WebGL(로컬 셰이더, 외부 CDN 없음)로 그리고, 같은 기하를 SVG 정사영으로도 그린다. WebGL을 쓸 수 없는 환경(헤드리스·소프트웨어 폴백·컨텍스트 상실)에서는 자동으로 정사영으로 넘어가고 화면에 그 사실을 안내한다. 내보내기(SVG/PNG/인쇄)는 항상 정사영 경로를 쓴다. 해상도 Draft 41 / Standard 101 / High 201 / Ultra 401이며 401 격자는 160 801 정점·약 10 MB로 상한이다. `tests/surface3d.test.ts`가 2D 등고선과 노드별 일치(≤1e-10)·초고해상도 격자 생성 시간·카메라 행렬과 투영 함수의 일치를 검증한다.
 
 ---
 
@@ -220,7 +234,7 @@ Phase 1은 *모델과 렌더러*를 끝냈다. 아래는 P1인데 UI만 남은 �
 | 내보내기(SVG/PNG, DPI·물리 크기) | `resolveStandaloneSvg()`, `ExportConfig`, `svgToPng()` | 내보낸 SVG에 `var(--…)` 0개 보장 |
 | 컨텍스트 메뉴(계열 숨김·색 변경) | `SeriesStyle.perSeries` | 차트 우클릭 메뉴(축·모양·내보내기·속성·확대·전체화면·스타일 복사/붙여넣기·전체 적용·PNG 복사·초기화) 및 계열 탭의 계열별 표시/색 |
 
-**Phase 2에서 새로 만들어야 하는 것**: 3D Surface/Wireframe(§5), 축 분리, 다중 응답 오버레이, 수준별 개별 색·라벨, 주석/도형, 자유 레이아웃. 이들은 모두 P2 이상이며 Phase 1의 P0/P1 엔진 항목과 충돌하지 않는다.
+**Phase 2에서 새로 만들어야 하는 것**: 축 분리, 수준별 개별 색·라벨, 주석/도형, 자유 레이아웃. 3D Surface/Wireframe(§5)과 다중 응답 오버레이는 Stage 3B에서 구현됐다.
 
 ---
 
@@ -275,4 +289,4 @@ Phase 2는 엔진 심볼을 UI에 연결하고, 내보내기와 검증을 마쳤
 | 스타일 복사/붙여넣기·전체 적용 | `packChartStyle()`, `applyStylePack()` | `tests/chart-drawer.test.ts` |
 | 재실행 시 차트 설정 보존 | `chartConfigMemory` (`App.tsx`) | E2E `a re-run keeps the chart style` (Dark 프리셋이 재실행 카드에 유지) |
 
-**남은 항목**: 3D Surface/Wireframe(§5), 축 분리, 다중 응답 오버레이, 수준별 개별 색·라벨, 주석·도형, 자유 레이아웃은 Phase 3 이후다. 드로어는 이들 자리를 비워 두지 않고, 해당 차트 종류에서만 관련 탭을 노출한다.
+**남은 항목**: 축 분리, 수준별 개별 색·라벨, 주석·도형, 자유 레이아웃은 Phase 3 이후다. 드로어는 이들 자리를 비워 두지 않고, 해당 차트 종류에서만 관련 탭을 노출한다(Stage 3B의 `3D`·`Overlay` 탭이 그 예).

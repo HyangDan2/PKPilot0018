@@ -1867,7 +1867,7 @@ def op_surface3d(bag, ds, args, cid):
         bag.put(f"z_contour[{index}]", float(z[j, i]))
     bag.put("coefficient_count", len(model.params))
     centre_row = _quadratic_design([0.0], [0.0])
-    centre = float(centre_row @ model.params)
+    centre = float((centre_row @ model.params)[0])
     centre_se = float(np.sqrt(model.cov_params()[0, 0]))
     bag.put("centre_value", centre)
     bag.put("centre_se", centre_se)
@@ -1948,7 +1948,7 @@ def op_feasible(bag, ds, args, cid):
     bag.put("total_nodes", int(total))
     bag.put("node_ratio", feasible_nodes / total)
     # Independent area estimate: the same judgement on a grid four times finer.
-    bag.put("area_ratio_fine", joint_ratio(min(801, resolution * 4)))
+    bag.put("area_ratio", joint_ratio(min(801, resolution * 4)))
     bag.put("interval_blocked", "")
     # The adapter states convergence as |ratio(2× grid) − ratio(grid)|.
     bag.put("convergence_delta", abs(joint_ratio(resolution * 2) - feasible_nodes / total))

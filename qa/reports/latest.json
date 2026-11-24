@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-24T13:50:31+09:00",
-  "commit": "bbdb7dddcb17b85a0666da86941dd3369d8e76f0",
+  "generated_at": "2026-11-24T14:20:41+09:00",
+  "commit": "998c02db5e3795e19ced409d96fcc793dd8fba2e",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
    "node": "v24.19.0",
-   "commit": "bbdb7dddcb17b85a0666da86941dd3369d8e76f0",
-   "cases": 162,
-   "generatedAt": "2026-11-24T04:50:16.257Z"
+   "commit": "998c02db5e3795e19ced409d96fcc793dd8fba2e",
+   "cases": 168,
+   "generatedAt": "2026-11-24T05:20:27.959Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",
@@ -19,7 +19,7 @@
    "pandas": "3.1.1",
    "patsy": "1.0.3",
    "platform": "Linux-6.12.118-guest-1.1-x86_64-with-glibc2.41",
-   "cases": 162,
+   "cases": 168,
    "methods": {
     "QA-A-01": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
     "QA-A-02": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
@@ -163,6 +163,12 @@
     "QA-U-07": "(x − mean) / sample sd over the finite values",
     "QA-U-08": "documented mapping/fallback rule",
     "QA-U-09": "population parameters; tolerance covers the sampling error (see case note)",
+    "QA-V-01": "statsmodels OLS quadratic · numpy grid evaluation",
+    "QA-V-02": "statsmodels OLS quadratic · numpy grid evaluation",
+    "QA-V-03": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+    "QA-V-04": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+    "QA-V-05": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+    "QA-V-06": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
     "QA-X-04": "scipy.stats.ttest_1samp + scipy.stats.t.ppf interval",
     "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f",
     "QA-X-06": "scipy.stats.ttest_1samp on the paired differences (= ttest_rel)"
@@ -253,19 +259,34 @@
     "atol": 0.00015,
     "rtol": 1e-06,
     "reason": "normalInv는 Acklam 근사 + Halley 보정 1회이고, 보정이 A&S erf 기반 normalCdf를 쓰므로 CDF 오차가 1/φ(z)로 증폭된다. 실측: CDF 최대오차 7.0e-8(z=0.064) → z 오차 1.18e-6(z=1.96), 2.03e-5(z=3.09), 7.38e-5(z=3.72) 로 1/φ(z) 예측과 정확히 일치한다. 허용치는 이 증폭 법칙이 주는 z≲4 구간의 오차(≈1e-4)에 맞춘 것이다."
+   },
+   "exact_zero": {
+    "atol": 1e-09,
+    "rtol": 0.0,
+    "reason": "Stage 3B의 3D 표면과 2D 등고선은 같은 계수·같은 항 전개로 같은 격자점을 계산한다(컴파일 평가기는 라벨을 한 번 파싱해 항별 상수×x^p×y^q로, modelSurface는 노드마다 설계행렬을 만든다). 정의가 아니라 산술 경로만 다르므로 결과는 부동소수 반올림 수준에서 0이어야 한다. 이 클래스는 '어댑터의 두 경로가 서로 어긋나지 않았다'를 0과 비교해 강제한다."
+   },
+   "feasible_area": {
+    "atol": 0.02,
+    "rtol": 0.0,
+    "reason": "만족 면적은 격자 근사다. 어댑터는 노드 0/1 장을 marching squares로 폴리곤화해 면적을 재고(경계에서 반 셀 편향), 기준은 4배 격자의 중점 구적을 쓴다. 두 값 모두 격자 정의에서 오는 차이만큼만 벌어지며, 케이스 격자 21×21에서 실측 차이는 0.02 미만이다. 수치 fudge가 아니라 근사 정의 차이다."
+   },
+   "grid_count": {
+    "atol": 2,
+    "rtol": 0.0,
+    "reason": "만족 격자점 수는 규격 경계 위에 놓인 노드에서 1e-12 수준의 t분위수·공분산 차이로 뒤집힐 수 있다(21×21 격자, 경계 노드 2개 이내). 노드 비율은 feasible_area 클래스로 따로 검증하므로 이 클래스는 개수 표시의 반올림 여유만 준다."
    }
   }
  },
  "summary": {
   "counts": {
-   "PASS": 162,
+   "PASS": 168,
    "FAIL": 0,
    "REVIEW": 0,
    "UNVERIFIED": 0,
    "ERROR": 0
   },
-  "total": 162,
-  "verifiable": 162,
+  "total": 168,
+  "verifiable": 168,
   "pass_rate_verifiable": 1.0,
   "review_rate": 0.0,
   "unverified_rate": 0.0,
@@ -379,6 +400,16 @@
     "max_rel": 16.743362831858406,
     "max_abs": 0.03265303633301109,
     "total": 9
+   },
+   "QA-V": {
+    "PASS": 6,
+    "FAIL": 0,
+    "REVIEW": 0,
+    "UNVERIFIED": 0,
+    "ERROR": 0,
+    "max_rel": 0.020527694610778743,
+    "max_abs": 0.011660289115646427,
+    "total": 6
    },
    "QA-X": {
     "PASS": 6,
@@ -27565,6 +27596,1052 @@
    "max_rel": 0.003265303633301109
   },
   {
+   "id": "QA-V-01",
+   "area": "QA-V",
+   "title": "3D 표면 = 2D 등고선 (41×41, coded, 실험점 5개 지점)",
+   "op": "surface3d",
+   "dataset": "rsm_ccd",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "독립 기준은 statsmodels 2차 적합의 격자 예측값이다. 어댑터의 두 경로(컴파일 평가기와 modelSurface의 행별 설계행렬)는 같은 산술을 쓰므로 그 차이(surface_contour_max_diff)는 정확히 0이어야 한다 — exact_zero 클래스가 이를 강제한다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "x",
+     "y"
+    ],
+    "resolution": 41,
+    "mode": "coded",
+    "xRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "yRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      20,
+      20
+     ],
+     [
+      40,
+      40
+     ],
+     [
+      25,
+      40
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "surface_contour_max_diff",
+     "tol": "exact_zero",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "grid_points",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 41,
+     "reference": 41,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_min",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 29.180297399026156,
+     "reference": 29.18029739902613,
+     "abs": 2.4868995751603507e-14,
+     "rel": 8.522529915145241e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_max",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 61.7021563475418,
+     "reference": 61.7021563475418,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "x_min",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.189207115002721,
+     "reference": -1.189207115002721,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "x_max",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.189207115002721,
+     "reference": 1.189207115002721,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "y_min",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.189207115002721,
+     "reference": -1.189207115002721,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "y_max",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.189207115002721,
+     "reference": 1.189207115002721,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "coefficient_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6,
+     "reference": 6,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "centre_value",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 60.23240781320205,
+     "reference": 60.23240781320205,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "centre_se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.0579346544719564,
+     "reference": 0.05793465447195691,
+     "abs": 5.134781488891349e-16,
+     "rel": 8.863057069541727e-15,
+     "status": "match"
+    },
+    {
+     "key": "z[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.6050955367412,
+     "reference": 47.60509553674113,
+     "abs": 7.105427357601002e-14,
+     "rel": 1.4925770608142368e-15,
+     "status": "match"
+    },
+    {
+     "key": "z[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 56.778567808374454,
+     "reference": 56.77856780837444,
+     "abs": 1.4210854715202004e-14,
+     "rel": 2.5028554371366165e-16,
+     "status": "match"
+    },
+    {
+     "key": "z[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 60.23240781320205,
+     "reference": 60.23240781320205,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.98119102244033,
+     "reference": 49.98119102244027,
+     "abs": 5.684341886080802e-14,
+     "rel": 1.1372962047920543e-15,
+     "status": "match"
+    },
+    {
+     "key": "z[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.47263544042079,
+     "reference": 50.47263544042078,
+     "abs": 7.105427357601002e-15,
+     "rel": 1.4077781545583119e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_contour[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.6050955367412,
+     "reference": 47.60509553674113,
+     "abs": 7.105427357601002e-14,
+     "rel": 1.4925770608142368e-15,
+     "status": "match"
+    },
+    {
+     "key": "z_contour[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 56.778567808374454,
+     "reference": 56.77856780837444,
+     "abs": 1.4210854715202004e-14,
+     "rel": 2.5028554371366165e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_contour[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 60.23240781320205,
+     "reference": 60.23240781320205,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_contour[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.98119102244033,
+     "reference": 49.98119102244027,
+     "abs": 5.684341886080802e-14,
+     "rel": 1.1372962047920543e-15,
+     "status": "match"
+    },
+    {
+     "key": "z_contour[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.47263544042079,
+     "reference": 50.47263544042078,
+     "abs": 7.105427357601002e-15,
+     "rel": 1.4077781545583119e-16,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 7.105427357601002e-14,
+   "max_rel": 8.863057069541727e-15
+  },
+  {
+   "id": "QA-V-02",
+   "area": "QA-V",
+   "title": "3D 표면 21×21 격자 + 중심 SE (정지점 부근)",
+   "op": "surface3d",
+   "dataset": "rsm_outside",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "영역 밖 정지점을 가진 표면에서도 격자 예측과 2D 경로가 일치하는지 확인한다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "x",
+     "y"
+    ],
+    "resolution": 21,
+    "mode": "coded",
+    "xRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "yRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "probes": [
+     [
+      0,
+      20
+     ],
+     [
+      20,
+      20
+     ],
+     [
+      20,
+      0
+     ],
+     [
+      10,
+      10
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "surface_contour_max_diff",
+     "tol": "exact_zero",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "grid_points",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 21,
+     "reference": 21,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_min",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -5.323988026326456,
+     "reference": -5.323988026326457,
+     "abs": 1.7763568394002505e-15,
+     "rel": 3.336515466632132e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_max",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 18.50950744044742,
+     "reference": 18.509507440447404,
+     "abs": 1.4210854715202004e-14,
+     "rel": 7.677597451430887e-16,
+     "status": "match"
+    },
+    {
+     "key": "centre_value",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.008522282584334,
+     "reference": 10.008522282584332,
+     "abs": 1.7763568394002505e-15,
+     "rel": 1.7748442669616276e-16,
+     "status": "match"
+    },
+    {
+     "key": "centre_se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.012843698026850725,
+     "reference": 0.012843698026850685,
+     "abs": 3.9898639947466563e-17,
+     "rel": 3.106476021474154e-15,
+     "status": "match"
+    },
+    {
+     "key": "z[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6.5745482109397315,
+     "reference": 6.57454821093973,
+     "abs": 1.7763568394002505e-15,
+     "rel": 2.701869059906624e-16,
+     "status": "match"
+    },
+    {
+     "key": "z[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 18.50950744044742,
+     "reference": 18.509507440447404,
+     "abs": 1.4210854715202004e-14,
+     "rel": 7.677597451430887e-16,
+     "status": "match"
+    },
+    {
+     "key": "z[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6.600930619893255,
+     "reference": 6.600930619893271,
+     "abs": 1.5987211554602254e-14,
+     "rel": 2.421963276878185e-15,
+     "status": "match"
+    },
+    {
+     "key": "z[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.008522282584334,
+     "reference": 10.008522282584332,
+     "abs": 1.7763568394002505e-15,
+     "rel": 1.7748442669616276e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_contour[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6.5745482109397315,
+     "reference": 6.57454821093973,
+     "abs": 1.7763568394002505e-15,
+     "rel": 2.701869059906624e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_contour[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 18.50950744044742,
+     "reference": 18.509507440447404,
+     "abs": 1.4210854715202004e-14,
+     "rel": 7.677597451430887e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_contour[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6.600930619893255,
+     "reference": 6.600930619893271,
+     "abs": 1.5987211554602254e-14,
+     "rel": 2.421963276878185e-15,
+     "status": "match"
+    },
+    {
+     "key": "z_contour[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.008522282584334,
+     "reference": 10.008522282584332,
+     "abs": 1.7763568394002505e-15,
+     "rel": 1.7748442669616276e-16,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 1.5987211554602254e-14,
+   "max_rel": 3.106476021474154e-15
+  },
+  {
+   "id": "QA-V-03",
+   "area": "QA-V",
+   "title": "중첩 등고선 — 두 반응 동시 만족 영역 (예측 평균 기준)",
+   "op": "feasible",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "독립 기준은 statsmodels로 두 반응을 따로 적합해 같은 격자에서 규격을 판정한 것이다. 만족 비율은 격자 근사이므로 feasible_area 클래스(4배 격자 구적과 폴리곤 면적의 반 셀 편향)를 쓴다. probe_feasible은 정확 일치.",
+   "args": {
+    "factors": [
+     "x",
+     "y"
+    ],
+    "x": "x",
+    "y": "y",
+    "resolution": 21,
+    "mode": "coded",
+    "basis": "mean",
+    "alpha": 0.05,
+    "xRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "yRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 50.0,
+      "usl": 62.0,
+      "target": 58.0
+     },
+     {
+      "name": "Y2",
+      "lsl": 28.0,
+      "usl": 46.0,
+      "target": 36.0
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      20,
+      20
+     ],
+     [
+      5,
+      15
+     ],
+     [
+      15,
+      5
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.6099773242630385,
+     "reference": 0.6099773242630385,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "area_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.6296875,
+     "reference": 0.6247165532879818,
+     "abs": 0.004970946712018143,
+     "rel": 0.007957123411978226,
+     "status": "match"
+    },
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 269,
+     "reference": 269,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "total_nodes",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 441,
+     "reference": 441,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "narrow",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,1,0,0,1",
+     "reference": "0,1,0,0,1",
+     "status": "match"
+    },
+    {
+     "key": "response_0_node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.8049886621315193,
+     "reference": 0.8049886621315193,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "response_1_node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.7891156462585034,
+     "reference": 0.7891156462585034,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 47.56504287272905,
+     "reference": 47.565042872729045,
+     "abs": 7.105427357601002e-15,
+     "rel": 1.493833901635108e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_0[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 60.04753179762752,
+     "reference": 60.0475317976275,
+     "abs": 2.1316282072803006e-14,
+     "rel": 3.549901458838183e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_0[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 50.70678739133643,
+     "reference": 50.7067873913364,
+     "abs": 2.842170943040401e-14,
+     "rel": 5.6051094720428e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_0[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 49.71855155162291,
+     "reference": 49.7185515516229,
+     "abs": 7.105427357601002e-15,
+     "rel": 1.4291299999404483e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_0[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 60.55349420155369,
+     "reference": 60.55349420155369,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 25.30123860362353,
+     "reference": 25.3012386036235,
+     "abs": 3.197442310920451e-14,
+     "rel": 1.2637493211350259e-15,
+     "status": "match"
+    },
+    {
+     "key": "z_1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30.082703165169498,
+     "reference": 30.0827031651695,
+     "abs": 3.552713678800501e-15,
+     "rel": 1.1809821940848457e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 46.49001366598379,
+     "reference": 46.490013665983746,
+     "abs": 4.263256414560601e-14,
+     "rel": 9.17026276909869e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_1[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 34.8149025823001,
+     "reference": 34.81490258230008,
+     "abs": 2.1316282072803006e-14,
+     "rel": 6.122746436648144e-16,
+     "status": "match"
+    },
+    {
+     "key": "z_1[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 30.878969699902484,
+     "reference": 30.878969699902488,
+     "abs": 3.552713678800501e-15,
+     "rel": 1.1505285679307235e-16,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.004970946712018143,
+   "max_rel": 0.007957123411978226
+  },
+  {
+   "id": "QA-V-04",
+   "area": "QA-V",
+   "title": "중첩 등고선 — 신뢰구간 기준 (구간이 규격 안에)",
+   "op": "feasible",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "구간 기준은 ŷ±t·SE 전체가 규격 안에 들어야 만족이다. 어댑터가 공분산을 저장하므로(RsmModelPayload) 비활성 목록(interval_blocked)은 비어 있어야 한다. 기준 엔진은 statsmodels cov_params로 같은 t를 계산한다.",
+   "args": {
+    "factors": [
+     "x",
+     "y"
+    ],
+    "x": "x",
+    "y": "y",
+    "resolution": 21,
+    "mode": "coded",
+    "basis": "confidence",
+    "alpha": 0.05,
+    "xRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "yRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 50.0,
+      "usl": 62.0,
+      "target": 58.0
+     },
+     {
+      "name": "Y2",
+      "lsl": 28.0,
+      "usl": 46.0,
+      "target": 36.0
+     }
+    ],
+    "probes": [
+     [
+      20,
+      20
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      18,
+      18
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.5804988662131519,
+     "reference": 0.5804988662131519,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "area_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.5996875,
+     "reference": 0.6035997732426304,
+     "abs": 0.003912273242630326,
+     "rel": 0.006481568443296451,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,1,1",
+     "reference": "0,1,1",
+     "status": "match"
+    },
+    {
+     "key": "interval_blocked",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "",
+     "reference": "",
+     "status": "match"
+    },
+    {
+     "key": "response_0_node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.7913832199546486,
+     "reference": 0.7913832199546486,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "response_1_node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.7619047619047619,
+     "reference": 0.7619047619047619,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.003912273242630326,
+   "max_rel": 0.006481568443296451
+  },
+  {
+   "id": "QA-V-05",
+   "area": "QA-V",
+   "title": "중첩 등고선 — 예측구간 기준",
+   "op": "feasible",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "예측구간은 ŷ±t·√(SE²+mse) 전체가 규격 안에 들어야 하므로 신뢰구간보다 항상 좁거나 같다(QA-V-04와 대조).",
+   "args": {
+    "factors": [
+     "x",
+     "y"
+    ],
+    "x": "x",
+    "y": "y",
+    "resolution": 21,
+    "mode": "coded",
+    "basis": "prediction",
+    "alpha": 0.05,
+    "xRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "yRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 50.0,
+      "usl": 62.0,
+      "target": 58.0
+     },
+     {
+      "name": "Y2",
+      "lsl": 28.0,
+      "usl": 46.0,
+      "target": 36.0
+     }
+    ],
+    "probes": [
+     [
+      20,
+      20
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      18,
+      18
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.5600907029478458,
+     "reference": 0.5600907029478458,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "area_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.5796875000000001,
+     "reference": 0.5680272108843537,
+     "abs": 0.011660289115646427,
+     "rel": 0.020527694610778743,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,1,1",
+     "reference": "0,1,1",
+     "status": "match"
+    },
+    {
+     "key": "response_0_node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.780045351473923,
+     "reference": 0.780045351473923,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "response_1_node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.7482993197278912,
+     "reference": 0.7482993197278912,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.011660289115646427,
+   "max_rel": 0.020527694610778743
+  },
+  {
+   "id": "QA-V-06",
+   "area": "QA-V",
+   "title": "중첩 등고선 — 만족 영역이 없는 규격",
+   "op": "feasible",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "만족 격자점 0 → narrow=1 경고. 면적비 0.",
+   "args": {
+    "factors": [
+     "x",
+     "y"
+    ],
+    "x": "x",
+    "y": "y",
+    "resolution": 11,
+    "mode": "coded",
+    "basis": "mean",
+    "alpha": 0.05,
+    "xRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "yRange": [
+     -1.189207115002721,
+     1.189207115002721
+    ],
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 1000.0,
+      "usl": 2000.0,
+      "target": 1500.0
+     },
+     {
+      "name": "Y2",
+      "lsl": 28.0,
+      "usl": 46.0,
+      "target": 36.0
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      10,
+      10
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "feasible_nodes",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "node_ratio",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "narrow",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0",
+     "reference": "0,0",
+     "status": "match"
+    },
+    {
+     "key": "area_ratio",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
    "id": "QA-X-01",
    "area": "QA-X",
    "title": "Weibull n=2 → res.insufficient",
@@ -28050,6 +29127,12 @@
    "description": "CCD k=2 for a rising surface Y = 10 + 5x + 5y - 1.2x^2 - 1.2y^2: the stationary point (2.08, 2.08) lies outside the design region"
   },
   {
+   "name": "rsm_two",
+   "rows": 15,
+   "seed": 11022,
+   "description": "CCD k=2, two responses: Y1 = 60+5x-4y-6x^2-5y^2+3xy + N(0,0.3), Y2 = 30+3x+6y+4x^2+2y^2-2xy + N(0,0.25); specs cut a bounded feasible window"
+  },
+  {
    "name": "small_sample",
    "rows": 6,
    "seed": 11002,
@@ -28217,6 +29300,12 @@
   "QA-U-07": "(x − mean) / sample sd over the finite values",
   "QA-U-08": "documented mapping/fallback rule",
   "QA-U-09": "population parameters; tolerance covers the sampling error (see case note)",
+  "QA-V-01": "statsmodels OLS quadratic · numpy grid evaluation",
+  "QA-V-02": "statsmodels OLS quadratic · numpy grid evaluation",
+  "QA-V-03": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+  "QA-V-04": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+  "QA-V-05": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+  "QA-V-06": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
   "QA-X-04": "scipy.stats.ttest_1samp + scipy.stats.t.ppf interval",
   "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f",
   "QA-X-06": "scipy.stats.ttest_1samp on the paired differences (= ttest_rel)"
