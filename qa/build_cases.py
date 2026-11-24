@@ -806,10 +806,230 @@ V.append(case(
 ))
 areas["QA-V-stage3b-surface.json"] = ("QA-V", V)
 
+# ════════════════════════════════════════════════════════════════════════
+# QA-W — Stage 3C: 다중 반응 최적화와 예측 프로파일러
+# ════════════════════════════════════════════════════════════════════════
+W = []
+OPT_FACTORS = [
+    {"name": "x", "kind": "continuous", "lower": RANGE_CCD[0], "upper": RANGE_CCD[1]},
+    {"name": "y", "kind": "continuous", "lower": RANGE_CCD[0], "upper": RANGE_CCD[1]},
+]
+OPT_FIELDS = [f("composite", "optimizer_objective"), f("x:x", "optimizer_argmax"), f("x:y", "optimizer_argmax")]
+OPT_PRED = lambda *names: [f(f"pred:{name}", "optimizer_prediction") for name in names]
+OPT_DES = lambda *names: [f(f"d:{name}", "optimizer_prediction") for name in names]
+
+W.append(case(
+    "QA-W-01", "단일 반응 최대화 — SciPy와 같은 최적점", "optimize", "rsm_two",
+    {
+        "responses": [{"name": "Y1", "goal": "maximize", "lower": 40.0, "upper": 70.0}],
+        "factors": OPT_FACTORS, "method": "multistart", "seed": 11, "gridPoints": 41,
+    },
+    OPT_FIELDS + OPT_PRED("Y1") + OPT_DES("Y1") + [f("se:Y1", "optimizer_prediction"), f("compliant")],
+    note=(
+        "기준은 statsmodels 2차 적합을 scipy differential_evolution(시드 고정)으로 최대화한 값이다. "
+        "두 탐색기는 같은 목적함수의 같은 최대점을 찾아야 하므로 합성 만족도는 optimizer_objective, "
+        "인자값은 optimizer_argmax 클래스로 비교한다. se와 예측구간은 같은 공분산 정의를 쓴다."
+    ),
+))
+
+W.append(case(
+    "QA-W-02", "두 반응 — Y1 최대화 · Y2 최소화 (중요도 동일)", "optimize", "rsm_two",
+    {
+        "responses": [
+            {"name": "Y1", "goal": "maximize", "lower": 40.0, "upper": 70.0},
+            {"name": "Y2", "goal": "minimize", "lower": 20.0, "upper": 50.0},
+        ],
+        "factors": OPT_FACTORS, "method": "multistart", "seed": 23, "gridPoints": 41,
+    },
+    OPT_FIELDS + OPT_PRED("Y1", "Y2") + OPT_DES("Y1", "Y2"),
+    note="두 반응의 만족도가 맞서는 지점에서 종합 만족도가 최대가 된다. 기준은 같은 규칙을 NumPy로 다시 구현해 SciPy로 최대화한다.",
+))
+
+W.append(case(
+    "QA-W-03", "중요도 가중 — Y2를 4배 중요하게", "optimize", "rsm_two",
+    {
+        "responses": [
+            {"name": "Y1", "goal": "maximize", "lower": 40.0, "upper": 70.0, "importance": 1.0},
+            {"name": "Y2", "goal": "minimize", "lower": 20.0, "upper": 50.0, "importance": 4.0},
+        ],
+        "factors": OPT_FACTORS, "method": "multistart", "seed": 23, "gridPoints": 41,
+    },
+    OPT_FIELDS + OPT_PRED("Y1", "Y2") + OPT_DES("Y2"),
+    note="중요도는 종합 만족도의 가중 기하평균 지수다(QA-W-02와 대조). 인자값이 Y2 쪽으로 이동해야 한다.",
+))
+
+W.append(case(
+    "QA-W-04", "목표값 목표 (Target, 가중 2) — 곡선 모양", "optimize", "rsm_two",
+    {
+        "responses": [{"name": "Y1", "goal": "target", "lower": 45.0, "upper": 65.0, "target": 57.0, "weight": 2.0}],
+        "factors": OPT_FACTORS, "method": "multistart", "seed": 31, "gridPoints": 41,
+    },
+    [f("composite", "optimizer_objective")] + OPT_PRED("Y1") + OPT_DES("Y1"),
+    note=(
+        "목표값 만족도는 목표에서 1, 한계에서 0이며 weight 2가 곡선을 오목하게 만든다. "
+        "ŷ=목표값인 등고선 전체가 만족도 1이므로 인자값은 유일하지 않다 — 그래서 이 케이스는 "
+        "인자값이 아니라 합성 만족도·예측값·만족도를 비교한다(비유일성 자체가 검증 대상)."
+    ),
+))
+
+W.append(case(
+    "QA-W-05", "알려진 해석적 최적점 — y = 22 − 2(x−1.25)² (최적 x=1.25, y=22)", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [{
+            "kind": "polynomial", "response": "Y", "nonEstimable": [],
+            "predictors": [{"id": "", "name": "x", "kind": "numeric", "coding": {"mode": "actual", "center": 0, "halfRange": 1}}],
+            "terms": [{"label": "x", "factors": ["x"]}, {"label": "x²", "factors": ["x"]}],
+            "coefficients": [{"label": "Constant", "value": 22.0}, {"label": "x", "value": 5.0}, {"label": "x²", "value": -2.0}],
+            "residual": {"mse": 0.25, "df": 10, "s": 0.5},
+            "covariance": [[0.01, 0, 0], [0, 0.0025, 0], [0, 0, 0.0001]],
+            "factorBounds": {"x": {"min": -3, "max": 3}},
+        }],
+        "responses": [{"name": "Y", "goal": "maximize", "lower": 0.0, "upper": 30.0}],
+        "factors": [{"name": "x", "kind": "continuous", "lower": -3, "upper": 3}],
+        "method": "bounded", "seed": 7, "gridPoints": 41,
+    },
+    [f("x:x", "optimizer_argmax"), f("pred:Y", "optimizer_prediction"), f("d:Y", "optimizer_prediction"), f("composite", "optimizer_objective")],
+    note="정점이 닫힌 해로 알려진 경우: x=1.25, ŷ=22.0, 만족도 (22−0)/(30−0)=0.7333…, 종합도 같다.",
+))
+
+W.append(case(
+    "QA-W-06", "만족 해가 없는 규격 — 종합 만족도 0", "optimize", "rsm_two",
+    {
+        "responses": [{"name": "Y1", "goal": "range", "lower": 1000.0, "upper": 2000.0}],
+        "factors": OPT_FACTORS, "method": "grid", "seed": 1, "gridPoints": 21,
+    },
+    [f("status", kind="string"), f("composite"), f("compliant")],
+    note="어떤 조건도 규격 안에 들지 않으므로 양쪽 모두 종합 만족도 0, 상태 no-feasible.",
+))
+
+W.append(case(
+    "QA-W-07", "다중 국소 최적점 — 사차 곡선의 두 봉우리", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [{
+            "kind": "polynomial", "response": "Y", "nonEstimable": [],
+            "predictors": [{"id": "", "name": "x", "kind": "numeric", "coding": {"mode": "actual", "center": 0, "halfRange": 1}}],
+            "terms": [{"label": "x", "factors": ["x"]}, {"label": "x²", "factors": ["x"]}, {"label": "x³", "factors": ["x"]}],
+            "coefficients": [{"label": "Constant", "value": 10.0}, {"label": "x", "value": 4.8},
+                             {"label": "x²", "value": -1.08}, {"label": "x³", "value": 0.08}],
+            "residual": {"mse": 0.04, "df": 12, "s": 0.2},
+            "factorBounds": {"x": {"min": 0, "max": 10}},
+        }],
+        "responses": [{"name": "Y", "goal": "maximize", "lower": -20.0, "upper": 100.0}],
+        "factors": [{"name": "x", "kind": "continuous", "lower": 0, "upper": 10}],
+        "method": "multistart", "seed": 3, "gridPoints": 41,
+    },
+    [f("x:x", "optimizer_argmax"), f("pred:Y", "optimizer_prediction"), f("composite", "optimizer_objective")],
+    note=(
+        "f(x) = 10 + 4.8x − 1.08x² + 0.08x³ 는 [0,10]에서 두 개의 봉우리를 가진다. "
+        "시드 고정 다중 시작 탐색과 SciPy 전역 탐색이 같은(더 높은) 봉우리를 찾아야 한다."
+    ),
+))
+
+W.append(case(
+    "QA-W-08", "이산형 인자 + 고정 인자 — 간격 위의 최적점", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [{
+            "kind": "polynomial", "response": "Y", "nonEstimable": [],
+            "predictors": [
+                {"id": "", "name": "x", "kind": "numeric", "coding": {"mode": "actual", "center": 0, "halfRange": 1}},
+                {"id": "", "name": "z", "kind": "numeric", "coding": {"mode": "actual", "center": 0, "halfRange": 1}},
+            ],
+            "terms": [{"label": "x", "factors": ["x"]}, {"label": "z", "factors": ["z"]}],
+            "coefficients": [{"label": "Constant", "value": 5.0}, {"label": "x", "value": 2.0}, {"label": "z", "value": 3.0}],
+            "residual": {"mse": 0.09, "df": 9, "s": 0.3},
+            "factorBounds": {"x": {"min": 0, "max": 10}, "z": {"min": -1, "max": 1}},
+        }],
+        "responses": [{"name": "Y", "goal": "maximize", "lower": 0.0, "upper": 40.0}],
+        "factors": [
+            {"name": "x", "kind": "discrete", "lower": 0, "upper": 10, "step": 0.5},
+            {"name": "z", "kind": "continuous", "lower": -1, "upper": 1, "fixed": True, "fixedValue": -1},
+        ],
+        "method": "enumerate", "seed": 5, "gridPoints": 41,
+    },
+    [f("x:x", "optimizer_argmax"), f("x:z"), f("pred:Y", "optimizer_prediction"), f("d:Y", "optimizer_prediction")],
+    note="x는 0.5 간격의 이산형(최적 10), z는 −1로 고정. 기준은 이산 축을 전수 열거한다.",
+))
+
+W.append(case(
+    "QA-W-09", "범주형 인자 — 수준 중 최선", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [{
+            "kind": "glm", "response": "Scrap", "nonEstimable": [],
+            "predictors": [
+                {"id": "", "name": "Shift", "kind": "categorical", "levels": ["Day", "Night"]},
+                {"id": "", "name": "x", "kind": "numeric", "coding": {"mode": "actual", "center": 0, "halfRange": 1}},
+            ],
+            "terms": [{"label": "Shift[Day]", "factors": ["Shift"]}, {"label": "x", "factors": ["x"]}],
+            "coefficients": [{"label": "Constant", "value": 4.0}, {"label": "Shift[Day]", "value": -1.0}, {"label": "x", "value": 0.5}],
+            "residual": {"mse": 0.04, "df": 8, "s": 0.2},
+            "factorBounds": {"x": {"min": 0, "max": 4}},
+        }],
+        "responses": [{"name": "Scrap", "goal": "minimize", "lower": 1.0, "upper": 6.0}],
+        "factors": [
+            {"name": "Shift", "kind": "categorical", "lower": 0, "upper": 0, "levels": ["Day", "Night"]},
+            {"name": "x", "kind": "continuous", "lower": 0, "upper": 4},
+        ],
+        "method": "enumerate", "seed": 9, "gridPoints": 41,
+    },
+    [f("status", kind="string"), f("pred:Scrap", "optimizer_prediction"), f("d:Scrap", "optimizer_prediction"), f("x:x", "optimizer_argmax")],
+    note="대비 코딩: Day=+1, Night=−1 → Day에서 Scrap = 4 − 1 + 0.5x, Night은 4 + 1 + 0.5x. 최소화는 Day, x=0.",
+))
+
+W.append(case(
+    "QA-W-10", "랭크 부족 모형 — 값을 지어내지 않고 거부", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [{
+            "kind": "multiple", "response": "Y", "nonEstimable": ["x"],
+            "predictors": [{"id": "", "name": "x", "kind": "numeric", "coding": {"mode": "actual", "center": 0, "halfRange": 1}}],
+            "terms": [{"label": "x", "factors": ["x"]}],
+            "coefficients": [{"label": "Constant", "value": 5.0}, {"label": "x", "value": 2.0}],
+            "residual": None,
+            "factorBounds": {"x": {"min": 0, "max": 5}},
+        }],
+        "responses": [{"name": "Y", "goal": "maximize", "lower": 0.0, "upper": 20.0}],
+        "factors": [{"name": "x", "kind": "continuous", "lower": 0, "upper": 5}],
+        "method": "grid", "seed": 1, "gridPoints": 21,
+    },
+    [f("status", kind="string"), f("issues", kind="string")],
+    note="식별되지 않은 항이 있는 모형은 최적화 대상이 될 수 없다 — x=0에서만 값이 나오는 표면은 해의 성질이 아니라 해법의 인공물이기 때문이다. 양쪽 모두 invalid + opt.issue.nonEstimable.",
+))
+
+W.append(case(
+    "QA-W-11", "잘못된 입력 — 한계가 없는 반응은 문제정의 오류", "optimize", "rsm_two",
+    {
+        "responses": [{"name": "Y1", "goal": "maximize", "lower": 40.0}],
+        "factors": OPT_FACTORS, "method": "grid", "seed": 1, "gridPoints": 21,
+    },
+    [f("status", kind="string"), f("issues", kind="string")],
+    note="상한이 없으면 만족도 곡선을 그릴 수 없다. 어댑터와 기준 모두 status=invalid, issues=opt.issue.limitsMissing.",
+))
+
+W.append(case(
+    "QA-W-12", "평가 예산 초과 — 한도 도달을 숨기지 않음", "optimize", "rsm_two",
+    {
+        "responses": [{"name": "Y1", "goal": "maximize", "lower": 40.0, "upper": 70.0}],
+        "factors": OPT_FACTORS, "method": "grid", "seed": 1, "gridPoints": 201, "maxEvaluations": 300,
+    },
+    [f("composite", "optimizer_coarse_grid")],
+    note=(
+        "격자 201×201은 예산 300을 넘으므로 어댑터는 격자를 성기게 조정하고 best-found를 보고한다. "
+        "기준(SciPy)은 예산이라는 개념이 없으므로 상태 문자열은 비교하지 않고, 성긴 격자가 도달한 "
+        "합성 만족도만 coarse_grid 클래스로 비교한다. 상태 표시는 단위 테스트와 E2E가 검증한다."
+    ),
+))
+
+areas["QA-W-stage3c-optimizer.json"] = ("QA-W", W)
+
 for name, (area, cases) in [
     ("QA-I-calc.json", areas["QA-I-calc.json"]),
     ("QA-U-charts-transforms.json", areas["QA-U-charts-transforms.json"]),
     ("QA-V-stage3b-surface.json", areas["QA-V-stage3b-surface.json"]),
+    ("QA-W-stage3c-optimizer.json", areas["QA-W-stage3c-optimizer.json"]),
 ]:
     write(name, area, cases)
 print("total:", sum(len(v[1]) for v in areas.values()))

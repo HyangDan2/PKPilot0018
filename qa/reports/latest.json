@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-24T15:30:12+09:00",
-  "commit": "4eeb481a83f264125d290403cba46cab592ec69a",
+  "generated_at": "2026-11-24T16:32:40+09:00",
+  "commit": "2c50f483a2d41e7d1a98d8dc0b2e8f76039f99e3",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
-   "node": "v24.19.0",
-   "commit": "4eeb481a83f264125d290403cba46cab592ec69a",
-   "cases": 168,
-   "generatedAt": "2026-11-24T06:30:01.131Z"
+   "node": "v22.14.0",
+   "commit": "2c50f483a2d41e7d1a98d8dc0b2e8f76039f99e3",
+   "cases": 180,
+   "generatedAt": "2026-11-24T07:32:25.508Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",
@@ -19,7 +19,7 @@
    "pandas": "3.1.1",
    "patsy": "1.0.3",
    "platform": "Linux-6.12.118-guest-1.1-x86_64-with-glibc2.41",
-   "cases": 168,
+   "cases": 180,
    "methods": {
     "QA-A-01": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
     "QA-A-02": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
@@ -169,6 +169,18 @@
     "QA-V-04": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
     "QA-V-05": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
     "QA-V-06": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+    "QA-W-01": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-02": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-03": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-04": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-05": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-06": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-07": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-08": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-09": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-10": "desirability rules re-implemented · unusable limits refused",
+    "QA-W-11": "desirability rules re-implemented · unusable limits refused",
+    "QA-W-12": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
     "QA-X-04": "scipy.stats.ttest_1samp + scipy.stats.t.ppf interval",
     "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f",
     "QA-X-06": "scipy.stats.ttest_1samp on the paired differences (= ttest_rel)"
@@ -274,19 +286,39 @@
     "atol": 2,
     "rtol": 0.0,
     "reason": "만족 격자점 수는 규격 경계 위에 놓인 노드에서 1e-12 수준의 t분위수·공분산 차이로 뒤집힐 수 있다(21×21 격자, 경계 노드 2개 이내). 노드 비율은 feasible_area 클래스로 따로 검증하므로 이 클래스는 개수 표시의 반올림 여유만 준다."
+   },
+   "optimizer_objective": {
+    "atol": 1e-06,
+    "rtol": 1e-06,
+    "reason": "합성 만족도는 같은 목적함수(같은 계수·같은 규칙)를 두 탐색기가 각자 최대화한 값이다. 어댑터는 격자+패턴 탐색, 기준은 SciPy differential_evolution+L-BFGS-B를 쓴다. 최적점 근처에서 목적함수가 평평하면 수렴 오차가 그대로 값 차이가 되므로, 두 최적화기 정밀도 차이(실측 ≤1e-8, 경계 최적점은 정확히 일치)를 덮는 1e-6을 허용한다. 이는 통계 정의 차이가 아니라 수치 최적화의 수렴 허용오차다."
+   },
+   "optimizer_argmax": {
+    "atol": 0.005,
+    "rtol": 0.0,
+    "reason": "최적 인자값은 목적함수가 평평한 방향에서 1e-3 수준으로 흔들릴 수 있다(같은 최대값을 주는 넓은 영역). 인자 단위 절대오차 0.005는 케이스 정의역(폭 2.378~10)의 0.05~0.2%이며, 같은 최적해를 가리키는지 판정하기에 충분하다. 경계·해석적 최적점 케이스는 이보다 훨씬 정확히 일치한다."
+   },
+   "optimizer_prediction": {
+    "atol": 0.001,
+    "rtol": 1e-05,
+    "reason": "예측값·만족도·표준오차는 최적 조건에서 평가된다. 그 조건 자체가 평평한 방향에서 optimizer_argmax(0.005)만큼 흔들릴 수 있으므로, 조건에 따라 변하는 양도 같은 폭의 변동을 물려받는다. 응답 스케일 20~70에서 절대 1e-3은 0.005%이며, 계수 추정 차이(TypeScript GLM vs statsmodels, 실측 1e-5 상대)도 함께 덮는다. 정의 차이가 아니라 같은 최적해 주변의 평가 위치 차이다."
+   },
+   "optimizer_coarse_grid": {
+    "atol": 0.002,
+    "rtol": 0.0,
+    "reason": "평가 예산 때문에 어댑터는 성긴 격자의 최선 노드를 보고하고 기준은 연속 최적화의 최대값을 보고한다. 합성 만족도 0~1 스케일에서 2e-3은 성긴 격자 간격이 만드는 차이(실측 5e-4)를 덮는 수준이다. 이 케이스는 '예산 안에서 최선을 보고했는가'를 보는 것이지 두 최적화기가 같은 점을 찾았는지를 보는 것이 아니다."
    }
   }
  },
  "summary": {
   "counts": {
-   "PASS": 168,
+   "PASS": 180,
    "FAIL": 0,
    "REVIEW": 0,
    "UNVERIFIED": 0,
    "ERROR": 0
   },
-  "total": 168,
-  "verifiable": 168,
+  "total": 180,
+  "verifiable": 180,
   "pass_rate_verifiable": 1.0,
   "review_rate": 0.0,
   "unverified_rate": 0.0,
@@ -410,6 +442,16 @@
     "max_rel": 0.020527694610778743,
     "max_abs": 0.011660289115646427,
     "total": 6
+   },
+   "QA-W": {
+    "PASS": 12,
+    "FAIL": 0,
+    "REVIEW": 0,
+    "UNVERIFIED": 0,
+    "ERROR": 0,
+    "max_rel": 1.0,
+    "max_abs": 0.0004955581741368231,
+    "total": 12
    },
    "QA-X": {
     "PASS": 6,
@@ -780,10 +822,10 @@
      "key": "skewness",
      "tol": "default",
      "kind": "number",
-     "adapter": -0.08966254046060233,
+     "adapter": -0.08966254046060237,
      "reference": -0.08966254046060233,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 4.163336342344337e-17,
+     "rel": 4.643339705697615e-16,
      "status": "match"
     },
     {
@@ -1472,10 +1514,10 @@
      "key": "skewness",
      "tol": "default",
      "kind": "number",
-     "adapter": 0.0032767476552246506,
+     "adapter": 0.0032767476552246575,
      "reference": 0.003276747655220395,
-     "abs": 4.255710367440102e-15,
-     "rel": 1.298760483023482e-12,
+     "abs": 4.262649261344009e-15,
+     "rel": 1.300878099219179e-12,
      "status": "match"
     },
     {
@@ -1492,7 +1534,7 @@
    "verdict": "PASS",
    "errors": [],
    "max_abs": 4.656612873077393e-10,
-   "max_rel": 1.298760483023482e-12
+   "max_rel": 1.300878099219179e-12
   },
   {
    "id": "QA-A-07",
@@ -14721,10 +14763,10 @@
      "key": "b10",
      "tol": "mle",
      "kind": "number",
-     "adapter": 39.9533320231273,
+     "adapter": 39.953332023127295,
      "reference": 39.95329443896208,
-     "abs": 3.758416522003927e-05,
-     "rel": 9.407025314885557e-07,
+     "abs": 3.758416521293384e-05,
+     "rel": 9.407025313107124e-07,
      "status": "match"
     },
     {
@@ -14741,10 +14783,10 @@
      "key": "b90",
      "tol": "mle",
      "kind": "number",
-     "adapter": 195.1657959120553,
+     "adapter": 195.16579591205533,
      "reference": 195.16585600417477,
-     "abs": 6.0092119468890814e-05,
-     "rel": 3.079028304397947e-07,
+     "abs": 6.0092119440469105e-05,
+     "rel": 3.079028302941662e-07,
      "status": "match"
     },
     {
@@ -14841,7 +14883,7 @@
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 6.0092119468890814e-05,
+   "max_abs": 6.0092119440469105e-05,
    "max_rel": 9.981502653844906e-06
   },
   {
@@ -15002,10 +15044,10 @@
      "key": "b5",
      "tol": "mle",
      "kind": "number",
-     "adapter": 26.162340122288477,
+     "adapter": 26.162340122288473,
      "reference": 26.162313151005314,
-     "abs": 2.6971283162424697e-05,
-     "rel": 1.0309211959489254e-06,
+     "abs": 2.6971283158871984e-05,
+     "rel": 1.0309211958131303e-06,
      "status": "match"
     },
     {
@@ -15280,10 +15322,10 @@
      "key": "b90",
      "tol": "mle",
      "kind": "number",
-     "adapter": 175.9947116435528,
+     "adapter": 175.99471164355276,
      "reference": 175.9946810757103,
-     "abs": 3.056784248656186e-05,
-     "rel": 1.7368617221682982e-07,
+     "abs": 3.056784245814015e-05,
+     "rel": 1.7368617205533793e-07,
      "status": "match"
     },
     {
@@ -15806,10 +15848,10 @@
      "key": "b5",
      "tol": "mle",
      "kind": "number",
-     "adapter": 70.88283640453696,
+     "adapter": 70.88283640453695,
      "reference": 70.8828675227163,
-     "abs": 3.111817933643124e-05,
-     "rel": 4.3900847163750243e-07,
+     "abs": 3.1118179350642095e-05,
+     "rel": 4.390084718379861e-07,
      "status": "match"
     },
     {
@@ -16395,10 +16437,10 @@
      "key": "b10",
      "tol": "mle",
      "kind": "number",
-     "adapter": 6.18116039625076,
+     "adapter": 6.181160396250761,
      "reference": 6.181158711689048,
-     "abs": 1.6845617123451007e-06,
-     "rel": 2.725317033454366e-07,
+     "abs": 1.684561713233279e-06,
+     "rel": 2.7253170348912786e-07,
      "status": "match"
     },
     {
@@ -20067,10 +20109,10 @@
      "key": "run[4]:f0",
      "tol": "default",
      "kind": "number",
-     "adapter": -1.4142135623730951,
+     "adapter": -1.414213562373095,
      "reference": -1.4142135623730951,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.570092458683775e-16,
      "status": "match"
     },
     {
@@ -20087,10 +20129,10 @@
      "key": "run[5]:f0",
      "tol": "default",
      "kind": "number",
-     "adapter": 1.4142135623730951,
+     "adapter": 1.414213562373095,
      "reference": 1.4142135623730951,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.570092458683775e-16,
      "status": "match"
     },
     {
@@ -20117,10 +20159,10 @@
      "key": "run[6]:f1",
      "tol": "default",
      "kind": "number",
-     "adapter": -1.4142135623730951,
+     "adapter": -1.414213562373095,
      "reference": -1.4142135623730951,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.570092458683775e-16,
      "status": "match"
     },
     {
@@ -20137,10 +20179,10 @@
      "key": "run[7]:f1",
      "tol": "default",
      "kind": "number",
-     "adapter": 1.4142135623730951,
+     "adapter": 1.414213562373095,
      "reference": 1.4142135623730951,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.570092458683775e-16,
      "status": "match"
     },
     {
@@ -20276,8 +20318,8 @@
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0
+   "max_abs": 2.220446049250313e-16,
+   "max_rel": 1.570092458683775e-16
   },
   {
    "id": "QA-H-05",
@@ -28642,6 +28684,1308 @@
    "max_rel": 0.0
   },
   {
+   "id": "QA-W-01",
+   "area": "QA-W",
+   "title": "단일 반응 최대화 — SciPy와 같은 최적점",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "기준은 statsmodels 2차 적합을 scipy differential_evolution(시드 고정)으로 최대화한 값이다. 두 탐색기는 같은 목적함수의 같은 최대점을 찾아야 하므로 합성 만족도는 optimizer_objective, 인자값은 optimizer_argmax 클래스로 비교한다. se와 예측구간은 같은 공분산 정의를 쓴다.",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 40.0,
+      "upper": 70.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "multistart",
+    "seed": 11,
+    "gridPoints": 41
+   },
+   "fields": [
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0.7187297207036941,
+     "reference": 0.7187297217884463,
+     "abs": 1.0847521769719037e-09,
+     "rel": 1.5092630012192453e-09,
+     "status": "match"
+    },
+    {
+     "key": "x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": 0.37656289749964084,
+     "reference": 0.37659706922871883,
+     "abs": 3.417172907799193e-05,
+     "rel": 9.073817050137053e-05,
+     "status": "match"
+    },
+    {
+     "key": "x:y",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -0.27320407598084967,
+     "reference": -0.2732660517622559,
+     "abs": 6.197578140620941e-05,
+     "rel": 0.00022679649011114245,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 61.561891621110824,
+     "reference": 61.56189165365339,
+     "abs": 3.254256597529093e-08,
+     "rel": 5.286154323907896e-10,
+     "status": "match"
+    },
+    {
+     "key": "d:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.7187297207036941,
+     "reference": 0.7187297217884463,
+     "abs": 1.0847521769719037e-09,
+     "rel": 1.5092630012192453e-09,
+     "status": "match"
+    },
+    {
+     "key": "se:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.08273551254706767,
+     "reference": 0.08273641392660402,
+     "abs": 9.013795363582711e-07,
+     "rel": 1.0894592762479292e-05,
+     "status": "match"
+    },
+    {
+     "key": "compliant",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 6.197578140620941e-05,
+   "max_rel": 0.00022679649011114245
+  },
+  {
+   "id": "QA-W-02",
+   "area": "QA-W",
+   "title": "두 반응 — Y1 최대화 · Y2 최소화 (중요도 동일)",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "두 반응의 만족도가 맞서는 지점에서 종합 만족도가 최대가 된다. 기준은 같은 규칙을 NumPy로 다시 구현해 SciPy로 최대화한다.",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 40.0,
+      "upper": 70.0
+     },
+     {
+      "name": "Y2",
+      "goal": "minimize",
+      "lower": 20.0,
+      "upper": 50.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "multistart",
+    "seed": 23,
+    "gridPoints": 41
+   },
+   "fields": [
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0.7239275856707872,
+     "reference": 0.72392758635773,
+     "abs": 6.869428359479457e-10,
+     "rel": 9.489109807296275e-10,
+     "status": "match"
+    },
+    {
+     "key": "x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -0.02525903784307538,
+     "reference": -0.02532176513621545,
+     "abs": 6.272729314007325e-05,
+     "rel": 0.0024772085517198016,
+     "status": "match"
+    },
+    {
+     "key": "x:y",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -0.6895426997391264,
+     "reference": -0.6895746274756813,
+     "abs": 3.192773655491532e-05,
+     "rel": 4.630062546209517e-05,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 60.274817358935124,
+     "reference": 60.27451206703593,
+     "abs": 0.00030529189919548116,
+     "rel": 5.065024812742449e-06,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y2",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 26.736459519436366,
+     "reference": 26.736109174847748,
+     "abs": 0.00035034458861815665,
+     "rel": 1.3103798549257372e-05,
+     "status": "match"
+    },
+    {
+     "key": "d:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.6758272452978374,
+     "reference": 0.6758170689011976,
+     "abs": 1.0176396639804963e-05,
+     "rel": 1.5057915977692953e-05,
+     "status": "match"
+    },
+    {
+     "key": "d:Y2",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.7754513493521211,
+     "reference": 0.7754630275050751,
+     "abs": 1.1678152953997767e-05,
+     "rel": 1.5059587033530541e-05,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.00035034458861815665,
+   "max_rel": 0.0024772085517198016
+  },
+  {
+   "id": "QA-W-03",
+   "area": "QA-W",
+   "title": "중요도 가중 — Y2를 4배 중요하게",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "중요도는 종합 만족도의 가중 기하평균 지수다(QA-W-02와 대조). 인자값이 Y2 쪽으로 이동해야 한다.",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 40.0,
+      "upper": 70.0,
+      "importance": 1.0
+     },
+     {
+      "name": "Y2",
+      "goal": "minimize",
+      "lower": 20.0,
+      "upper": 50.0,
+      "importance": 4.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "multistart",
+    "seed": 23,
+    "gridPoints": 41
+   },
+   "fields": [
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0.780483601169843,
+     "reference": 0.780483602880535,
+     "abs": 1.7106919214526783e-09,
+     "rel": 2.1918358247873737e-09,
+     "status": "match"
+    },
+    {
+     "key": "x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -0.3411632901598475,
+     "reference": -0.34123779849932473,
+     "abs": 7.450833947725277e-05,
+     "rel": 0.00021834726341841705,
+     "status": "match"
+    },
+    {
+     "key": "x:y",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -1.1011769631950155,
+     "reference": -1.1011058763354578,
+     "abs": 7.108685955770078e-05,
+     "rel": 6.455951338147594e-05,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 56.97997012689716,
+     "reference": 56.97997052564614,
+     "abs": 3.987489805012956e-07,
+     "rel": 6.998055225771352e-09,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y2",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 24.62698559414277,
+     "reference": 24.626985673587654,
+     "abs": 7.944488444877607e-08,
+     "rel": 3.2259280734458865e-09,
+     "status": "match"
+    },
+    {
+     "key": "d:Y2",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.8457671468619077,
+     "reference": 0.8457671442137449,
+     "abs": 2.6481628001562285e-09,
+     "rel": 3.131077883875537e-09,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 7.450833947725277e-05,
+   "max_rel": 0.00021834726341841705
+  },
+  {
+   "id": "QA-W-04",
+   "area": "QA-W",
+   "title": "목표값 목표 (Target, 가중 2) — 곡선 모양",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "목표값 만족도는 목표에서 1, 한계에서 0이며 weight 2가 곡선을 오목하게 만든다. ŷ=목표값인 등고선 전체가 만족도 1이므로 인자값은 유일하지 않다 — 그래서 이 케이스는 인자값이 아니라 합성 만족도·예측값·만족도를 비교한다(비유일성 자체가 검증 대상).",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "target",
+      "lower": 45.0,
+      "upper": 65.0,
+      "target": 57.0,
+      "weight": 2.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "multistart",
+    "seed": 31,
+    "gridPoints": 41
+   },
+   "fields": [
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0.9999994304591369,
+     "reference": 0.9999999999999858,
+     "abs": 5.695408489270193e-07,
+     "rel": 5.695408489270273e-07,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 57.00000227816378,
+     "reference": 56.999999999999915,
+     "abs": 2.2781638620017475e-06,
+     "rel": 3.9967787052662294e-08,
+     "status": "match"
+    },
+    {
+     "key": "d:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.9999994304591369,
+     "reference": 0.9999999999999858,
+     "abs": 5.695408489270193e-07,
+     "rel": 5.695408489270273e-07,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 2.2781638620017475e-06,
+   "max_rel": 5.695408489270273e-07
+  },
+  {
+   "id": "QA-W-05",
+   "area": "QA-W",
+   "title": "알려진 해석적 최적점 — y = 22 − 2(x−1.25)² (최적 x=1.25, y=22)",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "정점이 닫힌 해로 알려진 경우: x=1.25, ŷ=22.0, 만족도 (22−0)/(30−0)=0.7333…, 종합도 같다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "actual",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": [
+         "x"
+        ]
+       },
+       {
+        "label": "x²",
+        "factors": [
+         "x"
+        ]
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 22.0
+       },
+       {
+        "label": "x",
+        "value": 5.0
+       },
+       {
+        "label": "x²",
+        "value": -2.0
+       }
+      ],
+      "residual": {
+       "mse": 0.25,
+       "df": 10,
+       "s": 0.5
+      },
+      "covariance": [
+       [
+        0.01,
+        0,
+        0
+       ],
+       [
+        0,
+        0.0025,
+        0
+       ],
+       [
+        0,
+        0,
+        0.0001
+       ]
+      ],
+      "factorBounds": {
+       "x": {
+        "min": -3,
+        "max": 3
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "name": "Y",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 30.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -3,
+      "upper": 3
+     }
+    ],
+    "method": "bounded",
+    "seed": 7,
+    "gridPoints": 41
+   },
+   "fields": [
+    {
+     "key": "x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": 1.250244140625,
+     "reference": 1.2500000249962007,
+     "abs": 0.00024411562879933513,
+     "rel": 0.0001952924991342117,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 25.12499988079071,
+     "reference": 25.125,
+     "abs": 1.1920928955078125e-07,
+     "rel": 4.744648340329602e-09,
+     "status": "match"
+    },
+    {
+     "key": "d:Y",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.837499996026357,
+     "reference": 0.8375,
+     "abs": 3.973642970223068e-09,
+     "rel": 4.744648322654409e-09,
+     "status": "match"
+    },
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0.837499996026357,
+     "reference": 0.8375,
+     "abs": 3.973642970223068e-09,
+     "rel": 4.744648322654409e-09,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.00024411562879933513,
+   "max_rel": 0.0001952924991342117
+  },
+  {
+   "id": "QA-W-06",
+   "area": "QA-W",
+   "title": "만족 해가 없는 규격 — 종합 만족도 0",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "어떤 조건도 규격 안에 들지 않으므로 양쪽 모두 종합 만족도 0, 상태 no-feasible.",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "range",
+      "lower": 1000.0,
+      "upper": 2000.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 21
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "no-feasible",
+     "reference": "no-feasible",
+     "status": "match"
+    },
+    {
+     "key": "composite",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "compliant",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-07",
+   "area": "QA-W",
+   "title": "다중 국소 최적점 — 사차 곡선의 두 봉우리",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "f(x) = 10 + 4.8x − 1.08x² + 0.08x³ 는 [0,10]에서 두 개의 봉우리를 가진다. 시드 고정 다중 시작 탐색과 SciPy 전역 탐색이 같은(더 높은) 봉우리를 찾아야 한다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "actual",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": [
+         "x"
+        ]
+       },
+       {
+        "label": "x²",
+        "factors": [
+         "x"
+        ]
+       },
+       {
+        "label": "x³",
+        "factors": [
+         "x"
+        ]
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0
+       },
+       {
+        "label": "x",
+        "value": 4.8
+       },
+       {
+        "label": "x²",
+        "value": -1.08
+       },
+       {
+        "label": "x³",
+        "value": 0.08
+       }
+      ],
+      "residual": {
+       "mse": 0.04,
+       "df": 12,
+       "s": 0.2
+      },
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 10
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "name": "Y",
+      "goal": "maximize",
+      "lower": -20.0,
+      "upper": 100.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 0,
+      "upper": 10
+     }
+    ],
+    "method": "multistart",
+    "seed": 3,
+    "gridPoints": 41
+   },
+   "fields": [
+    {
+     "key": "x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 9.999999999999957,
+     "abs": 4.263256414560601e-14,
+     "rel": 4.263256414560619e-15,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 30,
+     "reference": 29.999999999999694,
+     "abs": 3.055333763768431e-13,
+     "rel": 1.0184445879228207e-14,
+     "status": "match"
+    },
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0.4166666666666667,
+     "reference": 0.41666666666666413,
+     "abs": 2.55351295663786e-15,
+     "rel": 6.1284310959309015e-15,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 3.055333763768431e-13,
+   "max_rel": 1.0184445879228207e-14
+  },
+  {
+   "id": "QA-W-08",
+   "area": "QA-W",
+   "title": "이산형 인자 + 고정 인자 — 간격 위의 최적점",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "x는 0.5 간격의 이산형(최적 10), z는 −1로 고정. 기준은 이산 축을 전수 열거한다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "actual",
+         "center": 0,
+         "halfRange": 1
+        }
+       },
+       {
+        "id": "",
+        "name": "z",
+        "kind": "numeric",
+        "coding": {
+         "mode": "actual",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": [
+         "x"
+        ]
+       },
+       {
+        "label": "z",
+        "factors": [
+         "z"
+        ]
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0
+       },
+       {
+        "label": "x",
+        "value": 2.0
+       },
+       {
+        "label": "z",
+        "value": 3.0
+       }
+      ],
+      "residual": {
+       "mse": 0.09,
+       "df": 9,
+       "s": 0.3
+      },
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 10
+       },
+       "z": {
+        "min": -1,
+        "max": 1
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "name": "Y",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 40.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "discrete",
+      "lower": 0,
+      "upper": 10,
+      "step": 0.5
+     },
+     {
+      "name": "z",
+      "kind": "continuous",
+      "lower": -1,
+      "upper": 1,
+      "fixed": true,
+      "fixedValue": -1
+     }
+    ],
+    "method": "enumerate",
+    "seed": 5,
+    "gridPoints": 41
+   },
+   "fields": [
+    {
+     "key": "x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "x:z",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1,
+     "reference": -1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 22,
+     "reference": 22.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "d:Y",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.55,
+     "reference": 0.55,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-09",
+   "area": "QA-W",
+   "title": "범주형 인자 — 수준 중 최선",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "대비 코딩: Day=+1, Night=−1 → Day에서 Scrap = 4 − 1 + 0.5x, Night은 4 + 1 + 0.5x. 최소화는 Day, x=0.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "glm",
+      "response": "Scrap",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "",
+        "name": "Shift",
+        "kind": "categorical",
+        "levels": [
+         "Day",
+         "Night"
+        ]
+       },
+       {
+        "id": "",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "actual",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "Shift[Day]",
+        "factors": [
+         "Shift"
+        ]
+       },
+       {
+        "label": "x",
+        "factors": [
+         "x"
+        ]
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 4.0
+       },
+       {
+        "label": "Shift[Day]",
+        "value": -1.0
+       },
+       {
+        "label": "x",
+        "value": 0.5
+       }
+      ],
+      "residual": {
+       "mse": 0.04,
+       "df": 8,
+       "s": 0.2
+      },
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 4
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "name": "Scrap",
+      "goal": "minimize",
+      "lower": 1.0,
+      "upper": 6.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "Shift",
+      "kind": "categorical",
+      "lower": 0,
+      "upper": 0,
+      "levels": [
+       "Day",
+       "Night"
+      ]
+     },
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 0,
+      "upper": 4
+     }
+    ],
+    "method": "enumerate",
+    "seed": 9,
+    "gridPoints": 41
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "optimal",
+     "reference": "optimal",
+     "status": "match"
+    },
+    {
+     "key": "pred:Scrap",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 3,
+     "reference": 3.0000000000000213,
+     "abs": 2.1316282072803006e-14,
+     "rel": 7.105427357600951e-15,
+     "status": "match"
+    },
+    {
+     "key": "d:Scrap",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.6,
+     "reference": 0.5999999999999958,
+     "abs": 4.218847493575595e-15,
+     "rel": 7.031412489292708e-15,
+     "status": "match"
+    },
+    {
+     "key": "x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 4.218847493575595e-14,
+     "abs": 4.218847493575595e-14,
+     "rel": 1.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 4.218847493575595e-14,
+   "max_rel": 1.0
+  },
+  {
+   "id": "QA-W-10",
+   "area": "QA-W",
+   "title": "랭크 부족 모형 — 값을 지어내지 않고 거부",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "식별되지 않은 항이 있는 모형은 최적화 대상이 될 수 없다 — x=0에서만 값이 나오는 표면은 해의 성질이 아니라 해법의 인공물이기 때문이다. 양쪽 모두 invalid + opt.issue.nonEstimable.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "multiple",
+      "response": "Y",
+      "nonEstimable": [
+       "x"
+      ],
+      "predictors": [
+       {
+        "id": "",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "actual",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": [
+         "x"
+        ]
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0
+       },
+       {
+        "label": "x",
+        "value": 2.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 5
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "name": "Y",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 20.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 0,
+      "upper": 5
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 21
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "invalid",
+     "reference": "invalid",
+     "status": "match"
+    },
+    {
+     "key": "issues",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "opt.issue.nonEstimable",
+     "reference": "opt.issue.nonEstimable",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-11",
+   "area": "QA-W",
+   "title": "잘못된 입력 — 한계가 없는 반응은 문제정의 오류",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "상한이 없으면 만족도 곡선을 그릴 수 없다. 어댑터와 기준 모두 status=invalid, issues=opt.issue.limitsMissing.",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 40.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 21
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "invalid",
+     "reference": "invalid",
+     "status": "match"
+    },
+    {
+     "key": "issues",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "opt.issue.limitsMissing",
+     "reference": "opt.issue.limitsMissing",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-12",
+   "area": "QA-W",
+   "title": "평가 예산 초과 — 한도 도달을 숨기지 않음",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "격자 201×201은 예산 300을 넘으므로 어댑터는 격자를 성기게 조정하고 best-found를 보고한다. 기준(SciPy)은 예산이라는 개념이 없으므로 상태 문자열은 비교하지 않고, 성긴 격자가 도달한 합성 만족도만 coarse_grid 클래스로 비교한다. 상태 표시는 단위 테스트와 E2E가 검증한다.",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 40.0,
+      "upper": 70.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 201,
+    "maxEvaluations": 300
+   },
+   "fields": [
+    {
+     "key": "composite",
+     "tol": "optimizer_coarse_grid",
+     "kind": "number",
+     "adapter": 0.7182341636143084,
+     "reference": 0.7187297217884452,
+     "abs": 0.0004955581741368231,
+     "rel": 0.00068949169501952,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0004955581741368231,
+   "max_rel": 0.00068949169501952
+  },
+  {
    "id": "QA-X-01",
    "area": "QA-X",
    "title": "Weibull n=2 → res.insufficient",
@@ -29306,6 +30650,18 @@
   "QA-V-04": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
   "QA-V-05": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
   "QA-V-06": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+  "QA-W-01": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-02": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-03": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-04": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-05": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-06": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-07": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-08": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-09": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-10": "desirability rules re-implemented · unusable limits refused",
+  "QA-W-11": "desirability rules re-implemented · unusable limits refused",
+  "QA-W-12": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
   "QA-X-04": "scipy.stats.ttest_1samp + scipy.stats.t.ppf interval",
   "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f",
   "QA-X-06": "scipy.stats.ttest_1samp on the paired differences (= ttest_rel)"

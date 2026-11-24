@@ -7,6 +7,22 @@
 > **분류**: `SUPPORTED` 구현·검증됨 / `PARTIAL` 일부만 / `MISSING` 없음 / `DIFFERENT` 다른 방식 / `UNKNOWN` 미확인
 > **공수**: S 0.5일 이하 · M 1–2일 · L 3일 이상
 
+## 검증 스냅샷 (2026-11-24, Stage 3C)
+
+| 항목 | 결과 |
+| --- | --- |
+| `npx tsc --noEmit` | 0 errors |
+| `npm test` | **835 / 835 PASS** (Stage 3B 795 + Stage 3C 신규 40: 최적화 29·프로파일러 11) |
+| `npm run qa:stats` | **180 / 180 PASS, 0 FAIL** (168 + QA-W 12: SciPy 기준 최적화 비교) |
+| `npm run build` | 성공 (외부 CDN 없음, 최적화·프로파일러 모두 브라우저 내부 계산) |
+| 3D Surface 결함 | `setGeometry`가 정점/인덱스 버퍼를 `ARRAY_BUFFER`로 재업로드해 WebGL 1의 "버퍼는 한 대상에만 결합" 규칙에 걸리던 결함을 수정 — 인덱스는 `ELEMENT_ARRAY_BUFFER`, 정점은 `ARRAY_BUFFER`로 올리고 업로드 실패 시 정적 투영으로 폴백. E2E가 WebGL 픽셀 면적을 같은 카드의 정적 SVG와 비교(15.7% vs 10.6%, 깨진 상태는 3.6%) |
+| 다중 반응 최적화 | Derringer–Suich 개별 만족도 + 중요도 가중 기하평균 종합 만족도. 격자·다중 시작 국소 탐색·경계 최적화·이산/범주 전수 열거, 시드 재현성(같은 시드 → 같은 평가 횟수까지 동일), 예산 초과 시 `limit`+최선 보고 |
+| 예측 프로파일러 | (반응 × 인자) 행렬, 인자별 슬라이더·직접 입력, 현재값 수직선·규격선·목표선, 조건부 곡선(다른 인자 고정), 신뢰/예측구간 밴드, 개별·종합 만족도, Optimize·Reset·조건 저장, 40 ms 디바운스 |
+| 최적화 독립 검증 | QA-W 12건 — statsmodels 2차 적합 + SciPy `differential_evolution`→L-BFGS-B, 해석적 최적점, 다중 국소 최적점, 이산/범주/고정, 만족 해 없음, 랭크 부족 거부, 잘못된 입력, 평가 예산. 허용오차 클래스 4종에 수치적 이유 기록 (`qa/tolerances.json`) |
+| Stage 3C E2E | `tools/e2e_phase3_3c.cjs` **24 / 24 PASS** (3D 표면 정합·WebGL 오류 0, 최적화 입력/결과/대안/출력 카드, 프로파일러 슬라이더·수직선·Optimize·Reset·조건 저장, 기존 등고선 회귀) |
+| 문서 | `docs/OPTIMIZER_METHODOLOGY.md` — 만족도 정의, Weight/Importance 분리, 탐색 보장 범위, 구간·외삽·랭크 부족 규칙, 독립 검증 목록과 "주장하지 않는 것" |
+| 감사 집계 | §1 요약·구역별 분류는 차트 기능(Phase 1~2) 기준이라 Stage 3C에서 바뀌지 않음. 최적화·프로파일러는 차트 옵션이 아니라 모형 사용 계층이므로 별도 방법론 문서에서 다룬다 (`tests/gap-doc.test.ts` 6건 유지) |
+
 ## 검증 스냅샷 (2026-11-24, Stage 3B)
 
 | 항목 | 결과 |
