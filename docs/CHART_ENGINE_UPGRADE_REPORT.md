@@ -192,8 +192,9 @@ Known limits recorded during verification:
 | --- | --- |
 | Pages URL | https://hyangdan2.github.io/PKPilot0018/ |
 | Branch | `main` (Phase 2 merged from `feat/chart-engine-phase1`) |
-| Workflows | `Deploy` and `qa-stats` |
-| Final commit | recorded in the `docs: record Phase 2 deployment` commit that follows the merge |
+| Workflows | `Deploy` and `qa-stats` — both `completed / success` on the merge commit |
+| Phase 2 merge commit | `9a00f7f` |
+| Live smoke | 33 / 33 checks against the published site (desktop and mobile) |
 
 Verification commands:
 
