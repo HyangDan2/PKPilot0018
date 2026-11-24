@@ -145,3 +145,18 @@ node tools/probe_tutorial_guard.cjs                      → 9 / 9 통과
 | GitHub Actions Portable CI 실행 | 이 작업에서는 원격 실행 결과를 확인하지 않았다(워크플로 권한·실행 여부는 머지 후 CI 상태로 확인 필요). 로컬 `build:portable`·`file://` E2E는 63/63·8/8 통과 |
 | 브라우저 저장소가 **아예 없는** file:// 환경 | probe는 `sigrun.tutorials*` 쓰기만 거부하는 상태를 측정했다. 완전 차단 시에는 `browserProgressStorage()`가 `null`이 되어 같은 백업 dialog 경로로 들어간다 |
 | 다중 탭 | 두 탭이 같은 `original.v1` 슬롯을 쓰면 마지막 쓰기가 남는다. 원본은 read-back으로만 판정하므로 데이터 손실은 아니지만, 탭 간 조정은 이번 범위에 넣지 않았다 |
+
+## 6. 머지 · 배포 · 라이브 확인
+
+| 항목 | 결과 |
+| --- | --- |
+| PR | [#34](https://github.com/HyangDan2/PKPilot0018/pull/34) → `main` 머지 `7c5234d` (2026-11-25 00:47 KST) |
+| PR CI | Statistics QA `45429223414` **success** (58s) |
+| main CI | Statistics QA `45429550637` **success** · Deploy to GitHub Pages `45429550213` **success** |
+| 원격 브랜치 | `fix/tutorial-corrective-qa` 삭제 (`git push origin --delete`; REST 삭제는 403) |
+| 라이브 번들 | `https://hyangdan2.github.io/PKPilot0018/assets/index-6yt7r07p.js` |
+| 라이브 상태바 | `HD2LAB · SIGRÚN · PHASE 3` (T-13) |
+| 라이브 probe | `LIVE_URL=https://hyangdan2.github.io/PKPilot0018/ node tools/probe_tutorial_guard.cjs` → **9 / 9 PASS** |
+| Portable ZIP | `/workspace/work/pkpilot0018/sigrun-portable.zip` (464 816 B, 스탬프 2026-11-24T15:37Z) |
+
+라이브 스크린샷: `work/artifacts/live-tutorial-qa.png`, probe 화면: `work/artifacts/tutorial-guard-live/`.
