@@ -12,3 +12,6 @@ qa/_run/
 qa/adapters/sigrun/.build/
 __pycache__/
 *.pyc
+
+# Local QA screenshots written by the probe/E2E tools
+artifacts/

@@ -100,10 +100,11 @@ async function startIsolated(page, tutorialId = 'tutorial-start-001') {
 }
 
 async function main() {
-  const server = await serve();
+  const live = process.env.LIVE_URL || '';
+  const server = live ? null : await serve();
   const { browser, name } = await launchBrowser();
-  console.log(`browser ${name} · dist ${ROOT}`);
-  const base = `http://127.0.0.1:${PORT}/PKPilot0018/`;
+  console.log(`browser ${name} · ${live ? `live ${live}` : `dist ${ROOT}`}`);
+  const base = live || `http://127.0.0.1:${PORT}/PKPilot0018/`;
 
   /* ── T-01: a blocked store stops the practice until a backup exists ─── */
   const blocked = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
@@ -213,7 +214,7 @@ async function main() {
 
   try { await context.close(); } catch { /* ignore */ }
   try { await browser.close(); } catch { /* ignore */ }
-  server.close();
+  if (server) server.close();
 
   const failed = results.filter((result) => !result.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
