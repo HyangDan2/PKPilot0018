@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-24T17:51:28+09:00",
-  "commit": "c827471be215aa829e621b5971e6fe3946bc47d4",
+  "generated_at": "2026-11-24T18:23:07+09:00",
+  "commit": "341f206021657f651927a58e2476c31372e7912f",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
    "node": "v24.11.0",
-   "commit": "c827471be215aa829e621b5971e6fe3946bc47d4",
-   "cases": 200,
-   "generatedAt": "2026-11-24T08:51:04.299Z"
+   "commit": "341f206021657f651927a58e2476c31372e7912f",
+   "cases": 225,
+   "generatedAt": "2026-11-24T09:22:45.803Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",
@@ -19,7 +19,7 @@
    "pandas": "3.1.1",
    "patsy": "1.0.3",
    "platform": "Linux-6.12.118-guest-1.1-x86_64-with-glibc2.41",
-   "cases": 200,
+   "cases": 225,
    "methods": {
     "QA-A-01": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
     "QA-A-02": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
@@ -169,6 +169,20 @@
     "QA-V-04": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
     "QA-V-05": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
     "QA-V-06": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+    "QA-V-07": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-08": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-10": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-11": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-13a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-14a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-15": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-16": "numpy per-node evaluation (order-free by construction)",
+    "QA-V-17": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-19": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-20a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-20b": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-21a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+    "QA-V-21b": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
     "QA-W-01": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
     "QA-W-02": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
     "QA-W-03": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
@@ -307,6 +321,11 @@
     "rtol": 0.0,
     "reason": "만족 격자점 수는 규격 경계 위에 놓인 노드에서 1e-12 수준의 t분위수·공분산 차이로 뒤집힐 수 있다(21×21 격자, 경계 노드 2개 이내). 노드 비율은 feasible_area 클래스로 따로 검증하므로 이 클래스는 개수 표시의 반올림 여유만 준다."
    },
+   "convergence_delta": {
+    "atol": 0.02,
+    "rtol": 0.0,
+    "reason": "수렴도는 두 격자 비율의 차다. 두 엔진이 같은 격자를 만들지만 규격 경계에 놓인 노드는 부동소수 반올림으로 어느 한쪽에서 뒤집힐 수 있고, 21×21에서는 1노드가 0.0023, 11×11에서는 0.0083이다. 허용치는 최소 격자에서 경계 노드 두 개가 뒤집히는 폭(0.017)에 반올림 여유를 더한 값이다. 비율 자체는 feasible_area 클래스로 따로 검증한다."
+   },
    "optimizer_objective": {
     "atol": 1e-06,
     "rtol": 1e-06,
@@ -331,14 +350,14 @@
  },
  "summary": {
   "counts": {
-   "PASS": 200,
+   "PASS": 225,
    "FAIL": 0,
    "REVIEW": 0,
    "UNVERIFIED": 0,
    "ERROR": 0
   },
-  "total": 200,
-  "verifiable": 200,
+  "total": 225,
+  "verifiable": 225,
   "pass_rate_verifiable": 1.0,
   "review_rate": 0.0,
   "unverified_rate": 0.0,
@@ -454,14 +473,14 @@
     "total": 9
    },
    "QA-V": {
-    "PASS": 6,
+    "PASS": 25,
     "FAIL": 0,
     "REVIEW": 0,
     "UNVERIFIED": 0,
     "ERROR": 0,
-    "max_rel": 0.020527694610778743,
+    "max_rel": 1.205000000000051,
     "max_abs": 0.011660289115646427,
-    "total": 6
+    "total": 25
    },
    "QA-W": {
     "PASS": 32,
@@ -481,6 +500,16 @@
     "ERROR": 0,
     "max_rel": 0.0,
     "max_abs": 0.0,
+    "total": 6
+   },
+   "QA-Y": {
+    "PASS": 6,
+    "FAIL": 0,
+    "REVIEW": 0,
+    "UNVERIFIED": 0,
+    "ERROR": 0,
+    "max_rel": 4.899748405716939e-12,
+    "max_abs": 9.980460902170307e-12,
     "total": 6
    }
   }
@@ -28704,6 +28733,6834 @@
    "max_rel": 0.0
   },
   {
+   "id": "QA-V-07",
+   "area": "QA-V",
+   "title": "두 모형의 중심·Half Range가 다름 — 같은 실제 좌표에서 각자 코딩",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-01: 모형2의 A 코딩은 중심 2·Half Range 0.5다. 실제 좌표 −1은 모형2의 설계 좌표 −6이므로, 모형1의 코딩으로 평가하면 예측이 전혀 다른 값이 된다. 기준은 같은 실제 좌표에서 각 모형의 코딩으로 설계행렬을 다시 만든 numpy 계산이다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 2.0,
+         "halfRange": 0.5
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 21,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 8.0,
+      "usl": 12.0,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -6.0,
+      "usl": -2.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      20,
+      20
+     ],
+     [
+      4,
+      16
+     ],
+     [
+      16,
+      4
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.0022675736961451248,
+     "reference": 0.0022675736961451248,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "area_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.0003125000000000072,
+     "reference": 0.0001417233560090703,
+     "abs": 0.00017077664399093692,
+     "rel": 1.205000000000051,
+     "status": "match"
+    },
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "total_nodes",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 441,
+     "reference": 441,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0,0,0",
+     "reference": "0,0,0,0,0",
+     "status": "match"
+    },
+    {
+     "key": "extrapolated",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "extrapolation_details",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "",
+     "reference": "",
+     "status": "match"
+    },
+    {
+     "key": "z_0[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7.5,
+     "reference": 7.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 13.5,
+     "reference": 13.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9.58,
+     "reference": 9.58,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.78,
+     "reference": 10.78,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.8000000000000003,
+     "reference": -0.8000000000000003,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.8000000000000003,
+     "reference": 2.8000000000000003,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.00017077664399093692,
+   "max_rel": 1.205000000000051
+  },
+  {
+   "id": "QA-V-08",
+   "area": "QA-V",
+   "title": "Actual 코딩 모형과 Coded 코딩 모형 혼합",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-01: 한 모형은 계수가 실제 단위를, 다른 모형은 코딩 단위를 읽는다. 실제 좌표를 한 번 정하고 각 모형이 자기 변환을 적용해야 두 예측이 같은 그림 위에 놓인다.",
+   "args": {
+    "models": [
+     {
+      "id": "Actual",
+      "name": "Actual",
+      "response": "Actual",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "actual",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "actual",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 8.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.25,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.1,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 4
+      },
+      "factorBounds": {
+       "A": {
+        "min": -2,
+        "max": 2
+       },
+       "B": {
+        "min": -1,
+        "max": 1
+       }
+      }
+     },
+     {
+      "id": "Coded",
+      "name": "Coded",
+      "response": "Coded",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 10.0,
+         "halfRange": 2.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 3.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.2,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 4
+      },
+      "factorBounds": {
+       "A": {
+        "min": -2,
+        "max": 2
+       },
+       "B": {
+        "min": -1,
+        "max": 1
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -2,
+     2
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 21,
+    "responses": [
+     {
+      "name": "Actual",
+      "lsl": 0.0,
+      "usl": 20.0,
+      "target": null
+     },
+     {
+      "name": "Coded",
+      "lsl": 0.0,
+      "usl": 20.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      20,
+      20
+     ],
+     [
+      4,
+      16
+     ],
+     [
+      16,
+      4
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0,0,0",
+     "reference": "0,0,0,0,0",
+     "status": "match"
+    },
+    {
+     "key": "z_0[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6.95,
+     "reference": 6.95,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8,
+     "reference": 8.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9.45,
+     "reference": 9.45,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7.478000000000001,
+     "reference": 7.478000000000001,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8.378,
+     "reference": 8.378,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -2.8,
+     "reference": -2.8,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -2,
+     "reference": -2.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.7999999999999998,
+     "reference": -0.7999999999999998,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.3280000000000003,
+     "reference": -1.3280000000000003,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -2.5279999999999996,
+     "reference": -2.5279999999999996,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-09",
+   "area": "QA-V",
+   "title": "같은 이름·다른 열 ID 인자",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-08: 이름이 같아도 서로 다른 열을 가리키면 같은 요인이 아니다. 두 엔진 모두 거부해야 한다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "C9",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 8.0,
+      "usl": 12.0,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -6.0,
+      "usl": -2.0,
+      "target": null
+     }
+    ]
+   },
+   "fields": [],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "errors_detail": {
+    "adapter": "feasible.factor.conflict",
+    "reference": "feasible.factor.conflict"
+   }
+  },
+  {
+   "id": "QA-V-10",
+   "area": "QA-V",
+   "title": "모형별 실험 범위 불일치 — 모형2만 범위를 벗어남",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-05: models[0]만 검사하면 놓친다. 모형2의 A 실험 범위는 0.2~1인데 −1까지 그렸으므로 외삽 상세에 Y2|A|axis가 들어가야 한다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": 0.2,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1,
+        "max": 1
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 8.0,
+      "usl": 12.0,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -6.0,
+      "usl": -2.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      2,
+      8
+     ],
+     [
+      8,
+      2
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "extrapolated",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "extrapolation_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "extrapolation_details",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Y2|A|axis",
+     "reference": "Y2|A|axis",
+     "status": "match"
+    },
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0,0,0",
+     "reference": "0,0,0,0,0",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-11",
+   "area": "QA-V",
+   "title": "Holding Value 외삽 — C를 2로 고정",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-05: 축뿐 아니라 고정값도 각 모형의 실험 범위와 대조한다. 홀드값 2는 두 모형의 C 범위를 모두 벗어나고, 예측값도 C=2에서 계산되어야 한다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 4
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1,
+        "max": 1
+       },
+       "B": {
+        "min": -1,
+        "max": 1
+       },
+       "C": {
+        "min": -0.5,
+        "max": 0.5
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "holdings": {
+     "C": 2
+    },
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 8.0,
+      "usl": 12.0,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -6.0,
+      "usl": -2.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      2,
+      8
+     ],
+     [
+      8,
+      2
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "extrapolated",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "extrapolation_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "extrapolation_details",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "Y1|C|holding,Y2|C|holding",
+     "reference": "Y1|C|holding,Y2|C|holding",
+     "status": "match"
+    },
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0,0,0",
+     "reference": "0,0,0,0,0",
+     "status": "match"
+    },
+    {
+     "key": "z_0[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8.5,
+     "reference": 8.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 14.5,
+     "reference": 14.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.58,
+     "reference": 10.58,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11.78,
+     "reference": 11.78,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3.8000000000000003,
+     "reference": 3.8000000000000003,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6.199999999999999,
+     "reference": 6.199999999999999,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-12",
+   "area": "QA-V",
+   "title": "공분산 누락 + 신뢰구간 기준 → 구조화 오류",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-02: 평균으로 조용히 되돌아가지 않고, 지원 불가 모형을 밝힌 구조화 오류를 내야 한다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": null,
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "confidence",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 8.0,
+      "usl": 12.0,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -6.0,
+      "usl": -2.0,
+      "target": null
+     }
+    ]
+   },
+   "fields": [],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "errors_detail": {
+    "adapter": "feasible.basisUnsupported",
+    "reference": "feasible.basisUnsupported"
+   }
+  },
+  {
+   "id": "QA-V-13a",
+   "area": "QA-V",
+   "title": "mse 누락 + 신뢰구간 기준 — 신뢰구간은 계산된다",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-07: 신뢰구간은 공분산과 df>0만 필요하다. mse는 예측구간에만 필요하므로 여기서는 막히지 않아야 한다(interval_blocked 빈 문자열).",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "confidence",
+    "alpha": 0.05,
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 21,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 11.0,
+      "usl": 14.0,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -4.0,
+      "usl": -1.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      20,
+      20
+     ],
+     [
+      4,
+      16
+     ],
+     [
+      16,
+      4
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "area_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "interval_blocked",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "",
+     "reference": "",
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0,0,0",
+     "reference": "0,0,0,0,0",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-13b",
+   "area": "QA-V",
+   "title": "mse 누락 + 예측구간 기준 → 구조화 오류",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-07: mse를 0으로 대체하면 예측구간이 잔차분산만큼 좁아진다. 누락은 오류로 다룬다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "prediction",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 8.0,
+      "usl": 12.0,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -6.0,
+      "usl": -2.0,
+      "target": null
+     }
+    ]
+   },
+   "fields": [],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "errors_detail": {
+    "adapter": "feasible.basisUnsupported",
+    "reference": "feasible.basisUnsupported"
+   }
+  },
+  {
+   "id": "QA-V-14a",
+   "area": "QA-V",
+   "title": "비정상 공분산 4종 + 평균 기준 — 예측값은 영향받지 않음",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-04: NaN·비대칭·크기 불일치·음수 분산 공분산은 구간을 막지만 평균 예측값은 계수로만 정해진다. 네 모형 모두 interval_blocked에 이름이 올라야 한다.",
+   "args": {
+    "models": [
+     {
+      "id": "NaN",
+      "name": "NaN",
+      "response": "NaN",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        {
+         "__special": "NaN"
+        },
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Asym",
+      "name": "Asym",
+      "response": "Asym",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 12.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.01,
+        0.0
+       ],
+       [
+        0.03,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Size",
+      "name": "Size",
+      "response": "Size",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 14.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Negative",
+      "name": "Negative",
+      "response": "Negative",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 16.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        -0.5,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "NaN",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     },
+     {
+      "name": "Asym",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     },
+     {
+      "name": "Size",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     },
+     {
+      "name": "Negative",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      10,
+      10
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 121,
+     "reference": 121,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "interval_blocked",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "NaN,Asym,Size,Negative",
+     "reference": "NaN,Asym,Size,Negative",
+     "status": "match"
+    },
+    {
+     "key": "z_0[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12,
+     "reference": 12.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 13,
+     "reference": 13.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_2[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 13,
+     "reference": 13.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_2[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 14,
+     "reference": 14.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_2[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 15,
+     "reference": 15.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_3[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 15,
+     "reference": 15.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_3[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 16,
+     "reference": 16.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_3[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 17,
+     "reference": 17.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-14b",
+   "area": "QA-V",
+   "title": "비정상 공분산 + 신뢰구간 기준 → 구조화 오류",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-04/F-02: 쓸 수 없는 공분산을 건너뛰고 부분 분산으로 신뢰구간을 만들지 않는다.",
+   "args": {
+    "models": [
+     {
+      "id": "NaN",
+      "name": "NaN",
+      "response": "NaN",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        {
+         "__special": "NaN"
+        },
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Asym",
+      "name": "Asym",
+      "response": "Asym",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 12.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.01,
+        0.0
+       ],
+       [
+        0.03,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "confidence",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "NaN",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     },
+     {
+      "name": "Asym",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     }
+    ]
+   },
+   "fields": [],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "errors_detail": {
+    "adapter": "feasible.basisUnsupported",
+    "reference": "feasible.basisUnsupported"
+   }
+  },
+  {
+   "id": "QA-V-15",
+   "area": "QA-V",
+   "title": "Rank-deficient 모형 — 별칭 항을 타는 점만 NaN",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-03: 별칭 계수의 가중치가 0인 격자점(A=0)은 추정 가능하고, 나머지는 NaN이다. 한 점의 상태가 다음 점으로 번지면 z[0] 이후가 전부 NaN이 된다.",
+   "args": {
+    "models": [
+     {
+      "id": "Aliased",
+      "name": "Aliased",
+      "response": "Aliased",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 3.0,
+        "estimable": false
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 4
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Healthy",
+      "name": "Healthy",
+      "response": "Healthy",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 4.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "Aliased",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     },
+     {
+      "name": "Healthy",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      2,
+      8
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.09090909090909091,
+     "reference": 0.09090909090909091,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,1,0,0",
+     "reference": "0,1,0,0",
+     "status": "match"
+    },
+    {
+     "key": "z_0[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "NaN"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match",
+     "both_undefined": true
+    },
+    {
+     "key": "z_0[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "NaN"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match",
+     "both_undefined": true
+    },
+    {
+     "key": "z_0[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "NaN"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match",
+     "both_undefined": true
+    },
+    {
+     "key": "z_1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4,
+     "reference": 4.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6,
+     "reference": 6.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4,
+     "reference": 4.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-16",
+   "area": "QA-V",
+   "title": "예측 순서 변경 — 같은 평가기에서 역순 후 정방향",
+   "op": "overlay_order",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-03: 별칭 점(양 끝)을 먼저 평가한 뒤 중심을 평가해도 값이 같아야 한다. 기준은 순서와 무관하게 같은 해석값을 낸다.",
+   "args": {
+    "models": [
+     {
+      "id": "Aliased",
+      "name": "Aliased",
+      "response": "Aliased",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 3.0,
+        "estimable": false
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 4
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Healthy",
+      "name": "Healthy",
+      "response": "Healthy",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 4.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 21,
+    "responses": [
+     {
+      "name": "Aliased",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     },
+     {
+      "name": "Healthy",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      20,
+      20
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      4,
+      16
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "order_identical",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,1,0",
+     "reference": "0,0,1,0",
+     "status": "match"
+    },
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.047619047619047616,
+     "reference": 0.047619047619047616,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_order[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "z_order[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "z_order[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_order[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "z_reverse[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "z_reverse[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "z_reverse[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5,
+     "reference": 5.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_reverse[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-17",
+   "area": "QA-V",
+   "title": "NaN/Infinity 입력과 다항식 오버플로 — 0으로 대체하지 않음",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-04: A³이 1e150에서 넘쳐도 부분합을 정상값으로 돌려주면 안 된다. 넘친 점은 NaN이고 만족으로 세지 않는다(A=0 열 11점만 유한).",
+   "args": {
+    "models": [
+     {
+      "id": "Overflow",
+      "name": "Overflow",
+      "response": "Overflow",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A³",
+        "value": 1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 4
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1e+200,
+        "max": 1e+200
+       },
+       "B": {
+        "min": -1,
+        "max": 1
+       }
+      }
+     },
+     {
+      "id": "Healthy",
+      "name": "Healthy",
+      "response": "Healthy",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 4.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1e+150,
+     1e+150
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "Overflow",
+      "lsl": 0.0,
+      "usl": 1e+300,
+      "target": null
+     },
+     {
+      "name": "Healthy",
+      "lsl": 0.0,
+      "usl": 1e+300,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      10,
+      10
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.09090909090909091,
+     "reference": 0.09090909090909091,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,1,0",
+     "reference": "0,1,0",
+     "status": "match"
+    },
+    {
+     "key": "z_0[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "NaN"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match",
+     "both_undefined": true
+    },
+    {
+     "key": "z_0[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "NaN"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match",
+     "both_undefined": true
+    },
+    {
+     "key": "z_1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1e+150,
+     "reference": -1e+150,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4,
+     "reference": 4.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1e+150,
+     "reference": 1e+150,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-18",
+   "area": "QA-V",
+   "title": "잘못된 규격 범위(LSL > USL) → 구조화 오류",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-08: 뒤집힌 규격은 만족 영역 0이 아니라 오류다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 2.0,
+         "halfRange": 0.5
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 20.0,
+      "usl": 10.0,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -6.0,
+      "usl": -2.0,
+      "target": null
+     }
+    ]
+   },
+   "fields": [],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "errors_detail": {
+    "adapter": "feasible.spec.invalid",
+    "reference": "feasible.spec.invalid"
+   }
+  },
+  {
+   "id": "QA-V-19",
+   "area": "QA-V",
+   "title": "Ultra(401) 해상도 수렴성 — 201과 비교",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-06: Ultra에서 401을 자기 자신과 비교하면 수렴도가 항상 0이다. 이웃은 201×201이며, 자기 비교(self_compare)는 0이어야 한다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 2.0,
+         "halfRange": 0.5
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 401,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 9.0,
+      "usl": 11.5,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -5.0,
+      "usl": -3.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      200,
+      200
+     ],
+     [
+      400,
+      400
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "convergence_neighbor_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 201,
+     "reference": 201,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "convergence_direction",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "coarsened",
+     "reference": "coarsened",
+     "status": "match"
+    },
+    {
+     "key": "self_compare",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "convergence_node_delta",
+     "tol": "convergence_delta",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0",
+     "reference": "0,0,0",
+     "status": "match"
+    },
+    {
+     "key": "z_0[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7.5,
+     "reference": 7.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 13.5,
+     "reference": 13.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-20a",
+   "area": "QA-V",
+   "title": "격자점 사이의 좁은 만족 영역 — 11×11에서 0점",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-06/만족영역: 영역은 (0.05, 0.05) 반경 0.005로 11×11 격자점 사이에 있다. 0점 → narrow=1. 이 한계를 QA-V-20b(101×101)와 대조한다.",
+   "args": {
+    "models": [
+     {
+      "id": "Bowl",
+      "name": "Bowl",
+      "response": "Bowl",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.02,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": -0.4,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -0.4,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 4.0,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 4.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 5
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Healthy",
+      "name": "Healthy",
+      "response": "Healthy",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 4.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 11,
+    "responses": [
+     {
+      "name": "Bowl",
+      "lsl": 10.0,
+      "usl": 10.0002,
+      "target": null
+     },
+     {
+      "name": "Healthy",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      10,
+      10
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "feasible_nodes",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "node_ratio",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "narrow",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0",
+     "reference": "0,0,0",
+     "status": "match"
+    },
+    {
+     "key": "z_0[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.02,
+     "reference": 10.02,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "z_0[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 17.22,
+     "reference": 17.22,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-20b",
+   "area": "QA-V",
+   "title": "같은 좁은 만족 영역 — 101×101에서는 검출",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-06: 해상도를 올리면 같은 영역이 나타난다 — 작은 면적비의 한계를 수치로 보인다.",
+   "args": {
+    "models": [
+     {
+      "id": "Bowl",
+      "name": "Bowl",
+      "response": "Bowl",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.02,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": -0.4,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -0.4,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 4.0,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 4.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 5
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Healthy",
+      "name": "Healthy",
+      "response": "Healthy",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 4.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 101,
+    "responses": [
+     {
+      "name": "Bowl",
+      "lsl": 10.0,
+      "usl": 10.0002,
+      "target": null
+     },
+     {
+      "name": "Healthy",
+      "lsl": 0.0,
+      "usl": 100.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      50,
+      50
+     ],
+     [
+      45,
+      45
+     ],
+     [
+      55,
+      55
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "narrow",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0",
+     "reference": "0,0,0",
+     "status": "match"
+    },
+    {
+     "key": "z_0[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.02,
+     "reference": 10.02,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-21a",
+   "area": "QA-V",
+   "title": "모형 배열 순서 [Y1, Y2] — 응답 이름 기준 예측",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-01: 배열 순서가 예측과 만족 영역을 바꾸면 안 된다. QA-V-21b는 같은 두 모형을 반대로 놓는다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 2.0,
+         "halfRange": 0.5
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 21,
+    "responses": [
+     {
+      "name": "Y1",
+      "lsl": 8.0,
+      "usl": 12.0,
+      "target": null
+     },
+     {
+      "name": "Y2",
+      "lsl": -6.0,
+      "usl": -2.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      20,
+      20
+     ],
+     [
+      4,
+      16
+     ],
+     [
+      16,
+      4
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.0022675736961451248,
+     "reference": 0.0022675736961451248,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0,0,0",
+     "reference": "0,0,0,0,0",
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7.5,
+     "reference": 7.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 13.5,
+     "reference": 13.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9.58,
+     "reference": 9.58,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.78,
+     "reference": 10.78,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.8000000000000003,
+     "reference": -0.8000000000000003,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.8000000000000003,
+     "reference": 2.8000000000000003,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-V-21b",
+   "area": "QA-V",
+   "title": "모형 배열 순서 [Y2, Y1] — 같은 값이어야 함",
+   "op": "overlay",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "F-01: 21a와 같은 필드·같은 기준값. 순서 의존 결함이 있으면 한쪽이 어긋난다.",
+   "args": {
+    "models": [
+     {
+      "id": "Y2",
+      "name": "Y2",
+      "response": "Y2",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 2.0,
+         "halfRange": 0.5
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": -1.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 3
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     },
+     {
+      "id": "Y1",
+      "name": "Y1",
+      "response": "Y1",
+      "predictors": [
+       {
+        "id": "A",
+        "name": "A",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "B",
+        "name": "B",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       },
+       {
+        "id": "C",
+        "name": "C",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0.0,
+         "halfRange": 1.0
+        }
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 10.0,
+        "estimable": true
+       },
+       {
+        "label": "A",
+        "value": 2.0,
+        "estimable": true
+       },
+       {
+        "label": "B",
+        "value": 1.0,
+        "estimable": true
+       },
+       {
+        "label": "C",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "A²",
+        "value": 0.5,
+        "estimable": true
+       },
+       {
+        "label": "B²",
+        "value": 0.0,
+        "estimable": true
+       },
+       {
+        "label": "A×B",
+        "value": 0.0,
+        "estimable": true
+       }
+      ],
+      "covariance": [
+       [
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04,
+        0.0
+       ],
+       [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.04
+       ]
+      ],
+      "residual": {
+       "mse": 0.5,
+       "df": 10
+      },
+      "dof": {
+       "rank": 7
+      },
+      "factorBounds": {
+       "A": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "B": {
+        "min": -1.0,
+        "max": 1.0
+       },
+       "C": {
+        "min": -1.0,
+        "max": 1.0
+       }
+      }
+     }
+    ],
+    "xName": "A",
+    "yName": "B",
+    "mode": "actual",
+    "basis": "mean",
+    "xRange": [
+     -1,
+     1
+    ],
+    "yRange": [
+     -1,
+     1
+    ],
+    "resolution": 21,
+    "responses": [
+     {
+      "name": "Y2",
+      "lsl": -6.0,
+      "usl": -2.0,
+      "target": null
+     },
+     {
+      "name": "Y1",
+      "lsl": 8.0,
+      "usl": 12.0,
+      "target": null
+     }
+    ],
+    "probes": [
+     [
+      0,
+      0
+     ],
+     [
+      10,
+      10
+     ],
+     [
+      20,
+      20
+     ],
+     [
+      4,
+      16
+     ],
+     [
+      16,
+      4
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "node_ratio",
+     "tol": "feasible_area",
+     "kind": "number",
+     "adapter": 0.0022675736961451248,
+     "reference": 0.0022675736961451248,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "feasible_nodes",
+     "tol": "grid_count",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "probe_feasible",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "0,0,0,0,0",
+     "reference": "0,0,0,0,0",
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7.5,
+     "reference": 7.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 13.5,
+     "reference": 13.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9.58,
+     "reference": 9.58,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y1[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10.78,
+     "reference": 10.78,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[3]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.8000000000000003,
+     "reference": -0.8000000000000003,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "zname:Y2[4]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.8000000000000003,
+     "reference": 2.8000000000000003,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
    "id": "QA-W-01",
    "area": "QA-W",
    "title": "단일 반응 최대화 — SciPy와 같은 최적점",
@@ -33309,6 +40166,626 @@
    "errors": [],
    "max_abs": 0.0,
    "max_rel": 0.0
+  },
+  {
+   "id": "QA-Y-01",
+   "area": "QA-Y",
+   "title": "표본 표준편차 (n−1) — ddof=1",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "막대의 반폭이 곧 표본 표준편차다. 기준은 numpy.std(ddof=1). 분모가 n인 모표준편차와 구분되도록 값이 다르다.",
+   "args": {
+    "values": [
+     12.4,
+     11.9,
+     12.8,
+     12.1,
+     12.6,
+     11.7,
+     12.9,
+     12.3,
+     12.0,
+     12.5
+    ],
+    "stat": "sd"
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.32,
+     "reference": 12.32,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11.926158520326881,
+     "reference": 11.926158520326881,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.71384147967312,
+     "reference": 12.71384147967312,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-Y-02",
+   "area": "QA-Y",
+   "title": "표준오차 — sd/√n",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "평균의 표준오차. 같은 sd에서 √n으로 나눈 값이며, 기준은 scipy.stats.sem과 같다.",
+   "args": {
+    "values": [
+     12.4,
+     11.9,
+     12.8,
+     12.1,
+     12.6,
+     11.7,
+     12.9,
+     12.3,
+     12.0,
+     12.5
+    ],
+    "stat": "se"
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.32,
+     "reference": 12.32,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.195456388718204,
+     "reference": 12.195456388718204,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.444543611281796,
+     "reference": 12.444543611281796,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-Y-03",
+   "area": "QA-Y",
+   "title": "95% 신뢰구간 — t(0.975, n−1)",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "양측 Student t. 자유도 n−1, t 분위수는 scipy.stats.t.ppf(0.975, n-1). 정규 근사(1.96)를 쓰지 않는다.",
+   "args": {
+    "values": [
+     12.4,
+     11.9,
+     12.8,
+     12.1,
+     12.6,
+     11.7,
+     12.9,
+     12.3,
+     12.0,
+     12.5
+    ],
+    "stat": "ci",
+    "conf": 0.95
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.32,
+     "reference": 12.32,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.2817372223414862,
+     "reference": 0.2817372223418704,
+     "abs": 3.841926776715354e-13,
+     "rel": 1.363656085191831e-12,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.038262777658515,
+     "reference": 12.03826277765813,
+     "abs": 3.8546943414985435e-13,
+     "rel": 3.2020353872424927e-14,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.601737222341486,
+     "reference": 12.601737222341871,
+     "abs": 3.8546943414985435e-13,
+     "rel": 3.058859483805518e-14,
+     "status": "match"
+    },
+    {
+     "key": "t_crit",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.26215716279512,
+     "reference": 2.262157162798205,
+     "abs": 3.085087740828385e-12,
+     "rel": 1.3637813462139144e-12,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 3.085087740828385e-12,
+   "max_rel": 1.3637813462139144e-12
+  },
+  {
+   "id": "QA-Y-04",
+   "area": "QA-Y",
+   "title": "99% 신뢰구간 — 같은 표본에서 더 넓은 구간",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "신뢰수준만 바꾼 대조 케이스. t 분위수가 커져 반폭이 커져야 한다.",
+   "args": {
+    "values": [
+     12.4,
+     11.9,
+     12.8,
+     12.1,
+     12.6,
+     11.7,
+     12.9,
+     12.3,
+     12.0,
+     12.5
+    ],
+    "stat": "ci",
+    "conf": 0.99
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.32,
+     "reference": 12.32,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.40474625442291867,
+     "reference": 0.40474625442181505,
+     "abs": 1.1036171976286369e-12,
+     "rel": 2.726689093652435e-12,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11.91525374557708,
+     "reference": 11.915253745578186,
+     "abs": 1.1048939541069558e-12,
+     "rel": 9.272936839611896e-14,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.72474625442292,
+     "reference": 12.724746254421815,
+     "abs": 1.1048939541069558e-12,
+     "rel": 8.683033296031409e-14,
+     "status": "match"
+    },
+    {
+     "key": "t_crit",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3.249835541600987,
+     "reference": 3.249835541592126,
+     "abs": 8.86135609334815e-12,
+     "rel": 2.7267090841793445e-12,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 8.86135609334815e-12,
+   "max_rel": 2.7267090841793445e-12
+  },
+  {
+   "id": "QA-Y-05",
+   "area": "QA-Y",
+   "title": "반복값 1개 — 막대를 그리지 않음(available=0)",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "값이 하나면 퍼짐이 없다. 어댑터와 기준 모두 available=0을 보고하며, 폭 0인 막대를 그리지 않는다는 규칙을 검증한다.",
+   "args": {
+    "values": [
+     12.4
+    ],
+    "stat": "ci",
+    "conf": 0.95
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-Y-06",
+   "area": "QA-Y",
+   "title": "결측·비유한 값 제외 — 유효 n으로 계산",
+   "op": "errorbars",
+   "dataset": "missing_values",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "열 데이터셋의 결측(NaN/빈 셀)은 통계량에서 빠지고 n이 줄어든다. 두 구현이 같은 유효 표본을 쓰는지 확인한다.",
+   "args": {
+    "column": "x",
+    "stat": "ci",
+    "conf": 0.95
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 33,
+     "reference": 33,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20.51870949137879,
+     "reference": 20.51870949137879,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.9949954027295658,
+     "reference": 1.9949954027295662,
+     "abs": 4.440892098500626e-16,
+     "rel": 2.226016206565974e-16,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3472841233495562,
+     "reference": 0.3472841233495563,
+     "abs": 5.551115123125783e-17,
+     "rel": 1.5984361938533966e-16,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.707394610508488,
+     "reference": 0.707394610505022,
+     "abs": 3.4660052605772762e-12,
+     "rel": 4.8996772227354565e-12,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 19.811314880870302,
+     "reference": 19.811314880873766,
+     "abs": 3.4638958368304884e-12,
+     "rel": 1.7484431788899594e-13,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 21.226104101887277,
+     "reference": 21.226104101883813,
+     "abs": 3.4638958368304884e-12,
+     "rel": 1.63190372581046e-13,
+     "status": "match"
+    },
+    {
+     "key": "t_crit",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.036933343470082,
+     "reference": 2.0369333434601016,
+     "abs": 9.980460902170307e-12,
+     "rel": 4.899748405716939e-12,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 9.980460902170307e-12,
+   "max_rel": 4.899748405716939e-12
   }
  ],
  "datasets": [
@@ -33618,6 +41095,20 @@
   "QA-V-04": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
   "QA-V-05": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
   "QA-V-06": "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature",
+  "QA-V-07": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-08": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-10": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-11": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-13a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-14a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-15": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-16": "numpy per-node evaluation (order-free by construction)",
+  "QA-V-17": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-19": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-20a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-20b": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-21a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
+  "QA-V-21b": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
   "QA-W-01": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
   "QA-W-02": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
   "QA-W-03": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",

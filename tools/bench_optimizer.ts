@@ -126,12 +126,15 @@ const asyncResult = await optimizeAsync([Y1, Y2], responses, factors.map((factor
 const asyncMs = performance.now() - asyncStarted;
 clearInterval(timer);
 
-/* Memory: 100 repeated runs of the same search (a leak would accumulate). */
-const before = process.memoryUsage().heapUsed;
-for (let index = 0; index < 100; index += 1) {
-  optimize([Y1, Y2], responses, factors, { method: 'multistart', gridPoints: 21 });
+/* Memory: five batches of 100 runs. A leak grows every batch; allocation churn
+   plateaus once the collector catches up, which is what the batches show. */
+const batches: number[] = [];
+for (let batch = 0; batch < 5; batch += 1) {
+  for (let index = 0; index < 100; index += 1) {
+    optimize([Y1, Y2], responses, factors, { method: 'multistart', gridPoints: 21 });
+  }
+  batches.push(process.memoryUsage().heapUsed / 1048576);
 }
-const after = process.memoryUsage().heapUsed;
 
 console.log(JSON.stringify({
   rows,
@@ -144,9 +147,8 @@ console.log(JSON.stringify({
     chunkSize: 64,
   },
   memory: {
-    runs: 100,
-    heapBeforeMB: before / 1048576,
-    heapAfterMB: after / 1048576,
-    growthMB: (after - before) / 1048576,
+    runsPerBatch: 100,
+    heapAfterEachBatchMB: batches,
+    lastBatchGrowthMB: batches[batches.length - 1] - batches[batches.length - 2],
   },
 }, null, 1));

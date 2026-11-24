@@ -5,7 +5,7 @@
    module. It is the single engine on the Stage-3C side:
 
    · It reads and writes ACTUAL factor coordinates. Coded values are derived
-     here (through the shared `toDesignValue` transform) purely for display, so
+     here (through the shared `designFromActual` transform) purely for display, so
      two models with different codings are each evaluated in their own space at
      the same actual condition.
    · It parses a coefficient label once (per model) and then multiplies the
@@ -13,18 +13,23 @@
      the Model Manager / contour / surface path. `crossCheck` compares the two
      point for point so the two paths cannot drift apart silently, and QA-W-19
      / QA-W-20 assert the same equality from outside the app.
-   · It separates what the model can answer: a confidence interval needs the
-     covariance and residual df; a prediction interval additionally needs the
-     residual variance (mse). A missing mse removes the PI and leaves the CI.
+   · It separates what the model can answer by asking `intervalStatus` — the
+     same rule the Model Manager and the overlay use: a confidence interval
+     needs a usable covariance and residual df; a prediction interval
+     additionally needs the residual variance (mse). A missing mse removes the
+     PI and leaves the CI, and a covariance that fails the shared check never
+     becomes a standard error.
    · It never invents a value. A missing input, an unknown level, an aliased
      coefficient or a non-finite variance returns null plus the reason.
    ───────────────────────────────────────────────────────────────────────── */
 
 import { tInv } from './dist';
 import {
+  covarianceStatus,
+  designFromActual,
+  intervalStatus,
   parseCoefficientLabel,
   predictStoredModel,
-  toDesignValue,
   type ParsedToken,
   type PredictionResult,
 } from './modelPredictor';
@@ -90,12 +95,19 @@ function buildAdapter(model: StoredModel): PredictionAdapter {
     tokens: parseCoefficientLabel(coefficient.label),
   }));
   const byName = new Map(model.predictors.map((predictor) => [predictor.name, predictor]));
-  const covariance = model.covariance && model.covariance.length === model.coefficients.length ? model.covariance : null;
+  // What a model can answer is decided by the shared rules in modelPredictor
+  // (covariance validity, rank, df, mse), not by a second opinion here.
+  const intervals = intervalStatus(model);
+  const covariance = covarianceStatus(model);
+  const matrix = covariance.ok ? covariance.matrix : null;
   const df = model.residual?.df && model.residual.df > 0 ? model.residual.df : null;
   const mse = model.residual?.mse;
-  const hasMse = typeof mse === 'number' && Number.isFinite(mse);
-  const supportsCi = Boolean(covariance && df);
-  const supportsPi = supportsCi && hasMse;
+  const supportsCi = intervals.ci && Boolean(matrix && df);
+  const supportsPi = supportsCi && intervals.pi;
+  /** Interval problems that are real defects rather than an absent quantity. */
+  const intervalIssues = intervals.ci
+    ? []
+    : intervals.reasons.filter((reason) => !['model.covariance.missing', 'model.df.missing', 'model.mse.missing'].includes(reason));
 
   const variable = (name: string): ModelVariable | undefined => byName.get(name);
 
@@ -114,7 +126,7 @@ function buildAdapter(model: StoredModel): PredictionAdapter {
     if (!predictor) throw new Error('model.structure');
     const numeric = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.NaN;
     if (!Number.isFinite(numeric)) throw new Error('model.valueMissing');
-    return toDesignValue(predictor, numeric, 'actual');
+    return designFromActual(predictor, numeric);
   };
 
   const validate = (point: ActualPoint): string[] => {
@@ -177,17 +189,17 @@ function buildAdapter(model: StoredModel): PredictionAdapter {
       return { value: null, se: null, ci: null, pi: null, nonEstimable, issues: [] };
     }
     if (!Number.isFinite(fit)) {
-      return { value: null, se: null, ci: null, pi: null, nonEstimable: [], issues: ['model.nonFinite'] };
+      return { value: null, se: null, ci: null, pi: null, nonEstimable: [], issues: ['model.value.nonFinite'] };
     }
     let se: number | null = null;
     let ci: [number, number] | null = null;
     let pi: [number, number] | null = null;
-    if (supportsCi && covariance && df) {
+    if (supportsCi && matrix && df) {
       let variance = 0;
       for (let i = 0; i < weights.length; i += 1) {
         const wi = weights[i];
         if (!Number.isFinite(wi) || wi === 0) continue;
-        const row = covariance[i];
+        const row = matrix[i];
         if (!row) continue;
         for (let j = 0; j < weights.length; j += 1) {
           const entry = row[j];
@@ -205,10 +217,10 @@ function buildAdapter(model: StoredModel): PredictionAdapter {
           if (Number.isFinite(piHalf)) pi = [fit - piHalf, fit + piHalf];
         }
       } else {
-        return { value: fit, se: null, ci: null, pi: null, nonEstimable: [], issues: ['model.covariance'] };
+        return { value: fit, se: null, ci: null, pi: null, nonEstimable: [], issues: ['model.covariance.negativeVariance'] };
       }
     }
-    return { value: fit, se, ci, pi, nonEstimable, issues: [] };
+    return { value: fit, se, ci, pi, nonEstimable, issues: intervalIssues };
   };
 
   return {
@@ -229,7 +241,7 @@ function buildAdapter(model: StoredModel): PredictionAdapter {
       const predictor = byName.get(name);
       if (!predictor) return Number.NaN;
       try {
-        return toDesignValue(predictor, actual, 'actual');
+        return designFromActual(predictor, actual);
       } catch {
         return Number.NaN;
       }
