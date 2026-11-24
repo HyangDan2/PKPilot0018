@@ -142,14 +142,20 @@ describe('[R1] polynomial overflow is refused identically on every prediction pa
     expect(grid.z.flat().every((value) => Number.isNaN(value))).toBe(true);
   });
 
-  it('a finite weight whose covariance product overflows is refused as non-finite, not as a negative variance', () => {
+  it('a finite weight whose covariance product overflows fails the interval, not the mean', () => {
+    // Round 2 (R-01) supersedes this assertion: ŷ = 1e308 is a number the model
+    // really predicts, so the point keeps its mean and only the band is refused.
     const stored = quadratic();
     const adapter = createPredictionAdapter(stored);
     // A² = 1e308 is finite; w'Σw then overflows.
     const evaluation = adapter.evaluate({ A: 1e154, B: 0 });
-    expect(evaluation.value).toBeNull();
-    expect(evaluation.issues).toContain(NON_FINITE);
+    expect(evaluation.value).not.toBeNull();
+    expect(evaluation.se).toBeNull();
+    expect(evaluation.ci).toBeNull();
+    expect(evaluation.pi).toBeNull();
+    expect(evaluation.issues).toContain('model.interval.nonFinite');
     expect(evaluation.issues).not.toContain('model.covariance.negativeVariance');
+    expect(evaluation.issues).not.toContain(NON_FINITE);
   });
 
   it('the optimiser reports the same code at a fixed overflowing condition', () => {

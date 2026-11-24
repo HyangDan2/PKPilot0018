@@ -30,6 +30,7 @@ import { tInv } from './dist';
 import {
   covarianceStatus,
   designFromActual,
+  INTERVAL_NON_FINITE,
   intervalStatus,
   intervalIssues as intervalIssueList,
   parseCoefficientLabel,
@@ -189,7 +190,9 @@ function buildAdapter(model: StoredModel): PredictionAdapter {
         ci: null,
         pi: null,
         nonEstimable: summed.nonEstimable,
-        issues: summed.issues.length ? summed.issues : intervalIssues,
+        // The refusal states the sum's own reason, exactly as the Model Manager
+        // does; interval remarks belong to a point that has a mean to band.
+        issues: summed.issues,
       };
     }
     const fit = summed.value;
@@ -201,16 +204,23 @@ function buildAdapter(model: StoredModel): PredictionAdapter {
       // overflowing product is non-finite, not a negative variance.
       const form = quadraticForm(matrix, weights);
       if (!form.ok) {
-        return { value: null, se: null, ci: null, pi: null, nonEstimable: [], issues: [...intervalIssues, form.reason] };
+        // ŷ is a number; only the band around it failed. Returning null here
+        // made the optimiser and the profiler throw away a usable mean that the
+        // Model Manager was still showing.
+        return { value: fit, se: null, ci: null, pi: null, nonEstimable: [], issues: [...intervalIssues, form.reason] };
       }
       se = Math.sqrt(form.value);
       const half = tInv(1 - Math.min(0.999, Math.max(1e-6, alpha)) / 2, df);
       const ciHalf = half * se;
+      const remarks = [...intervalIssues];
       if (Number.isFinite(ciHalf)) ci = [fit - ciHalf, fit + ciHalf];
+      else remarks.push(INTERVAL_NON_FINITE);
       if (supportsPi) {
         const piHalf = half * Math.sqrt(form.value + Math.max(0, mse as number));
         if (Number.isFinite(piHalf)) pi = [fit - piHalf, fit + piHalf];
+        else remarks.push(INTERVAL_NON_FINITE);
       }
+      return { value: fit, se, ci, pi, nonEstimable: [], issues: [...new Set(remarks)] };
     }
     return { value: fit, se, ci, pi, nonEstimable: [], issues: intervalIssues };
   };
@@ -273,7 +283,9 @@ export interface CrossCheck {
   se: number | null;
   ciHalf: number | null;
   pi: [number, number] | null;
-  delta: { value: number; se: number; ci: number; pi: number; issues: number };
+  /** Coefficients this path says are not identifiable (the adapter's list). */
+  nonEstimable: string[];
+  delta: { value: number; se: number; ci: number; pi: number; issues: number; nonEstimable: number };
   parallel: [number, number] | null;
   consistent: boolean;
   issues: string[];
@@ -301,6 +313,16 @@ function issueDelta(a: string[], b: string[]): number {
   return count;
 }
 
+/** How many coefficients one side calls non-estimable that the other does not. */
+function labelDelta(a: string[], b: string[]): number {
+  const left = new Set(a);
+  const right = new Set(b);
+  let count = 0;
+  left.forEach((label) => { if (!right.has(label)) count += 1; });
+  right.forEach((label) => { if (!left.has(label)) count += 1; });
+  return count;
+}
+
 export function crossCheck(model: StoredModel, point: ActualPoint, alpha = 0.05): CrossCheck {
   const adapter = createPredictionAdapter(model);
   const mine = adapter.evaluate(point, alpha);
@@ -311,21 +333,28 @@ export function crossCheck(model: StoredModel, point: ActualPoint, alpha = 0.05)
   const delta = {
     value: numberDelta(mine.value, shared.value),
     se: numberDelta(mine.se, shared.se),
-    ci: 0,
+    // Both bounds, not a placeholder: a CI that differs in either end is a
+    // difference between the two paths, whatever the value and the error say.
+    ci: intervalDelta(mine.ci, shared.ci),
     pi: intervalDelta(mine.pi, shared.pi),
     issues: issueDelta(mine.issues, shared.issues),
+    nonEstimable: labelDelta(mine.nonEstimable, shared.nonEstimable),
   };
   const consistent = delta.value <= tolerance
     && delta.se <= tolerance
+    && delta.ci <= tolerance
     && delta.pi <= tolerance
     && delta.issues === 0
+    && delta.nonEstimable === 0
     && (mine.value === null) === (shared.value === null)
+    && (mine.ci === null) === (shared.ci === null)
     && (mine.pi === null) === (shared.pi === null);
   return {
     value: mine.value,
     se: mine.se,
     ciHalf,
     pi: mine.pi,
+    nonEstimable: mine.nonEstimable,
     delta,
     parallel: mine.pi !== null && shared.pi !== null ? shared.pi : null,
     consistent,

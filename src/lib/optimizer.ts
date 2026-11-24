@@ -33,6 +33,7 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { ModelVariable, StoredModel } from './modelStore';
+import { meanIssues } from './modelPredictor';
 import {
   createPredictionAdapter,
   type ActualPoint,
@@ -474,8 +475,11 @@ export function scorePoint(
     const evaluation: AdapterEvaluation = adapter.evaluate(point, alpha);
     if (evaluation.value !== null) usable = true;
     const desirability = individualDesirability(evaluation.value, settings);
+    // Compliance is about the MEAN: a point whose interval could not be
+    // computed still has a value the desirability can rank and the limits can
+    // judge. The interval remark is carried in `issues` and shown beside it.
     const compliant = evaluation.nonEstimable.length === 0
-      && evaluation.issues.length === 0
+      && meanIssues(evaluation.issues).length === 0
       && withinLimits(evaluation.value, settings);
     predictions.push({
       modelId: adapter.model.id,
