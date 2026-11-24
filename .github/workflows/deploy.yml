@@ -1,5 +1,9 @@
 name: Deploy Sigrún to GitHub Pages
 
+# Every push to main is the candidate release: the same checks a release tag
+# runs, then the Pages upload. The release folder stays an artifact; nothing
+# here creates, moves or deletes a tag.
+
 on:
   push:
     branches: [main]
@@ -22,10 +26,35 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+          cache: npm
+      - run: npm ci --no-audit --no-fund
       - run: npx tsc --noEmit
       - run: npm test
-      - run: npm run build
+
+      - name: Release build (web + portable, reproducible)
+        run: |
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          npm run release:build
+
+      - name: Verify release artifacts and rebuild
+        run: npm run release:verify -- --repro
+
+      - name: Portable offline E2E
+        run: npm run qa:portable
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Portable tutorial E2E
+        run: npm run qa:tutorials:portable
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release/
+          retention-days: 30
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

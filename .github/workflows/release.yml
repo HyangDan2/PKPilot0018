@@ -1,0 +1,54 @@
+name: Release candidate (tag)
+
+# A tag is the only trigger. The job builds from that commit, verifies every
+# hash and the reproducible rebuild, and uploads the release folder as an
+# artifact. Tags are never created, moved or deleted by this workflow.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npm test
+
+      - name: Preflight
+        run: npm run release:check
+
+      - name: Build release artifacts
+        run: |
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          npm run release:build
+
+      - name: Verify artifacts and reproducible rebuild
+        run: npm run release:verify -- --repro
+
+      - name: Portable offline E2E
+        run: npm run qa:portable
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sigrun-release
+          path: release/
+          retention-days: 90
