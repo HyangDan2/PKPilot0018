@@ -129,6 +129,24 @@ function buildGroups(sheet: Worksheet, byRefs: string[] | string | undefined): G
   return [...map.values()];
 }
 
+/**
+ * Values that can be plotted, with the worksheet row each one came from.
+ *
+ * The row list is what makes a chart clickable back into the worksheet
+ * (WO-09): dropping a missing value must not shift the row of the point that
+ * follows it, so the index travels with the value.
+ */
+function cleanWithRows(values: (number | string | null)[]): { values: number[]; rows: number[] } {
+  const out = { values: [] as number[], rows: [] as number[] };
+  values.forEach((value, index) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      out.values.push(value);
+      out.rows.push(index);
+    }
+  });
+  return out;
+}
+
 function valuesAt(col: Column | undefined, rows: number[]): (number | null)[] {
   if (!col) return [];
   return rows.map((r) => (typeof col.values[r] === 'number' ? (col.values[r] as number) : null));
@@ -339,7 +357,7 @@ function runT1(ctx: RunContext): RunResult {
   if (bool(values.chart, true)) {
     blocks.push({
       type: 'chart',
-      chart: { kind: 'histogram', values: clean(data), normal: true, xLabel: col?.name ?? 'Data', title: col?.name },
+      chart: { kind: 'histogram', values: cleanWithRows(data).values, rows: cleanWithRows(data).rows, normal: true, xLabel: col?.name ?? 'Data', title: col?.name, source: { sheetId: sheet.id, sheetName: sheet.name, xColumnId: col?.id } },
     });
   }
   return { subtitle: col?.name ?? '', blocks };
@@ -395,8 +413,8 @@ function runT2(ctx: RunContext): RunResult {
       chart: {
         kind: 'boxplot',
         groups: [
-          { label: colA?.name ?? 'A', values: clean(a) },
-          { label: colB?.name ?? 'B', values: clean(b) },
+          { label: colA?.name ?? 'A', values: cleanWithRows(a).values, rows: cleanWithRows(a).rows },
+          { label: colB?.name ?? 'B', values: cleanWithRows(b).values, rows: cleanWithRows(b).rows },
         ],
         yLabel: colA?.name ?? 'Value',
       },
@@ -1120,17 +1138,23 @@ function runBoxplot(ctx: RunContext): RunResult {
   const refs = refList(values, 'variables');
   const byRefs = refList(values, 'by');
   numericColumns(sheet, refs);
-  const groups: { label: string; values: number[] }[] = [];
+  const groups: { label: string; values: number[]; rows: number[] }[] = [];
   if (byRefs.length) {
     const response = findColumn(sheet, refs[0]);
     const groupsRaw = buildGroups(sheet, byRefs);
     groupsRaw.forEach((g) => {
-      groups.push({ label: g.keys.join(' / '), values: clean(valuesAt(response, g.rows)) });
+      const cleaned = cleanWithRows(valuesAt(response, g.rows));
+      // The group's own row list, so a box can point at the observations it
+      // summarises (a group split keeps each member's original row).
+      groups.push({ label: g.keys.join(' / '), values: cleaned.values, rows: cleaned.rows.map((index) => g.rows[index]) });
     });
   } else {
     refs.forEach((ref) => {
       const col = findColumn(sheet, ref);
-      if (col) groups.push({ label: col.name || col.id, values: clean(numValues(sheet, ref)) });
+      if (col) {
+        const cleaned = cleanWithRows(numValues(sheet, ref));
+        groups.push({ label: col.name || col.id, values: cleaned.values, rows: cleaned.rows });
+      }
     });
   }
   const valid = groups.filter((g) => g.values.length);
@@ -1142,7 +1166,7 @@ function runBoxplot(ctx: RunContext): RunResult {
   return {
     subtitle: valid.map((g) => g.label).join(', '),
     blocks: [
-      { type: 'chart', chart: { kind: 'boxplot', groups: valid, yLabel: 'Value' } },
+      { type: 'chart', chart: { kind: 'boxplot', groups: valid, yLabel: 'Value', source: { sheetId: sheet.id, sheetName: sheet.name, yColumnId: refs[0] } } },
       { type: 'table', headers: ['@th.variable', '@th.n', '@th.min', '@th.q1', '@th.median', '@th.q3', '@th.max', '@th.iqr'], rows, align: ['l', 'r', 'r', 'r', 'r', 'r', 'r', 'r'] },
     ],
   };
@@ -1200,11 +1224,13 @@ function paddedDomain(values: number[], frac: number): [number, number] {
 
 type ScatterLayout = 'individual' | 'panel' | 'overlay';
 
-interface ScatterPoint { x: number; y: number; g?: string }
+interface ScatterPoint { x: number; y: number; g?: string; row?: number }
 
 interface ScatterCombo {
   yName: string;
   xName: string;
+  yId: string;
+  xId: string;
   label: string;
   points: ScatterPoint[];
   groups?: string[];
@@ -1278,7 +1304,9 @@ function runScatter(ctx: RunContext): RunResult {
         skipped += 1;
         continue;
       }
-      points.push(byCols.length ? { x: xv, y: yv, g: byCols.map((col) => textOf(col, r)).join(' / ') } : { x: xv, y: yv });
+      // The worksheet row travels with the point: a dropped pair or a By
+      // group must not shift the rows of the points that remain (WO-09).
+      points.push(byCols.length ? { x: xv, y: yv, row: r, g: byCols.map((col) => textOf(col, r)).join(' / ') } : { x: xv, y: yv, row: r });
     }
     if (points.length < 2) {
       issues.push({ label, key: 'res.insufficient' });
@@ -1302,6 +1330,8 @@ function runScatter(ctx: RunContext): RunResult {
     results.push({
       yName,
       xName,
+      yId: y.id,
+      xId: x.id,
       label,
       points,
       groups: byCols.length ? [...new Set(points.map((p) => p.g ?? ''))] : undefined,
@@ -1328,6 +1358,13 @@ function runScatter(ctx: RunContext): RunResult {
     `y = ${equationOf(combo.fit)}`,
   ];
 
+  const chartSource = (combo: ScatterCombo) => ({
+    sheetId: sheet.id,
+    sheetName: sheet.name,
+    xColumnId: combo.xId,
+    yColumnId: combo.yId,
+  });
+
   const chartFor = (combo: ScatterCombo): ChartSpec => ({
     kind: 'scatter',
     points: combo.points,
@@ -1339,6 +1376,7 @@ function runScatter(ctx: RunContext): RunResult {
     notes: showStats ? notesFor(combo) : undefined,
     xDomain,
     yDomain,
+    source: chartSource(combo),
   });
 
   const statRow = (combo: ScatterCombo): (string | number)[] => [
@@ -1367,12 +1405,15 @@ function runScatter(ctx: RunContext): RunResult {
       chart: {
         kind: 'scatter',
         points: [],
-        series: results.map((combo) => ({ label: combo.label, points: combo.points, fit: wantFit ? combo.fit : null })),
+        series: results.map((combo) => ({ label: combo.label, points: combo.points, fit: wantFit ? combo.fit : null, rows: combo.points.map((point) => point.row ?? null) })),
         legend: true,
         xLabel: xNames.length === 1 ? xNames[0] : 'X',
         yLabel: yNames.length === 1 ? yNames[0] : 'Y',
         xDomain,
         yDomain,
+        // An overlay of different X-Y pairs has no single source, so it does
+        // not take part in linked selection.
+        ...(results.every((combo) => combo.xId === results[0].xId && combo.yId === results[0].yId) ? { source: chartSource(results[0]) } : {}),
       },
     });
     if (byCols.length) blocks.push({ type: 'text', lines: [t(lang, 'res.scatterOverlayBy', { by: byNames.join(', ') })] });

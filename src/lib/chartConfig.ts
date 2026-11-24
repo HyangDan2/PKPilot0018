@@ -18,7 +18,13 @@ export type ChartStylePresetId =
   | 'dark';
 
 export type MarkerShape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross' | 'none';
-export type AxisScale = 'linear' | 'log10';
+/**
+ * Axis transformations. `log10` and `ln` are the two logarithmic bases,
+ * `symlog` maps sign(x)·log10(1+|x|/C) so zero and negative values keep a
+ * finite, readable position, and `power` is sign(x)·|x|^p (p = 0.5 is the
+ * square-root scale Minitab and Origin both offer).
+ */
+export type AxisScale = 'linear' | 'log10' | 'ln' | 'symlog' | 'power';
 export type TickDirection = 'in' | 'out' | 'both' | 'none';
 export type CrossAt = 'auto' | 'zero' | number;
 export type LegendPosition = 'top-right' | 'top-left' | 'bottom' | 'right' | 'none';
@@ -58,6 +64,42 @@ export interface ChartAppearance {
   margins: ChartMargins;
 }
 
+/**
+ * A break in an axis: the stretch between `from` and `to` is not drawn to
+ * scale. It occupies `size` pixels so the reader can see that something was
+ * omitted, and both remaining segments keep their own scale.
+ */
+export interface AxisBreakConfig {
+  from: number;
+  to: number;
+  /** Pixel width reserved for the omitted stretch (4 … 60). */
+  size: number;
+}
+
+export type DateAxisUnit = 'day' | 'week' | 'month' | 'year';
+export type DateAxisFormat = 'date' | 'month-year' | 'year';
+
+/**
+ * A date/time axis for a numeric axis whose values count `unit`s from `epoch`
+ * (milliseconds since 1970-01-01T00:00:00Z). `epoch` 0 with unit `day` is a
+ * Julian-day-like axis, which is what a worksheet date serial turns into.
+ */
+export interface DateAxisConfig {
+  epoch: number;
+  unit: DateAxisUnit;
+  format: DateAxisFormat;
+}
+
+/** Extra right-hand scale (the second Y axis of a scatter/line chart). */
+export interface SecondaryAxisConfig {
+  title: string;
+  unit: string;
+  min: number | null;
+  max: number | null;
+  decimals: number | null;
+  showGrid: boolean;
+}
+
 /** One axis: range, scale, ticks, grid and formatting. */
 export interface AxisConfig {
   autoRange: boolean;
@@ -65,6 +107,28 @@ export interface AxisConfig {
   max: number | null;
   majorInterval: number | null;
   minorInterval: number | null;
+  /** Exactly this many major ticks (2 … 20); null keeps the nice-number rule. */
+  tickCount: number | null;
+  /** Explicit major tick values; an empty list keeps the computed ones. */
+  tickValues: number[];
+  /** Minor ticks between two major ticks (1 … 20). */
+  minorTickCount: number | null;
+  /** Compressed (omitted) stretch, or null for a continuous axis. */
+  axisBreak: AxisBreakConfig | null;
+  /** Exponent of the power scale. */
+  power: number;
+  /** C of the symmetrical-log transform (positive). */
+  logConstant: number;
+  /** Tick length in pixels; null keeps the preset length. */
+  tickLength: number | null;
+  /** Draw the axis line itself. */
+  showAxisLine: boolean;
+  /** Draw the tick labels (ticks themselves follow `tickDirection`). */
+  showTickLabels: boolean;
+  /** Date/time labels over a numeric axis, or null for plain numbers. */
+  dateAxis: DateAxisConfig | null;
+  /** Right-hand scale for series marked `secondary`. */
+  secondary: SecondaryAxisConfig | null;
   scale: AxisScale;
   reverse: boolean;
   title: string;
@@ -165,6 +229,28 @@ export type ContourLevelMode = 'auto' | 'manual' | 'custom';
 export type ColorbarMode = 'continuous' | 'discrete';
 export type ColorbarPosition = 'right' | 'bottom' | 'left';
 
+/** One explicit stop of a user-defined colour map (value in data units). */
+export interface ContourColorStop {
+  value: number;
+  color: string;
+}
+
+/** Per-level overrides for one contour band / line. */
+export interface ContourLevelStyle {
+  /** Band index from the bottom (0 = lowest band). */
+  index: number;
+  /** Fill colour of this band (overrides the palette). */
+  color?: string;
+  /** Stroke colour of this level's line. */
+  lineColor?: string;
+  lineWidth?: number;
+  lineDash?: string;
+  /** Print this level's value beside its line. */
+  showLabel?: boolean;
+}
+
+export type MaskedRegionStyle = 'blank' | 'hatch' | 'gray';
+
 export interface ContourConfig {
   resolution: ContourResolution;
   renderMode: ContourRenderMode;
@@ -188,6 +274,17 @@ export interface ContourConfig {
   specLsl: number | null;
   specUsl: number | null;
   showSpecRegion: boolean;
+  /** User colour map: absolute stops, used instead of `colormap` when set. */
+  customStops: ContourColorStop[];
+  /** Per-level colour / line width / dash / label overrides. */
+  levelStyles: ContourLevelStyle[];
+  /** Colour for values below zMin / above zMax (empty = clamp to the palette). */
+  underflowColor: string;
+  overflowColor: string;
+  /** How a masked (NaN) region is drawn. */
+  maskedStyle: MaskedRegionStyle;
+  labelFontSize: number;
+  labelDecimals: number | null;
 }
 
 /* ── 3D surface (WO-03) ──────────────────────────────────────────────── */
@@ -365,6 +462,58 @@ export interface LineBarParetoOptions {
   perGroupColor: boolean;
 }
 
+/* ── advanced series options (Stage 3D, WO-08) ───────────────────────── */
+
+export type ErrorBarKind = 'none' | 'sd' | 'se' | 'ci';
+
+/**
+ * Error bars computed from the series' own points.
+ *
+ * - `sd`  the sample standard deviation (n − 1 denominator)
+ * - `se`  sd / √n
+ * - `ci`  mean ± t(1 − conf/2, n − 1) · se   (two-sided, Student t)
+ *
+ * Every drawn value is a documented statistic, not an estimate read off the
+ * picture: `tests/error-bars.test.ts` and `qa/cases/QA-X-stage3d-errorbars.json`
+ * check it against SciPy.
+ */
+export interface ErrorBarConfig {
+  kind: ErrorBarKind;
+  /** `point` uses each point's replicates; `series` uses all the series' values. */
+  scope: 'point' | 'series';
+  /** Two-sided confidence level for `ci` (0.5 … 0.999). */
+  conf: number;
+  /** Half-width of the end caps in pixels. */
+  capWidth: number;
+  color: string;
+  /** Series indices the bars apply to; empty means every series. */
+  series: number[];
+}
+
+/** Per-point override (individual point style). */
+export interface PointStyle {
+  shape?: MarkerShape;
+  size?: number;
+  color?: string;
+}
+
+export interface SeriesAdvancedConfig {
+  /** Fill the area between the line and the x axis (or between two lines). */
+  areaFill: boolean;
+  areaOpacity: number;
+  /** Vertical drop lines from each point to the x axis. */
+  dropLines: boolean;
+  dropLineColor: string;
+  dropLineDash: string;
+  errorBars: ErrorBarConfig;
+  /** Display order of series indices (missing indices follow in order). */
+  order: number[];
+  /** Series indices drawn against the right-hand (secondary) scale. */
+  secondarySeries: number[];
+  /** Point overrides keyed by point index (one series: point order). */
+  pointStyles: Record<number, PointStyle>;
+}
+
 export interface ChartConfig {
   appearance?: Partial<ChartAppearance>;
   xAxis?: Partial<AxisConfig>;
@@ -385,6 +534,12 @@ export interface ChartConfig {
   capability?: Partial<CapabilityOptions>;
   probplot?: Partial<ProbplotOptions>;
   lineBarPareto?: Partial<LineBarParetoOptions>;
+  /**
+   * Advanced series options. The error-bar block is itself partial here: a
+   * drawer writes one field at a time and the guards fill the rest, exactly as
+   * they do for every other block.
+   */
+  seriesAdvanced?: Partial<Omit<SeriesAdvancedConfig, 'errorBars'>> & { errorBars?: Partial<ErrorBarConfig> };
 }
 
 /* ── defaults ─────────────────────────────────────────────────────────── */
@@ -432,6 +587,17 @@ export function defaultAxisConfig(): AxisConfig {
     showMinorGrid: false,
     axisMargin: 0.06,
     crossAt: 'auto',
+    tickCount: null,
+    tickValues: [],
+    minorTickCount: null,
+    axisBreak: null,
+    power: 0.5,
+    logConstant: 1,
+    tickLength: null,
+    showAxisLine: true,
+    showTickLabels: true,
+    dateAxis: null,
+    secondary: null,
   };
 }
 
@@ -486,6 +652,31 @@ export function defaultContourConfig(): ContourConfig {
     specLsl: null,
     specUsl: null,
     showSpecRegion: false,
+    customStops: [],
+    levelStyles: [],
+    underflowColor: '',
+    overflowColor: '',
+    maskedStyle: 'blank',
+    labelFontSize: 7.4,
+    labelDecimals: null,
+  };
+}
+
+export function defaultErrorBarConfig(): ErrorBarConfig {
+  return { kind: 'none', scope: 'point', conf: 0.95, capWidth: 3, color: '', series: [] };
+}
+
+export function defaultSeriesAdvancedConfig(): SeriesAdvancedConfig {
+  return {
+    areaFill: false,
+    areaOpacity: 0.22,
+    dropLines: false,
+    dropLineColor: '',
+    dropLineDash: '',
+    errorBars: defaultErrorBarConfig(),
+    order: [],
+    secondarySeries: [],
+    pointStyles: {},
   };
 }
 
@@ -646,6 +837,7 @@ export function defaultChartConfig(preset: ChartStylePresetId = DEFAULT_CHART_PR
     capability: defaultCapabilityOptions(),
     probplot: defaultProbplotOptions(),
     lineBarPareto: defaultLineBarParetoOptions(),
+    seriesAdvanced: defaultSeriesAdvancedConfig(),
   };
 }
 

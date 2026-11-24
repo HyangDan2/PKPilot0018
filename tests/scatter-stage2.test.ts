@@ -83,6 +83,15 @@ const st = (key: keyof typeof data) => data[key] as (number | null)[];
 
 const data = { X1, X2, X3, Y1, Y2 };
 
+/**
+ * Two separate worksheets get different ids, and a chart now records the sheet
+ * it came from (Stage 3D row linkage). The rest of the card must still match
+ * exactly, so the comparison drops that one id.
+ */
+function withoutSheet(blocks: ReturnType<typeof run>['blocks']) {
+  return JSON.parse(JSON.stringify(blocks), (key, value) => (key === 'sheetId' ? undefined : value));
+}
+
 describe('Stage 2 — scatterplot defaults and legacy input', () => {
   it('opens with the single-plot defaults and keeps a one-plot card shaped as before', () => {
     const values = defaultValues(def);
@@ -107,7 +116,7 @@ describe('Stage 2 — scatterplot defaults and legacy input', () => {
 
     const legacy = run(sheet(), { y: 'C4', x: 'C1', by: [] });
     const modern = run(sheet(), { y: ['C4'], x: ['C1'], by: [], mode: 'each', layout: 'individual', fit: true, stats: true });
-    expect(modern.blocks).toEqual(legacy.blocks);
+    expect(withoutSheet(modern.blocks)).toEqual(withoutSheet(legacy.blocks));
     expect(modern.subtitle).toBe(legacy.subtitle);
   });
 
@@ -121,7 +130,7 @@ describe('Stage 2 — scatterplot defaults and legacy input', () => {
     expect(opened.layout).toBe('individual');
 
     const rerun = run(sheet(), opened);
-    expect(rerun.blocks).toEqual(run(sheet(), { y: 'C4', x: 'C1', by: [] }).blocks);
+    expect(withoutSheet(rerun.blocks)).toEqual(withoutSheet(run(sheet(), { y: 'C4', x: 'C1', by: [] }).blocks));
   });
 });
 

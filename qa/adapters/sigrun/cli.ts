@@ -46,6 +46,7 @@ import { buildRsmModel } from '../../../src/lib/doe';
 import { buildModelSurface } from '../../../src/lib/chartConfigOps';
 import { buildOverlaid, type ResponseSpec } from '../../../src/lib/feasible';
 import { optimize, defaultFactorSettings } from '../../../src/lib/optimizer';
+import { errorBarFor } from '../../../src/lib/seriesStats';
 import type { FactorSettings, ResponseSettings } from '../../../src/lib/optimizationTypes';
 import type { Block, ChartSpec, Worksheet } from '../../../src/types';
 import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, ccdDesign, factorialDesign } from '../../../src/lib/doe';
@@ -943,6 +944,29 @@ const ops: Record<string, Op> = {
       case 'c4': bag.put('value', c4Constant(a[0])); break;
       default: throw new Error(`unknown dist function ${name}`);
     }
+  },
+
+  /**
+   * QA-X: the error-bar statistic the chart draws (Stage 3D, WO-08).
+   * The op calls the shipped `errorBarFor`, so what is compared with SciPy is
+   * exactly the number that reaches the SVG.
+   */
+  errorbars(bag, ds, args) {
+    const values = args.values
+      ? (args.values as number[]).map(Number)
+      : nums(ds, String(args.column));
+    const kind = String(args.stat ?? 'sd') as 'sd' | 'se' | 'ci';
+    const stat = errorBarFor(values, kind, Number(args.conf ?? 0.95));
+    bag.put('available', stat ? 1 : 0);
+    bag.put('n', values.filter((value) => Number.isFinite(value)).length);
+    if (!stat) return;
+    bag.put('mean', stat.mean);
+    bag.put('sd', stat.sd);
+    bag.put('se', stat.se);
+    bag.put('t_crit', stat.tCrit ?? NaN);
+    bag.put('half', stat.half);
+    bag.put('lower', stat.lower);
+    bag.put('upper', stat.upper);
   },
 
   nelson(bag, ds, args) {

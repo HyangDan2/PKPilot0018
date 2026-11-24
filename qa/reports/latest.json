@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-24T16:32:40+09:00",
-  "commit": "2c50f483a2d41e7d1a98d8dc0b2e8f76039f99e3",
+  "generated_at": "2026-11-24T17:45:54+09:00",
+  "commit": "c827471be215aa829e621b5971e6fe3946bc47d4",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
-   "node": "v22.14.0",
-   "commit": "2c50f483a2d41e7d1a98d8dc0b2e8f76039f99e3",
-   "cases": 180,
-   "generatedAt": "2026-11-24T07:32:25.508Z"
+   "node": "v24.19.0",
+   "commit": "c827471be215aa829e621b5971e6fe3946bc47d4",
+   "cases": 186,
+   "generatedAt": "2026-11-24T08:45:39.266Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",
@@ -19,7 +19,7 @@
    "pandas": "3.1.1",
    "patsy": "1.0.3",
    "platform": "Linux-6.12.118-guest-1.1-x86_64-with-glibc2.41",
-   "cases": 180,
+   "cases": 186,
    "methods": {
     "QA-A-01": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
     "QA-A-02": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
@@ -311,14 +311,14 @@
  },
  "summary": {
   "counts": {
-   "PASS": 180,
+   "PASS": 186,
    "FAIL": 0,
    "REVIEW": 0,
    "UNVERIFIED": 0,
    "ERROR": 0
   },
-  "total": 180,
-  "verifiable": 180,
+  "total": 186,
+  "verifiable": 186,
   "pass_rate_verifiable": 1.0,
   "review_rate": 0.0,
   "unverified_rate": 0.0,
@@ -461,6 +461,16 @@
     "ERROR": 0,
     "max_rel": 0.0,
     "max_abs": 0.0,
+    "total": 6
+   },
+   "QA-Y": {
+    "PASS": 6,
+    "FAIL": 0,
+    "REVIEW": 0,
+    "UNVERIFIED": 0,
+    "ERROR": 0,
+    "max_rel": 4.899748405716939e-12,
+    "max_abs": 9.980460902170307e-12,
     "total": 6
    }
   }
@@ -822,10 +832,10 @@
      "key": "skewness",
      "tol": "default",
      "kind": "number",
-     "adapter": -0.08966254046060237,
+     "adapter": -0.08966254046060233,
      "reference": -0.08966254046060233,
-     "abs": 4.163336342344337e-17,
-     "rel": 4.643339705697615e-16,
+     "abs": 0.0,
+     "rel": 0.0,
      "status": "match"
     },
     {
@@ -1514,10 +1524,10 @@
      "key": "skewness",
      "tol": "default",
      "kind": "number",
-     "adapter": 0.0032767476552246575,
+     "adapter": 0.0032767476552246506,
      "reference": 0.003276747655220395,
-     "abs": 4.262649261344009e-15,
-     "rel": 1.300878099219179e-12,
+     "abs": 4.255710367440102e-15,
+     "rel": 1.298760483023482e-12,
      "status": "match"
     },
     {
@@ -1534,7 +1544,7 @@
    "verdict": "PASS",
    "errors": [],
    "max_abs": 4.656612873077393e-10,
-   "max_rel": 1.300878099219179e-12
+   "max_rel": 1.298760483023482e-12
   },
   {
    "id": "QA-A-07",
@@ -14763,10 +14773,10 @@
      "key": "b10",
      "tol": "mle",
      "kind": "number",
-     "adapter": 39.953332023127295,
+     "adapter": 39.9533320231273,
      "reference": 39.95329443896208,
-     "abs": 3.758416521293384e-05,
-     "rel": 9.407025313107124e-07,
+     "abs": 3.758416522003927e-05,
+     "rel": 9.407025314885557e-07,
      "status": "match"
     },
     {
@@ -14783,10 +14793,10 @@
      "key": "b90",
      "tol": "mle",
      "kind": "number",
-     "adapter": 195.16579591205533,
+     "adapter": 195.1657959120553,
      "reference": 195.16585600417477,
-     "abs": 6.0092119440469105e-05,
-     "rel": 3.079028302941662e-07,
+     "abs": 6.0092119468890814e-05,
+     "rel": 3.079028304397947e-07,
      "status": "match"
     },
     {
@@ -14883,7 +14893,7 @@
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 6.0092119440469105e-05,
+   "max_abs": 6.0092119468890814e-05,
    "max_rel": 9.981502653844906e-06
   },
   {
@@ -15044,10 +15054,10 @@
      "key": "b5",
      "tol": "mle",
      "kind": "number",
-     "adapter": 26.162340122288473,
+     "adapter": 26.162340122288477,
      "reference": 26.162313151005314,
-     "abs": 2.6971283158871984e-05,
-     "rel": 1.0309211958131303e-06,
+     "abs": 2.6971283162424697e-05,
+     "rel": 1.0309211959489254e-06,
      "status": "match"
     },
     {
@@ -15322,10 +15332,10 @@
      "key": "b90",
      "tol": "mle",
      "kind": "number",
-     "adapter": 175.99471164355276,
+     "adapter": 175.9947116435528,
      "reference": 175.9946810757103,
-     "abs": 3.056784245814015e-05,
-     "rel": 1.7368617205533793e-07,
+     "abs": 3.056784248656186e-05,
+     "rel": 1.7368617221682982e-07,
      "status": "match"
     },
     {
@@ -15848,10 +15858,10 @@
      "key": "b5",
      "tol": "mle",
      "kind": "number",
-     "adapter": 70.88283640453695,
+     "adapter": 70.88283640453696,
      "reference": 70.8828675227163,
-     "abs": 3.1118179350642095e-05,
-     "rel": 4.390084718379861e-07,
+     "abs": 3.111817933643124e-05,
+     "rel": 4.3900847163750243e-07,
      "status": "match"
     },
     {
@@ -16437,10 +16447,10 @@
      "key": "b10",
      "tol": "mle",
      "kind": "number",
-     "adapter": 6.181160396250761,
+     "adapter": 6.18116039625076,
      "reference": 6.181158711689048,
-     "abs": 1.684561713233279e-06,
-     "rel": 2.7253170348912786e-07,
+     "abs": 1.6845617123451007e-06,
+     "rel": 2.725317033454366e-07,
      "status": "match"
     },
     {
@@ -20109,10 +20119,10 @@
      "key": "run[4]:f0",
      "tol": "default",
      "kind": "number",
-     "adapter": -1.414213562373095,
+     "adapter": -1.4142135623730951,
      "reference": -1.4142135623730951,
-     "abs": 2.220446049250313e-16,
-     "rel": 1.570092458683775e-16,
+     "abs": 0.0,
+     "rel": 0.0,
      "status": "match"
     },
     {
@@ -20129,10 +20139,10 @@
      "key": "run[5]:f0",
      "tol": "default",
      "kind": "number",
-     "adapter": 1.414213562373095,
+     "adapter": 1.4142135623730951,
      "reference": 1.4142135623730951,
-     "abs": 2.220446049250313e-16,
-     "rel": 1.570092458683775e-16,
+     "abs": 0.0,
+     "rel": 0.0,
      "status": "match"
     },
     {
@@ -20159,10 +20169,10 @@
      "key": "run[6]:f1",
      "tol": "default",
      "kind": "number",
-     "adapter": -1.414213562373095,
+     "adapter": -1.4142135623730951,
      "reference": -1.4142135623730951,
-     "abs": 2.220446049250313e-16,
-     "rel": 1.570092458683775e-16,
+     "abs": 0.0,
+     "rel": 0.0,
      "status": "match"
     },
     {
@@ -20179,10 +20189,10 @@
      "key": "run[7]:f1",
      "tol": "default",
      "kind": "number",
-     "adapter": 1.414213562373095,
+     "adapter": 1.4142135623730951,
      "reference": 1.4142135623730951,
-     "abs": 2.220446049250313e-16,
-     "rel": 1.570092458683775e-16,
+     "abs": 0.0,
+     "rel": 0.0,
      "status": "match"
     },
     {
@@ -20318,8 +20328,8 @@
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 2.220446049250313e-16,
-   "max_rel": 1.570092458683775e-16
+   "max_abs": 0.0,
+   "max_rel": 0.0
   },
   {
    "id": "QA-H-05",
@@ -30341,6 +30351,626 @@
    "errors": [],
    "max_abs": 0.0,
    "max_rel": 0.0
+  },
+  {
+   "id": "QA-Y-01",
+   "area": "QA-Y",
+   "title": "표본 표준편차 (n−1) — ddof=1",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "막대의 반폭이 곧 표본 표준편차다. 기준은 numpy.std(ddof=1). 분모가 n인 모표준편차와 구분되도록 값이 다르다.",
+   "args": {
+    "values": [
+     12.4,
+     11.9,
+     12.8,
+     12.1,
+     12.6,
+     11.7,
+     12.9,
+     12.3,
+     12.0,
+     12.5
+    ],
+    "stat": "sd"
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.32,
+     "reference": 12.32,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11.926158520326881,
+     "reference": 11.926158520326881,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.71384147967312,
+     "reference": 12.71384147967312,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-Y-02",
+   "area": "QA-Y",
+   "title": "표준오차 — sd/√n",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "평균의 표준오차. 같은 sd에서 √n으로 나눈 값이며, 기준은 scipy.stats.sem과 같다.",
+   "args": {
+    "values": [
+     12.4,
+     11.9,
+     12.8,
+     12.1,
+     12.6,
+     11.7,
+     12.9,
+     12.3,
+     12.0,
+     12.5
+    ],
+    "stat": "se"
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.32,
+     "reference": 12.32,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.195456388718204,
+     "reference": 12.195456388718204,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.444543611281796,
+     "reference": 12.444543611281796,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-Y-03",
+   "area": "QA-Y",
+   "title": "95% 신뢰구간 — t(0.975, n−1)",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "양측 Student t. 자유도 n−1, t 분위수는 scipy.stats.t.ppf(0.975, n-1). 정규 근사(1.96)를 쓰지 않는다.",
+   "args": {
+    "values": [
+     12.4,
+     11.9,
+     12.8,
+     12.1,
+     12.6,
+     11.7,
+     12.9,
+     12.3,
+     12.0,
+     12.5
+    ],
+    "stat": "ci",
+    "conf": 0.95
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.32,
+     "reference": 12.32,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.2817372223414862,
+     "reference": 0.2817372223418704,
+     "abs": 3.841926776715354e-13,
+     "rel": 1.363656085191831e-12,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.038262777658515,
+     "reference": 12.03826277765813,
+     "abs": 3.8546943414985435e-13,
+     "rel": 3.2020353872424927e-14,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.601737222341486,
+     "reference": 12.601737222341871,
+     "abs": 3.8546943414985435e-13,
+     "rel": 3.058859483805518e-14,
+     "status": "match"
+    },
+    {
+     "key": "t_crit",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.26215716279512,
+     "reference": 2.262157162798205,
+     "abs": 3.085087740828385e-12,
+     "rel": 1.3637813462139144e-12,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 3.085087740828385e-12,
+   "max_rel": 1.3637813462139144e-12
+  },
+  {
+   "id": "QA-Y-04",
+   "area": "QA-Y",
+   "title": "99% 신뢰구간 — 같은 표본에서 더 넓은 구간",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "신뢰수준만 바꾼 대조 케이스. t 분위수가 커져 반폭이 커져야 한다.",
+   "args": {
+    "values": [
+     12.4,
+     11.9,
+     12.8,
+     12.1,
+     12.6,
+     11.7,
+     12.9,
+     12.3,
+     12.0,
+     12.5
+    ],
+    "stat": "ci",
+    "conf": 0.99
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.32,
+     "reference": 12.32,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3938414796731184,
+     "reference": 0.3938414796731184,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.12454361128179611,
+     "reference": 0.12454361128179611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.40474625442291867,
+     "reference": 0.40474625442181505,
+     "abs": 1.1036171976286369e-12,
+     "rel": 2.726689093652435e-12,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11.91525374557708,
+     "reference": 11.915253745578186,
+     "abs": 1.1048939541069558e-12,
+     "rel": 9.272936839611896e-14,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.72474625442292,
+     "reference": 12.724746254421815,
+     "abs": 1.1048939541069558e-12,
+     "rel": 8.683033296031409e-14,
+     "status": "match"
+    },
+    {
+     "key": "t_crit",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3.249835541600987,
+     "reference": 3.249835541592126,
+     "abs": 8.86135609334815e-12,
+     "rel": 2.7267090841793445e-12,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 8.86135609334815e-12,
+   "max_rel": 2.7267090841793445e-12
+  },
+  {
+   "id": "QA-Y-05",
+   "area": "QA-Y",
+   "title": "반복값 1개 — 막대를 그리지 않음(available=0)",
+   "op": "errorbars",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "값이 하나면 퍼짐이 없다. 어댑터와 기준 모두 available=0을 보고하며, 폭 0인 막대를 그리지 않는다는 규칙을 검증한다.",
+   "args": {
+    "values": [
+     12.4
+    ],
+    "stat": "ci",
+    "conf": 0.95
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-Y-06",
+   "area": "QA-Y",
+   "title": "결측·비유한 값 제외 — 유효 n으로 계산",
+   "op": "errorbars",
+   "dataset": "missing_values",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "열 데이터셋의 결측(NaN/빈 셀)은 통계량에서 빠지고 n이 줄어든다. 두 구현이 같은 유효 표본을 쓰는지 확인한다.",
+   "args": {
+    "column": "x",
+    "stat": "ci",
+    "conf": 0.95
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 33,
+     "reference": 33,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "mean",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20.51870949137879,
+     "reference": 20.51870949137879,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sd",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.9949954027295658,
+     "reference": 1.9949954027295662,
+     "abs": 4.440892098500626e-16,
+     "rel": 2.226016206565974e-16,
+     "status": "match"
+    },
+    {
+     "key": "se",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.3472841233495562,
+     "reference": 0.3472841233495563,
+     "abs": 5.551115123125783e-17,
+     "rel": 1.5984361938533966e-16,
+     "status": "match"
+    },
+    {
+     "key": "half",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.707394610508488,
+     "reference": 0.707394610505022,
+     "abs": 3.4660052605772762e-12,
+     "rel": 4.8996772227354565e-12,
+     "status": "match"
+    },
+    {
+     "key": "lower",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 19.811314880870302,
+     "reference": 19.811314880873766,
+     "abs": 3.4638958368304884e-12,
+     "rel": 1.7484431788899594e-13,
+     "status": "match"
+    },
+    {
+     "key": "upper",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 21.226104101887277,
+     "reference": 21.226104101883813,
+     "abs": 3.4638958368304884e-12,
+     "rel": 1.63190372581046e-13,
+     "status": "match"
+    },
+    {
+     "key": "t_crit",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.036933343470082,
+     "reference": 2.0369333434601016,
+     "abs": 9.980460902170307e-12,
+     "rel": 4.899748405716939e-12,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 9.980460902170307e-12,
+   "max_rel": 4.899748405716939e-12
   }
  ],
  "datasets": [

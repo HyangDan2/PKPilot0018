@@ -1025,11 +1025,60 @@ W.append(case(
 
 areas["QA-W-stage3c-optimizer.json"] = ("QA-W", W)
 
+# ════════════════════════════════════════════════════════════════════════
+# QA-Y — Stage 3D: 오차 막대 통계량 (WO-08)
+#   차트에 그려지는 막대의 값은 정의된 통계량이어야 한다. 기준은 NumPy의
+#   ddof=1 표준편차와 SciPy의 t 분위수이며, 허용오차는 기본 클래스(1e-8)다.
+# ════════════════════════════════════════════════════════════════════════
+Y = []
+EB_FIELDS = [f("n"), f("available"), f("mean"), f("sd"), f("se"), f("half"), f("lower"), f("upper")]
+EB_CI_FIELDS = EB_FIELDS + [f("t_crit")]
+EB_VALUES = [12.4, 11.9, 12.8, 12.1, 12.6, 11.7, 12.9, 12.3, 12.0, 12.5]
+
+Y.append(case(
+    "QA-Y-01", "표본 표준편차 (n−1) — ddof=1", "errorbars", None,
+    {"values": EB_VALUES, "stat": "sd"},
+    EB_FIELDS,
+    note="막대의 반폭이 곧 표본 표준편차다. 기준은 numpy.std(ddof=1). 분모가 n인 모표준편차와 구분되도록 값이 다르다.",
+))
+Y.append(case(
+    "QA-Y-02", "표준오차 — sd/√n", "errorbars", None,
+    {"values": EB_VALUES, "stat": "se"},
+    EB_FIELDS,
+    note="평균의 표준오차. 같은 sd에서 √n으로 나눈 값이며, 기준은 scipy.stats.sem과 같다.",
+))
+Y.append(case(
+    "QA-Y-03", "95% 신뢰구간 — t(0.975, n−1)", "errorbars", None,
+    {"values": EB_VALUES, "stat": "ci", "conf": 0.95},
+    EB_CI_FIELDS,
+    note="양측 Student t. 자유도 n−1, t 분위수는 scipy.stats.t.ppf(0.975, n-1). 정규 근사(1.96)를 쓰지 않는다.",
+))
+Y.append(case(
+    "QA-Y-04", "99% 신뢰구간 — 같은 표본에서 더 넓은 구간", "errorbars", None,
+    {"values": EB_VALUES, "stat": "ci", "conf": 0.99},
+    EB_CI_FIELDS,
+    note="신뢰수준만 바꾼 대조 케이스. t 분위수가 커져 반폭이 커져야 한다.",
+))
+Y.append(case(
+    "QA-Y-05", "반복값 1개 — 막대를 그리지 않음(available=0)", "errorbars", None,
+    {"values": [12.4], "stat": "ci", "conf": 0.95},
+    [f("n"), f("available")],
+    note="값이 하나면 퍼짐이 없다. 어댑터와 기준 모두 available=0을 보고하며, 폭 0인 막대를 그리지 않는다는 규칙을 검증한다.",
+))
+Y.append(case(
+    "QA-Y-06", "결측·비유한 값 제외 — 유효 n으로 계산", "errorbars", "missing_values",
+    {"column": "x", "stat": "ci", "conf": 0.95},
+    EB_CI_FIELDS,
+    note="열 데이터셋의 결측(NaN/빈 셀)은 통계량에서 빠지고 n이 줄어든다. 두 구현이 같은 유효 표본을 쓰는지 확인한다.",
+))
+areas["QA-Y-stage3d-errorbars.json"] = ("QA-Y", Y)
+
 for name, (area, cases) in [
     ("QA-I-calc.json", areas["QA-I-calc.json"]),
     ("QA-U-charts-transforms.json", areas["QA-U-charts-transforms.json"]),
     ("QA-V-stage3b-surface.json", areas["QA-V-stage3b-surface.json"]),
     ("QA-W-stage3c-optimizer.json", areas["QA-W-stage3c-optimizer.json"]),
+    ("QA-Y-stage3d-errorbars.json", areas["QA-Y-stage3d-errorbars.json"]),
 ]:
     write(name, area, cases)
 print("total:", sum(len(v[1]) for v in areas.values()))
