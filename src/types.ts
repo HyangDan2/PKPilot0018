@@ -6,9 +6,30 @@ import type { ChartConfig } from './lib/chartConfig';
 import type { RsmModelPayload } from './lib/doe';
 import type { MarkerShape } from './lib/chartConfig';
 import type { CustomChartStyle } from './lib/chartStyles';
-import type { StoredModelDraft } from './lib/modelStore';
+import type { StoredModelDraft, StoredModel } from './lib/modelStore';
 
 export type ColType = 'numeric' | 'text' | 'date';
+
+/** One fitted response on an overlaid contour: its surface and its own spec. */
+export interface OverlaidResponseData {
+  name: string;
+  lsl: number | null;
+  usl: number | null;
+  target: number | null;
+  color: string;
+  /** SVG dash pattern for this response's limit lines. */
+  dash: string;
+  /** z[j][i] on the shared grid. */
+  z: number[][];
+  /** 1 where this response alone satisfies its spec (same basis as the chart). */
+  mask: number[][];
+  areaRatio: number;
+  nodeRatio: number;
+  zMin: number;
+  zMax: number;
+  /** The model could not be evaluated at every node (aliased terms). */
+  nonEstimable?: string[];
+}
 
 export interface Column {
   id: string;
@@ -175,6 +196,54 @@ export type ChartSpec =
     })
   | (ChartBase & { kind: 'pareto'; items: { label: string; count: number }[]; threshold?: number })
   | (ChartBase & { kind: 'capability'; result: CapabilityResult; xLabel?: string })
+  | (ChartBase & {
+      kind: 'surface3d';
+      xs: number[];
+      ys: number[];
+      z: number[][];
+      xLabel?: string;
+      yLabel?: string;
+      zLabel?: string;
+      xRange?: [number, number];
+      yRange?: [number, number];
+      /** Experiment runs and the stationary / optimal marker in factor units. */
+      points?: { x: number; y: number; z?: number; label?: string; kind?: 'design' | 'stationary' | 'optimal' }[];
+      /** The stored model the surface was computed from, so it can be re-sliced. */
+      model?: StoredModel;
+      /** The view reaches beyond the fitted region. */
+      extrapolated?: boolean;
+      /** Every prediction on the grid is non-estimable (aliased columns). */
+      nonEstimable?: string[];
+    })
+  | (ChartBase & {
+      kind: 'overlaid';
+      xs: number[];
+      ys: number[];
+      /** One fitted response per entry, all evaluated on the same factor grid. */
+      responses: OverlaidResponseData[];
+      xLabel?: string;
+      yLabel?: string;
+      xRange?: [number, number];
+      yRange?: [number, number];
+      points?: { x: number; y: number; z?: number; label?: string; kind?: 'design' | 'stationary' | 'optimal' }[];
+      /** The models this overlay was built from (for re-slicing and spec edits). */
+      models?: StoredModel[];
+      feasible?: {
+        /** 1 = every response satisfies its spec at this node, 0 = not. */
+        mask: number[][];
+        areaRatio: number;
+        nodeRatio: number;
+        feasibleNodes: number;
+        totalNodes: number;
+        basis: string;
+        /** Difference against a grid at twice the resolution (grid convergence). */
+        convergenceDelta: number;
+        perResponse: { name: string; areaRatio: number; nodeRatio: number }[];
+        /** Models that carry no covariance / df: the interval basis cannot run. */
+        intervalBlocked: string[];
+      };
+      extrapolated?: boolean;
+    })
   | (ChartBase & {
       kind: 'interval';
       groups: { label: string; mean: number; lo: number; hi: number; n?: number }[];

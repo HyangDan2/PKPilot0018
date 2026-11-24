@@ -395,6 +395,23 @@ def main() -> None:
         {"x": xs, "y": ys, "Y": Yo},
     )
 
+    # Two responses on one central-composite design: their optima point in
+    # different directions, so a pair of moderate specifications cuts a bounded
+    # feasible window — the case the overlaid contour exists for.
+    alpha = 2 ** 0.25
+    xs = [-1, 1, -1, 1, 0, 0, -alpha, alpha, 0, 0] + [0] * 5
+    ys = [-1, -1, 1, 1, -alpha, alpha, 0, 0, 0, 0] + [0] * 5
+    rng = np.random.default_rng(11022)
+    Y1 = [60 + 5 * x - 4 * y - 6 * x * x - 5 * y * y + 3 * x * y + rng.normal(0, 0.3) for x, y in zip(xs, ys)]
+    Y2 = [30 + 3 * x + 6 * y + 4 * x * x + 2 * y * y - 2 * x * y + rng.normal(0, 0.25) for x, y in zip(xs, ys)]
+    write(
+        "rsm_two",
+        "CCD k=2, two responses: Y1 = 60+5x-4y-6x^2-5y^2+3xy + N(0,0.3), Y2 = 30+3x+6y+4x^2+2y^2-2xy + N(0,0.25); specs cut a bounded feasible window",
+        11022,
+        "numpy.random.default_rng(11022).normal on the CCD run order (two responses share the design)",
+        {"x": xs, "y": ys, "Y1": Y1, "Y2": Y2},
+    )
+
     # Gage study with no operator effect and large repeatability: the operator
     # variance component comes out negative and must be reported, not clamped.
     rng = np.random.default_rng(11021)

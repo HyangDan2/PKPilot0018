@@ -15,6 +15,7 @@ import {
   modelStaleness,
   type StoredModel,
 } from '../lib/modelStore';
+import { commonNumericFactors, intervalAvailability } from '../lib/feasible';
 
 interface Props {
   lang: Lang;
@@ -27,6 +28,8 @@ interface Props {
   onDelete: (id: string) => void;
   onRefit: (id: string) => void;
   onContour: (model: StoredModel) => void;
+  onSurface: (model: StoredModel) => void;
+  onOverlaid: (models: StoredModel[]) => void;
 }
 
 interface PredictionState {
@@ -52,7 +55,7 @@ function staleLabel(lang: Lang, model: StoredModel, worksheets: Worksheet[]): { 
 }
 
 export function ModelManager({
-  lang, models, worksheets, activeSheetId, onClose, onRename, onDuplicate, onDelete, onRefit, onContour,
+  lang, models, worksheets, activeSheetId, onClose, onRename, onDuplicate, onDelete, onRefit, onContour, onSurface, onOverlaid,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(models[0]?.id ?? null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -68,6 +71,10 @@ export function ModelManager({
   );
   const selectedIds = compareIds.filter((id) => models.some((model) => model.id === id));
   const comparison = selectedIds.length >= 2 ? compareStoredModels(models.filter((model) => selectedIds.includes(model.id))) : null;
+  const pickedModels = models.filter((model) => selectedIds.includes(model.id));
+  const sharedFactors = pickedModels.length >= 2 ? commonNumericFactors(pickedModels) : { factors: [], problems: [] };
+  const overlaidReady = pickedModels.length >= 2 && sharedFactors.factors.length >= 2;
+  const interval = pickedModels.length ? intervalAvailability(pickedModels) : { ok: true, blocked: [] };
 
   const select = (id: string) => {
     setSelectedId(id);
@@ -340,8 +347,24 @@ export function ModelManager({
                     >
                       {t(lang, 'model.followup.contour')}
                     </button>
-                    <button type="button" className="btn" disabled data-testid="mm-surface">
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={!contourReady || Boolean(staleness && staleness.state === 'missing-data')}
+                      onClick={() => onSurface(selected)}
+                      data-testid="mm-surface"
+                    >
                       {t(lang, 'model.followup.surface')}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={!overlaidReady}
+                      onClick={() => onOverlaid(pickedModels)}
+                      data-testid="mm-overlaid"
+                      data-count={pickedModels.length}
+                    >
+                      {t(lang, 'model.followup.overlaid', { n: pickedModels.length })}
                     </button>
                     <button type="button" className="btn" disabled data-testid="mm-optimizer">
                       {t(lang, 'model.followup.optimizer')}
@@ -355,6 +378,17 @@ export function ModelManager({
                         max: Number.isFinite(previewSurface.max) ? fmt(previewSurface.max, 4) : '—',
                       })}
                     </p>
+                  )}
+                  {pickedModels.length >= 2 && sharedFactors.factors.length < 2 && (
+                    <div className="mm-warn" data-testid="mm-overlaid-nofactors">
+                      {t(lang, 'model.overlaid.noCommon')}
+                      {sharedFactors.problems.length > 0 && ` · ${sharedFactors.problems.join(' / ')}`}
+                    </div>
+                  )}
+                  {pickedModels.length >= 2 && sharedFactors.factors.length >= 2 && !interval.ok && (
+                    <div className="mm-warn" data-testid="mm-overlaid-interval" data-blocked={interval.blocked.length}>
+                      {t(lang, 'model.overlaid.intervalBlocked', { models: interval.blocked.join(', ') })}
+                    </div>
                   )}
                   {compatibility && !compatibility.ok && (
                     <div className="mm-warn" data-testid="mm-compat">

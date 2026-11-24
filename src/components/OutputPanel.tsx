@@ -9,7 +9,7 @@ import { defaultExportConfig } from '../lib/chartConfig';
 import {
   applyStylePack,
   fullChartConfig,
-  materializeRsm,
+  materializeChart,
   packChartStyle,
   resetChartConfig,
   withChartConfig,
@@ -298,7 +298,7 @@ export function OutputPanel({
     if (!drawer) return;
     const chart = chartAt(findOutput(drawer.target.outputId), drawer.target);
     if (!chart) return;
-    const materialized = materializeRsm(chart, config);
+    const materialized = materializeChart(chart, config);
     commitChart(drawer.target, withChartConfig(materialized, config));
     onToast(t(lang, 'toast.cfgApplied'));
     closeDrawer();
@@ -308,7 +308,7 @@ export function OutputPanel({
     if (!drawer) return;
     const chart = chartAt(findOutput(drawer.target.outputId), drawer.target);
     if (!chart) return;
-    const reset = withChartConfig(materializeRsm(resetChartConfig(chart), config), config);
+    const reset = withChartConfig(materializeChart(resetChartConfig(chart), config), config);
     commitChart(drawer.target, reset);
     onToast(t(lang, 'toast.styleReset'));
     setPreview(config);
@@ -321,7 +321,7 @@ export function OutputPanel({
     if (!output || !chart || chart.kind !== 'contour' || !chart.rsmModel) return;
     const surfaces = allPairSurfaces(chart.rsmModel, config.rsm, config.contour);
     if (!surfaces.length) return;
-    const baseConfig = materializeRsm(chart, config).config;
+    const baseConfig = materializeChart(chart, config).config;
     const items = surfaces.map((surface) => ({
       title: `${surface.xName} × ${surface.yName}`,
       chart: {
@@ -421,7 +421,7 @@ export function OutputPanel({
     if (!styleClip || !drawer) return;
     const chart = chartAt(findOutput(drawer.target.outputId), drawer.target);
     if (!chart) return;
-    const withStyle = withChartConfig(applyStylePack(materializeRsm(chart, config), styleClip), { ...config, ...styleClip });
+    const withStyle = withChartConfig(applyStylePack(materializeChart(chart, config), styleClip), { ...config, ...styleClip });
     commitChart(drawer.target, withStyle);
     onToast(t(lang, 'toast.stylePasted'));
     closeDrawer();
@@ -639,7 +639,7 @@ export function OutputPanel({
 
   const chartForFrame = (target: ChartTarget, chart: ChartSpec): ChartSpec => {
     const cfg = previewFor(target);
-    return cfg ? materializeRsm(chart, cfg) : chart;
+    return cfg ? materializeChart(chart, cfg) : chart;
   };
 
   return (
@@ -722,6 +722,7 @@ export function OutputPanel({
                   onView={(target, mode) => setViewer({ target, mode })}
                   onCopyPng={(target, chart) => void copyChartPng(chart, fullChartConfig(chart), captionAt(output, target))}
                   onExport={(target) => openDrawer(target, 'export')}
+                  onChartChange={commitChart}
                 />
               ))}
             </div>
@@ -756,8 +757,8 @@ export function OutputPanel({
           onApply={applyConfig}
           onClose={closeDrawer}
           onReset={resetConfig}
-          onExport={(config, format) => void downloadChart(materializeRsm(targetChart, config), config, format, captionAt(findOutput(drawer.target.outputId), drawer.target))}
-          onCopyPng={(config) => void copyChartPng(materializeRsm(targetChart, config), config, captionAt(findOutput(drawer.target.outputId), drawer.target))}
+          onExport={(config, format) => void downloadChart(materializeChart(targetChart, config), config, format, captionAt(findOutput(drawer.target.outputId), drawer.target))}
+          onCopyPng={(config) => void copyChartPng(materializeChart(targetChart, config), config, captionAt(findOutput(drawer.target.outputId), drawer.target))}
           onBatchExport={(config, format) => {
             const output = findOutput(drawer.target.outputId);
             if (output) void batchExport(output, config, format);
@@ -779,6 +780,7 @@ export function OutputPanel({
           onClose={() => setViewer(null)}
           onEdit={() => { setViewer(null); openDrawer(viewer.target, 'general'); }}
           onCopyPng={() => void copyChartPng(viewerChart, fullChartConfig(viewerChart), captionAt(viewerOutput, viewer.target))}
+          onChartChange={(next) => commitChart(viewer.target, next)}
         />
       )}
     </div>
@@ -786,7 +788,7 @@ export function OutputPanel({
 }
 
 function BlockView({
-  block, lang, outputId, blockIndex, previewFor, chartForFrame, onEdit, onMenu, onView, onCopyPng, onExport,
+  block, lang, outputId, blockIndex, previewFor, chartForFrame, onEdit, onMenu, onView, onCopyPng, onExport, onChartChange,
 }: {
   block: Block;
   lang: Lang;
@@ -799,6 +801,7 @@ function BlockView({
   onView: (target: ChartTarget, mode: 'zoom' | 'full') => void;
   onCopyPng: (target: ChartTarget, chart: ChartSpec) => void;
   onExport: (target: ChartTarget, chart: ChartSpec) => void;
+  onChartChange: (target: ChartTarget, chart: ChartSpec) => void;
 }) {
   if (block.type === 'text') {
     return (
@@ -819,6 +822,7 @@ function BlockView({
           lang={lang}
           chart={chart}
           config={previewFor(target)}
+          onChartChange={(next) => onChartChange(target, next)}
           onEdit={(request) => onEdit(target, request)}
           onMenu={(event) => onMenu(event, target)}
           onView={(mode) => onView(target, mode)}
@@ -841,6 +845,7 @@ function BlockView({
                 lang={lang}
                 chart={chart}
                 config={previewFor(target)}
+                onChartChange={(next) => onChartChange(target, next)}
                 onEdit={(request) => onEdit(target, request)}
                 onMenu={(event) => onMenu(event, target)}
                 onView={(mode) => onView(target, mode)}

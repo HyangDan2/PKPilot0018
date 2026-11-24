@@ -29,6 +29,9 @@ import {
   type StoredModel,
 } from './lib/modelStore';
 import { modelSurface } from './lib/modelPredictor';
+import { buildModelSurface, buildOverlaidChart, numericFactors } from './lib/chartConfigOps';
+import { commonNumericFactors, OVERLAY_COLORS, OVERLAY_DASHES } from './lib/feasible';
+import { surfaceResolutionPoints } from './lib/surface3d';
 import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { loadAutosave, saveAutosave } from './lib/db';
 import { fmtInt } from './lib/format';
@@ -1118,6 +1121,179 @@ export default function App() {
     }
   };
 
+  /** A stored model becomes a 3D surface card (WO-03). */
+  const surfaceFromModel = (model: StoredModel) => {
+    if (numericFactors(model).length < 2) {
+      toast(t(lang, 'toast.modelNoSurface'));
+      return;
+    }
+    try {
+      const surface = buildModelSurface(model, {
+        xIndex: 0,
+        yIndex: 1,
+        unitMode: 'actual',
+        resolution: surfaceResolutionPoints('standard'),
+      });
+      if (surface.nonEstimable.length) {
+        toast(t(lang, 'toast.modelNoSurface'));
+        return;
+      }
+      const doc: OutputDoc = {
+        id: makeOutputId(),
+        titleKey: 'an.modelsurface',
+        titleText: model.name,
+        subtitle: `${model.name} · ${surface.xName} × ${surface.yName}`,
+        createdAt: Date.now(),
+        collapsed: false,
+        blocks: [
+          { type: 'text', lines: [t(lang, 'res.modelSurfaceNote', { model: model.name })] },
+          {
+            type: 'chart',
+            chart: {
+              kind: 'surface3d',
+              xs: surface.xs,
+              ys: surface.ys,
+              z: surface.z,
+              xLabel: surface.xName,
+              yLabel: surface.yName,
+              zLabel: model.response.name,
+              xRange: surface.xRange,
+              yRange: surface.yRange,
+              points: surface.points,
+              model,
+              extrapolated: surface.extrapolated,
+              title: `${model.response.name} = f(${surface.xName}, ${surface.yName})`,
+              config: {
+                rsm: {
+                  xFactorIndex: 0,
+                  yFactorIndex: 1,
+                  unitMode: 'actual',
+                  showExperimentalPoints: true,
+                  showStationaryPoint: true,
+                  showOptimalPoint: false,
+                },
+                surface: { resolution: 'standard', renderMode: 'both' },
+              },
+            },
+            caption: '@chart.modelSurface',
+          },
+        ],
+        sheetId: sheet.id,
+      };
+      focusDoc(doc);
+      setModelManagerOpen(false);
+      if (surface.extrapolated) toast(t(lang, 'toast.modelExtrapolated'));
+    } catch {
+      toast(t(lang, 'toast.modelNoSurface'));
+    }
+  };
+
+  /**
+   * Several stored models become one overlaid contour (WO-04).
+   *
+   * Specification limits start from each response's observed range when the
+   * model kept its runs, and stay empty otherwise: a limit nobody stated is not
+   * invented, it is asked for in the Overlaid tab.
+   */
+  const overlaidFromModels = (models: StoredModel[]) => {
+    if (models.length < 2) return;
+    const shared = commonNumericFactors(models);
+    if (shared.factors.length < 2) {
+      toast(t(lang, 'toast.overlaidNoCommon'));
+      return;
+    }
+    try {
+      const specs = models.map((model) => {
+        const observed = (model.design?.points ?? []).map((point) => point.y).filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+        if (!observed.length) return { name: model.response.name, lsl: null, usl: null, target: null };
+        const min = Math.min(...observed);
+        const max = Math.max(...observed);
+        return { name: model.response.name, lsl: min, usl: max, target: Number(((min + max) / 2).toFixed(6)) };
+      });
+      const result = buildOverlaidChart(models, {
+        xName: shared.factors[0].name,
+        yName: shared.factors[1].name,
+        unitMode: 'actual',
+        resolution: surfaceResolutionPoints('standard'),
+        basis: 'mean',
+        alpha: 0.05,
+        specs,
+      });
+      const points = (models[0].design?.points ?? []).slice(0, 400).map((point) => ({
+        x: point.levels[shared.factors[0].name] ?? Number.NaN,
+        y: point.levels[shared.factors[1].name] ?? Number.NaN,
+        z: point.y ?? undefined,
+        kind: 'design' as const,
+      })).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+      const doc: OutputDoc = {
+        id: makeOutputId(),
+        titleKey: 'an.modeloverlaid',
+        titleText: models.map((model) => model.name).join(' · '),
+        subtitle: `${models.length} responses · ${shared.factors[0].name} × ${shared.factors[1].name}`,
+        createdAt: Date.now(),
+        collapsed: false,
+        blocks: [
+          { type: 'text', lines: [t(lang, 'res.modelOverlaidNote', { n: models.length })] },
+          {
+            type: 'chart',
+            chart: {
+              kind: 'overlaid',
+              xs: result.xs,
+              ys: result.ys,
+              responses: result.responses.map((response, index) => ({
+                ...response,
+                color: OVERLAY_COLORS[index % OVERLAY_COLORS.length],
+                dash: OVERLAY_DASHES[index % OVERLAY_DASHES.length],
+              })),
+              xLabel: result.xName,
+              yLabel: result.yName,
+              xRange: result.xRange,
+              yRange: result.yRange,
+              points,
+              models,
+              feasible: {
+                mask: result.feasible,
+                areaRatio: result.areaRatio,
+                nodeRatio: result.nodeRatio,
+                feasibleNodes: result.feasibleNodes,
+                totalNodes: result.totalNodes,
+                basis: 'mean',
+                convergenceDelta: result.convergenceDelta,
+                perResponse: result.responses.map((response) => ({
+                  name: response.name,
+                  areaRatio: response.areaRatio,
+                  nodeRatio: response.nodeRatio,
+                })),
+                intervalBlocked: result.intervalBlocked,
+              },
+              extrapolated: result.extrapolated,
+              title: `${models.map((model) => model.response.name).join(' / ')}`,
+              config: {
+                rsm: { xFactorIndex: 0, yFactorIndex: 1, unitMode: 'actual' },
+                feasible: {
+                  basis: 'mean',
+                  resolution: 'standard',
+                  alpha: 0.05,
+                  specs,
+                  showFeasible: true,
+                  showResponseRegions: true,
+                  showSpecLines: true,
+                },
+              },
+            },
+            caption: '@chart.modelOverlaid',
+          },
+        ],
+        sheetId: sheet.id,
+      };
+      focusDoc(doc);
+      setModelManagerOpen(false);
+      if (result.extrapolated) toast(t(lang, 'toast.modelExtrapolated'));
+    } catch {
+      toast(t(lang, 'toast.overlaidNoCommon'));
+    }
+  };
+
   /* ── files ─────────────────────────────────────────────────────────── */
 
   const saveProject = () => {
@@ -1935,6 +2111,8 @@ export default function App() {
           onDelete={removeModel}
           onRefit={refitModel}
           onContour={contourFromModel}
+          onSurface={surfaceFromModel}
+          onOverlaid={overlaidFromModels}
         />
       )}
 

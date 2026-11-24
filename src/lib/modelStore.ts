@@ -116,6 +116,16 @@ export interface StoredModel {
   categoricalLevels: Record<string, string[]> | null;
   training: StoredModelTraining | null;
   diagnostics: StoredModelDiagnostics;
+  /**
+   * The runs behind a designed fit (Stage 3B). Coded factor levels per run and
+   * the observed response, kept so a 3-D surface can put the experiment points
+   * on the plane it draws. Absent for a regression, whose rows are the sheet.
+   */
+  design?: { points: { levels: Record<string, number>; y: number | null }[] } | null;
+  /** Stationary point of a fitted quadratic, in coded factor levels. */
+  stationary?: { levels: Record<string, number>; response: number; kind: string } | null;
+  /** Best operating point an optimiser chose, in coded factor levels. */
+  optimal?: { levels: Record<string, number>; response: number } | null;
   /** Where it came from: analysis id, output card, chart. */
   source: { analysisId?: string; outputId?: string };
 }
@@ -422,13 +432,38 @@ export function draftFromRsmPayload(
     coefficients: labels.map((label, index) => ({
       label,
       value: model.beta[index],
+      // A payload fitted before Stage 3B carries no covariance and therefore no
+      // SE; a payload fitted now states it from the covariance diagonal rather
+      // than from a second, possibly different, computation.
+      ...(model.covariance?.[index]?.[index] != null && Number.isFinite(model.covariance[index][index])
+        ? { se: Math.sqrt(Math.max(0, model.covariance[index][index])) }
+        : {}),
       estimable: Number.isFinite(model.beta[index]),
     })),
-    // The RSM payload carries no (X'X)⁻¹ and no degrees of freedom, so there is
-    // no covariance and no df to store: the panel says "not available".
-    covariance: null,
-    residual: model.s != null ? { mse: model.s * model.s, s: model.s } : null,
-    dof: null,
+    covariance: model.covariance && model.covariance.length === labels.length
+      ? model.covariance.map((row) => [...row])
+      : null,
+    residual: model.s != null
+      ? (() => {
+        // mse is s² by definition; a payload fitted before Stage 3B carries
+        // only s, and the identity keeps its residual block complete.
+        const mse = model.mse ?? model.s * model.s;
+        return {
+          sse: model.dfe != null ? mse * model.dfe : undefined,
+          ...(model.dfe != null ? { df: model.dfe } : {}),
+          mse,
+          s: model.s,
+        };
+      })()
+      : null,
+    dof: model.dfe != null && model.dfe > 0
+      ? {
+        model: model.dfModel ?? Math.max(0, (model.rank ?? labels.length) - 1),
+        residual: model.dfe,
+        total: model.dfe + (model.rank ?? labels.length) - 1,
+        rank: model.rank ?? labels.length,
+      }
+      : null,
     factorBounds: Object.fromEntries(model.factorNames.map((name, index) => [name, bounds[index]])),
     categoricalLevels: null,
     training: options.sheet
@@ -447,6 +482,25 @@ export function draftFromRsmPayload(
       ...(model.r2 != null ? { r2: model.r2 } : {}),
       ...(model.s != null ? { s: model.s } : {}),
     },
+    design: {
+      points: model.designPoints.map((point) => ({
+        levels: Object.fromEntries(model.factorNames.map((name, index) => [name, point.levels[index] ?? 0])),
+        y: point.y,
+      })),
+    },
+    stationary: model.stationary
+      ? {
+        levels: Object.fromEntries(model.factorNames.map((name, index) => [name, model.stationary?.point[index] ?? 0])),
+        response: model.stationary.response,
+        kind: model.stationary.kind,
+      }
+      : null,
+    optimal: model.optimal
+      ? {
+        levels: Object.fromEntries(model.factorNames.map((name, index) => [name, model.optimal?.point[index] ?? 0])),
+        response: model.optimal.response,
+      }
+      : null,
     source: { ...(options.analysisId ? { analysisId: options.analysisId } : {}) },
   };
 }
@@ -661,6 +715,9 @@ export function parseStoredModels(raw: unknown): StoredModel[] {
       categoricalLevels: isObject(candidate.categoricalLevels) ? candidate.categoricalLevels as Record<string, string[]> : null,
       training: isObject(candidate.training) ? candidate.training as unknown as StoredModelTraining : null,
       diagnostics: isObject(candidate.diagnostics) ? candidate.diagnostics : {},
+      design: isObject(candidate.design) ? candidate.design as unknown as StoredModel['design'] : null,
+      stationary: isObject(candidate.stationary) ? candidate.stationary as unknown as StoredModel['stationary'] : null,
+      optimal: isObject(candidate.optimal) ? candidate.optimal as unknown as StoredModel['optimal'] : null,
       source: isObject(candidate.source) ? candidate.source : {},
     });
   });

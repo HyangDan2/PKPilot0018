@@ -65,6 +65,14 @@ import {
   sampleColormap,
 } from './contour';
 import type { ContourGrid } from './contour';
+import {
+  feasibleOptions,
+  overlaidLegendSvg,
+  renderOverlaidPicture,
+  renderSurfacePicture,
+  surfaceOptions,
+  surfacePaintStyle,
+} from './chartStage3b';
 
 const FS = 10.5;
 const MONO_FONT = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
@@ -104,7 +112,7 @@ export interface TickSet {
   warning?: ChartWarning;
 }
 
-interface Box { x: number; y: number; w: number; h: number }
+export interface Box { x: number; y: number; w: number; h: number }
 
 export interface RenderContext {
   readonly W: number;
@@ -372,6 +380,8 @@ const DEFAULT_HEIGHTS: Record<ChartSpec['kind'], number> = {
   pareto: 270,
   capability: 300,
   interval: 240,
+  surface3d: 340,
+  overlaid: 320,
 };
 
 let renderSequence = 0;
@@ -2080,6 +2090,102 @@ function drawContour(spec: Extract<ChartSpec, { kind: 'contour' }>, ctx: RenderC
   return g;
 }
 
+
+/* ── 3D surface (WO-03) ───────────────────────────────────────────────── */
+
+function drawSurface(spec: Extract<ChartSpec, { kind: 'surface3d' }>, ctx: RenderContext): string {
+  const config = surfaceOptions(ctx);
+  const margins = { top: 18, right: 20, bottom: 42, left: 54, ...(ctx.rawConfig.appearance?.margins ?? {}) };
+  const width = Math.max(200, ctx.W - margins.left - margins.right);
+  const height = Math.max(160, ctx.H - margins.top - margins.bottom);
+  const body = renderSurfacePicture({
+    chart: spec,
+    width,
+    height,
+    config,
+    style: surfacePaintStyle(ctx),
+    margins,
+    zLabel: spec.zLabel ?? '',
+  });
+  let out = `<g data-chart-role="surface3d" data-projection="${config.projection}" data-render-mode="${config.renderMode}">`;
+  out += `<g transform="translate(${margins.left.toFixed(1)} ${margins.top.toFixed(1)})">${body}</g>`;
+  out += '</g>';
+  if (spec.nonEstimable?.length) {
+    out += `<text data-chart-role="surface-warning" x="${margins.left}" y="${(margins.top + 12).toFixed(1)}" font-family="${esc(ctx.style.monoFontFamily)}" font-size="7.8" fill="${esc(ctx.style.alarmColor)}">${esc(`Non-estimable: ${spec.nonEstimable.join(', ')}`)}</text>`;
+  }
+  if (spec.extrapolated) {
+    out += `<text data-chart-role="surface-warning" x="${margins.left}" y="${(ctx.H - 6).toFixed(1)}" font-family="${esc(ctx.style.monoFontFamily)}" font-size="7.8" fill="${esc(ctx.style.alarmColor)}">Outside design region</text>`;
+  }
+  return out;
+}
+
+/* ── overlaid contour (WO-04) ─────────────────────────────────────────── */
+
+/** Names the drawer and the renderer share for the overlaid plot's labels. */
+export interface OverlaidLabels {
+  feasible: string;
+  feasibleArea: string;
+  gridNote: string;
+  none: string;
+  nonEstimable: string;
+  basis: string;
+  basisMean: string;
+  basisConfidence: string;
+  basisPrediction: string;
+}
+
+const OVERLAID_LABELS: OverlaidLabels = {
+  feasible: 'Feasible',
+  feasibleArea: 'Feasible area',
+  gridNote: 'Grid approximation',
+  none: 'No grid node satisfies every spec',
+  nonEstimable: 'Non-estimable',
+  basis: 'Basis',
+  basisMean: 'predicted mean',
+  basisConfidence: 'confidence interval',
+  basisPrediction: 'prediction interval',
+};
+
+function drawOverlaid(spec: Extract<ChartSpec, { kind: 'overlaid' }>, ctx: RenderContext): string {
+  const config = feasibleOptions(ctx);
+  if (spec.xs.length < 2 || spec.ys.length < 2) return emptyChart(ctx, spec.title ?? 'Overlaid contour');
+  const labels = (ctx.rawConfig as { overlaidLabels?: OverlaidLabels }).overlaidLabels ?? OVERLAID_LABELS;
+  const xRange = spec.xRange ?? [spec.xs[0], spec.xs[spec.xs.length - 1]];
+  const yRange = spec.yRange ?? [spec.ys[0], spec.ys[spec.ys.length - 1]];
+  const box: Box = {
+    x: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left : 58,
+    y: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.top : 22,
+    w: 0,
+    h: ctx.H - 62,
+  };
+  box.w = ctx.W - box.x - (ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.right : 20) - 8;
+  const xAxis = makeAxis([xRange[0], xRange[1]], { ...(ctx.config.xAxis as AxisConfig), min: xRange[0], max: xRange[1] }, [box.x, box.x + box.w], { pad: 0 });
+  const yAxis = makeAxis([yRange[0], yRange[1]], { ...(ctx.config.yAxis as AxisConfig), min: yRange[0], max: yRange[1] }, [box.y + box.h, box.y], { pad: 0 });
+  let plot = plotBackground(ctx, box);
+  plot += renderOverlaidPicture({
+    chart: spec,
+    box,
+    config,
+    style: surfacePaintStyle(ctx),
+    toPixel: { x: xAxis.toPixel, y: yAxis.toPixel },
+    xTitle: spec.xLabel ?? 'X',
+    yTitle: spec.yLabel ?? 'Y',
+    labels,
+  });
+  plot += overlaidLegendSvg({
+    chart: spec,
+    box,
+    style: surfacePaintStyle(ctx),
+    labels,
+    basisLabel: config.basis === 'confidence' ? labels.basisConfidence : config.basis === 'prediction' ? labels.basisPrediction : labels.basisMean,
+  });
+  let g = clipGroup(ctx, box, plot);
+  g += drawAxes(ctx, box, xAxis, yAxis, { xTitle: spec.xLabel, yTitle: spec.yLabel });
+  const gridNote = `${labels.gridNote} · ${spec.xs.length}×${spec.ys.length}`;
+  g += `<text data-chart-role="overlaid-grid-note" x="${box.x.toFixed(1)}" y="${(box.y - 4).toFixed(1)}" font-family="${esc(ctx.style.monoFontFamily)}" font-size="7.6" fill="${esc(ctx.style.labelColor)}">${esc(gridNote)}</text>`;
+  return g;
+}
+
 /* ── warnings ─────────────────────────────────────────────────────────── */
 
 function numericValues(spec: ChartSpec): { x: number[]; y: number[] } {
@@ -2098,6 +2204,9 @@ function numericValues(spec: ChartSpec): { x: number[]; y: number[] } {
     case 'timeseries':
       return { x: spec.values.map((_, i) => i + 1), y: spec.values };
     case 'contour':
+    case 'surface3d':
+      return { x: spec.xs, y: spec.ys.concat(spec.z.flat().filter((value) => Number.isFinite(value))) };
+    case 'overlaid':
       return { x: spec.xs, y: spec.ys };
     case 'normalprob':
     case 'probplot':
@@ -2162,6 +2271,8 @@ function renderBody(spec: ChartSpec, ctx: RenderContext): string {
     case 'line': return drawLine(spec, ctx);
     case 'bar': return drawBar(spec, ctx);
     case 'contour': return drawContour(spec, ctx);
+    case 'surface3d': return drawSurface(spec, ctx);
+    case 'overlaid': return drawOverlaid(spec, ctx);
     case 'probplot': return drawProbplot(spec, ctx);
     default: return '';
   }

@@ -190,6 +190,86 @@ export interface ContourConfig {
   showSpecRegion: boolean;
 }
 
+/* ── 3D surface (WO-03) ──────────────────────────────────────────────── */
+
+export type SurfaceRenderMode = 'surface' | 'wireframe' | 'both';
+export type SurfaceProjection = 'perspective' | 'orthographic';
+export type SurfaceViewPreset = 'isometric' | 'top' | 'front' | 'side' | 'free';
+export type SurfaceBackground = 'surface' | 'white' | 'dark';
+
+/** Where the virtual camera stands; degrees, camera units, zoom and pan. */
+export interface SurfaceCameraConfig {
+  /** Rotation about the Z axis, degrees (0 = looking along −X towards the origin). */
+  azimuth: number;
+  /** Angle above the XY plane, degrees (2…89). */
+  elevation: number;
+  /** 0.4 … 3; 1 is the framed default. */
+  zoom: number;
+  /** Screen-space pan, in fractions of the plot box (−1 … 1). */
+  panX: number;
+  panY: number;
+}
+
+export interface SurfaceViewConfig {
+  renderMode: SurfaceRenderMode;
+  /** Colour map for the surface and its colourbar. */
+  colormap: ContourColormap;
+  /** Grid points per axis preset for the surface mesh. */
+  resolution: ContourResolution;
+  /** Surface fill opacity (0.1 … 1). */
+  opacity: number;
+  /** Draw a mesh line every N grid cells (1 = every cell). */
+  meshDensity: number;
+  meshLineWidth: number;
+  lighting: boolean;
+  lightAzimuth: number;
+  lightElevation: number;
+  /** Base brightness that reaches a face turned away from the light. */
+  ambient: number;
+  /** Extra brightness of a face turned towards the light. */
+  diffuse: number;
+  /** Project iso-lines onto the XY floor of the box. */
+  showFloorContours: boolean;
+  floorLevelCount: number;
+  /** Vertical exaggeration of the Z axis. */
+  zScale: number;
+  colorbar: boolean;
+  background: SurfaceBackground;
+  showPoints: boolean;
+  showAxes: boolean;
+  projection: SurfaceProjection;
+  camera: SurfaceCameraConfig;
+}
+
+/* ── overlaid contour (WO-04) ────────────────────────────────────────── */
+
+/** Which prediction the specification limits are compared with. */
+export type FeasibleBasis = 'mean' | 'confidence' | 'prediction';
+
+export interface FeasibleConfig {
+  basis: FeasibleBasis;
+  /**
+   * Specification limits per response, keyed by response name. The drawer edits
+   * these; a response missing here keeps the limits the chart was built with.
+   */
+  specs: { name: string; lsl: number | null; usl: number | null; target: number | null }[];
+  /** 1 − confidence for the interval bases (0.05 → 95 %). */
+  alpha: number;
+  /** Tint each response's own satisfied region. */
+  showResponseRegions: boolean;
+  /** Draw each response's LSL / USL / target iso-lines. */
+  showSpecLines: boolean;
+  /** Tint the joint feasible region. */
+  showFeasible: boolean;
+  /** Hatch the region where at least one response misses its spec. */
+  hatchUnfeasible: boolean;
+  showPoints: boolean;
+  resolution: ContourResolution;
+  colorbar: boolean;
+  /** Print the feasible area ratio on the plot. */
+  showRatio: boolean;
+}
+
 /** How a fitted response-surface model is viewed (factor pair, units, points). */
 export interface RsmViewConfig {
   xFactorIndex: number;
@@ -296,6 +376,8 @@ export interface ChartConfig {
   export?: Partial<ExportConfig>;
   contour?: Partial<ContourConfig>;
   rsm?: Partial<RsmViewConfig>;
+  surface?: Partial<SurfaceViewConfig>;
+  feasible?: Partial<FeasibleConfig>;
   scatter?: Partial<ScatterOptions>;
   histogram?: Partial<HistogramOptions>;
   boxplot?: Partial<BoxplotOptions>;
@@ -407,6 +489,47 @@ export function defaultContourConfig(): ContourConfig {
   };
 }
 
+export function defaultSurfaceViewConfig(): SurfaceViewConfig {
+  return {
+    renderMode: 'both',
+    colormap: 'sigrun-classic',
+    resolution: 'standard',
+    opacity: 0.92,
+    meshDensity: 8,
+    meshLineWidth: 0.6,
+    lighting: true,
+    lightAzimuth: 135,
+    lightElevation: 55,
+    ambient: 0.45,
+    diffuse: 0.6,
+    showFloorContours: false,
+    floorLevelCount: 8,
+    zScale: 1,
+    colorbar: true,
+    background: 'surface',
+    showPoints: true,
+    showAxes: true,
+    projection: 'perspective',
+    camera: { azimuth: -55, elevation: 28, zoom: 1, panX: 0, panY: 0 },
+  };
+}
+
+export function defaultFeasibleConfig(): FeasibleConfig {
+  return {
+    basis: 'mean',
+    specs: [],
+    alpha: 0.05,
+    showResponseRegions: true,
+    showSpecLines: true,
+    showFeasible: true,
+    hatchUnfeasible: false,
+    showPoints: true,
+    resolution: 'standard',
+    colorbar: true,
+    showRatio: true,
+  };
+}
+
 export function defaultRsmViewConfig(): RsmViewConfig {
   return {
     xFactorIndex: 0,
@@ -514,6 +637,8 @@ export function defaultChartConfig(preset: ChartStylePresetId = DEFAULT_CHART_PR
     export: defaultExportConfig(),
     contour: defaultContourConfig(),
     rsm: defaultRsmViewConfig(),
+    surface: defaultSurfaceViewConfig(),
+    feasible: defaultFeasibleConfig(),
     scatter: defaultScatterOptions(),
     histogram: defaultHistogramOptions(),
     boxplot: defaultBoxplotOptions(),

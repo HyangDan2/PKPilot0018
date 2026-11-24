@@ -505,6 +505,18 @@ export interface RsmModelPayload {
   s?: number;
   r2?: number;
   n?: number;
+  /**
+   * Covariance of the estimates, mse·(X'X)⁻¹ in coefficient order (Stage 3B).
+   * Carried so an RSM stored model can show a standard error and a prediction
+   * interval instead of "not available"; null when the fit had no residual
+   * degrees of freedom and therefore no covariance.
+   */
+  covariance?: number[][] | null;
+  /** Residual degrees of freedom and (X'X)⁻¹ rank, absent when unknown. */
+  dfe?: number;
+  mse?: number;
+  rank?: number;
+  dfModel?: number;
 }
 
 /** min/max over a whole grid without spreading 160k arguments onto the stack. */
@@ -557,6 +569,15 @@ export function buildRsmModel(
     s: glm.s,
     r2: glm.r2,
     n: glm.n,
+    // The covariance of the estimates travels with the payload: without it an
+    // RSM stored model could only ever report a point prediction.
+    covariance: glm.dfe > 0 && glm.xtxInv?.length
+      ? glm.xtxInv.map((row) => row.map((value) => (Number.isFinite(value) ? value * glm.mse : 0)))
+      : null,
+    dfe: glm.dfe,
+    mse: glm.mse,
+    rank: glm.rank,
+    dfModel: glm.dfModel,
   };
 }
 

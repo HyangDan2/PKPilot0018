@@ -271,7 +271,7 @@ export interface ModelSurface {
   nonEstimable: string[];
 }
 
-function displayRange(model: StoredModel, predictor: ModelVariable, mode: InputMode): [number, number] {
+export function factorDisplayRange(model: StoredModel, predictor: ModelVariable, mode: InputMode): [number, number] {
   const bound = model.factorBounds?.[predictor.name];
   const coding = predictor.coding;
   if (!bound) {
@@ -301,8 +301,8 @@ export function modelSurface(model: StoredModel, options: SurfaceOptions): Model
   const yPredictor = predictorNamed(model, options.yName);
   if (!xPredictor || !yPredictor) throw new ModelInputError('model.structure.surface', { x: options.xName, y: options.yName });
   if (xPredictor.kind !== 'numeric' || yPredictor.kind !== 'numeric') throw new ModelInputError('model.surface.numericOnly');
-  const xRange = options.xRange ?? displayRange(model, xPredictor, mode);
-  const yRange = options.yRange ?? displayRange(model, yPredictor, mode);
+  const xRange = options.xRange ?? factorDisplayRange(model, xPredictor, mode);
+  const yRange = options.yRange ?? factorDisplayRange(model, yPredictor, mode);
   const resolution = Math.max(2, Math.min(201, Math.round(options.resolution ?? 41)));
   const xs = Array.from({ length: resolution }, (_, i) => xRange[0] + ((xRange[1] - xRange[0]) * i) / (resolution - 1));
   const ys = Array.from({ length: resolution }, (_, i) => yRange[0] + ((yRange[1] - yRange[0]) * i) / (resolution - 1));
@@ -340,6 +340,168 @@ export function modelSurface(model: StoredModel, options: SurfaceOptions): Model
     outOfRange,
     nonEstimable: [...nonEstimable],
   };
+}
+
+/**
+ * A model compiled for repeated surface evaluation (Stage 3B).
+ *
+ * `modelSurface` builds a full design row per node, which is correct but does
+ * string work per cell: a 401×401 grid would parse every coefficient label
+ * 160 801 times. This evaluator parses the labels once, multiplies the held
+ * factors into a constant per term, and leaves only the two axis factors as
+ * powers — the same arithmetic, in the same order per term, so it can be
+ * cross-checked against `modelSurface` node for node.
+ */
+export interface CompiledSurfaceEvaluator {
+  xName: string;
+  yName: string;
+  /** Design-space (coded / contrast) values the non-axis factors are held at. */
+  resolvedHoldings: PredictionPoint;
+  /** Predictions that lean on an unidentified column, if any. */
+  nonEstimable: string[];
+  /** ŷ at design-space (x, y) values. */
+  value(xCoded: number, yCoded: number): number;
+  /** Standard error of the fitted mean, or null without a covariance. */
+  se(xCoded: number, yCoded: number): number | null;
+  /** 1 − α/2 t half-width for a confidence interval on the mean. */
+  ciHalf(xCoded: number, yCoded: number): number | null;
+  /** 1 − α/2 t half-width for a prediction interval (needs df and mse). */
+  piHalf(xCoded: number, yCoded: number): number | null;
+  /** True when the covariance/df needed for intervals is present. */
+  hasInterval: boolean;
+}
+
+interface CompiledTerm {
+  label: string;
+  value: number;
+  estimable: boolean;
+  /** Product of every factor in the term that is not on an axis. */
+  constantPart: number;
+  xPower: number;
+  yPower: number;
+}
+
+/** Default holding for a factor that is not on either axis. */
+export function defaultHoldingValue(predictor: ModelVariable, mode: InputMode): number | string {
+  if (predictor.kind === 'categorical') return predictor.levels?.[0] ?? '';
+  return mode === 'coded' ? 0 : (predictor.coding?.center ?? 0);
+}
+
+export function compileSurfaceEvaluator(
+  model: StoredModel,
+  options: { xName: string; yName: string; holdings?: Record<string, number | string>; mode?: InputMode; alpha?: number },
+): CompiledSurfaceEvaluator {
+  const mode = options.mode ?? 'actual';
+  const xPredictor = predictorNamed(model, options.xName);
+  const yPredictor = predictorNamed(model, options.yName);
+  if (!xPredictor || !yPredictor) throw new ModelInputError('model.structure.surface', { x: options.xName, y: options.yName });
+  if (xPredictor.kind !== 'numeric' || yPredictor.kind !== 'numeric') throw new ModelInputError('model.surface.numericOnly');
+  const resolvedHoldings: PredictionPoint = {};
+  model.predictors.forEach((predictor) => {
+    if (predictor.name === xPredictor.name || predictor.name === yPredictor.name) return;
+    const given = options.holdings?.[predictor.name];
+    resolvedHoldings[predictor.name] = given === undefined || given === null
+      ? defaultHoldingValue(predictor, mode)
+      : given;
+  });
+  const designOf = (predictor: ModelVariable): number => {
+    const held = resolvedHoldings[predictor.name];
+    const numeric = typeof held === 'number' ? held : Number(held);
+    if (!Number.isFinite(numeric)) throw new ModelInputError('model.valueMissing', { variable: predictor.name });
+    return toDesignValue(predictor, numeric, mode);
+  };
+  const terms: CompiledTerm[] = [];
+  model.coefficients.forEach((coefficient) => {
+    if (coefficient.label === 'Constant') {
+      terms.push({ label: coefficient.label, value: coefficient.value, estimable: coefficient.estimable, constantPart: 1, xPower: 0, yPower: 0 });
+      return;
+    }
+    let constantPart = 1;
+    let xPower = 0;
+    let yPower = 0;
+    parseCoefficientLabel(coefficient.label).forEach((token) => {
+      const predictor = predictorNamed(model, token.name);
+      if (!predictor) throw new ModelInputError('model.structure', { term: coefficient.label, variable: token.name });
+      if (predictor.name === xPredictor.name) { xPower += token.power; return; }
+      if (predictor.name === yPredictor.name) { yPower += token.power; return; }
+      if (predictor.kind === 'categorical') {
+        if (!token.level) throw new ModelInputError('model.structure', { term: coefficient.label });
+        const text = String(resolvedHoldings[predictor.name] ?? '');
+        constantPart *= contrastFor(predictor, token.level, text);
+        return;
+      }
+      constantPart *= designOf(predictor) ** token.power;
+    });
+    terms.push({ label: coefficient.label, value: coefficient.value, estimable: coefficient.estimable, constantPart, xPower, yPower });
+  });
+  const covariance = model.covariance && model.covariance.length === model.coefficients.length ? model.covariance : null;
+  const df = model.residual?.df && model.residual.df > 0 ? model.residual.df : null;
+  const mse = model.residual?.mse ?? 0;
+  const alpha = Math.min(0.999, Math.max(1e-6, options.alpha ?? 0.05));
+  const weight = (term: CompiledTerm, x: number, y: number): number => term.constantPart
+    * (term.xPower === 0 ? 1 : x ** term.xPower)
+    * (term.yPower === 0 ? 1 : y ** term.yPower);
+  const nonEstimable: string[] = [];
+  const value = (x: number, y: number): number => {
+    let fit = 0;
+    for (const term of terms) {
+      const w = weight(term, x, y);
+      if (!Number.isFinite(w) || w === 0) continue;
+      if (!term.estimable || !Number.isFinite(term.value)) {
+        if (!nonEstimable.includes(term.label)) nonEstimable.push(term.label);
+        continue;
+      }
+      fit += w * term.value;
+    }
+    return nonEstimable.length ? Number.NaN : fit;
+  };
+  const variance = (x: number, y: number): number | null => {
+    if (!covariance) return null;
+    const row = terms.map((term) => weight(term, x, y));
+    let sum = 0;
+    for (let i = 0; i < row.length; i += 1) {
+      if (!Number.isFinite(row[i]) || row[i] === 0) continue;
+      for (let j = 0; j < row.length; j += 1) {
+        const entry = covariance[i]?.[j];
+        if (!Number.isFinite(entry)) continue;
+        sum += row[i] * row[j] * (entry as number);
+      }
+    }
+    return sum >= 0 && Number.isFinite(sum) ? sum : null;
+  };
+  return {
+    xName: xPredictor.name,
+    yName: yPredictor.name,
+    resolvedHoldings,
+    nonEstimable,
+    value,
+    se(x, y) {
+      const v = variance(x, y);
+      return v === null ? null : Math.sqrt(v);
+    },
+    ciHalf(x, y) {
+      const v = variance(x, y);
+      if (v === null || df === null) return null;
+      const half = tInv(1 - alpha / 2, df) * Math.sqrt(v);
+      return Number.isFinite(half) ? half : null;
+    },
+    piHalf(x, y) {
+      const v = variance(x, y);
+      if (v === null || df === null) return null;
+      const half = tInv(1 - alpha / 2, df) * Math.sqrt(v + Math.max(0, mse));
+      return Number.isFinite(half) ? half : null;
+    },
+    hasInterval: Boolean(covariance && df),
+  };
+}
+
+/** Coded value of an axis position, whether the axis is shown coded or actual. */
+export function axisDesignValue(predictor: ModelVariable, value: number, mode: InputMode): number {
+  try {
+    return toDesignValue(predictor, value, mode);
+  } catch {
+    return Number.NaN;
+  }
 }
 
 /**
