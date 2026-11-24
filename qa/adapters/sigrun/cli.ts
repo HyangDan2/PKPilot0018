@@ -40,6 +40,8 @@ import { evaluateFormula } from '../../../src/lib/calc';
 import { makeWorksheet } from '../../../src/lib/datasets';
 import { defaultValues, findAnalysis, type RunContext } from '../../../src/lib/analyses';
 import { boxplotStats, histogramBins, histogramCurve } from '../../../src/lib/charts';
+import { createStoredModel, type ModelVariable, type StoredModel, type StoredModelDraft } from '../../../src/lib/modelStore';
+import { predictStoredModel } from '../../../src/lib/modelPredictor';
 import type { Block, ChartSpec, Worksheet } from '../../../src/types';
 import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, ccdDesign, factorialDesign } from '../../../src/lib/doe';
 import { fitLognormalReliability, fitWeibull, type WeibullInput } from '../../../src/lib/reliability';
@@ -933,6 +935,65 @@ const ops: Record<string, Op> = {
       default:
         throw new Error(`unknown emit ${emit}`);
     }
+  },
+
+  /* ── QA-J: stored-model prediction (WO-02) ──────────────────────────
+     The model is handed over as data (coefficients, coding, covariance) and
+     the SHIPPED predictor builds the design row and evaluates it. The Python
+     side evaluates the same row with NumPy, so the coding transform, the
+     contrast coding and the interval arithmetic are all checked. */
+
+  modelpredict(bag, _ds, args) {
+    const spec = args.model as {
+      kind?: StoredModel['kind'];
+      response?: string;
+      predictors: ModelVariable[];
+      terms?: { label: string; factors: string[] }[];
+      coefficients: { label: string; value: number; se?: number; estimable?: boolean }[];
+      covariance?: number[][] | null;
+      residual?: { mse?: number; df?: number; s?: number } | null;
+      nonEstimable?: string[];
+    };
+    const nonEstimable = new Set(spec.nonEstimable ?? []);
+    const draft: StoredModelDraft = {
+      format: 'sigrun-model',
+      version: 1,
+      kind: spec.kind ?? 'multiple',
+      response: { id: '', name: spec.response ?? 'Y', kind: 'numeric' },
+      predictors: spec.predictors,
+      terms: spec.terms ?? [],
+      coefficients: spec.coefficients.map((coefficient) => ({
+        label: coefficient.label,
+        value: coefficient.value,
+        ...(coefficient.se !== undefined ? { se: coefficient.se } : {}),
+        estimable: coefficient.estimable ?? !nonEstimable.has(coefficient.label),
+      })),
+      covariance: spec.covariance ?? null,
+      residual: spec.residual ?? null,
+      dof: null,
+      factorBounds: null,
+      categoricalLevels: null,
+      training: null,
+      diagnostics: {},
+      source: {},
+    };
+    const model = createStoredModel(draft, 'qa');
+    const points = (args.points as { mode?: 'actual' | 'coded'; values: Record<string, number | string> }[]) ?? [];
+    let refused = 0;
+    points.forEach((point, index) => {
+      const result = predictStoredModel(model, point.values, { mode: point.mode ?? 'actual', alpha: 0.05 });
+      if (result.nonEstimable.length) {
+        refused += 1;
+        bag.put(`nonestimable[${index}]`, result.nonEstimable.slice().sort().join(','));
+      }
+      bag.put(`pred[${index}]`, result.value);
+      bag.put(`se[${index}]`, result.se);
+      bag.put(`pi_low[${index}]`, result.pi ? result.pi[0] : null);
+      bag.put(`pi_high[${index}]`, result.pi ? result.pi[1] : null);
+      bag.put(`issues[${index}]`, result.issues.join(','));
+    });
+    bag.put('refused', refused);
+    if (refused === points.length && points.length > 0) throw new Error('model.nonEstimable');
   },
 
   /** Deliberately failing guard: proves the comparator reports engine errors. */

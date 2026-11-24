@@ -5,6 +5,7 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { Block, ChartSpec, Column, Lang, Worksheet } from '../types';
+import { draftFromGlm, draftFromRegression, draftFromRsmPayload, termsFromDesign, type StoredModelDraft } from './modelStore';
 import { capability } from './capability';
 import { evaluateFormula } from './calc';
 import { histogramBins } from './charts';
@@ -72,6 +73,8 @@ export interface RunContext {
 
 export interface RunResult {
   blocks: Block[];
+  /** A fitted model this analysis can store for later use (WO-02). */
+  modelDraft?: StoredModelDraft;
   subtitle?: string;
   titleText?: string;
   sheetPatch?: Worksheet;
@@ -634,7 +637,8 @@ function runRegression(ctx: RunContext): RunResult {
   const response = numericColumn(sheet, values.response);
   const predictorRefs = refList(values, 'predictors');
   if (!predictorRefs.length) throw new Error('req.input');
-  const predictors = numericColumns(sheet, predictorRefs)
+  const predictorColumns = numericColumns(sheet, predictorRefs);
+  const predictors = predictorColumns
     .map((c) => ({ name: c.name || c.id, values: c.values.map((v) => (typeof v === 'number' ? v : null)) }));
   if (!predictors.length) throw new Error('req.input');
   let result;
@@ -702,7 +706,16 @@ function runRegression(ctx: RunContext): RunResult {
       ],
     });
   }
-  return { subtitle: `${response.name} ← ${predictors.map((p) => p.name).join(' + ')}`, blocks };
+  // The card also offers its fit to the model store; the record is built from
+  // exactly the numbers shown above, never re-estimated.
+  const modelDraft = draftFromRegression({
+    result,
+    predictors: predictors.map((predictor, index) => ({ column: predictorColumns[index], name: predictor.name, values: predictor.values })),
+    response: { id: response.id, name: response.name || response.id },
+    sheet,
+    analysisId: 'regression',
+  });
+  return { subtitle: `${response.name} ← ${predictors.map((p) => p.name).join(' + ')}`, blocks, modelDraft };
 }
 
 /* ── control charts ───────────────────────────────────────────────────── */
@@ -2369,7 +2382,16 @@ function runGlm(ctx: RunContext): RunResult {
     },
     { type: 'chartgrid', charts },
   ];
-  return { subtitle: `${response.name || response.id} · ${factors.map((f) => f.name).join(' × ')}`, blocks };
+  const modelDraft = draftFromGlm({
+    glm,
+    factors,
+    terms,
+    response: { id: response.id, name: response.name || response.id, values: response.values },
+    kind: 'glm',
+    sheet,
+    analysisId: 'glm',
+  });
+  return { subtitle: `${response.name || response.id} · ${factors.map((f) => f.name).join(' × ')}`, blocks, modelDraft };
 }
 
 /* ── P2: DOE ──────────────────────────────────────────────────────────── */
@@ -2481,8 +2503,20 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
   for (let i = 0; i < factors.length; i += 1) {
     for (let j = i + 1; j < factors.length; j += 1) charts.push(interactionChart(factors[i], factors[j], yValues, glm.design.levels, lang));
   }
+  // A 2-level design is analysed in CODED units, so the stored model says so.
+  const modelDraft = draftFromGlm({
+    glm,
+    factors,
+    terms: termsFromDesign(glm),
+    response: { id: response.id, name: response.name || response.id, values: response.values },
+    kind: 'doe',
+    codingMode: 'coded',
+    sheet,
+    analysisId: 'doeanalyze',
+  });
   return {
     subtitle: `${response.name || response.id} · 2^${factors.length}`,
+    modelDraft,
     blocks: [
       { type: 'text', lines: [t(lang, 'res.doeAnalysisInfo', { response: response.name || response.id, order, n: glm.n }), t(lang, 'res.effectNote')] },
       { type: 'table', title: tableTitle('res.effectsTable'), headers: ['@th.term', '@th.effect', '@th.coef', '@th.seCoef', '@th.t', '@th.p'], rows: effectRows, align: ['l', 'r', 'r', 'r', 'r', 'r'] },
@@ -2644,7 +2678,12 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
       caption: t(lang, 'res.contourNote'),
     },
   ];
-  return { subtitle: `${response.name || response.id} · RSM`, blocks };
+  const modelDraft = draftFromRsmPayload(model, {
+    response: { id: response.id, name: response.name || response.id },
+    sheet,
+    analysisId: 'rsmanalyze',
+  });
+  return { subtitle: `${response.name || response.id} · RSM`, blocks, modelDraft };
 }
 
 /* ── P2: power and sample size ────────────────────────────────────────── */

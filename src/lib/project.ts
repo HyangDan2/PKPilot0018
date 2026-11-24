@@ -4,8 +4,9 @@
    explicitly rejected with an explanation.
    ───────────────────────────────────────────────────────────────────────── */
 
-import type { Column, ColType, ProjectFile, Settings, OutputDoc, Worksheet } from '../types';
+import type { Column, ColType, ProjectFile, Settings, OutputDoc, StoredModelFileEntry, Worksheet } from '../types';
 import type { CustomChartStyle } from './chartStyles';
+import { parseStoredModels, type StoredModel } from './modelStore';
 import { makeWorksheet, uid } from './datasets';
 
 export interface ProjectState {
@@ -15,6 +16,8 @@ export interface ProjectState {
   outputs: OutputDoc[];
   /** Optional: user chart styles saved with the project. */
   customChartStyles?: CustomChartStyle[];
+  /** Optional: stored fitted models saved with the project. */
+  models?: StoredModel[];
 }
 
 export function buildProject(state: ProjectState): ProjectFile {
@@ -28,6 +31,7 @@ export function buildProject(state: ProjectState): ProjectFile {
     settings: state.settings,
     outputs: state.outputs,
     ...(state.customChartStyles?.length ? { customChartStyles: state.customChartStyles } : {}),
+    ...(state.models?.length ? { models: state.models as unknown as StoredModelFileEntry[] } : {}),
   };
 }
 
@@ -87,6 +91,7 @@ export function parseProject(text: string): ProjectState {
     settings,
     outputs: Array.isArray(file.outputs) ? file.outputs : [],
     ...(Array.isArray(file.customChartStyles) ? { customChartStyles: file.customChartStyles } : {}),
+    models: parseStoredModels(file.models),
   };
 }
 

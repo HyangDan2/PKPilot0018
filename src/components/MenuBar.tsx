@@ -12,7 +12,7 @@ export type MenuAction =
   | 'clear' | 'insertRow' | 'deleteRow' | 'insertColumn' | 'deleteColumn' | 'addColumn' | 'newSheet' | 'renameSheet' | 'deleteSheet'
   | 'findReplace' | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout' | 'toggleNav'
   | 'layoutBalanced' | 'layoutSheet' | 'layoutResults' | 'layoutFocus'
-  | 'wsTri' | 'wsFocus' | 'wsClassic' | 'toggleDrawer';
+  | 'wsTri' | 'wsFocus' | 'wsClassic' | 'toggleDrawer' | 'modelManager';
 
 interface MenuLeaf {
   labelKey: string;
@@ -141,6 +141,7 @@ function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, lay
           ],
         },
         { labelKey: 'stat.regression', children: [{ labelKey: 'stat.fitRegression', analysis: 'regression' }] },
+        { labelKey: 'stat.modelManager', action: 'modelManager' },
         {
           labelKey: 'stat.control',
           children: [

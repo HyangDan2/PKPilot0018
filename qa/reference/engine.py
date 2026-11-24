@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import os
 import platform
 import sys
@@ -1713,6 +1714,103 @@ def op_dist(bag, ds, args, cid):
     mark(cid, "scipy.stats / scipy.special")
 
 
+def _coding_value(predictor, value, mode):
+    """Coded ⇄ actual conversion for one numeric predictor."""
+    coding = predictor.get("coding")
+    if coding is None:
+        return float(value)
+    value = float(value)
+    if coding["mode"] == "coded":
+        return value if mode == "coded" else (value - coding["center"]) / coding["halfRange"]
+    return value if mode == "actual" else coding["center"] + coding["halfRange"] * value
+
+
+def _model_design_row(spec, values, mode):
+    """The design row for one point, built from the coefficient labels."""
+    by_name = {p["name"]: p for p in spec["predictors"]}
+    row = []
+    for coefficient in spec["coefficients"]:
+        label = coefficient["label"]
+        if label == "Constant":
+            row.append(1.0)
+            continue
+        product = 1.0
+        for token in label.split("×"):
+            level = None
+            match = re.search(r"\[(.+)\]$", token)
+            if match:
+                level = match.group(1)
+                token = token[: match.start()]
+            squares = 0
+            while token.endswith("²"):
+                squares += 1
+                token = token[:-1]
+            predictor = by_name[token]
+            if predictor["kind"] == "categorical":
+                levels = predictor["levels"]
+                value = str(values[token])
+                if value not in levels:
+                    raise ValueError("model.levelUnknown")
+                product *= 1.0 if value == level else (-1.0 if value == levels[-1] else 0.0)
+            else:
+                base = _coding_value(predictor, values[token], mode)
+                product *= base if squares == 0 else base ** squares
+        row.append(product)
+    return np.array(row, dtype=float)
+
+
+def op_modelpredict(bag, ds, args, cid):
+    """Prediction from a stored model: X'β with the model's own coding.
+
+    Independent of the TypeScript predictor: the design row, the contrast
+    coding and the interval are rebuilt here with NumPy and SciPy.
+    """
+    spec = args["model"]
+    labels = [c["label"] for c in spec["coefficients"]]
+    beta = np.array([float(c["value"]) for c in spec["coefficients"]])
+    non_estimable = set(spec.get("nonEstimable") or [])
+    covariance = spec.get("covariance")
+    residual = spec.get("residual") or {}
+    df = residual.get("df")
+
+    refused = 0
+    for index, point in enumerate(args.get("points", [])):
+        mode = point.get("mode", "actual")
+        row = _model_design_row(spec, point["values"], mode)
+        # A row that leans on an unidentified column has no value: the same
+        # rule the shipped predictor applies.
+        leaning = [labels[i] for i in range(len(labels)) if row[i] != 0 and labels[i] in non_estimable]
+        if leaning:
+            refused += 1
+            bag.put(f"nonestimable[{index}]", ",".join(sorted(leaning)))
+            bag.put(f"pred[{index}]", None)
+            bag.put(f"se[{index}]", None)
+            bag.put(f"pi_low[{index}]", None)
+            bag.put(f"pi_high[{index}]", None)
+            bag.put(f"issues[{index}]", "")
+            continue
+        fit = float(row @ beta)
+        se = None
+        pi_low = pi_high = None
+        if covariance and df:
+            sigma = np.array(covariance, dtype=float)
+            variance = float(row @ sigma @ row)
+            if variance >= 0:
+                se = math.sqrt(variance)
+                mse = float(residual.get("mse", 0.0))
+                half = float(stats.t.ppf(0.975, df)) * math.sqrt(variance + max(0.0, mse))
+                pi_low, pi_high = fit - half, fit + half
+        bag.put(f"pred[{index}]", fit)
+        bag.put(f"se[{index}]", se)
+        bag.put(f"pi_low[{index}]", pi_low)
+        bag.put(f"pi_high[{index}]", pi_high)
+        bag.put(f"issues[{index}]", "")
+    bag.put("refused", refused)
+    if refused and refused == len(args.get("points", [])):
+        raise RuntimeError("model.nonEstimable")
+    mark(cid, "numpy X'β · X'ΣX · scipy t prediction interval")
+
+
 def op_sheet(bag, ds, args, cid):
     """QA-U — the documented chart / worksheet-transform rules, independently.
 
@@ -1956,6 +2054,7 @@ OPS = {
     "dist": op_dist,
     "calc": op_calc,
     "sheet": op_sheet,
+    "modelpredict": op_modelpredict,
     "nelson": op_nelson,
 }
 

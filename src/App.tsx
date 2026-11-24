@@ -11,9 +11,24 @@ import { ContextMenu, type ContextMenuItem } from './components/ContextMenu';
 import { FindReplacePanel } from './components/FindReplacePanel';
 import { AnalysisDialog } from './components/AnalysisDialog';
 import { HelpModal } from './components/HelpModal';
+import { ModelManager } from './components/ModelManager';
 import { ImportDialog, type PreviewSheet } from './components/ImportDialog';
 import { ANALYSES, defaultValues as defaultDialogValues, findAnalysis, type AnalysisDef, type RunResult } from './lib/analyses';
-import type { ChartConfig as ChartSpecConfig } from './lib/chartConfig';
+import { ChartConfigMemory } from './lib/chartMemory';
+import { loadCustomStyles, saveCustomStyle } from './lib/chartStyles';
+import {
+  createStoredModel,
+  defaultModelName,
+  deleteStoredModel,
+  duplicateStoredModel,
+  mergeStoredModels,
+  parseStoredModels,
+  refitStoredModel,
+  renameStoredModel,
+  uniqueModelName,
+  type StoredModel,
+} from './lib/modelStore';
+import { modelSurface } from './lib/modelPredictor';
 import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { loadAutosave, saveAutosave } from './lib/db';
 import { fmtInt } from './lib/format';
@@ -146,6 +161,8 @@ interface StoredState {
   activeSheetId: string;
   outputs: OutputDoc[];
   settings: Settings;
+  /** Stored fitted models (WO-02). */
+  models?: unknown;
 }
 
 interface HistorySnapshot { worksheets: Worksheet[]; activeSheetId: string }
@@ -247,6 +264,8 @@ export default function App() {
   const [hydrated, setHydrated] = useState(false);
   const [, forceHistory] = useState(0);
   const [viewportW, setViewportW] = useState<number>(() => (typeof window === 'undefined' ? 1440 : window.innerWidth));
+  const [storedModels, setStoredModels] = useState<StoredModel[]>([]);
+  const [modelManagerOpen, setModelManagerOpen] = useState(false);
 
   const past = useRef<HistorySnapshot[]>([]);
   const future = useRef<HistorySnapshot[]>([]);
@@ -276,6 +295,7 @@ export default function App() {
         setWorksheets(saved.worksheets);
         setActiveSheetId(saved.activeSheetId || saved.worksheets[0].id);
         if (Array.isArray(saved.outputs)) setOutputs(saved.outputs);
+        if (saved.models) setStoredModels(parseStoredModels(saved.models));
         if (saved.settings) setSettings({ theme: saved.settings.theme === 'dark' ? 'dark' : 'light', lang: saved.settings.lang === 'ko' ? 'ko' : 'en' });
       })
       .finally(() => {
@@ -359,12 +379,12 @@ export default function App() {
     if (!hydrated) return;
     setAutosave('saving');
     const timer = setTimeout(() => {
-      saveAutosave({ worksheets, activeSheetId, outputs, settings, savedAt: new Date().toISOString() })
+      saveAutosave({ worksheets, activeSheetId, outputs, settings, models: storedModels, savedAt: new Date().toISOString() })
         .then(() => setAutosave('saved'))
         .catch(() => setAutosave('saved'));
     }, 700);
     return () => clearTimeout(timer);
-  }, [worksheets, activeSheetId, outputs, settings, hydrated]);
+  }, [worksheets, activeSheetId, outputs, settings, storedModels, hydrated]);
 
   /* ── worksheet mutations & history ─────────────────────────────────── */
 
@@ -865,52 +885,21 @@ export default function App() {
 
   /*
    * Chart configurations belong to the reader, not to the run: a re-run keeps
-   * the style, scale and contour view the card already had, matched on kind and
-   * index, while the numbers come fresh from the analysis.
+   * the style, scale, axis range and RSM view the analysis already had, while
+   * the numbers come fresh from the engine. `chartMemory.ts` owns the matching
+   * rules (identity first, position inside one kind, one slot per chart) so a
+   * chart inserted before another cannot push its config onto it.
    */
-  const chartConfigMemory = useRef<Map<string, { kind: string; config?: ChartSpecConfig }[]>>(new Map());
-
-  const collectChartSlots = (blocks: OutputDoc['blocks']): { kind: string; config?: ChartSpecConfig }[] => {
-    const out: { kind: string; config?: ChartSpecConfig }[] = [];
-    blocks.forEach((block) => {
-      if (block.type === 'chart') out.push({ kind: block.chart.kind, config: block.chart.config ? JSON.parse(JSON.stringify(block.chart.config)) as ChartSpecConfig : undefined });
-      if (block.type === 'chartgrid') block.charts.forEach((item) => out.push({ kind: item.chart.kind, config: item.chart.config ? JSON.parse(JSON.stringify(item.chart.config)) as ChartSpecConfig : undefined }));
-    });
-    return out;
-  };
+  const chartConfigMemory = useRef(new ChartConfigMemory());
 
   const rememberChartConfigs = (doc: OutputDoc) => {
-    const key = doc.meta?.analysisId ?? doc.dialog?.analysisId;
-    if (!key) return;
-    chartConfigMemory.current.set(key, collectChartSlots(doc.blocks));
+    chartConfigMemory.current.remember(doc.meta?.analysisId ?? doc.dialog?.analysisId, doc.blocks);
   };
 
   const restoreChartConfigs = (doc: OutputDoc): OutputDoc => {
     const key = doc.meta?.analysisId ?? doc.dialog?.analysisId;
-    const saved = key ? chartConfigMemory.current.get(key) : undefined;
-    if (!saved || !saved.length) return doc;
-    let index = 0;
-    const applyBlock = (block: OutputDoc['blocks'][number]) => {
-      if (block.type === 'chart') {
-        const slot = saved[index];
-        index += 1;
-        if (slot && slot.config && slot.kind === block.chart.kind) return { ...block, chart: { ...block.chart, config: slot.config } };
-        return block;
-      }
-      if (block.type === 'chartgrid') {
-        return {
-          ...block,
-          charts: block.charts.map((item) => {
-            const slot = saved[index];
-            index += 1;
-            if (slot && slot.config && slot.kind === item.chart.kind) return { ...item, chart: { ...item.chart, config: slot.config } };
-            return item;
-          }),
-        };
-      }
-      return block;
-    };
-    return { ...doc, blocks: doc.blocks.map(applyBlock) };
+    const blocks = chartConfigMemory.current.restore(key, doc.blocks);
+    return blocks === doc.blocks ? doc : { ...doc, blocks };
   };
 
   const focusDoc = (doc: OutputDoc) => {
@@ -948,7 +937,7 @@ export default function App() {
         applySheets((list) => [...list, created]);
         setActiveSheetId(created.id);
       }
-      const doc = restoreChartConfigs(makeDoc(def, result, buildMeta(def, values, sheet)));
+      const doc = restoreChartConfigs({ ...makeDoc(def, result, buildMeta(def, values, sheet)), ...(result.modelDraft ? { model: result.modelDraft } : {}) });
       rememberChartConfigs(doc);
       focusDoc(doc);
       setLastDialog({ analysisId: def.id, values });
@@ -976,7 +965,7 @@ export default function App() {
     try {
       const result = def.run({ lang, sheet: snapshotSheet, values: { ...meta.values } });
       // The snapshot is read-only: a transform's sheet patch is not applied here.
-      const doc = restoreChartConfigs(makeDoc(def, result, { ...meta, ranAt: Date.now() }));
+      const doc = restoreChartConfigs({ ...makeDoc(def, result, { ...meta, ranAt: Date.now() }), ...(result.modelDraft ? { model: result.modelDraft } : {}) });
       rememberChartConfigs(doc);
       focusDoc(doc);
     } catch (error) {
@@ -1027,12 +1016,123 @@ export default function App() {
     addSheet(def.build());
   };
 
+  /* ── stored models (WO-02) ─────────────────────────────────────────── */
+
+  /** Keep the fit an output card carries: named, dated and deduplicated. */
+  const saveModelFromCard = (output: OutputDoc) => {
+    const draft = output.model;
+    if (!draft) {
+      toast(t(lang, 'toast.modelNone'));
+      return;
+    }
+    const base = defaultModelName(draft);
+    const model = createStoredModel(draft, uniqueModelName(storedModels, base));
+    setStoredModels((prev) => [...prev, model]);
+    toast(t(lang, 'toast.modelSaved', { name: model.name }));
+  };
+
+  const renameModel = (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setStoredModels((prev) => renameStoredModel(prev, id, trimmed));
+    toast(t(lang, 'toast.modelRenamed'));
+  };
+
+  const duplicateModel = (id: string) => {
+    setStoredModels((prev) => duplicateStoredModel(prev, id));
+    toast(t(lang, 'toast.modelDuplicated'));
+  };
+
+  const removeModel = (id: string) => {
+    const target = storedModels.find((model) => model.id === id);
+    if (!target) return;
+    if (!window.confirm(t(lang, 'model.deleteConfirm', { name: target.name }))) return;
+    setStoredModels((prev) => deleteStoredModel(prev, id));
+    toast(t(lang, 'toast.modelDeleted'));
+  };
+
+  const refitModel = (id: string) => {
+    const target = storedModels.find((model) => model.id === id);
+    if (!target) return;
+    try {
+      const refit = refitStoredModel(target, worksheets.find((ws) => ws.id === target.training?.sheetId) ?? sheet);
+      setStoredModels((prev) => prev.map((model) => (model.id === id ? refit : model)));
+      toast(t(lang, 'toast.modelRefit'));
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'model.refitFailed';
+      toast(t(lang, code));
+    }
+  };
+
+  /** A stored model becomes a contour chart: the first follow-up entry point. */
+  const contourFromModel = (model: StoredModel) => {
+    const numeric = model.predictors.filter((predictor) => predictor.kind === 'numeric');
+    if (numeric.length < 2) {
+      toast(t(lang, 'toast.modelNoSurface'));
+      return;
+    }
+    try {
+      const surface = modelSurface(model, { xName: numeric[0].name, yName: numeric[1].name, resolution: 41 });
+      if (surface.nonEstimable.length) {
+        toast(t(lang, 'toast.modelNoSurface'));
+        return;
+      }
+      const doc: OutputDoc = {
+        id: makeOutputId(),
+        titleKey: 'an.modelcontour',
+        titleText: model.name,
+        subtitle: `${model.name} · ${surface.xName} × ${surface.yName}`,
+        createdAt: Date.now(),
+        collapsed: false,
+        blocks: [
+          {
+            type: 'text',
+            lines: [t(lang, 'res.modelContourNote', { model: model.name })],
+          },
+          {
+            type: 'chart',
+            chart: {
+              kind: 'contour',
+              xs: surface.xs,
+              ys: surface.ys,
+              z: surface.z,
+              xLabel: surface.xName,
+              yLabel: surface.yName,
+              xRange: surface.xRange,
+              yRange: surface.yRange,
+              title: `${model.response.name} = f(${surface.xName}, ${surface.yName})`,
+              config: {
+                contour: { resolution: 'standard', renderMode: 'filled-lines', levelCount: 10, showPoints: false },
+              },
+            },
+            caption: '@chart.modelContour',
+          },
+        ],
+        sheetId: sheet.id,
+      };
+      focusDoc(doc);
+      setModelManagerOpen(false);
+      if (surface.outOfRange) toast(t(lang, 'toast.modelExtrapolated'));
+    } catch {
+      toast(t(lang, 'toast.modelNoSurface'));
+    }
+  };
+
   /* ── files ─────────────────────────────────────────────────────────── */
 
   const saveProject = () => {
     downloadFile(
       projectFileName(),
-      serializeProject({ worksheets, activeSheetId, settings, outputs }),
+      serializeProject({
+        worksheets,
+        activeSheetId,
+        settings,
+        outputs,
+        // The reader's saved chart styles travel with the project: a project
+        // opened on another machine must not silently lose them.
+        customChartStyles: loadCustomStyles(),
+        models: storedModels,
+      }),
       'application/json',
     );
     toast(t(lang, 'file.saved'));
@@ -1058,6 +1158,10 @@ export default function App() {
       setActiveSheetId(parsed.activeSheetId);
       setOutputs(parsed.outputs);
       setSettings(parsed.settings);
+      // Styles and stored models are merged, never replaced: opening a project
+      // must not delete what this machine already has.
+      parsed.customChartStyles?.forEach((style) => saveCustomStyle(style));
+      setStoredModels((prev) => mergeStoredModels(prev, parsed.models ?? []));
       past.current = [];
       future.current = [];
       toast(t(lang, 'file.loaded'));
@@ -1360,6 +1464,7 @@ export default function App() {
       case 'wsFocus': applyWorkspaceLayout('focus'); break;
       case 'wsClassic': applyWorkspaceLayout('classic'); break;
       case 'toggleDrawer': setDrawerOpen(!ws.drawerOpen); break;
+      case 'modelManager': setModelManagerOpen(true); break;
       default: break;
     }
   };
@@ -1427,6 +1532,7 @@ export default function App() {
         onRerun={rerunWithOptions}
         onReproduce={reproduce}
         onUpdateBlocks={updateOutputBlocks}
+        onSaveModel={saveModelFromCard}
       />
     </section>
   );
@@ -1816,6 +1922,21 @@ export default function App() {
       )}
 
       {help && <HelpModal lang={lang} initial={help} onClose={() => setHelp(null)} />}
+
+      {modelManagerOpen && (
+        <ModelManager
+          lang={lang}
+          models={storedModels}
+          worksheets={worksheets}
+          activeSheetId={activeSheetId}
+          onClose={() => setModelManagerOpen(false)}
+          onRename={renameModel}
+          onDuplicate={duplicateModel}
+          onDelete={removeModel}
+          onRefit={refitModel}
+          onContour={contourFromModel}
+        />
+      )}
 
       {ctx && (
         <ContextMenu

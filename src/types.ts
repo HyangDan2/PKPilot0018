@@ -6,6 +6,7 @@ import type { ChartConfig } from './lib/chartConfig';
 import type { RsmModelPayload } from './lib/doe';
 import type { MarkerShape } from './lib/chartConfig';
 import type { CustomChartStyle } from './lib/chartStyles';
+import type { StoredModelDraft } from './lib/modelStore';
 
 export type ColType = 'numeric' | 'text' | 'date';
 
@@ -229,6 +230,8 @@ export interface OutputDoc {
   dialog?: DialogSnapshot;
   sheetId?: string;
   meta?: AnalysisMeta;
+  /** A fitted model this card can hand to the model store (WO-02). */
+  model?: StoredModelDraft;
 }
 
 export type Theme = 'light' | 'dark';
@@ -250,7 +253,12 @@ export interface ProjectFile {
   outputs: OutputDoc[];
   /** User chart styles travel with the project when one was saved. */
   customChartStyles?: CustomChartStyle[];
+  /** Stored fitted models travel with the project (WO-02). */
+  models?: StoredModelFileEntry[];
 }
+
+/** A stored model as written into a project file (no runtime import needed). */
+export type StoredModelFileEntry = Record<string, unknown>;
 
 export interface ColumnPayload {
   id: string;

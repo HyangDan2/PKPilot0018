@@ -65,6 +65,15 @@ export function gridZExtent(grid: ContourGrid): { zMin: number; zMax: number } {
   return { zMin, zMax };
 }
 
+/** Number of cells that carry a finite value (an all-NaN grid is not a surface). */
+export function gridFiniteCells(grid: ContourGrid): number {
+  let count = 0;
+  for (const row of grid.z) {
+    for (const value of row) if (Number.isFinite(value)) count += 1;
+  }
+  return count;
+}
+
 /**
  * Compute the iso-lines and the band boundaries for a grid.
  *
@@ -74,10 +83,20 @@ export function gridZExtent(grid: ContourGrid): { zMin: number; zMax: number } {
  */
 export function computeContourLevels(grid: ContourGrid, config?: Partial<ContourConfig>): ContourLevelSet {
   const extent = gridZExtent(grid);
-  const zMin = config?.zMin != null && Number.isFinite(config.zMin) ? (config.zMin as number) : extent.zMin;
-  const zMax = config?.zMax != null && Number.isFinite(config.zMax) ? (config.zMax as number) : extent.zMax;
+  let zMin = config?.zMin != null && Number.isFinite(config.zMin) ? (config.zMin as number) : extent.zMin;
+  let zMax = config?.zMax != null && Number.isFinite(config.zMax) ? (config.zMax as number) : extent.zMax;
+  // A window whose lower limit is not below its upper one describes no bands.
+  // Ignore the request and draw the data range instead of a blank frame.
+  if (!(zMax > zMin)) {
+    zMin = extent.zMin;
+    zMax = extent.zMax;
+  }
   const mode: ContourLevelMode = config?.levelMode ?? 'auto';
-  const count = Math.max(2, Math.min(50, Math.round(config?.levelCount ?? 10)));
+  const requested = config?.levelCount;
+  // NaN / Infinity / a missing count all mean "the default number of bands".
+  const count = typeof requested === 'number' && Number.isFinite(requested)
+    ? Math.max(2, Math.min(50, Math.round(requested)))
+    : 10;
   if (!(zMax > zMin)) return { levels: [], boundaries: [], min: zMin, max: zMax };
   let boundaries: number[];
   if (mode === 'custom' && config?.customLevels?.length) {
@@ -86,7 +105,7 @@ export function computeContourLevels(grid: ContourGrid, config?: Partial<Contour
       .sort((a, b) => a - b)
       .filter((v, i, list) => i === 0 || v > list[i - 1] + 1e-12);
     boundaries = [zMin, ...inside, zMax];
-  } else if (mode === 'manual' && config?.levelInterval != null && config.levelInterval > 0) {
+  } else if (mode === 'manual' && config?.levelInterval != null && Number.isFinite(config.levelInterval) && config.levelInterval > 0) {
     const step = config.levelInterval;
     const inside: number[] = [];
     const first = Math.ceil(zMin / step + 1e-9) * step;
@@ -291,9 +310,11 @@ export function contourPolylines(grid: ContourGrid, levels: number[]): { level: 
   return levels.map((level) => ({ level, lines: stitchSegments(marchingSquares(grid, level), hint) }));
 }
 
-function clipHalfPlane(poly: { p: Point; v: number }[], threshold: number, keepAbove: boolean): { p: Point; v: number }[] {
+function clipHalfPlane(poly: { p: Point; v: number }[], threshold: number, keepAbove: boolean, strict = false): { p: Point; v: number }[] {
   if (poly.length < 2) return [];
-  const inside = (v: number) => (keepAbove ? v >= threshold : v <= threshold);
+  // `strict` makes a value exactly on the lower limit belong to the band above
+  // it, so two neighbouring bands can never both claim the same corner.
+  const inside = (v: number) => (keepAbove ? (strict ? v > threshold : v >= threshold) : v <= threshold);
   const out: { p: Point; v: number }[] = [];
   for (let i = 0; i < poly.length; i += 1) {
     const current = poly[i];
@@ -310,6 +331,121 @@ function clipHalfPlane(poly: { p: Point; v: number }[], threshold: number, keepA
     }
   }
   return out;
+}
+
+/* ── cell decomposition shared by bands and iso-lines ─────────────────── */
+
+interface Corner { p: Point; v: number }
+
+function signedArea(points: Point[]): number {
+  let area = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    area += a.x * b.y - b.x * a.y;
+  }
+  return area / 2;
+}
+
+function asCcw(points: Point[]): Point[] {
+  return signedArea(points) < 0 ? [...points].reverse() : points;
+}
+
+/** Sutherland–Hodgman of a subject polygon by the half-plane left of a→b. */
+function clipByDirectedEdge(subject: Point[], a: Point, b: Point): Point[] {
+  if (subject.length < 3) return [];
+  const side = (p: Point) => (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+  const out: Point[] = [];
+  for (let i = 0; i < subject.length; i += 1) {
+    const current = subject[i];
+    const next = subject[(i + 1) % subject.length];
+    const c = side(current);
+    const n = side(next);
+    if (c >= -1e-15) out.push(current);
+    if ((c > 1e-15 && n < -1e-15) || (c < -1e-15 && n > 1e-15)) {
+      const t = c / (c - n);
+      out.push({ x: current.x + t * (next.x - current.x), y: current.y + t * (next.y - current.y) });
+    }
+  }
+  return out;
+}
+
+/** Drop repeated and collinear-in-the-limit vertices a clip can leave behind. */
+function cleanPolygon(points: Point[], eps: number): Point[] {
+  const out: Point[] = [];
+  points.forEach((point) => {
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+    const last = out[out.length - 1];
+    if (last && Math.hypot(point.x - last.x, point.y - last.y) <= eps) return;
+    out.push(point);
+  });
+  while (out.length > 1) {
+    const first = out[0];
+    const last = out[out.length - 1];
+    if (Math.hypot(first.x - last.x, first.y - last.y) <= eps) out.pop();
+    else break;
+  }
+  return out;
+}
+
+/** Intersection of two convex polygons (both are cell pieces). */
+function intersectConvex(subject: Point[], clip: Point[]): Point[] {
+  let out = asCcw(subject);
+  const ccw = asCcw(clip);
+  for (let i = 0; i < ccw.length && out.length >= 3; i += 1) {
+    out = clipByDirectedEdge(out, ccw[i], ccw[(i + 1) % ccw.length]);
+  }
+  return out.length >= 3 ? out : [];
+}
+
+/**
+ * The part of one cell where z ≥ level, as one or two polygons.
+ *
+ * A bilinear cell whose four edges are all crossed by the level is a saddle:
+ * the above-level corners are either joined through the middle or separated by
+ * two branches. `saddleValue` decides which, with exactly the same comparison
+ * `marchingSquares` makes, so a filled band and the iso-line drawn on top of it
+ * can never disagree about the cell.
+ */
+function cellRegions(corners: Corner[], level: number, tie = 0): { above: Point[][]; below: Point[][]; saddle: boolean } {
+  const [c00, c10, c11, c01] = corners;
+  const quad = [c00.p, c10.p, c11.p, c01.p];
+  // A corner sitting exactly on the level is nudged just above it, with the
+  // same rule `marchingSquares` uses, so a degenerate cell (level through a
+  // grid node) cannot produce a zero-width piece or a double-covered region.
+  const nudge = (v: number) => (tie > 0 && Math.abs(v - level) <= tie ? level + tie : v);
+  const above = corners.map((corner) => nudge(corner.v) >= level);
+  const index = above.reduce((acc, flag, i) => acc | (flag ? 1 << i : 0), 0);
+  if (index === 0) return { above: [], below: [quad], saddle: false };
+  if (index === 15) return { above: [quad], below: [], saddle: false };
+  const crossings: Point[] = [
+    crossing(c00.p, nudge(c00.v), c10.p, nudge(c10.v), level), // edge 0: bottom
+    crossing(c10.p, nudge(c10.v), c11.p, nudge(c11.v), level), // edge 1: right
+    crossing(c11.p, nudge(c11.v), c01.p, nudge(c01.v), level), // edge 2: top
+    crossing(c01.p, nudge(c01.v), c00.p, nudge(c00.v), level), // edge 3: left
+  ];
+  const values = corners.map((corner) => ({ p: corner.p, v: nudge(corner.v) }));
+  if (index !== 5 && index !== 10) {
+    const up = clipHalfPlane(values, level, true).map((entry) => entry.p);
+    const down = clipHalfPlane(values, level, false).map((entry) => entry.p);
+    return {
+      above: up.length >= 3 ? [up] : [],
+      below: down.length >= 3 ? [down] : [],
+      saddle: false,
+    };
+  }
+  // Saddle: `saddleValue` decides whether the above-level corners join through
+  // the middle. The two sides of the split are complementary by construction,
+  // so a level that lands exactly on the saddle value cannot double count.
+  const centreAbove = saddleValue(nudge(c00.v), nudge(c10.v), nudge(c11.v), nudge(c01.v)) >= level;
+  const octagon: Point[] = [quad[0], crossings[0], quad[1], crossings[1], quad[2], crossings[2], quad[3], crossings[3]];
+  const cornerTriangle = (k: number): Point[] => [quad[k], crossings[k], crossings[(k + 3) % 4]];
+  const hexagon = (removed: number[]): Point[] => octagon.filter((point) => !removed.some((k) => quad[k] === point));
+  const cornersWith = (flag: boolean): number[] => above.reduce<number[]>((acc, value, k) => (value === flag ? [...acc, k] : acc), []);
+  if (centreAbove) {
+    return { above: [hexagon(cornersWith(false))], below: cornersWith(false).map((k) => cornerTriangle(k)), saddle: true };
+  }
+  return { above: cornersWith(true).map((k) => cornerTriangle(k)), below: [hexagon(cornersWith(true))], saddle: true };
 }
 
 /**
@@ -329,6 +465,11 @@ export function bandPolygons(
 ): ContourBand[] {
   const { xs, ys, z } = grid;
   if (boundaries.length < 2 || xs.length < 2 || ys.length < 2) return [];
+  let span = 1e-12;
+  for (const row of z) {
+    for (const value of row) if (Number.isFinite(value)) span = Math.max(span, Math.abs(value));
+  }
+  const tie = span * 1e-12;
   const bands: ContourBand[] = [];
   for (let b = 0; b < boundaries.length - 1; b += 1) {
     bands.push({ lo: boundaries[b], hi: boundaries[b + 1], index: b, polygons: [] });
@@ -355,19 +496,52 @@ export function bandPolygons(
         { p: p01, v: v01 },
       ];
       for (const band of bands) {
-        if (cellMax < band.lo || cellMin > band.hi) continue;
-        if (cellMin >= band.lo && cellMax <= band.hi) {
+        if (cellMax < band.lo - tie || cellMin > band.hi + tie) continue;
+        // A cell within the tie of its band limits counts as wholly inside it;
+        // the `break` below gives such a (near-flat) cell exactly one owner.
+        if (cellMin >= band.lo - tie && cellMax <= band.hi + tie) {
           // Whole cell inside one band: remember it for a run.
           let rowMap = full[band.index].get(j);
           if (!rowMap) { rowMap = []; full[band.index].set(j, rowMap); }
           rowMap.push(i);
+          // A cell that lies wholly in one band belongs to that band alone: a
+          // flat cell exactly on a boundary would otherwise be claimed by both
+          // neighbours and colour twice.
+          break;
+        }
+        // A partially covered cell is decomposed by the SAME rule the iso-lines
+        // use: the region above the lower boundary intersected with the region
+        // below the upper one. A saddle cell therefore splits into two pieces
+        // instead of one polygon that spills into its neighbour's band.
+        const corners: Corner[] = [
+          { p: p00, v: v00 },
+          { p: p10, v: v10 },
+          { p: p11, v: v11 },
+          { p: p01, v: v01 },
+        ];
+        const lower = cellRegions(corners, band.lo, tie);
+        if (!lower.above.length) continue;
+        const upper = cellRegions(corners, band.hi, tie);
+        if (!upper.below.length) continue;
+        const cellDiagonal = Math.hypot(xs[i + 1] - xs[i], ys[j + 1] - ys[j]) || 1;
+        const eps = cellDiagonal * 1e-9;
+        if (!lower.saddle && !upper.saddle) {
+          // Neither boundary is a saddle inside this cell: the band is the cell
+          // clipped by the two levels, which is exact and numerically stable.
+          const clipped = clipHalfPlane(clipHalfPlane(quad, band.lo, true, true), band.hi, false);
+          if (clipped.length < 3) continue;
+          const polygon = cleanPolygon(clipped.map((entry) => entry.p), eps);
+          if (polygon.length >= 3 && polygonArea(polygon) > 1e-15) band.polygons.push(asCcw(polygon));
           continue;
         }
-        const clipped = clipHalfPlane(clipHalfPlane(quad, band.lo, true), band.hi, false);
-        if (clipped.length < 3) continue;
-        const polygon = clipped.map((entry) => entry.p);
-        if (polygonArea(polygon) < 1e-15) continue;
-        band.polygons.push(polygon);
+        lower.above.forEach((pieceAbove) => {
+          upper.below.forEach((pieceBelow) => {
+            const polygon = cleanPolygon(intersectConvex(pieceAbove, pieceBelow), eps);
+            if (polygon.length < 3) return;
+            if (polygonArea(polygon) < 1e-15) return;
+            band.polygons.push(asCcw(polygon));
+          });
+        });
       }
     }
   }

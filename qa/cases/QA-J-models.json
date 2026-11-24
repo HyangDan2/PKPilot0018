@@ -1,0 +1,1003 @@
+{
+ "area": "QA-J",
+ "cases": [
+  {
+   "id": "QA-J-01",
+   "title": "저장 모형 예측 — 다중 회귀 (실제 단위 입력, SE·예측구간)",
+   "op": "modelpredict",
+   "tolerance": "default",
+   "args": {
+    "model": {
+     "kind": "multiple",
+     "response": "Yield",
+     "predictors": [
+      {
+       "name": "Temperature",
+       "id": "C1",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 172.0,
+        "halfRange": 12.0
+       }
+      },
+      {
+       "name": "Pressure",
+       "id": "C2",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 2.6,
+        "halfRange": 0.6
+       }
+      },
+      {
+       "name": "Speed",
+       "id": "C3",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 50.0,
+        "halfRange": 10.0
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "Temperature",
+       "factors": [
+        "Temperature"
+       ]
+      },
+      {
+       "label": "Pressure",
+       "factors": [
+        "Pressure"
+       ]
+      },
+      {
+       "label": "Speed",
+       "factors": [
+        "Speed"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 58.2,
+       "se": 0.927
+      },
+      {
+       "label": "Temperature",
+       "value": 0.121,
+       "se": 0.00632
+      },
+      {
+       "label": "Pressure",
+       "value": 4.05,
+       "se": 0.1113
+      },
+      {
+       "label": "Speed",
+       "value": -0.155,
+       "se": 0.000458
+      }
+     ],
+     "covariance": [
+      [
+       0.86,
+       -0.0021,
+       0.031,
+       0.00012
+      ],
+      [
+       -0.0021,
+       4e-05,
+       -0.00011,
+       -3e-06
+      ],
+      [
+       0.031,
+       -0.00011,
+       0.0124,
+       1.2e-06
+      ],
+      [
+       0.00012,
+       -3e-06,
+       1.2e-06,
+       2.1e-07
+      ]
+     ],
+     "residual": {
+      "mse": 2.1,
+      "df": 43,
+      "s": 1.449137674618944
+     }
+    },
+    "points": [
+     {
+      "mode": "actual",
+      "values": {
+       "Temperature": 180.0,
+       "Pressure": 2.9,
+       "Speed": 55.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "Temperature": 160.0,
+       "Pressure": 2.0,
+       "Speed": 40.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "Temperature": 172.0,
+       "Pressure": 2.6,
+       "Speed": 50.0
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]"
+    },
+    {
+     "key": "se[0]"
+    },
+    {
+     "key": "pi_low[0]"
+    },
+    {
+     "key": "pi_high[0]"
+    },
+    {
+     "key": "pred[1]"
+    },
+    {
+     "key": "se[1]"
+    },
+    {
+     "key": "pi_low[1]"
+    },
+    {
+     "key": "pi_high[1]"
+    },
+    {
+     "key": "pred[2]"
+    },
+    {
+     "key": "se[2]"
+    },
+    {
+     "key": "pi_low[2]"
+    },
+    {
+     "key": "pi_high[2]"
+    },
+    {
+     "key": "refused"
+    },
+    {
+     "key": "issues[0]",
+     "kind": "string"
+    }
+   ]
+  },
+  {
+   "id": "QA-J-02",
+   "title": "저장 모형 예측 — 같은 회귀 모형을 코딩 단위로 입력",
+   "op": "modelpredict",
+   "tolerance": "default",
+   "args": {
+    "model": {
+     "kind": "multiple",
+     "response": "Yield",
+     "predictors": [
+      {
+       "name": "Temperature",
+       "id": "C1",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 172.0,
+        "halfRange": 12.0
+       }
+      },
+      {
+       "name": "Pressure",
+       "id": "C2",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 2.6,
+        "halfRange": 0.6
+       }
+      },
+      {
+       "name": "Speed",
+       "id": "C3",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 50.0,
+        "halfRange": 10.0
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "Temperature",
+       "factors": [
+        "Temperature"
+       ]
+      },
+      {
+       "label": "Pressure",
+       "factors": [
+        "Pressure"
+       ]
+      },
+      {
+       "label": "Speed",
+       "factors": [
+        "Speed"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 58.2,
+       "se": 0.927
+      },
+      {
+       "label": "Temperature",
+       "value": 0.121,
+       "se": 0.00632
+      },
+      {
+       "label": "Pressure",
+       "value": 4.05,
+       "se": 0.1113
+      },
+      {
+       "label": "Speed",
+       "value": -0.155,
+       "se": 0.000458
+      }
+     ],
+     "covariance": [
+      [
+       0.86,
+       -0.0021,
+       0.031,
+       0.00012
+      ],
+      [
+       -0.0021,
+       4e-05,
+       -0.00011,
+       -3e-06
+      ],
+      [
+       0.031,
+       -0.00011,
+       0.0124,
+       1.2e-06
+      ],
+      [
+       0.00012,
+       -3e-06,
+       1.2e-06,
+       2.1e-07
+      ]
+     ],
+     "residual": {
+      "mse": 2.1,
+      "df": 43,
+      "s": 1.449137674618944
+     }
+    },
+    "points": [
+     {
+      "mode": "coded",
+      "values": {
+       "Temperature": 0.6666666666666666,
+       "Pressure": 0.5,
+       "Speed": 0.5
+      }
+     },
+     {
+      "mode": "coded",
+      "values": {
+       "Temperature": -1.0,
+       "Pressure": -1.0,
+       "Speed": -1.0
+      }
+     },
+     {
+      "mode": "coded",
+      "values": {
+       "Temperature": 0.0,
+       "Pressure": 0.0,
+       "Speed": 0.0
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]"
+    },
+    {
+     "key": "se[0]"
+    },
+    {
+     "key": "pi_low[0]"
+    },
+    {
+     "key": "pi_high[0]"
+    },
+    {
+     "key": "pred[1]"
+    },
+    {
+     "key": "se[1]"
+    },
+    {
+     "key": "pi_low[1]"
+    },
+    {
+     "key": "pi_high[1]"
+    },
+    {
+     "key": "pred[2]"
+    },
+    {
+     "key": "se[2]"
+    },
+    {
+     "key": "pi_low[2]"
+    },
+    {
+     "key": "pi_high[2]"
+    },
+    {
+     "key": "refused"
+    },
+    {
+     "key": "issues[0]",
+     "kind": "string"
+    }
+   ]
+  },
+  {
+   "id": "QA-J-03",
+   "title": "저장 모형 예측 — RSM 2차 모형 (코딩 단위, 공분산 없음)",
+   "op": "modelpredict",
+   "tolerance": "default",
+   "args": {
+    "model": {
+     "kind": "rsm",
+     "response": "Y",
+     "predictors": [
+      {
+       "name": "A",
+       "id": "C4",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 160.0,
+        "halfRange": 20.0
+       }
+      },
+      {
+       "name": "B",
+       "id": "C5",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 2.0,
+        "halfRange": 0.5
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "A",
+       "factors": [
+        "A"
+       ]
+      },
+      {
+       "label": "B",
+       "factors": [
+        "B"
+       ]
+      },
+      {
+       "label": "A×B",
+       "factors": [
+        "A",
+        "B"
+       ]
+      },
+      {
+       "label": "A²",
+       "factors": [
+        "A²"
+       ]
+      },
+      {
+       "label": "B²",
+       "factors": [
+        "B²"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 80.3
+      },
+      {
+       "label": "A",
+       "value": 3.1
+      },
+      {
+       "label": "B",
+       "value": 2.2
+      },
+      {
+       "label": "A×B",
+       "value": 1.9
+      },
+      {
+       "label": "A²",
+       "value": -5.2
+      },
+      {
+       "label": "B²",
+       "value": -4.1
+      }
+     ],
+     "covariance": null,
+     "residual": {
+      "mse": 0.1225,
+      "s": 0.35
+     },
+     "nonEstimable": []
+    },
+    "points": [
+     {
+      "mode": "coded",
+      "values": {
+       "A": 0.0,
+       "B": 0.0
+      }
+     },
+     {
+      "mode": "coded",
+      "values": {
+       "A": 1.0,
+       "B": -1.0
+      }
+     },
+     {
+      "mode": "coded",
+      "values": {
+       "A": -1.682,
+       "B": 1.682
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]"
+    },
+    {
+     "key": "se[0]"
+    },
+    {
+     "key": "pi_low[0]"
+    },
+    {
+     "key": "pi_high[0]"
+    },
+    {
+     "key": "pred[1]"
+    },
+    {
+     "key": "se[1]"
+    },
+    {
+     "key": "pi_low[1]"
+    },
+    {
+     "key": "pi_high[1]"
+    },
+    {
+     "key": "pred[2]"
+    },
+    {
+     "key": "se[2]"
+    },
+    {
+     "key": "pi_low[2]"
+    },
+    {
+     "key": "pi_high[2]"
+    },
+    {
+     "key": "refused"
+    },
+    {
+     "key": "issues[0]",
+     "kind": "string"
+    }
+   ]
+  },
+  {
+   "id": "QA-J-04",
+   "title": "저장 모형 예측 — RSM 모형을 실제 단위로 입력 (Coded/Actual 변환)",
+   "op": "modelpredict",
+   "tolerance": "default",
+   "args": {
+    "model": {
+     "kind": "rsm",
+     "response": "Y",
+     "predictors": [
+      {
+       "name": "A",
+       "id": "C4",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 160.0,
+        "halfRange": 20.0
+       }
+      },
+      {
+       "name": "B",
+       "id": "C5",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 2.0,
+        "halfRange": 0.5
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "A",
+       "factors": [
+        "A"
+       ]
+      },
+      {
+       "label": "B",
+       "factors": [
+        "B"
+       ]
+      },
+      {
+       "label": "A×B",
+       "factors": [
+        "A",
+        "B"
+       ]
+      },
+      {
+       "label": "A²",
+       "factors": [
+        "A²"
+       ]
+      },
+      {
+       "label": "B²",
+       "factors": [
+        "B²"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 80.3
+      },
+      {
+       "label": "A",
+       "value": 3.1
+      },
+      {
+       "label": "B",
+       "value": 2.2
+      },
+      {
+       "label": "A×B",
+       "value": 1.9
+      },
+      {
+       "label": "A²",
+       "value": -5.2
+      },
+      {
+       "label": "B²",
+       "value": -4.1
+      }
+     ],
+     "covariance": null,
+     "residual": {
+      "mse": 0.1225,
+      "s": 0.35
+     },
+     "nonEstimable": []
+    },
+    "points": [
+     {
+      "mode": "actual",
+      "values": {
+       "A": 160.0,
+       "B": 2.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "A": 180.0,
+       "B": 1.5
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "A": 126.36,
+       "B": 2.841
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]"
+    },
+    {
+     "key": "se[0]"
+    },
+    {
+     "key": "pi_low[0]"
+    },
+    {
+     "key": "pi_high[0]"
+    },
+    {
+     "key": "pred[1]"
+    },
+    {
+     "key": "se[1]"
+    },
+    {
+     "key": "pi_low[1]"
+    },
+    {
+     "key": "pi_high[1]"
+    },
+    {
+     "key": "pred[2]"
+    },
+    {
+     "key": "se[2]"
+    },
+    {
+     "key": "pi_low[2]"
+    },
+    {
+     "key": "pi_high[2]"
+    },
+    {
+     "key": "refused"
+    },
+    {
+     "key": "issues[0]",
+     "kind": "string"
+    }
+   ]
+  },
+  {
+   "id": "QA-J-05",
+   "title": "저장 모형 예측 — 범주형 요인 (sum-to-zero 대비)",
+   "op": "modelpredict",
+   "tolerance": "default",
+   "args": {
+    "model": {
+     "kind": "glm",
+     "response": "Strength",
+     "predictors": [
+      {
+       "name": "Machine",
+       "id": "C1",
+       "kind": "categorical",
+       "levels": [
+        "A",
+        "B",
+        "C"
+       ]
+      },
+      {
+       "name": "Temp",
+       "id": "C2",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 20.0,
+        "halfRange": 5.0
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "Machine",
+       "factors": [
+        "Machine"
+       ]
+      },
+      {
+       "label": "Temp",
+       "factors": [
+        "Temp"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 10.4,
+       "se": 0.648
+      },
+      {
+       "label": "Machine[A]",
+       "value": 1.5,
+       "se": 0.436
+      },
+      {
+       "label": "Machine[B]",
+       "value": -0.5,
+       "se": 0.458
+      },
+      {
+       "label": "Temp",
+       "value": 0.25,
+       "se": 0.0307
+      }
+     ],
+     "covariance": [
+      [
+       0.42,
+       0.0,
+       0.0,
+       -0.0008
+      ],
+      [
+       0.0,
+       0.19,
+       0.031,
+       0.0
+      ],
+      [
+       0.0,
+       0.031,
+       0.21,
+       0.0
+      ],
+      [
+       -0.0008,
+       0.0,
+       0.0,
+       0.00094
+      ]
+     ],
+     "residual": {
+      "mse": 0.42,
+      "df": 26,
+      "s": 0.6480740698407862
+     }
+    },
+    "points": [
+     {
+      "mode": "actual",
+      "values": {
+       "Machine": "A",
+       "Temp": 22.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "Machine": "B",
+       "Temp": 18.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "Machine": "C",
+       "Temp": 20.0
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]"
+    },
+    {
+     "key": "se[0]"
+    },
+    {
+     "key": "pi_low[0]"
+    },
+    {
+     "key": "pi_high[0]"
+    },
+    {
+     "key": "pred[1]"
+    },
+    {
+     "key": "se[1]"
+    },
+    {
+     "key": "pi_low[1]"
+    },
+    {
+     "key": "pi_high[1]"
+    },
+    {
+     "key": "pred[2]"
+    },
+    {
+     "key": "se[2]"
+    },
+    {
+     "key": "pi_low[2]"
+    },
+    {
+     "key": "pi_high[2]"
+    },
+    {
+     "key": "refused"
+    },
+    {
+     "key": "issues[0]",
+     "kind": "string"
+    }
+   ]
+  },
+  {
+   "id": "QA-J-06",
+   "title": "저장 모형 예측 — 랭크 부족 모형은 값을 만들지 않고 거부한다",
+   "op": "modelpredict",
+   "tolerance": "default",
+   "expectError": "model.nonEstimable",
+   "args": {
+    "model": {
+     "kind": "glm",
+     "response": "Strength",
+     "predictors": [
+      {
+       "name": "Machine",
+       "id": "C1",
+       "kind": "categorical",
+       "levels": [
+        "A",
+        "B",
+        "C"
+       ]
+      },
+      {
+       "name": "Temp",
+       "id": "C2",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 20.0,
+        "halfRange": 5.0
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "Machine",
+       "factors": [
+        "Machine"
+       ]
+      },
+      {
+       "label": "Temp",
+       "factors": [
+        "Temp"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 10.4,
+       "se": 0.648
+      },
+      {
+       "label": "Machine[A]",
+       "value": 1.5,
+       "se": 0.436
+      },
+      {
+       "label": "Machine[B]",
+       "value": -0.5,
+       "se": 0.458
+      },
+      {
+       "label": "Temp",
+       "value": 0.25,
+       "se": 0.0307
+      }
+     ],
+     "covariance": [
+      [
+       0.42,
+       0.0,
+       0.0,
+       -0.0008
+      ],
+      [
+       0.0,
+       0.19,
+       0.031,
+       0.0
+      ],
+      [
+       0.0,
+       0.031,
+       0.21,
+       0.0
+      ],
+      [
+       -0.0008,
+       0.0,
+       0.0,
+       0.00094
+      ]
+     ],
+     "residual": {
+      "mse": 0.42,
+      "df": 26,
+      "s": 0.6480740698407862
+     },
+     "nonEstimable": [
+      "Machine[A]"
+     ]
+    },
+    "points": [
+     {
+      "mode": "actual",
+      "values": {
+       "Machine": "A",
+       "Temp": 22.0
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused"
+    }
+   ]
+  }
+ ]
+}
