@@ -225,11 +225,11 @@ Tutorial ──sampleIds──▶ Sample(id, variables[], synthetic, build())
 | 검사 | 결과 |
 | --- | --- |
 | `npx tsc --noEmit` | 통과 |
-| `npm test` (vitest) | **46 파일 · 1070 테스트 전부 통과** (튜토리얼 시스템 21 포함) |
+| `npm test` (vitest) | **47 파일 · 1096 테스트 전부 통과** (튜토리얼 시스템 21 포함, 병합 후 main 기준) |
 | `npm run qa:stats` | **225/225 PASS** (독립 Python 참조 엔진 대조, FAIL 0) |
 | `npm run build` | 통과 (dist) |
 | `npm run build:portable` | 통과 (`dist-portable/sigrun-portable.html`, zip) |
-| `npm run qa:tutorials` (E2E) | **22/22 통과** — 12개 실습 전체 완주, Flagship 12단계, 원본 프로젝트 비변경, 모바일 시트, 콘솔 오류 0 |
+| `npm run qa:tutorials` (E2E) | **23/23 통과** — 12개 실습 전체 완주, Flagship 12단계+요약/다시보기, 원본 프로젝트 비변경, 모바일 시트, 콘솔 오류 0 |
 | `npm run qa:tutorials:portable` | **8/8 통과** — `file://` 부팅, 레지스트리 번들, 외부 요청 0 |
 
 E2E가 확인한 것: 라이브러리 12개·검색, 샘플 8종, 도움말 23문서, 12개 실습의 주요 실행 경로 완주(각 단계 자동 검증), Flagship 요약에 최적화 결과·확인 실험 문구, 분리 실습 시작 시 원래 시트/출력 미변경, 종료 후 원래 프로젝트 완전 복원, 모바일 바텀 시트, 콘솔 오류 없음.
@@ -261,5 +261,12 @@ E2E가 확인한 것: 라이브러리 12개·검색, 샘플 8종, 도움말 23�
 
 ## 12. 최종 Commit SHA
 
-- 구현 커밋: 병합 시 갱신 (squash merge).
-- 병합 후 `main`의 SHA와 GitHub Actions 결과는 병합 직후 이 절과 PR 본문에 기록한다.
+- PR: [#32](https://github.com/HyangDan2/PKPilot0018/pull/32) — `feat/phase3e-guided-tutorial` → `main` (squash merge)
+- **병합 커밋 (main): `b3a792f8b6deff4b0347b1a1b2767a125910389e`** — `feat(phase3e): WO-3E-11 guided tutorial system with sample library and help center (#32)`
+- 병합 시각: 2026-11-24T14:04:29Z
+- GitHub Actions (main, 병합 커밋):
+  - `Deploy Sigrún to GitHub Pages` — **success** (run 45410062875)
+  - `Statistics QA (independent reference)` — **success** (run 45410062728)
+  - PR 검사 `qa-stats` — **success** (run 45409791603)
+- 배포 확인: <https://hyangdan2.github.io/PKPilot0018/> 에서 라이브러리 12개·실습 시작·샘플 로드 검증 통과 (`10-live.png`)
+- 원격 브랜치 삭제는 자격 증명 범위 제한(HTTP 403)으로 실패해 `feat/phase3e-guided-tutorial`이 원격에 남아 있다.
