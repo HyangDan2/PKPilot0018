@@ -178,9 +178,9 @@ node tools/perf_qa_3e.cjs             # 성능
 | 항목 | 값 |
 | --- | --- |
 | Phase 3 마지막 선행 커밋 (`main`) | `e43d46f` — `docs(phase3c): point the original 3C report at the corrective contract (#25)` |
-| Stage 3E 브랜치 | `feat/chart-engine-phase3-3e` |
-| Stage 3E PR | (머지 후 이 표에 기록) |
-| Stage 3E 스쿼시 머지 커밋 | (머지 후 이 표에 기록) |
-| 배포 URL | <https://hyangdan2.github.io/PKPilot0018/> |
+| Stage 3E 브랜치 | `feat/chart-engine-phase3-3e` (머지 후 원격 브랜치 삭제) |
+| Stage 3E PR | [#26](https://github.com/HyangDan2/PKPilot0018/pull/26) — CI: `Statistics QA` **pass** (run `45382108417`) |
+| Stage 3E 스쿼시 머지 커밋 | **`7ad939a`** — `feat(phase3e): WO-10 portable single-file build · integrated QA · Phase 3 final report (#26)` |
+| 머지 후 CI | `Statistics QA` **success** (run `45382368695`) · `Deploy Sigrún to GitHub Pages` **success** (run `45382368687`) |
+| 배포 URL | <https://hyangdan2.github.io/PKPilot0018/> (HTTP 200) |
 | 배포 번들 | `assets/index-I4-C1lpF.js` (1 196 430 B) — 로컬 `dist`와 바이트 동일 |
-| CI | `Deploy Sigrún to GitHub Pages` · `Statistics QA (independent reference)` |
