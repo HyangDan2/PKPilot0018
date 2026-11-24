@@ -127,12 +127,30 @@ export function createSurfaceGl(canvas: HTMLCanvasElement, geometry: SurfaceGeom
   const lineBuffer = context.createBuffer();
   const floorBuffer = context.createBuffer();
   if (!positionBuffer || !indexBuffer || !lineBuffer || !floorBuffer) return null;
-  context.bindBuffer(context.ARRAY_BUFFER, positionBuffer);
-  context.bufferData(context.ARRAY_BUFFER, geometry.vertices, context.STATIC_DRAW);
-  context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, indexBuffer);
-  context.bufferData(context.ELEMENT_ARRAY_BUFFER, triangleIndexData, context.STATIC_DRAW);
-  context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, lineBuffer);
-  context.bufferData(context.ELEMENT_ARRAY_BUFFER, lineIndexData, context.STATIC_DRAW);
+
+  /* WebGL binds a buffer object to one target for its lifetime: asking for the
+     other target is INVALID_OPERATION, and the bufferData that follows is
+     dropped. The vertex data therefore goes through ARRAY_BUFFER and the two
+     index buffers through ELEMENT_ARRAY_BUFFER — always, at creation and on
+     every re-upload. */
+  const drainErrors = () => { while (context.getError() !== context.NO_ERROR) { /* clear the queue */ } };
+  const uploadArray = (target: WebGLBuffer, data: ArrayBufferView): boolean => {
+    context.bindBuffer(context.ARRAY_BUFFER, target);
+    context.bufferData(context.ARRAY_BUFFER, data, context.STATIC_DRAW);
+    return context.getError() === context.NO_ERROR;
+  };
+  const uploadElement = (target: WebGLBuffer, data: ArrayBufferView): boolean => {
+    context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, target);
+    context.bufferData(context.ELEMENT_ARRAY_BUFFER, data, context.STATIC_DRAW);
+    return context.getError() === context.NO_ERROR;
+  };
+  drainErrors();
+  const uploaded = uploadArray(positionBuffer, geometry.vertices)
+    && uploadElement(indexBuffer, triangleIndexData)
+    && uploadElement(lineBuffer, lineIndexData);
+  // A buffer that did not take its data would draw garbage or an empty box;
+  // the caller falls back to the static projection instead.
+  if (!uploaded) return null;
   context.bindBuffer(context.ARRAY_BUFFER, floorBuffer);
 
   const aPos = context.getAttribLocation(program, 'aPos');
@@ -217,15 +235,13 @@ export function createSurfaceGl(canvas: HTMLCanvasElement, geometry: SurfaceGeom
       if (!alive) return false;
       const nextVertexCount = next.vertices.length / 9;
       if (!uintIndices && nextVertexCount > 65535) return false;
-      const upload = (target: WebGLBuffer, data: ArrayBufferView) => {
-        context.bindBuffer(context.ARRAY_BUFFER, target);
-        context.bufferData(context.ARRAY_BUFFER, data, context.STATIC_DRAW);
-      };
-      // The buffers were created as ARRAY_BUFFER targets, so they are uploaded
-      // as raw data and bound as element arrays at draw time.
-      upload(positionBuffer, next.vertices);
-      upload(indexBuffer, uintIndices ? next.indices : Uint16Array.from(next.indices));
-      upload(lineBuffer, uintIndices ? next.lines : Uint16Array.from(next.lines));
+      drainErrors();
+      // Each buffer keeps the target it was created for: the vertex data goes
+      // through ARRAY_BUFFER, the two index lists through ELEMENT_ARRAY_BUFFER.
+      const ok = uploadArray(positionBuffer, next.vertices)
+        && uploadElement(indexBuffer, uintIndices ? next.indices : Uint16Array.from(next.indices))
+        && uploadElement(lineBuffer, uintIndices ? next.lines : Uint16Array.from(next.lines));
+      if (!ok) return false;
       triangleCount = next.indices.length;
       lineCount = next.lines.length;
       return true;

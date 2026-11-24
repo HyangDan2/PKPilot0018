@@ -12,6 +12,9 @@ import { FindReplacePanel } from './components/FindReplacePanel';
 import { AnalysisDialog } from './components/AnalysisDialog';
 import { HelpModal } from './components/HelpModal';
 import { ModelManager } from './components/ModelManager';
+import { ResponseOptimizer } from './components/ResponseOptimizer';
+import { PredictionProfiler } from './components/PredictionProfiler';
+import type { FactorSettings, OptimizerResult, ResponseSettings } from './lib/optimizationTypes';
 import { ImportDialog, type PreviewSheet } from './components/ImportDialog';
 import { ANALYSES, defaultValues as defaultDialogValues, findAnalysis, type AnalysisDef, type RunResult } from './lib/analyses';
 import { ChartConfigMemory } from './lib/chartMemory';
@@ -34,7 +37,7 @@ import { commonNumericFactors, OVERLAY_COLORS, OVERLAY_DASHES } from './lib/feas
 import { surfaceResolutionPoints } from './lib/surface3d';
 import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { loadAutosave, saveAutosave } from './lib/db';
-import { fmtInt } from './lib/format';
+import { fmt, fmtInt } from './lib/format';
 import { t } from './lib/i18n';
 import {
   DEFAULT_FLOAT_SIZES,
@@ -269,6 +272,14 @@ export default function App() {
   const [viewportW, setViewportW] = useState<number>(() => (typeof window === 'undefined' ? 1440 : window.innerWidth));
   const [storedModels, setStoredModels] = useState<StoredModel[]>([]);
   const [modelManagerOpen, setModelManagerOpen] = useState(false);
+  /** Stage 3C: the response optimiser works on the models the manager hands over. */
+  const [optimizerModels, setOptimizerModels] = useState<StoredModel[] | null>(null);
+  const [profilerState, setProfilerState] = useState<{
+    models: StoredModel[];
+    responses: ResponseSettings[];
+    factors: FactorSettings[];
+    point: Record<string, number | string> | null;
+  } | null>(null);
 
   const past = useRef<HistorySnapshot[]>([]);
   const future = useRef<HistorySnapshot[]>([]);
@@ -1305,6 +1316,179 @@ export default function App() {
     }
   };
 
+  /* ── Stage 3C: response optimizer and prediction profiler ─────────── */
+
+  /** Open the optimiser on the models picked in the manager. */
+  const openOptimizer = (models: StoredModel[]) => {
+    if (!models.length) {
+      toast(t(lang, 'toast.optimizerNoModel'));
+      return;
+    }
+    setOptimizerModels(models);
+    setModelManagerOpen(false);
+  };
+
+  /** The optimiser's answer becomes one output card: conditions, predictions, alternatives. */
+  const insertOptimizerResult = (payload: {
+    result: OptimizerResult;
+    responses: ResponseSettings[];
+    factors: FactorSettings[];
+    models: StoredModel[];
+  }) => {
+    const { result, responses, factors } = payload;
+    const best = result.solutions[0];
+    if (!best) return;
+    const blocks: OutputDoc['blocks'] = [
+      {
+        type: 'text',
+        lines: [t(lang, 'res.responseOptimizerNote', {
+          n: responses.length,
+          composite: best.composite.toFixed(4),
+          status: t(lang, `opt.status.${result.status}`),
+        })],
+      },
+      {
+        type: 'table',
+        title: t(lang, 'opt.result.conditions'),
+        headers: [t(lang, 'opt.col.factor'), t(lang, 'opt.result.value'), t(lang, 'opt.result.coded')],
+        rows: factors.map((factor) => [
+          factor.name,
+          typeof best.settings[factor.name] === 'number' ? fmt(best.settings[factor.name] as number, 5) : String(best.settings[factor.name] ?? '—'),
+          Number.isFinite(best.coded[factor.name]) ? fmt(best.coded[factor.name], 4) : '—',
+        ]),
+        align: ['l', 'r', 'r'],
+      },
+      {
+        type: 'table',
+        title: t(lang, 'opt.result.predictions'),
+        headers: [
+          t(lang, 'opt.col.response'),
+          t(lang, 'opt.col.goal'),
+          t(lang, 'opt.result.predicted'),
+          t(lang, 'opt.result.se'),
+          t(lang, 'opt.result.ci'),
+          t(lang, 'opt.result.pi'),
+          t(lang, 'opt.result.desirability'),
+          t(lang, 'opt.result.spec'),
+        ],
+        rows: best.responses.map((response) => [
+          response.name,
+          t(lang, `opt.goal.${response.goal}`),
+          response.value === null ? t(lang, 'opt.notEstimable') : fmt(response.value, 5),
+          response.se === null ? '—' : fmt(response.se, 5),
+          response.ci ? `${fmt(response.ci[0], 4)} … ${fmt(response.ci[1], 4)}` : '—',
+          response.pi ? `${fmt(response.pi[0], 4)} … ${fmt(response.pi[1], 4)}` : '—',
+          response.desirability.toFixed(4),
+          response.compliant ? t(lang, 'opt.result.specOk') : t(lang, 'opt.result.specNo'),
+        ]),
+        align: ['l', 'l', 'r', 'r', 'r', 'r', 'r', 'l'],
+      },
+    ];
+    if (result.solutions.length > 1) {
+      blocks.push({
+        type: 'table',
+        title: t(lang, 'opt.result.alternatives', { n: result.solutions.length }),
+        headers: ['#', ...factors.map((factor) => factor.name), t(lang, 'opt.result.composite'), t(lang, 'opt.result.spec')],
+        rows: result.solutions.map((solution, index) => [
+          String(index + 1),
+          ...factors.map((factor) => (typeof solution.settings[factor.name] === 'number'
+            ? fmt(solution.settings[factor.name] as number, 4)
+            : String(solution.settings[factor.name] ?? '—'))),
+          solution.composite.toFixed(4),
+          solution.compliantAll ? t(lang, 'opt.result.specOk') : t(lang, 'opt.result.specNo'),
+        ]),
+        align: ['l', ...factors.map(() => 'r' as const), 'r', 'l'],
+      });
+    }
+    const doc: OutputDoc = {
+      id: makeOutputId(),
+      titleKey: 'an.responseOptimizer',
+      titleText: responses.map((response) => response.name).join(' · '),
+      subtitle: `${t(lang, `opt.method.${result.resolvedMethod}`)} · ${t(lang, `opt.status.${result.status}`)}`,
+      createdAt: Date.now(),
+      collapsed: false,
+      blocks,
+      sheetId: sheet.id,
+    };
+    focusDoc(doc);
+    setOptimizerModels(null);
+  };
+
+  /** The profiler opens at the optimiser's best condition. */
+  const openProfilerFromOptimizer = (payload: {
+    result: OptimizerResult;
+    responses: ResponseSettings[];
+    factors: FactorSettings[];
+    models: StoredModel[];
+  }) => {
+    setOptimizerModels(null);
+    setProfilerState({
+      models: payload.models,
+      responses: payload.responses,
+      factors: payload.factors,
+      point: payload.result.solutions[0]?.settings ?? null,
+    });
+  };
+
+  /** The profiler's current condition is worth keeping: it becomes an output card too. */
+  const saveProfilerCondition = (payload: {
+    point: Record<string, number | string>;
+    solution: { composite: number; responses: { name: string; goal: string; value: number | null; se: number | null; ci: [number, number] | null; pi: [number, number] | null; desirability: number; compliant: boolean }[] } | null;
+    responses: ResponseSettings[];
+    factors: FactorSettings[];
+  }) => {
+    const { point, solution, factors } = payload;
+    const blocks: OutputDoc['blocks'] = [
+      { type: 'text', lines: [t(lang, 'res.profilerNote', { composite: solution ? solution.composite.toFixed(4) : '0.0000' })] },
+      {
+        type: 'table',
+        title: t(lang, 'opt.result.conditions'),
+        headers: [t(lang, 'opt.col.factor'), t(lang, 'opt.result.value')],
+        rows: factors.map((factor) => [
+          factor.name,
+          typeof point[factor.name] === 'number' ? fmt(point[factor.name] as number, 6) : String(point[factor.name] ?? '—'),
+        ]),
+        align: ['l', 'r'],
+      },
+    ];
+    if (solution) {
+      blocks.push({
+        type: 'table',
+        title: t(lang, 'opt.result.predictions'),
+        headers: [
+          t(lang, 'opt.col.response'),
+          t(lang, 'opt.result.predicted'),
+          t(lang, 'opt.result.se'),
+          t(lang, 'opt.result.ci'),
+          t(lang, 'opt.result.pi'),
+          t(lang, 'opt.result.desirability'),
+          t(lang, 'opt.result.spec'),
+        ],
+        rows: solution.responses.map((response) => [
+          response.name,
+          response.value === null ? t(lang, 'opt.notEstimable') : fmt(response.value, 5),
+          response.se === null ? '—' : fmt(response.se, 5),
+          response.ci ? `${fmt(response.ci[0], 4)} … ${fmt(response.ci[1], 4)}` : '—',
+          response.pi ? `${fmt(response.pi[0], 4)} … ${fmt(response.pi[1], 4)}` : '—',
+          response.desirability.toFixed(4),
+          response.compliant ? t(lang, 'opt.result.specOk') : t(lang, 'opt.result.specNo'),
+        ]),
+        align: ['l', 'r', 'r', 'r', 'r', 'r', 'l'],
+      });
+    }
+    const doc: OutputDoc = {
+      id: makeOutputId(),
+      titleKey: 'an.profilerConditions',
+      titleText: solution ? solution.responses.map((response) => response.name).join(' · ') : undefined,
+      subtitle: t(lang, 'prof.subtitle', { responses: solution?.responses.length ?? 0, factors: factors.length }),
+      createdAt: Date.now(),
+      collapsed: false,
+      blocks,
+      sheetId: sheet.id,
+    };
+    focusDoc(doc);
+  };
+
   /* ── files ─────────────────────────────────────────────────────────── */
 
   const saveProject = () => {
@@ -2124,6 +2308,29 @@ export default function App() {
           onContour={contourFromModel}
           onSurface={surfaceFromModel}
           onOverlaid={overlaidFromModels}
+          onOptimize={openOptimizer}
+        />
+      )}
+
+      {optimizerModels && (
+        <ResponseOptimizer
+          lang={lang}
+          models={optimizerModels}
+          onClose={() => setOptimizerModels(null)}
+          onInsert={insertOptimizerResult}
+          onProfiler={openProfilerFromOptimizer}
+        />
+      )}
+
+      {profilerState && (
+        <PredictionProfiler
+          lang={lang}
+          models={profilerState.models}
+          responses={profilerState.responses}
+          factors={profilerState.factors}
+          initialPoint={profilerState.point}
+          onClose={() => setProfilerState(null)}
+          onSave={saveProfilerCondition}
         />
       )}
 

@@ -45,6 +45,8 @@ import { axisActualValue, compileSurfaceEvaluator, designFromActual, modelSurfac
 import { buildRsmModel } from '../../../src/lib/doe';
 import { buildModelSurface } from '../../../src/lib/chartConfigOps';
 import { buildOverlaid, type ResponseSpec } from '../../../src/lib/feasible';
+import { optimize, defaultFactorSettings } from '../../../src/lib/optimizer';
+import type { FactorSettings, ResponseSettings } from '../../../src/lib/optimizationTypes';
 import type { Block, ChartSpec, Worksheet } from '../../../src/types';
 import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, ccdDesign, factorialDesign } from '../../../src/lib/doe';
 import { fitLognormalReliability, fitWeibull, type WeibullInput } from '../../../src/lib/reliability';
@@ -180,6 +182,45 @@ function storedQuadratic(ds: Dataset, response: string, factors: string[]): Stor
     }),
     response,
   );
+}
+
+/** A stored model built from an explicit coefficient/covariance spec (QA cases). */
+function modelFromSpec(raw: Record<string, unknown>): StoredModel {
+  const spec = raw as {
+    kind?: StoredModel['kind'];
+    response?: string;
+    predictors: ModelVariable[];
+    terms?: { label: string; factors: string[] }[];
+    coefficients: { label: string; value: number; se?: number; estimable?: boolean }[];
+    covariance?: number[][] | null;
+    residual?: { mse?: number; df?: number; s?: number } | null;
+    nonEstimable?: string[];
+    factorBounds?: Record<string, { min: number; max: number }> | null;
+  };
+  const nonEstimable = new Set(spec.nonEstimable ?? []);
+  const draft: StoredModelDraft = {
+    format: 'sigrun-model',
+    version: 1,
+    kind: spec.kind ?? 'multiple',
+    response: { id: '', name: spec.response ?? 'Y', kind: 'numeric' },
+    predictors: spec.predictors,
+    terms: spec.terms ?? [],
+    coefficients: spec.coefficients.map((coefficient) => ({
+      label: coefficient.label,
+      value: coefficient.value,
+      ...(coefficient.se !== undefined ? { se: coefficient.se } : {}),
+      estimable: coefficient.estimable ?? !nonEstimable.has(coefficient.label),
+    })),
+    covariance: spec.covariance ?? null,
+    residual: spec.residual ?? null,
+    dof: null,
+    factorBounds: spec.factorBounds ?? null,
+    categoricalLevels: null,
+    training: null,
+    diagnostics: {},
+    source: {},
+  };
+  return createStoredModel(draft, 'qa');
 }
 
 /** The coded centre of a stored quadratic (design values 0 for every factor). */
@@ -1268,6 +1309,80 @@ const ops: Record<string, Op> = {
     }
   },
 
+  /**
+   * Stage 3C — the multi-response optimiser against an independent solver.
+   *
+   * The models are either fitted here from the dataset (the same quadratic the
+   * surface cases use) or handed over as an explicit coefficient list, and the
+   * shipped optimiser searches them. The reference fits the same quadratics with
+   * statsmodels and maximises the same composite with SciPy, so the composite,
+   * the condition and the per-response desirabilities all have a second number.
+   */
+  optimize(bag, ds, args) {
+    const factorSpecs: FactorSettings[] = (args.factors as {
+      name: string; kind?: string; lower: number; upper: number; step?: number;
+      fixed?: boolean; fixedValue?: number | string; levels?: string[];
+    }[]).map((factor) => ({
+      name: factor.name,
+      kind: (factor.kind ?? 'continuous') as FactorSettings['kind'],
+      lower: factor.lower,
+      upper: factor.upper,
+      step: factor.step ?? 0,
+      fixed: Boolean(factor.fixed),
+      fixedValue: factor.fixedValue ?? factor.lower,
+      levels: factor.levels ?? [],
+    }));
+    const specs = args.responses as {
+      name: string; goal: ResponseSettings['goal']; lower?: number; upper?: number;
+      target?: number; weight?: number; importance?: number;
+    }[];
+    let models: StoredModel[];
+    if (args.mode === 'spec') {
+      models = (args.models as Record<string, unknown>[]).map((spec) => modelFromSpec(spec));
+    } else {
+      const datasetFactors = (args.datasetFactors as string[]) ?? ['x', 'y'];
+      models = specs.map((response) => storedQuadratic(ds, response.name, datasetFactors));
+    }
+    const responses: ResponseSettings[] = specs.map((response, index) => ({
+      modelId: models[index].id,
+      name: response.name,
+      goal: response.goal,
+      lower: response.lower ?? null,
+      upper: response.upper ?? null,
+      target: response.target ?? null,
+      weight: response.weight ?? 1,
+      importance: response.importance ?? 1,
+    }));
+    const result = optimize(models, responses, factorSpecs, {
+      method: args.method ?? 'multistart',
+      seed: args.seed ?? 1,
+      gridPoints: args.gridPoints ?? 41,
+      maxEvaluations: args.maxEvaluations ?? 60000,
+      topN: args.topN ?? 3,
+      alpha: 0.05,
+      timeLimitMs: args.timeLimitMs ?? 8000,
+    });
+    const best = result.solutions[0];
+    bag.put('status', result.status);
+    bag.put('issues', result.issues.join(','));
+    bag.put('evaluations', result.evaluations);
+    bag.put('solutions', result.solutions.length);
+    bag.put('composite', best ? best.composite : null);
+    bag.put('compliant', best ? (best.compliantAll ? 1 : 0) : null);
+    factorSpecs.forEach((factor) => {
+      const value = best?.settings[factor.name];
+      bag.put(`x:${factor.name}`, typeof value === 'number' ? value : value === undefined ? null : value);
+    });
+    responses.forEach((response) => {
+      const prediction = best?.responses.find((candidate) => candidate.modelId === response.modelId);
+      bag.put(`pred:${response.name}`, prediction ? prediction.value : null);
+      bag.put(`d:${response.name}`, prediction ? prediction.desirability : null);
+      bag.put(`se:${response.name}`, prediction ? prediction.se : null);
+      bag.put(`pi_low:${response.name}`, prediction?.pi ? prediction.pi[0] : null);
+      bag.put(`pi_high:${response.name}`, prediction?.pi ? prediction.pi[1] : null);
+    });
+  },
+
   /* ── QA-J: stored-model prediction (WO-02) ──────────────────────────
      The model is handed over as data (coefficients, coding, covariance) and
      the SHIPPED predictor builds the design row and evaluates it. The Python
@@ -1275,40 +1390,8 @@ const ops: Record<string, Op> = {
      contrast coding and the interval arithmetic are all checked. */
 
   modelpredict(bag, _ds, args) {
-    const spec = args.model as {
-      kind?: StoredModel['kind'];
-      response?: string;
-      predictors: ModelVariable[];
-      terms?: { label: string; factors: string[] }[];
-      coefficients: { label: string; value: number; se?: number; estimable?: boolean }[];
-      covariance?: number[][] | null;
-      residual?: { mse?: number; df?: number; s?: number } | null;
-      nonEstimable?: string[];
-    };
-    const nonEstimable = new Set(spec.nonEstimable ?? []);
-    const draft: StoredModelDraft = {
-      format: 'sigrun-model',
-      version: 1,
-      kind: spec.kind ?? 'multiple',
-      response: { id: '', name: spec.response ?? 'Y', kind: 'numeric' },
-      predictors: spec.predictors,
-      terms: spec.terms ?? [],
-      coefficients: spec.coefficients.map((coefficient) => ({
-        label: coefficient.label,
-        value: coefficient.value,
-        ...(coefficient.se !== undefined ? { se: coefficient.se } : {}),
-        estimable: coefficient.estimable ?? !nonEstimable.has(coefficient.label),
-      })),
-      covariance: (decodeSpecial(spec.covariance ?? null) as number[][] | null),
-      residual: spec.residual ?? null,
-      dof: null,
-      factorBounds: null,
-      categoricalLevels: null,
-      training: null,
-      diagnostics: {},
-      source: {},
-    };
-    const model = createStoredModel(draft, 'qa');
+    const model = modelFromSpec(args.model as Record<string, unknown>);
+
     const points = (args.points as { mode?: 'actual' | 'coded'; values: Record<string, number | string> }[]) ?? [];
     let refused = 0;
     points.forEach((point, index) => {
