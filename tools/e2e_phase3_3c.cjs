@@ -308,7 +308,11 @@ async function openModelManager(page) {
     const composite = await page.locator('[data-testid=opt-composite]').count()
       ? await page.locator('[data-testid=opt-composite]').textContent()
       : (console.log('DEBUG result:', (await page.locator('[data-testid=opt-result]').textContent()).slice(0, 500)), 'NaN');
-    check('the optimizer reports a status', ['optimal', 'best-found', 'limit', 'no-feasible'].includes(resultStatus || ''), String(resultStatus));
+    check(
+      'the optimizer reports one of the seven Stage 3C statuses',
+      ['global-optimal', 'local-converged', 'best-found', 'limit', 'feasible-not-found', 'infeasible', 'invalid'].includes(resultStatus || ''),
+      String(resultStatus),
+    );
     check('the composite desirability is a number in 0…1', Number(composite) >= 0 && Number(composite) <= 1, String(composite));
     check('the optimizer lists a predicted response per model', (await page.locator('[data-testid=opt-prediction-row]').count()) === 2);
     check('the optimizer reports optimal factor settings', (await page.locator('[data-testid=opt-condition-row]').count()) === 2);
