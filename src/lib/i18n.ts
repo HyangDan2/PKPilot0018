@@ -808,7 +808,7 @@ const en: Dict = {
     'Everything is computed locally. No account, no upload, no tracking. Projects can be saved as .sigrun.json files you keep yourself.',
   'about.title': 'About Sigrún',
   'about.text':
-    'HD2Lab Sigrún — a precision statistical workspace for the browser. Phase 1 covers descriptive statistics, hypothesis tests, ANOVA with Tukey, regression, control charts, capability and the core graph set. Built by HD2Lab.',
+    'HD2Lab Sigrún — a precision statistical workspace for the browser. Statistics, control charts, capability, reliability, Gage R&R, DOE/RSM, stored models with contour and 3D surfaces, a multi-response optimizer and prediction profiler, a graph layout editor, and a single-file portable build that runs from file:// offline. Built by HD2Lab.',
 
   'sample.process': 'Coating process (quality data)',
   'sample.comparison': 'Cure study (2-sample & paired)',
@@ -2563,7 +2563,7 @@ const ko: Dict = {
     '모든 계산은 로컬에서 이루어집니다. 계정도, 업로드도, 추적도 없습니다. 프로젝트는 직접 보관하는 .sigrun.json 파일로 저장할 수 있습니다.',
   'about.title': 'Sigrún 정보',
   'about.text':
-    'HD2Lab Sigrún — 브라우저를 위한 정밀 통계 워크스페이스. Phase 1은 기술통계, 가설검정, Tukey를 포함한 분산분석, 회귀분석, 관리도, 공정능력과 기본 그래프를 포함합니다. HD2Lab 제작.',
+    'HD2Lab Sigrún — 브라우저를 위한 정밀 통계 워크스페이스. 기술통계·가설검정·Tukey 포함 분산분석·회귀분석·관리도·공정능력·신뢰성·Gage R&R·DOE/RSM, 저장 모형의 등고선과 3D 곡면, 다중 반응 최적화기와 예측 프로파일러, 그래프 레이아웃 편집기, 그리고 네트워크 없이 file://로 여는 단일 파일 포터블 빌드까지 포함합니다. HD2Lab 제작.',
 
   'sample.process': '코팅 공정(품질 데이터)',
   'sample.comparison': '경화 연구(2표본·대응 비교)',
