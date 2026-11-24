@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AnalysisMeta, Column, Lang, OutputDoc, Settings, Theme, Worksheet } from './types';
+import type { AnalysisMeta, ChartSource, Column, Lang, OutputDoc, Settings, Theme, Worksheet } from './types';
+import type { LayoutDoc } from './lib/graphLayout';
 import { Brand, HeaderActions } from './components/Header';
 import { MenuBar, type MenuAction } from './components/MenuBar';
 import { FloatPanel } from './components/FloatPanel';
@@ -16,6 +17,8 @@ import { ResponseOptimizer } from './components/ResponseOptimizer';
 import { PredictionProfiler } from './components/PredictionProfiler';
 import type { FactorSettings, OptimizerResult, ResponseSettings } from './lib/optimizationTypes';
 import { ImportDialog, type PreviewSheet } from './components/ImportDialog';
+import { GraphLayoutEditor } from './components/GraphLayoutEditor';
+import { selectedRowsCsv } from './lib/chartInteraction';
 import { ANALYSES, defaultValues as defaultDialogValues, findAnalysis, type AnalysisDef, type RunResult } from './lib/analyses';
 import { ChartConfigMemory } from './lib/chartMemory';
 import { loadCustomStyles, saveCustomStyle } from './lib/chartStyles';
@@ -271,6 +274,10 @@ export default function App() {
   const [, forceHistory] = useState(0);
   const [viewportW, setViewportW] = useState<number>(() => (typeof window === 'undefined' ? 1440 : window.innerWidth));
   const [storedModels, setStoredModels] = useState<StoredModel[]>([]);
+  /** Rows a chart selection points at, shared by the output and the worksheet. */
+  const [chartSelection, setChartSelection] = useState<{ rows: number[]; source?: ChartSource } | null>(null);
+  const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
+  const [figures, setFigures] = useState<LayoutDoc[]>([]);
   const [modelManagerOpen, setModelManagerOpen] = useState(false);
   /** Stage 3C: the response optimiser works on the models the manager hands over. */
   const [optimizerModels, setOptimizerModels] = useState<StoredModel[] | null>(null);
@@ -1492,6 +1499,7 @@ export default function App() {
         // opened on another machine must not silently lose them.
         customChartStyles: loadCustomStyles(),
         models: storedModels,
+        figures,
       }),
       'application/json',
     );
@@ -1522,6 +1530,7 @@ export default function App() {
       // must not delete what this machine already has.
       parsed.customChartStyles?.forEach((style) => saveCustomStyle(style));
       setStoredModels((prev) => mergeStoredModels(prev, parsed.models ?? []));
+      if (parsed.figures?.length) setFigures(parsed.figures);
       past.current = [];
       future.current = [];
       toast(t(lang, 'file.loaded'));
@@ -1825,6 +1834,7 @@ export default function App() {
       case 'wsClassic': applyWorkspaceLayout('classic'); break;
       case 'toggleDrawer': setDrawerOpen(!ws.drawerOpen); break;
       case 'modelManager': setModelManagerOpen(true); break;
+      case 'graphLayout': setLayoutEditorOpen(true); break;
       default: break;
     }
   };
@@ -1893,6 +1903,19 @@ export default function App() {
         onReproduce={reproduce}
         onUpdateBlocks={updateOutputBlocks}
         onSaveModel={saveModelFromCard}
+        selection={chartSelection}
+        onSelectRows={(rows, additive, source) => setChartSelection((prev) => {
+          void additive;
+          const nextRows = rows;
+          if (!nextRows.length) return null;
+          return { rows: nextRows, source: source ?? prev?.source };
+        })}
+        onExportSelection={(rows) => {
+          if (!rows.length) return;
+          const csv = selectedRowsCsv(sheet.columns, rows);
+          downloadFile(`sigrun-selection-${sheet.name || 'sheet'}.csv`, csv, 'text/csv;charset=utf-8');
+          toast(t(lang, 'toast.selectionExported', { n: rows.length }));
+        }}
       />
     </section>
   );
@@ -1947,6 +1970,7 @@ export default function App() {
         onRenameColumn={renameColumn}
         onContextMenu={openGridContext}
         cutRanges={cutMark?.ranges}
+        highlightRows={chartSelection && (chartSelection.source?.sheetId ?? sheet.id) === sheet.id ? chartSelection.rows : undefined}
       />
       <div className="ws-tabs">
         {worksheets.map((ws) => (
@@ -2282,6 +2306,17 @@ export default function App() {
       )}
 
       {help && <HelpModal lang={lang} initial={help} onClose={() => setHelp(null)} />}
+
+      {layoutEditorOpen && (
+        <GraphLayoutEditor
+          lang={lang}
+          outputs={outputs}
+          initial={figures[figures.length - 1] ?? null}
+          onClose={() => setLayoutEditorOpen(false)}
+          onSave={(doc) => setFigures((prev) => [...prev.filter((figure) => figure.page.preset !== doc.page.preset || figure.panels.length !== doc.panels.length), doc])}
+          onToast={toast}
+        />
+      )}
 
       {modelManagerOpen && (
         <ModelManager

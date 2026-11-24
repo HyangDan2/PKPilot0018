@@ -47,6 +47,15 @@ import type {
   FeasibleConfig,
   FeasibleBasis,
   TickDirection,
+  DateAxisUnit,
+  DateAxisFormat,
+  MaskedRegionStyle,
+  ContourColorStop,
+  ContourLevelStyle,
+  ErrorBarKind,
+  PointStyle,
+  SeriesAdvancedConfig,
+  ErrorBarConfig,
 } from './chartConfig';
 import {
   defaultAxisConfig,
@@ -59,6 +68,7 @@ import {
   defaultSurfaceViewConfig,
   defaultLegendConfig,
   defaultSeriesStyle,
+  defaultSeriesAdvancedConfig,
   mergeChartConfig,
 } from './chartConfig';
 
@@ -96,7 +106,11 @@ export const PRESET_IDS: string[] = [
   'high-contrast',
   'dark',
 ];
-const AXIS_SCALES: AxisScale[] = ['linear', 'log10'];
+const AXIS_SCALES: AxisScale[] = ['linear', 'log10', 'ln', 'symlog', 'power'];
+const DATE_UNITS: DateAxisUnit[] = ['day', 'week', 'month', 'year'];
+const DATE_FORMATS: DateAxisFormat[] = ['date', 'month-year', 'year'];
+const MASKED_STYLES: MaskedRegionStyle[] = ['blank', 'hatch', 'gray'];
+const ERROR_BAR_KINDS: ErrorBarKind[] = ['none', 'sd', 'se', 'ci'];
 const TICK_DIRECTIONS: TickDirection[] = ['in', 'out', 'both', 'none'];
 const MARKER_SHAPES: MarkerShape[] = ['circle', 'square', 'triangle', 'diamond', 'cross', 'none'];
 const LEGEND_POSITIONS: LegendPosition[] = ['top-right', 'top-left', 'bottom', 'right', 'none'];
@@ -210,6 +224,56 @@ export function sanitizeAxisConfig(patch?: Partial<AxisConfig>): AxisConfig {
     showMinorGrid: boolOr(source.showMinorGrid, base.showMinorGrid),
     axisMargin: boundedOr(source.axisMargin, GUARD_LIMITS.axisMargin, base.axisMargin),
     crossAt: (cross ?? 'auto') as CrossAt,
+    tickCount: (() => {
+      const value = finiteOrNull(source.tickCount);
+      return value === null ? null : Math.round(clampValue(value, [2, 20]));
+    })(),
+    tickValues: Array.isArray(source.tickValues)
+      ? [...new Set(source.tickValues.filter((v): v is number => typeof v === 'number' && Number.isFinite(v)))].sort((a, b) => a - b).slice(0, 50)
+      : [],
+    minorTickCount: (() => {
+      const value = finiteOrNull(source.minorTickCount);
+      return value === null ? null : Math.round(clampValue(value, [1, 20]));
+    })(),
+    axisBreak: (() => {
+      const raw = source.axisBreak;
+      if (!raw) return null;
+      const from = finiteOrNull(raw.from);
+      const to = finiteOrNull(raw.to);
+      if (from === null || to === null || !(to > from)) return null;
+      return { from, to, size: clampValue(finiteOr(raw.size, 10), [2, 60]) };
+    })(),
+    power: clampValue(finiteOr(source.power, 0.5), [0.05, 5]),
+    logConstant: Math.abs(finiteOr(source.logConstant, 1)) < 1e-9 ? 1 : Math.abs(finiteOr(source.logConstant, 1)),
+    tickLength: (() => {
+      const value = finiteOrNull(source.tickLength);
+      return value === null ? null : clampValue(value, [0, 40]);
+    })(),
+    showAxisLine: boolOr(source.showAxisLine, true),
+    showTickLabels: boolOr(source.showTickLabels, true),
+    dateAxis: (() => {
+      const raw = source.dateAxis;
+      if (!raw) return null;
+      return {
+        epoch: finiteOr(raw.epoch, 0),
+        unit: oneOf(raw.unit, DATE_UNITS, 'day'),
+        format: oneOf(raw.format, DATE_FORMATS, 'date'),
+      };
+    })(),
+    secondary: (() => {
+      const raw = source.secondary;
+      if (!raw) return null;
+      const lo = finiteOrNull(raw.min);
+      const hi = finiteOrNull(raw.max);
+      return {
+        title: textOr(raw.title, '', 120),
+        unit: textOr(raw.unit, '', 40),
+        min: lo,
+        max: lo !== null && hi !== null && hi <= lo ? null : hi,
+        decimals: raw.decimals === null || raw.decimals === undefined ? null : Math.round(boundedOr(raw.decimals, GUARD_LIMITS.decimals, 0)),
+        showGrid: boolOr(raw.showGrid, false),
+      };
+    })(),
     ...(source.probGrid === undefined ? {} : { probGrid: boolOr(source.probGrid, false) }),
     ...(source.stageMode === undefined ? {} : { stageMode: boolOr(source.stageMode, false) }),
     ...(Array.isArray(source.categoryOrder)
@@ -365,6 +429,92 @@ export function sanitizeContourConfig(patch?: Partial<ContourConfig>): ContourCo
     specLsl: lsl,
     specUsl: usl,
     showSpecRegion: boolOr(source.showSpecRegion, base.showSpecRegion),
+    customStops: sanitizeColorStops(source.customStops),
+    levelStyles: sanitizeLevelStyles(source.levelStyles),
+    underflowColor: source.underflowColor === undefined ? '' : colourOr(source.underflowColor, ''),
+    overflowColor: source.overflowColor === undefined ? '' : colourOr(source.overflowColor, ''),
+    maskedStyle: oneOf(source.maskedStyle, MASKED_STYLES, base.maskedStyle),
+    labelFontSize: boundedOr(source.labelFontSize, [4, 24], base.labelFontSize),
+    labelDecimals: source.labelDecimals === null || source.labelDecimals === undefined
+      ? null
+      : Math.round(boundedOr(source.labelDecimals, [0, 8], 2)),
+  };
+}
+
+function sanitizeColorStops(value: unknown): ContourColorStop[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is ContourColorStop => Boolean(entry) && typeof entry === 'object')
+    .map((entry) => ({ value: finiteOrNull(entry.value), color: colourOr(entry.color, '') }))
+    .filter((entry): entry is ContourColorStop => entry.value !== null && Boolean(entry.color))
+    .sort((a, b) => a.value - b.value)
+    .slice(0, 20);
+}
+
+function sanitizeLevelStyles(value: unknown): ContourLevelStyle[] {
+  if (!Array.isArray(value)) return [];
+  const out: ContourLevelStyle[] = [];
+  value
+    .filter((entry): entry is ContourLevelStyle => Boolean(entry) && typeof entry === 'object')
+    .forEach((entry) => {
+      const index = finiteOrNull(entry.index);
+      if (index === null) return;
+      const clean: ContourLevelStyle = { index: Math.round(clampValue(index, [0, 50])) };
+      if (entry.color !== undefined) clean.color = colourOr(entry.color, '');
+      if (entry.lineColor !== undefined) clean.lineColor = colourOr(entry.lineColor, '');
+      if (entry.lineWidth !== undefined) clean.lineWidth = clampValue(finiteOr(entry.lineWidth, 1), [0, 8]);
+      if (entry.lineDash !== undefined) clean.lineDash = textOr(entry.lineDash, '', 40);
+      if (entry.showLabel !== undefined) clean.showLabel = boolOr(entry.showLabel, true);
+      const existing = out.findIndex((item) => item.index === clean.index);
+      if (existing >= 0) out[existing] = clean;
+      else out.push(clean);
+    });
+  return out.slice(0, 51);
+}
+
+/* ── advanced series (Stage 3D) ──────────────────────────────────────── */
+
+export function sanitizeSeriesAdvanced(
+  patch?: Partial<Omit<SeriesAdvancedConfig, 'errorBars'>> & { errorBars?: Partial<ErrorBarConfig> },
+): SeriesAdvancedConfig {
+  const base = defaultSeriesAdvancedConfig();
+  const source = patch ?? {};
+  const bars: Partial<ErrorBarConfig> = source.errorBars ?? {};
+  const order = Array.isArray(source.order)
+    ? source.order.filter((index): index is number => typeof index === 'number' && Number.isInteger(index) && index >= 0 && index <= 64).slice(0, 65)
+    : [];
+  const pointStyles: Record<number, PointStyle> = {};
+  if (source.pointStyles && typeof source.pointStyles === 'object') {
+    Object.entries(source.pointStyles).forEach(([key, value]) => {
+      const index = Number(key);
+      if (!Number.isInteger(index) || index < 0 || index > 5000) return;
+      if (!value || typeof value !== 'object') return;
+      const clean: PointStyle = {};
+      if (value.shape !== undefined) clean.shape = oneOf(value.shape, MARKER_SHAPES, 'circle');
+      if (value.size !== undefined) clean.size = boundedOr(value.size, GUARD_LIMITS.markerSize, 3.1);
+      if (value.color !== undefined) clean.color = colourOr(value.color, '');
+      pointStyles[index] = clean;
+    });
+  }
+  return {
+    areaFill: boolOr(source.areaFill, base.areaFill),
+    areaOpacity: boundedOr(source.areaOpacity, [0, 1], base.areaOpacity),
+    dropLines: boolOr(source.dropLines, base.dropLines),
+    dropLineColor: colourOr(source.dropLineColor, ''),
+    dropLineDash: textOr(source.dropLineDash, '', 40),
+    errorBars: {
+      kind: oneOf(bars.kind, ERROR_BAR_KINDS, base.errorBars.kind),
+      scope: bars.scope === 'series' ? 'series' : 'point',
+      conf: boundedOr(bars.conf, [0.5, 0.999], base.errorBars.conf),
+      capWidth: boundedOr(bars.capWidth, [0, 20], base.errorBars.capWidth),
+      color: colourOr(bars.color, ''),
+      series: Array.isArray(bars.series) ? bars.series.filter((index: unknown): index is number => typeof index === 'number' && Number.isInteger(index) && index >= 0 && index <= 64).slice(0, 65) : [],
+    },
+    order,
+    secondarySeries: Array.isArray(source.secondarySeries)
+      ? source.secondarySeries.filter((index): index is number => typeof index === 'number' && Number.isInteger(index) && index >= 0 && index <= 64).slice(0, 65)
+      : [],
+    pointStyles,
   };
 }
 
@@ -508,6 +658,7 @@ export function sanitizeChartConfig(config?: ChartConfig): ChartConfig {
     capability: { ...(defaults.capability ?? {}), ...(merged.capability ?? {}) },
     probplot: { ...(defaults.probplot ?? {}), ...(merged.probplot ?? {}) },
     lineBarPareto: { ...(defaults.lineBarPareto ?? {}), ...(merged.lineBarPareto ?? {}) },
+    seriesAdvanced: sanitizeSeriesAdvanced(merged.seriesAdvanced),
   };
 }
 
