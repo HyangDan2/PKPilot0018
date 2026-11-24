@@ -7,9 +7,12 @@
 import type { Column, ColType, ProjectFile, Settings, OutputDoc, StoredModelFileEntry, Worksheet } from '../types';
 import type { CustomChartStyle } from './chartStyles';
 import { parseStoredModels, type StoredModel } from './modelStore';
+
 import { basisAvailability } from './feasible';
 import type { FeasibleBasis } from './chartConfig';
 import type { ChartSpec } from '../types';
+import type { LayoutDoc } from './graphLayout';
+
 import { makeWorksheet, uid } from './datasets';
 
 export interface ProjectState {
@@ -21,6 +24,8 @@ export interface ProjectState {
   customChartStyles?: CustomChartStyle[];
   /** Optional: stored fitted models saved with the project. */
   models?: StoredModel[];
+  /** Optional: figure layouts saved with the project. */
+  figures?: LayoutDoc[];
 }
 
 export function buildProject(state: ProjectState): ProjectFile {
@@ -35,6 +40,7 @@ export function buildProject(state: ProjectState): ProjectFile {
     outputs: state.outputs,
     ...(state.customChartStyles?.length ? { customChartStyles: state.customChartStyles } : {}),
     ...(state.models?.length ? { models: state.models as unknown as StoredModelFileEntry[] } : {}),
+    ...(state.figures?.length ? { figures: state.figures as unknown as Record<string, unknown>[] } : {}),
   };
 }
 
@@ -139,6 +145,7 @@ export function parseProject(text: string): ProjectState {
     outputs: Array.isArray(file.outputs) ? file.outputs.map(restoreOutput) : [],
     ...(Array.isArray(file.customChartStyles) ? { customChartStyles: file.customChartStyles } : {}),
     models: parseStoredModels(file.models),
+    ...(Array.isArray(file.figures) ? { figures: (file.figures as unknown as LayoutDoc[]).filter((entry) => Boolean(entry) && entry.format === 'sigrun-layout') } : {}),
   };
 }
 

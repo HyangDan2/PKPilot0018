@@ -51,6 +51,9 @@ import {
   type ResolvedChartStyle,
 } from './chartStyles';
 import { sanitizeChartConfig } from './chartGuards';
+import { errorBarFor } from './seriesStats';
+import { defaultSeriesAdvancedConfig } from './chartConfig';
+import type { SeriesAdvancedConfig } from './chartConfig';
 import {
   bandColor,
   bandPolygons,
@@ -65,6 +68,18 @@ import {
   sampleColormap,
 } from './contour';
 import type { ContourGrid } from './contour';
+import {
+  buildAxisMap,
+  dateLabel,
+  dateTickValues,
+  filterScaleValues,
+  mapScaleValue,
+  minorTickValues,
+  scaleNeedsPositive,
+  ticksOutsideBreak,
+  unmapScaleValue,
+  type AxisMap,
+} from './axisAdvanced';
 import {
   feasibleOptions,
   overlaidLegendSvg,
@@ -104,6 +119,10 @@ export interface TickOptions {
   thousandsSep?: boolean;
   /** Explicit major step (overrides the nice-number rule). */
   step?: number | null;
+  /** Exponent of the power scale. */
+  power?: number;
+  /** C of the symmetrical-log scale. */
+  logConstant?: number;
 }
 
 export interface TickSet {
@@ -284,11 +303,40 @@ function logTicks(min: number, max: number, count: number): { values: number[]; 
 export function computeAxisTicks(min: number, max: number, options: TickOptions = {}): TickSet {
   const count = Math.max(2, Math.min(20, options.count ?? 5));
   const scale = options.scale ?? 'linear';
-  if (scale === 'log10') {
+  if (scale === 'log10' || scale === 'ln') {
     if (!(max > 0)) {
       return { ticks: [], step: 1, warning: { code: 'log-nonpositive', message: 'Log scale needs positive values.' } };
     }
     const lowPositive = min > 0 ? min : Number.MIN_VALUE;
+    if (scale === 'ln') {
+      const lo = Math.log(lowPositive);
+      const hi = Math.log(max);
+      const values: number[] = [];
+      if (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) {
+        if (hi - lo >= 2) {
+          for (let k = Math.ceil(lo); k <= Math.floor(hi) && values.length < 48; k += 1) values.push(Number(Math.exp(k).toPrecision(8)));
+        }
+      }
+      if (values.length < 2) {
+        // Less than two natural decades: 1-2-5 multiples of the base decade.
+        const base = Math.exp(Math.floor(lo));
+        [1, 2, 5].forEach((m) => {
+          const v = m * base;
+          if (v >= min * (1 - 1e-12) && v <= max * (1 + 1e-12)) values.push(Number(v.toPrecision(8)));
+        });
+        if (values.length < 2) {
+          const n = Math.max(2, Math.min(8, count));
+          values.length = 0;
+          for (let i = 0; i < n; i += 1) values.push(Number(Math.exp(lo + ((hi - lo) * i) / (n - 1)).toPrecision(8)));
+        }
+      }
+      const sorted = [...new Set(values)].sort((a, b) => a - b);
+      return {
+        ticks: sorted.map((value) => ({ value, label: logLabel(value) })),
+        step: sorted.length > 1 ? sorted[1] - sorted[0] : 1,
+        ...(min <= 0 ? { warning: { code: 'log-nonpositive', message: 'Non-positive values are not shown on a log axis.' } } : {}),
+      };
+    }
     const { values } = logTicks(lowPositive, max, count);
     const ticks = values.map((value) => ({ value, label: logLabel(value) }));
     return {
@@ -296,6 +344,20 @@ export function computeAxisTicks(min: number, max: number, options: TickOptions 
       step: values.length > 1 ? values[1] - values[0] : 1,
       ...(min <= 0 ? { warning: { code: 'log-nonpositive', message: 'Non-positive values are not shown on a log axis.' } } : {}),
     };
+  }
+  if (scale === 'symlog' || scale === 'power') {
+    // These scales are linear in their transformed coordinate, so the nice
+    // numbers are chosen there and turned back into data values for the label.
+    const opts = { power: options.power, logConstant: options.logConstant };
+    const lo = mapScaleValue(min, scale, opts);
+    const hi = mapScaleValue(max, scale, opts);
+    if (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) {
+      const mapped = linearTicks(lo, hi, count, options.step);
+      const values = mapped.values.map((v) => unmapScaleValue(v, scale, opts)).filter((v) => Number.isFinite(v));
+      const dataStep = values.length > 1 ? Math.abs(values[1] - values[0]) : (max - min) / count;
+      const ticks = values.map((value) => ({ value, label: formatTickValue(value, dataStep, { decimals: options.decimals ?? null, scientific: options.scientific, thousandsSep: options.thousandsSep }) }));
+      return { ticks, step: dataStep };
+    }
   }
   const { values, step } = linearTicks(min, max, count, options.step);
   const labelOpts = { decimals: options.decimals ?? null, scientific: options.scientific, thousandsSep: options.thousandsSep };
@@ -325,9 +387,57 @@ export function ticks(min: number, max: number, count = 5): number[] {
   return computeAxisTicks(min, max, { count, scale: 'linear' }).ticks.map((tick) => tick.value);
 }
 
-export function mapScale(value: number, scale: AxisScale): number {
-  if (scale === 'log10') return value > 0 ? Math.log10(value) : NaN;
-  return value;
+export function mapScale(value: number, scale: AxisScale, options: { power?: number; logConstant?: number } = {}): number {
+  return mapScaleValue(value, scale, options);
+}
+
+/** Pixel ↔ value pair for an axis, including a compressed break. */
+export function axisPixelMap(
+  domain: [number, number],
+  cfg: AxisConfig,
+  pixels: [number, number],
+  options: { reverse?: boolean; pad?: number } = {},
+): AxisMap {
+  return buildAxisMap(domain, cfg.scale ?? 'linear', pixels, {
+    reverse: options.reverse ?? cfg.reverse,
+    axisBreak: cfg.axisBreak ?? null,
+    power: cfg.power,
+    logConstant: cfg.logConstant,
+  });
+}
+
+/**
+ * Major ticks for an axis, honouring the explicit tick values, the requested
+ * tick count, a date axis and a broken stretch. One place decides this, so the
+ * drawer, the renderer and the E2E checks all see the same list.
+ */
+export function axisTicks(min: number, max: number, cfg: AxisConfig, count = 5): TickSet {
+  let set: TickSet;
+  if (cfg.tickValues && cfg.tickValues.length) {
+    const inside = [...new Set(cfg.tickValues.filter((v) => Number.isFinite(v) && v >= min - 1e-9 && v <= max + 1e-9))].sort((a, b) => a - b);
+    const step = inside.length > 1 ? Math.abs(inside[1] - inside[0]) : (max - min) / Math.max(2, count);
+    set = { ticks: inside.map((value) => ({ value, label: formatTickValue(value, step, { decimals: cfg.decimals, scientific: cfg.scientific, thousandsSep: cfg.thousandsSep }) })), step };
+  } else if (cfg.dateAxis) {
+    const values = dateTickValues(min, max, cfg.dateAxis, Math.max(2, Math.min(12, cfg.tickCount ?? 8)));
+    const step = values.length > 1 ? Math.abs(values[1] - values[0]) : 1;
+    set = { ticks: values.map((value) => ({ value, label: dateLabel(value, cfg.dateAxis as NonNullable<AxisConfig['dateAxis']>) })), step };
+  } else {
+    set = computeAxisTicks(min, max, {
+      count: cfg.tickCount ?? count,
+      scale: cfg.scale,
+      decimals: cfg.decimals,
+      scientific: cfg.scientific,
+      thousandsSep: cfg.thousandsSep,
+      step: cfg.majorInterval,
+      power: cfg.power,
+      logConstant: cfg.logConstant,
+    });
+  }
+  if (cfg.axisBreak) {
+    const kept = ticksOutsideBreak(set.ticks, cfg.axisBreak);
+    set = { ...set, ticks: kept.length >= 2 ? kept : set.ticks };
+  }
+  return set;
 }
 
 function extent(values: number[]): [number, number] {
@@ -609,6 +719,82 @@ function dashString(dash: string): string {
   return dash.replace(/[^0-9 .]/g, '').trim();
 }
 
+/* ── advanced series layer (Stage 3D, WO-08) ─────────────────────────────
+   Area fill, drop lines, error bars and the per-series / per-point looks all
+   read the same `seriesAdvanced` block, so the drawer, the renderer and the
+   export agree on what is drawn. */
+
+function advancedOf(ctx: RenderContext): SeriesAdvancedConfig {
+  const base = defaultSeriesAdvancedConfig();
+  const source = ctx.config.seriesAdvanced ?? {};
+  return {
+    ...base,
+    ...source,
+    errorBars: { ...base.errorBars, ...(source.errorBars ?? {}) },
+    pointStyles: source.pointStyles ?? {},
+    order: source.order ?? [],
+    secondarySeries: source.secondarySeries ?? [],
+  };
+}
+
+/** Series indices in the order the reader asked for, then the rest in order. */
+export function orderedSeriesIndices(count: number, order: number[] | undefined): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  (order ?? []).forEach((index) => {
+    if (!Number.isInteger(index) || index < 0 || index >= count || seen.has(index)) return;
+    seen.add(index);
+    out.push(index);
+  });
+  for (let i = 0; i < count; i += 1) if (!seen.has(i)) out.push(i);
+  return out;
+}
+
+/** Look of one plotted point: the per-point override, else the series look. */
+function pointLook(entry: { shape: MarkerShape; size: number; color: string }, style: { shape?: MarkerShape; size?: number; color?: string } | undefined) {
+  if (!style) return entry;
+  return {
+    shape: style.shape ?? entry.shape,
+    size: style.size ?? entry.size,
+    color: style.color || entry.color,
+  };
+}
+
+/** Error bars over a set of plotted points, computed by seriesStats. */
+function errorBarLayer(
+  adv: SeriesAdvancedConfig,
+  entries: { x: number; y: number; px: number; py: number; replicates?: number[] }[],
+  axis: AxisInfo,
+  color: string,
+): string {
+  const bars = adv.errorBars;
+  const kind = bars.kind;
+  if (kind === 'none' || !entries.length) return '';
+  const stroke = bars.color || color;
+  const pooled = entries.map((entry) => entry.y);
+  let out = '';
+  entries.forEach((entry) => {
+    const values = bars.scope === 'series' ? pooled : (entry.replicates ?? []);
+    const stat = errorBarFor(values, kind, bars.conf);
+    if (!stat) return;
+    const top = axis.toPixel(stat.upper);
+    const bottom = axis.toPixel(stat.lower);
+    if (!Number.isFinite(top) || !Number.isFinite(bottom)) return;
+    const cap = bars.capWidth;
+    out += `<line data-chart-role="error-bar" data-stat="${bars.kind}" data-n="${stat.n}" data-value="${esc(stat.half)}" x1="${px(entry.px)}" y1="${px(top)}" x2="${px(entry.px)}" y2="${px(bottom)}" stroke="${esc(stroke)}" stroke-width="1.1"/>`;
+    if (cap > 0) {
+      out += `<line data-chart-role="error-bar-cap" x1="${px(entry.px - cap)}" y1="${px(top)}" x2="${px(entry.px + cap)}" y2="${px(top)}" stroke="${esc(stroke)}" stroke-width="1.1"/>`;
+      out += `<line data-chart-role="error-bar-cap" x1="${px(entry.px - cap)}" y1="${px(bottom)}" x2="${px(entry.px + cap)}" y2="${px(bottom)}" stroke="${esc(stroke)}" stroke-width="1.1"/>`;
+    }
+  });
+  return out ? `<g data-chart-role="error-bar-layer" data-kind="${bars.kind}" data-scope="${bars.scope}">${out}</g>` : '';
+}
+
+/** True when this series index receives error bars. */
+function barsApplyTo(adv: SeriesAdvancedConfig, index: number): boolean {
+  return adv.errorBars.series.length === 0 || adv.errorBars.series.includes(index);
+}
+
 function clipGroup(ctx: RenderContext, box: Box, content: string): string {
   if (!content) return '';
   const id = nextClip(ctx, box);
@@ -625,11 +811,15 @@ interface AxisInfo {
   ticks: Tick[];
   step: number;
   toPixel: (value: number) => number;
+  /** Pixel → value, the inverse the zoom, pan and cursor need. */
+  fromPixel: (pixel: number) => number;
+  /** Pixel band of the compressed stretch, when the axis carries a break. */
+  breakBand: { p0: number; p1: number } | null;
   warning?: ChartWarning;
 }
 
 function axisValues(values: number[], scale: AxisScale): number[] {
-  return scale === 'log10' ? values.filter((v) => v > 0) : values.filter((v) => isFinite(v));
+  return filterScaleValues(values, scale);
 }
 
 function makeAxis(
@@ -652,7 +842,7 @@ function makeAxis(
     min = cfg.min != null && isFinite(cfg.min) ? cfg.min : lo;
     max = cfg.max != null && isFinite(cfg.max) ? cfg.max : hi;
   }
-  if (scale === 'log10') {
+  if (scaleNeedsPositive(scale)) {
     if (!(min > 0)) {
       let smallest = Number.POSITIVE_INFINITY;
       for (const value of usable) if (value > 0 && value < smallest) smallest = value;
@@ -666,24 +856,26 @@ function makeAxis(
     min -= delta;
     max += delta;
   }
-  const tickSet = computeAxisTicks(min, max, {
-    count: 5,
-    scale,
-    decimals: cfg.decimals,
-    scientific: cfg.scientific,
-    thousandsSep: cfg.thousandsSep,
-    step: cfg.majorInterval,
-  });
+  const tickSet = axisTicks(min, max, cfg, 5);
   const reverse = options.reverse ?? cfg.reverse;
-  const lo = mapScale(min, scale);
-  const hi = mapScale(max, scale);
-  const [p0, p1] = pixels;
-  const toPixel = (value: number): number => {
-    const mapped = mapScale(value, scale);
-    const t = (mapped - lo) / (hi - lo || 1);
-    return reverse ? p1 - t * (p1 - p0) : p0 + t * (p1 - p0);
+  const map = buildAxisMap([min, max], scale, pixels, {
+    reverse,
+    axisBreak: cfg.axisBreak ?? null,
+    power: cfg.power,
+    logConstant: cfg.logConstant,
+  });
+  return {
+    cfg,
+    scale,
+    min,
+    max,
+    ticks: tickSet.ticks,
+    step: tickSet.step,
+    toPixel: map.toPixel,
+    fromPixel: map.fromPixel,
+    breakBand: map.breakBand,
+    warning: tickSet.warning,
   };
-  return { cfg, scale, min, max, ticks: tickSet.ticks, step: tickSet.step, toPixel, warning: tickSet.warning };
 }
 
 function tickDirection(cfg: AxisConfig): 'in' | 'out' | 'both' | 'none' {
@@ -709,7 +901,10 @@ function drawAxes(
   const dirX = tickDirection(x.cfg);
   const dirY = tickDirection(y.cfg);
   const fontSize = style.fontSize;
-  const tickLen = style.tickLength;
+  const tickLenX = typeof x.cfg.tickLength === 'number' ? x.cfg.tickLength : style.tickLength;
+  const tickLenY = typeof y.cfg.tickLength === 'number' ? y.cfg.tickLength : style.tickLength;
+  const showLabelsX = x.cfg.showTickLabels !== false;
+  const showLabelsY = y.cfg.showTickLabels !== false;
   const mono = style.monoFontFamily;
   const xAxisPixel = axisLinePixel(x.cfg.crossAt, x.step, 'x', box, x.toPixel, y.min, y.max, y.toPixel);
   const yAxisPixel = axisLinePixel(y.cfg.crossAt, y.step, 'y', box, y.toPixel, x.min, x.max, x.toPixel);
@@ -719,19 +914,21 @@ function drawAxes(
   const xMarks: string[] = [];
   const xLabels: string[] = [];
 
-  const minorGrid = (cfg: AxisConfig, info: AxisInfo, axis: 'x' | 'y'): string => {
-    if (!cfg.showMinorGrid) return '';
-    let out = '';
+  const minorValues = (cfg: AxisConfig, info: AxisInfo): number[] => {
     const interval = cfg.minorInterval;
     const values: number[] = [];
     if (interval && interval > 0) {
       for (let v = info.min; v <= info.max && values.length < 80; v += interval) values.push(v);
-    } else {
-      const per = 5;
-      for (let i = 0; i < info.ticks.length - 1; i += 1) {
-        for (let k = 1; k < per; k += 1) values.push(info.ticks[i].value + ((info.ticks[i + 1].value - info.ticks[i].value) * k) / per);
-      }
+      return values;
     }
+    const per = cfg.minorTickCount != null ? cfg.minorTickCount : 5;
+    return minorTickValues(info.ticks.map((tick) => tick.value), per, cfg.axisBreak);
+  };
+
+  const minorGrid = (cfg: AxisConfig, info: AxisInfo, axis: 'x' | 'y'): string => {
+    if (!cfg.showMinorGrid) return '';
+    let out = '';
+    const values = minorValues(cfg, info);
     values.forEach((v) => {
       const p = info.toPixel(v);
       if (!isFinite(p)) return;
@@ -768,11 +965,11 @@ function drawAxes(
     if (dirY !== 'none') {
       const sign = dirY === 'in' ? 1 : -1;
       const x1 = box.x;
-      const x2 = box.x + sign * tickLen;
+      const x2 = box.x + sign * tickLenY;
       yMarks.push(`<line data-chart-role="tick-y" x1="${px(x1)}" y1="${px(p)}" x2="${px(x2)}" y2="${px(p)}" stroke="${esc(style.tickColor)}" stroke-width="${style.axisWidth}"/>`);
-      if (dirY === 'both') yMarks.push(`<line data-chart-role="tick-y" x1="${px(box.x)}" y1="${px(p)}" x2="${px(box.x - tickLen)}" y2="${px(p)}" stroke="${esc(style.tickColor)}" stroke-width="${style.axisWidth}"/>`);
+      if (dirY === 'both') yMarks.push(`<line data-chart-role="tick-y" x1="${px(box.x)}" y1="${px(p)}" x2="${px(box.x - tickLenY)}" y2="${px(p)}" stroke="${esc(style.tickColor)}" stroke-width="${style.axisWidth}"/>`);
     }
-    if (!options.hideYLabels) {
+    if (!options.hideYLabels && showLabelsY) {
       yLabels.push(`<text x="${Number((box.x - 7).toFixed(1))}" y="${px(p + 3)}" text-anchor="end" font-family="${esc(mono)}" font-size="${fontSize}" fill="${esc(style.labelColor)}">${esc(tick.label)}</text>`);
     }
   });
@@ -781,20 +978,51 @@ function drawAxes(
     if (p < box.x - 0.1 || p > box.x + box.w + 0.1) return;
     if (dirX !== 'none') {
       const sign = dirX === 'in' ? -1 : 1;
-      xMarks.push(`<line data-chart-role="tick-x" x1="${px(p)}" y1="${px(box.y + box.h)}" x2="${px(p)}" y2="${px(box.y + box.h + sign * tickLen)}" stroke="${esc(style.tickColor)}" stroke-width="${style.axisWidth}"/>`);
-      if (dirX === 'both') xMarks.push(`<line data-chart-role="tick-x" x1="${px(p)}" y1="${px(box.y + box.h)}" x2="${px(p)}" y2="${px(box.y + box.h - tickLen)}" stroke="${esc(style.tickColor)}" stroke-width="${style.axisWidth}"/>`);
+      xMarks.push(`<line data-chart-role="tick-x" x1="${px(p)}" y1="${px(box.y + box.h)}" x2="${px(p)}" y2="${px(box.y + box.h + sign * tickLenX)}" stroke="${esc(style.tickColor)}" stroke-width="${style.axisWidth}"/>`);
+      if (dirX === 'both') xMarks.push(`<line data-chart-role="tick-x" x1="${px(p)}" y1="${px(box.y + box.h)}" x2="${px(p)}" y2="${px(box.y + box.h - tickLenX)}" stroke="${esc(style.tickColor)}" stroke-width="${style.axisWidth}"/>`);
     }
-    if (!options.hideXLabels) {
+    if (!options.hideXLabels && showLabelsX) {
       xLabels.push(`<text x="${px(p)}" y="${px(box.y + box.h + 16)}" text-anchor="middle" font-family="${esc(mono)}" font-size="${fontSize}" fill="${esc(style.labelColor)}">${esc(tick.label)}</text>`);
     }
   });
+  // Minor ticks are marks, not grid lines: the count is edited per axis.
+  const drawMinorTicks = (cfg: AxisConfig, info: AxisInfo, axis: 'x' | 'y'): string => {
+    if (cfg.minorTickCount == null || cfg.tickDirection === 'none') return '';
+    const values = minorValues(cfg, info);
+    const len = Math.max(1.2, (axis === 'x' ? tickLenX : tickLenY) * 0.55);
+    return values.map((value) => {
+      const p = axis === 'x' ? info.toPixel(value) : info.toPixel(value);
+      if (!Number.isFinite(p)) return '';
+      if (axis === 'x') {
+        if (p < box.x - 0.1 || p > box.x + box.w + 0.1) return '';
+        return `<line data-chart-role="tick-minor" x1="${px(p)}" y1="${px(box.y + box.h)}" x2="${px(p)}" y2="${px(box.y + box.h + len)}" stroke="${esc(style.tickColor)}" stroke-width="${Math.max(0.6, style.axisWidth * 0.7)}"/>`;
+      }
+      if (p < box.y - 0.1 || p > box.y + box.h + 0.1) return '';
+      return `<line data-chart-role="tick-minor" x1="${px(box.x)}" y1="${px(p)}" x2="${px(box.x - len)}" y2="${px(p)}" stroke="${esc(style.tickColor)}" stroke-width="${Math.max(0.6, style.axisWidth * 0.7)}"/>`;
+    }).join('');
+  };
+  xMarks.push(drawMinorTicks(x.cfg, x, 'x'));
+  yMarks.push(drawMinorTicks(y.cfg, y, 'y'));
   (options.xCategoryLabels ?? []).forEach((entry) => {
     xLabels.push(`<text x="${px(entry.value)}" y="${px(box.y + box.h + 15)}" text-anchor="middle" font-size="${fontSize - 0.5}" fill="${esc(style.labelColor)}">${esc(entry.label)}</text>`);
   });
 
   // Axis lines at auto / zero / explicit crossing.
-  const axisSvg = `<line data-chart-role="axis-line-x" x1="${px(box.x)}" y1="${px(xAxisPixel)}" x2="${px(box.x + box.w)}" y2="${px(xAxisPixel)}" stroke="${esc(style.axisColor)}" stroke-width="${style.axisWidth}"/>`
-    + `<line data-chart-role="axis-line-y" x1="${px(yAxisPixel)}" y1="${px(box.y)}" x2="${px(yAxisPixel)}" y2="${px(box.y + box.h)}" stroke="${esc(style.axisColor)}" stroke-width="${style.axisWidth}"/>`;
+  const axisSvg = (x.cfg.showAxisLine === false ? '' : `<line data-chart-role="axis-line-x" x1="${px(box.x)}" y1="${px(xAxisPixel)}" x2="${px(box.x + box.w)}" y2="${px(xAxisPixel)}" stroke="${esc(style.axisColor)}" stroke-width="${style.axisWidth}"/>`)
+    + (y.cfg.showAxisLine === false ? '' : `<line data-chart-role="axis-line-y" x1="${px(yAxisPixel)}" y1="${px(box.y)}" x2="${px(yAxisPixel)}" y2="${px(box.y + box.h)}" stroke="${esc(style.axisColor)}" stroke-width="${style.axisWidth}"/>`);
+  // Break marks: two short diagonals across the omitted stretch, the sign a
+  // reader needs to know the axis is not continuous.
+  const breakMarks = (info: AxisInfo, axis: 'x' | 'y'): string => {
+    const band = info.breakBand;
+    if (!band) return '';
+    const mid = (band.p0 + band.p1) / 2;
+    if (axis === 'x') {
+      return `<g data-chart-role="axis-break" data-axis="x"><rect x="${px(Math.min(band.p0, band.p1))}" y="${px(box.y + box.h - 5)}" width="${px(Math.abs(band.p1 - band.p0))}" height="10" fill="${esc(style.surfaceColor ?? '#fff')}" stroke="none"/>`
+        + `<path d="M${px(mid - 4)} ${px(box.y + box.h + 3)}L${px(mid + 1)} ${px(box.y + box.h - 3)}M${px(mid + 1)} ${px(box.y + box.h + 3)}L${px(mid + 6)} ${px(box.y + box.h - 3)}" fill="none" stroke="${esc(style.axisColor)}" stroke-width="${style.axisWidth}"/></g>`;
+    }
+    return `<g data-chart-role="axis-break" data-axis="y"><rect x="${px(box.x - 5)}" y="${px(Math.min(band.p0, band.p1))}" width="10" height="${px(Math.abs(band.p1 - band.p0))}" fill="${esc(style.surfaceColor ?? '#fff')}" stroke="none"/>`
+      + `<path d="M${px(box.x - 4)} ${px(mid - 4)}L${px(box.x + 3)} ${px(mid + 1)}M${px(box.x - 4)} ${px(mid + 1)}L${px(box.x + 3)} ${px(mid + 6)}" fill="none" stroke="${esc(style.axisColor)}" stroke-width="${style.axisWidth}"/></g>`;
+  };
 
   let titles = '';
   const xTitle = x.cfg.title || options.xTitle || '';
@@ -810,10 +1038,11 @@ function drawAxes(
   // what the hover readout and the live contour probe need.
   const plotRegion = `<rect data-chart-role="plot" data-plot-box="${px(box.x)},${px(box.y)},${px(box.w)},${px(box.h)}"`
     + ` data-x-min="${esc(x.min)}" data-x-max="${esc(x.max)}" data-y-min="${esc(y.min)}" data-y-max="${esc(y.max)}"`
+    + ` data-x-scale="${esc(x.scale)}" data-y-scale="${esc(y.scale)}"`
     + ` fill="none" pointer-events="none"/>`;
   return `<g data-chart-role="chart-grid">${plotRegion}${gridSvg}</g>`
-    + `<g data-chart-role="axis-y">${yMarks.join('')}${yLabels.join('')}</g>`
-    + `<g data-chart-role="axis-x">${xMarks.join('')}${xLabels.join('')}</g>`
+    + `<g data-chart-role="axis-y">${yMarks.join('')}${yLabels.join('')}${breakMarks(y, 'y')}</g>`
+    + `<g data-chart-role="axis-x">${xMarks.join('')}${xLabels.join('')}${breakMarks(x, 'x')}</g>`
     + axisSvg + titles;
 }
 
@@ -1024,7 +1253,16 @@ function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>, ctx: Ren
     const y = yAxis.toPixel(bin.value);
     if (![x0, x1, y].every((v) => Number.isFinite(v))) return;
     const width = Math.max(0.8, x1 - x0 - 0.8);
-    plot += `<rect class="chart-bar" data-point="1" data-chart-role="chart-bar" data-x="${esc((bin.lo + bin.hi) / 2)}" data-y="${esc(bin.value)}" x="${px(x0 + 0.4)}" y="${px(y)}" width="${px(width)}" height="${px(box.y + box.h - y)}" fill="${esc(seriesColor(ctx.style, 0))}" opacity="${ctx.config.series?.fillOpacity ?? 0.72}" rx="1.5"/>`;
+    // Every value that fell in this bin keeps its worksheet row, so clicking
+    // the bar can highlight the observations it stands for (WO-09).
+    const binRows = spec.rows
+      ? spec.values.map((value, index) => ({ value, index }))
+        .filter((entry) => Number.isFinite(entry.value) && entry.value >= bin.lo && (entry.value < bin.hi || (entry.value === bin.hi && bin.hi === Math.max(...scaled.map((b) => b.hi)))))
+        .map((entry) => spec.rows?.[entry.index])
+        .filter((row): row is number => row != null && Number.isFinite(row))
+      : [];
+    const rowAttr = binRows.length ? ` data-rows="${binRows.join(',')}"` : '';
+    plot += `<rect class="chart-bar" data-point="1" data-chart-role="chart-bar" data-x="${esc((bin.lo + bin.hi) / 2)}" data-y="${esc(bin.value)}"${rowAttr} x="${px(x0 + 0.4)}" y="${px(y)}" width="${px(width)}" height="${px(box.y + box.h - y)}" fill="${esc(seriesColor(ctx.style, 0))}" opacity="${ctx.config.series?.fillOpacity ?? 0.72}" rx="1.5"/>`;
   });
   if ((spec.normal || options.showFittedCurve) && values.length > 2) {
     const curve = histogramCurve(values, spec.bins ?? options.binCount ?? undefined);
@@ -1121,7 +1359,7 @@ function drawBoxplot(spec: Extract<ChartSpec, { kind: 'boxplot' }>, ctx: RenderC
       g += `<line class="chart-whisker" x1="${px(xAxis.toPixel(stats.whiskerLow))}" y1="${px(cy)}" x2="${px(xAxis.toPixel(stats.whiskerHigh))}" y2="${px(cy)}" stroke="${esc(ctx.style.axisColor)}" stroke-width="1.2"/>`;
       g += `<line class="chart-whisker" x1="${px(xAxis.toPixel(stats.whiskerLow))}" y1="${px(cy - bw / 4)}" x2="${px(xAxis.toPixel(stats.whiskerLow))}" y2="${px(cy + bw / 4)}" stroke="${esc(ctx.style.axisColor)}" stroke-width="1.2"/>`;
       g += `<line class="chart-whisker" x1="${px(xAxis.toPixel(stats.whiskerHigh))}" y1="${px(cy - bw / 4)}" x2="${px(xAxis.toPixel(stats.whiskerHigh))}" y2="${px(cy + bw / 4)}" stroke="${esc(ctx.style.axisColor)}" stroke-width="1.2"/>`;
-      g += `<rect class="chart-box" data-chart-role="chart-box" x="${px(xAxis.toPixel(stats.q1))}" y="${px(cy - bw / 2)}" width="${px(Math.max(1, xAxis.toPixel(stats.q3) - xAxis.toPixel(stats.q1)))}" height="${px(bw)}" fill="${esc(color)}" opacity="0.18" stroke="${esc(color)}" stroke-width="1.4" rx="3"/>`;
+      g += `<rect class="chart-box" data-chart-role="chart-box"${group.rows?.length ? ` data-rows="${group.rows.filter((row) => Number.isFinite(row)).join(',')}"` : ''} x="${px(xAxis.toPixel(stats.q1))}" y="${px(cy - bw / 2)}" width="${px(Math.max(1, xAxis.toPixel(stats.q3) - xAxis.toPixel(stats.q1)))}" height="${px(bw)}" fill="${esc(color)}" opacity="0.18" stroke="${esc(color)}" stroke-width="1.4" rx="3"/>`;
       g += `<line class="chart-median" x1="${px(xAxis.toPixel(stats.median))}" y1="${px(cy - bw / 2)}" x2="${px(xAxis.toPixel(stats.median))}" y2="${px(cy + bw / 2)}" stroke="${esc(color)}" stroke-width="2.2"/>`;
       if (options.showMean) g += `<circle class="chart-mean" cx="${px(xAxis.toPixel(stats.mean))}" cy="${px(cy)}" r="2.4" fill="${esc(ctx.style.surfaceColor)}" stroke="${esc(color)}" stroke-width="1.4"/>`;
       if (options.showOutliers) stats.outliers.forEach((out) => {
@@ -1149,7 +1387,7 @@ function drawBoxplot(spec: Extract<ChartSpec, { kind: 'boxplot' }>, ctx: RenderC
     g += `<line class="chart-whisker" data-chart-role="chart-whisker" x1="${px(cx)}" y1="${px(yAxis.toPixel(stats.whiskerHigh))}" x2="${px(cx)}" y2="${px(yAxis.toPixel(stats.whiskerLow))}" stroke="${esc(ctx.style.axisColor)}" stroke-width="1.2"/>`;
     g += `<line class="chart-whisker" x1="${px(cx - bw / 4)}" y1="${px(yAxis.toPixel(stats.whiskerHigh))}" x2="${px(cx + bw / 4)}" y2="${px(yAxis.toPixel(stats.whiskerHigh))}" stroke="${esc(ctx.style.axisColor)}" stroke-width="1.2"/>`;
     g += `<line class="chart-whisker" x1="${px(cx - bw / 4)}" y1="${px(yAxis.toPixel(stats.whiskerLow))}" x2="${px(cx + bw / 4)}" y2="${px(yAxis.toPixel(stats.whiskerLow))}" stroke="${esc(ctx.style.axisColor)}" stroke-width="1.2"/>`;
-    g += `<rect class="chart-box" data-chart-role="chart-box" x="${px(cx - bw / 2)}" y="${px(yAxis.toPixel(stats.q3))}" width="${px(bw)}" height="${px(Math.max(1, yAxis.toPixel(stats.q1) - yAxis.toPixel(stats.q3)))}" fill="${esc(color)}" opacity="0.18" stroke="${esc(color)}" stroke-width="1.4" rx="3"/>`;
+    g += `<rect class="chart-box" data-chart-role="chart-box"${group.rows?.length ? ` data-rows="${group.rows.filter((row) => Number.isFinite(row)).join(',')}"` : ''} x="${px(cx - bw / 2)}" y="${px(yAxis.toPixel(stats.q3))}" width="${px(bw)}" height="${px(Math.max(1, yAxis.toPixel(stats.q1) - yAxis.toPixel(stats.q3)))}" fill="${esc(color)}" opacity="0.18" stroke="${esc(color)}" stroke-width="1.4" rx="3"/>`;
     g += `<line class="chart-median" data-chart-role="chart-median" x1="${px(cx - bw / 2)}" y1="${px(yAxis.toPixel(stats.median))}" x2="${px(cx + bw / 2)}" y2="${px(yAxis.toPixel(stats.median))}" stroke="${esc(color)}" stroke-width="2.2"/>`;
     if (options.showMean) g += `<circle class="chart-mean" cx="${px(cx)}" cy="${px(yAxis.toPixel(stats.mean))}" r="2.4" fill="${esc(ctx.style.surfaceColor)}" stroke="${esc(color)}" stroke-width="1.4"/>`;
     if (options.showOutliers && stats.outliers.length) hasOutliers = true;
@@ -1185,13 +1423,15 @@ function bandPolygon(bands: ChartBand[] | undefined, toX: (v: number) => number,
   return `<polygon points="${upper.join(' ')} ${lower.join(' ')}"/>`;
 }
 
+type ScatterSeries = NonNullable<Extract<ChartSpec, { kind: 'scatter' }>['series']>[number];
+
 function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>, ctx: RenderContext): string {
   const options = scatterOptions(ctx);
   const h = ctx.H;
-  const series = spec.series && spec.series.length
+  const series: ScatterSeries[] = spec.series && spec.series.length
     ? spec.series
     : spec.points.length
-      ? [{ label: '', points: spec.points as { x: number; y: number }[], fit: spec.fit ?? null }]
+      ? [{ label: '', points: spec.points, fit: spec.fit ?? null }]
       : [];
   const all = series.flatMap((s) => s.points);
   if (!all.length) return emptyChart(ctx, spec.title ?? 'Scatterplot');
@@ -1219,27 +1459,65 @@ function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>, ctx: RenderC
     : makeAxis(all.map((p) => p.y), yCfg, [box.y + box.h, box.y], { pad: ctx.rawConfig.yAxis?.axisMargin ?? 0.08 });
   let g = plotBackground(ctx, box);
   g += drawAxes(ctx, box, xAxis, yAxis, { xTitle: spec.xLabel, yTitle: spec.yLabel });
+  // A second Y scale for series marked `secondary` (WO-08: secondary axis
+  // extended from line charts to scatter).
+  const scatterAdvance = advancedOf(ctx);
+  const secondarySeries = series.filter((entry, index) => entry.axis === 'secondary' || scatterAdvance.secondarySeries.includes(index));
+  const y2Cfg = ctx.config.yAxis?.secondary;
+  const y2Axis = secondarySeries.length
+    ? makeAxis(secondarySeries.flatMap((s) => s.points.map((p) => p.y)), {
+      ...(ctx.config.yAxis as AxisConfig),
+      min: y2Cfg?.min ?? null,
+      max: y2Cfg?.max ?? null,
+      decimals: y2Cfg?.decimals ?? ctx.config.yAxis?.decimals ?? null,
+      title: y2Cfg?.title ?? '',
+      unit: y2Cfg?.unit ?? '',
+    }, [box.y + box.h, box.y], { pad: ctx.rawConfig.yAxis?.axisMargin ?? 0.08 })
+    : null;
+  if (y2Axis) {
+    let y2 = `<g data-chart-role="axis-y2">`;
+    if (y2Axis.cfg.showAxisLine !== false) y2 += `<line data-chart-role="axis-line-y2" x1="${px(box.x + box.w)}" y1="${px(box.y)}" x2="${px(box.x + box.w)}" y2="${px(box.y + box.h)}" stroke="${esc(ctx.style.axisColor)}" stroke-width="${ctx.style.axisWidth}"/>`;
+    y2Axis.ticks.forEach((tick) => {
+      const p = y2Axis.toPixel(tick.value);
+      if (p < box.y - 0.1 || p > box.y + box.h + 0.1) return;
+      y2 += `<line data-chart-role="tick-y2" x1="${px(box.x + box.w)}" y1="${px(p)}" x2="${px(box.x + box.w + 4)}" y2="${px(p)}" stroke="${esc(ctx.style.tickColor)}" stroke-width="${ctx.style.axisWidth}"/>`;
+      if (y2Axis.cfg.showTickLabels !== false) y2 += `<text x="${px(box.x + box.w + 7)}" y="${px(p + 3)}" text-anchor="start" font-family="${esc(ctx.style.monoFontFamily)}" font-size="${ctx.style.fontSize}" fill="${esc(ctx.style.labelColor)}">${esc(tick.label)}</text>`;
+    });
+    if (y2Cfg?.title || spec.y2Label) y2 += `<text transform="translate(${px(box.x + box.w + 34)} ${px(box.y + box.h / 2)}) rotate(90)" text-anchor="middle" font-size="${ctx.style.fontSize + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc(spec.y2Label ?? y2Cfg?.title ?? '')}</text>`;
+    g += `${y2}</g>`;
+  }
+  const adv = advancedOf(ctx);
   let plot = '';
   if (options.showPredictionBand) plot += `<g fill="${esc(ctx.style.bandColor)}" opacity="0.5">${bandPolygon(spec.bands?.individual, xAxis.toPixel, yAxis.toPixel)}</g>`;
   if (options.showMeanCi) plot += `<g fill="${esc(ctx.style.guideColor)}" opacity="0.22">${bandPolygon(spec.bands?.mean, xAxis.toPixel, yAxis.toPixel)}</g>`;
+  let scatterPointIndex = 0;
   series.forEach((s, si) => {
     const look = seriesOverride(ctx, si);
     if (!look.visible) return;
     const base = multi ? si : 0;
     const shape = s.markerShape ?? (multi ? look.markerShape : options.markerShape);
+    const valueAxis = (s.axis === 'secondary' || adv.secondarySeries.includes(si)) && y2Axis ? y2Axis : yAxis;
+    const drawn: { x: number; y: number; px: number; py: number; replicates?: number[] }[] = [];
     s.points.forEach((p, pi) => {
       const grouped = !multi && 'g' in p && (p as { g?: string }).g;
       const idx = grouped ? groups.indexOf((p as { g?: string }).g ?? '') : base;
-      const color = seriesColor(ctx.style, idx < 0 ? 0 : idx);
+      const seriesShade = seriesColor(ctx.style, idx < 0 ? 0 : idx);
       const cx = xAxis.toPixel(p.x);
-      const cy = yAxis.toPixel(p.y);
+      const cy = valueAxis.toPixel(p.y);
       if (!isFinite(cx) || !isFinite(cy)) return;
-      plot += marker(shape, cx, cy, look.markerSize, color, ` opacity="0.82" class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${esc(p.x)}" data-y="${esc(p.y)}"${grouped ? ` data-group="${esc((p as { g?: string }).g ?? '')}"` : ''}`);
+      const rowAttr = p.row != null && Number.isFinite(p.row) ? ` data-row="${Math.round(p.row)}"` : '';
+      const mark = pointLook({ shape, size: look.markerSize, color: seriesShade }, adv.pointStyles[scatterPointIndex]);
+      scatterPointIndex += 1;
+      plot += marker(mark.shape, cx, cy, mark.size, mark.color, ` opacity="0.82" class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${esc(p.x)}" data-y="${esc(p.y)}"${rowAttr}${grouped ? ` data-group="${esc((p as { g?: string }).g ?? '')}"` : ''}`);
+      drawn.push({ x: p.x, y: p.y, px: cx, py: cy, replicates: p.replicates });
       if (options.showDataLabels) {
         const label = s.labels?.[pi] ?? spec.pointLabels?.[pi] ?? fmt(p.y, 2);
         plot += `<text class="chart-point-label" x="${px(cx + 4)}" y="${px(cy - 4)}" font-size="7.6" fill="${esc(ctx.style.labelColor)}">${esc(label)}</text>`;
       }
     });
+    if (adv.errorBars.kind !== 'none' && barsApplyTo(adv, si)) {
+      plot += errorBarLayer(adv, drawn, valueAxis, look.color);
+    }
   });
   if (options.showRegression) {
     series.forEach((s, si) => {
@@ -1297,12 +1575,32 @@ function drawTimeseries(spec: Extract<ChartSpec, { kind: 'timeseries' }>, ctx: R
   const tsPoints = values
     .map((v, i) => ({ v, i, x: xAxis.toPixel(i + 1), y: yAxis.toPixel(v) }))
     .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  // The advanced series options apply to the time-series picture as well: it is
+  // the most common "series" chart a reader opens, and an option that only
+  // worked on some line charts would be a trap.
+  const tsAdvanced = advancedOf(ctx);
+  const seriesShade = seriesColor(ctx.style, 0);
+  if (tsAdvanced.dropLines && tsPoints.length) {
+    const dashed = dashString(tsAdvanced.dropLineDash);
+    tsPoints.forEach((point) => {
+      plot += `<line data-chart-role="chart-drop-line" x1="${px(point.x)}" y1="${px(point.y)}" x2="${px(point.x)}" y2="${px(box.y + box.h)}" stroke="${esc(tsAdvanced.dropLineColor || seriesShade)}" stroke-width="0.9"${dashed ? ` stroke-dasharray="${dashed}"` : ''} opacity="0.55"/>`;
+    });
+  }
+  if (tsAdvanced.areaFill && tsPoints.length > 1) {
+    const zeroPixel = yAxis.toPixel(0);
+    const baseline = Number.isFinite(zeroPixel) ? zeroPixel : box.y + box.h;
+    const top = tsPoints.map((point) => `${px(point.x)},${px(point.y)}`).join(' ');
+    plot += `<polygon class="chart-area" data-chart-role="chart-area" points="${top} ${px(tsPoints[tsPoints.length - 1].x)},${px(baseline)} ${px(tsPoints[0].x)},${px(baseline)}" fill="${esc(seriesShade)}" opacity="${tsAdvanced.areaOpacity}" stroke="none"/>`;
+  }
   if (options.showLines !== false && tsPoints.length > 1) {
     const pts = tsPoints.map((p) => `${px(p.x)},${px(p.y)}`).join(' ');
-    plot += `<polyline class="chart-series" data-chart-role="chart-series" points="${pts}" fill="none" stroke="${esc(seriesColor(ctx.style, 0))}" stroke-width="${ctx.config.series?.lineWidth ?? 1.6}" opacity="0.85"/>`;
+    plot += `<polyline class="chart-series" data-chart-role="chart-series" points="${pts}" fill="none" stroke="${esc(seriesShade)}" stroke-width="${ctx.config.series?.lineWidth ?? 1.6}" opacity="0.85"/>`;
   }
+  let tsPointIndex = 0;
   if (options.showMarkers !== false) tsPoints.forEach((p) => {
-    plot += marker('circle', p.x, p.y, 2.4, seriesColor(ctx.style, 0), ` class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${p.i + 1}" data-y="${esc(p.v)}"`);
+    const look = pointLook({ shape: 'circle' as MarkerShape, size: 2.4, color: seriesShade }, tsAdvanced.pointStyles[tsPointIndex]);
+    tsPointIndex += 1;
+    plot += marker(look.shape, p.x, p.y, look.size, look.color, ` class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${p.i + 1}" data-y="${esc(p.v)}"`);
   });
   if (options.showDataLabels) tsPoints.forEach((p) => {
     plot += `<text x="${px(p.x + 3)}" y="${px(p.y - 4)}" font-size="7.4" fill="${esc(ctx.style.labelColor)}">${esc(fmt(p.v, 2))}</text>`;
@@ -1652,9 +1950,10 @@ function drawBar(spec: Extract<ChartSpec, { kind: 'bar' }>, ctx: RenderContext):
   const groupCount = groups.length || 1;
   const barW = Math.min(58, slot * (groupCount > 1 ? 0.8 / groupCount : 0.62));
   const zero = yAxis.toPixel(clampNumber(0, yAxis.min, yAxis.max));
-  const drawBarAt = (cx: number, value: number, color: string, label?: string) => {
+  const drawBarAt = (cx: number, value: number, color: string, label?: string, rows?: number[]) => {
     const y = yAxis.toPixel(value);
-    let out = `<rect class="chart-bar" data-point="1" data-chart-role="chart-bar" data-y="${esc(value)}" x="${px(cx - barW / 2)}" y="${px(Math.min(y, zero))}" width="${px(barW)}" height="${px(Math.max(1, Math.abs(zero - y)))}" fill="${esc(color)}" opacity="0.82" rx="2"/>`;
+    const rowAttr = rows && rows.length ? ` data-rows="${rows.join(',')}"` : '';
+    let out = `<rect class="chart-bar" data-point="1" data-chart-role="chart-bar" data-y="${esc(value)}"${rowAttr} x="${px(cx - barW / 2)}" y="${px(Math.min(y, zero))}" width="${px(barW)}" height="${px(Math.max(1, Math.abs(zero - y)))}" fill="${esc(color)}" opacity="0.82" rx="2"/>`;
     if (options.showDataLabels) out += `<text x="${px(cx)}" y="${px(Math.min(y, zero) - 4)}" text-anchor="middle" font-family="${esc(ctx.style.monoFontFamily)}" font-size="8.5" fill="${esc(ctx.style.inkColor)}">${esc(label ?? value.toFixed(spec.decimals ?? 2))}</text>`;
     return out;
   };
@@ -1675,7 +1974,7 @@ function drawBar(spec: Extract<ChartSpec, { kind: 'bar' }>, ctx: RenderContext):
       const look = seriesOverride(ctx, index);
       if (!look.visible) return;
       const cx = box.x + slot * (index + 0.5);
-      g += drawBarAt(cx, item.value, item.color != null ? seriesColor(ctx.style, item.color) : look.color);
+      g += drawBarAt(cx, item.value, item.color != null ? seriesColor(ctx.style, item.color) : look.color, undefined, item.rows);
       const maxChars = Math.max(4, Math.floor(slot / 6.2));
       if (items.length <= 6) g += `<text x="${px(cx)}" y="${px(box.y + box.h + 13)}" text-anchor="middle" font-size="8.5" fill="${esc(ctx.style.labelColor)}">${esc(truncate(item.label, maxChars))}</text>`;
       else g += `<text transform="translate(${px(cx)} ${px(box.y + box.h + 12)}) rotate(-16)" text-anchor="end" font-size="8.5" fill="${esc(ctx.style.labelColor)}">${esc(truncate(item.label, 11))}</text>`;
@@ -1704,7 +2003,15 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>, ctx: RenderContext
   if (!all.length) return emptyChart(ctx, spec.title ?? 'Line plot');
   const legendEntries: LegendEntry[] = options.showLegend === false
     ? []
-    : spec.series.filter((s) => s.label).map((s, i) => ({ label: s.label, color: seriesColor(ctx.style, s.color ?? i), dash: s.dash, shape: s.markerShape }));
+    : orderedSeriesIndices(spec.series.length, ctx.config.seriesAdvanced?.order)
+      .map((index) => ({ series: spec.series[index], index }))
+      .filter((entry) => Boolean(entry.series.label))
+      .map((entry) => ({
+        label: entry.series.label,
+        color: seriesColor(ctx.style, entry.series.color ?? entry.index),
+        dash: entry.series.dash,
+        shape: entry.series.markerShape,
+      }));
   const reserve = legendReserve(ctx, legendEntries);
   const box: Box = {
     x: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left : 58,
@@ -1712,17 +2019,45 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>, ctx: RenderContext
     w: ctx.W - (ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left + ctx.appearance.margins.right : 80) - reserve.right,
     h: h - 66 - reserve.bottom,
   };
-  const primary = spec.series.filter((s) => s.axis !== 'secondary');
-  const secondary = spec.series.filter((s) => s.axis === 'secondary');
+  const adv = advancedOf(ctx);
+  const isSecondary = (series: { axis?: 'primary' | 'secondary' }, index: number) =>
+    series.axis === 'secondary' || adv.secondarySeries.includes(index);
+  const primary = spec.series.filter((series, index) => !isSecondary(series, index));
+  const secondary = spec.series.filter((series, index) => isSecondary(series, index));
+  // Error bars widen the value range the axis must cover, or their caps would
+  // be clipped by the frame they belong to.
+  const barExtent: number[] = [];
+  if (adv.errorBars.kind !== 'none') {
+    spec.series.forEach((series, index) => {
+      if (!barsApplyTo(adv, index)) return;
+      const pooled = series.points.map((p) => p.y);
+      const kind = adv.errorBars.kind;
+      if (kind === 'none') return;
+      series.points.forEach((point) => {
+        const stat = errorBarFor(adv.errorBars.scope === 'series' ? pooled : (point.replicates ?? []), kind, adv.errorBars.conf);
+        if (stat) barExtent.push(stat.lower, stat.upper);
+      });
+    });
+  }
   const ys = (primary.length ? primary : spec.series).flatMap((s) => s.points.map((p) => p.y))
     .concat((spec.refLines ?? []).map((r) => r.y))
-    .concat((spec.markers ?? []).map((m) => m.y));
+    .concat((spec.markers ?? []).map((m) => m.y))
+    .concat(barExtent);
   const [xMin, xMax] = pad(extent(all.map((p) => p.x)), 0.04);
   const xAxis = makeAxis([xMin, xMax], ctx.rawConfig.xAxis?.min != null ? ctx.config.xAxis as AxisConfig : { ...(ctx.config.xAxis as AxisConfig), min: xMin, max: xMax }, [box.x, box.x + box.w], { pad: ctx.rawConfig.xAxis?.axisMargin ?? 0.04 });
   const yAxis = makeAxis(ys.length ? ys : [0, 1], ctx.rawConfig.yAxis?.min != null ? ctx.config.yAxis as AxisConfig : { ...(ctx.config.yAxis as AxisConfig) }, [box.y + box.h, box.y], { pad: ctx.rawConfig.yAxis?.axisMargin ?? 0.1 });
   const y2Values = secondary.flatMap((s) => s.points.map((p) => p.y));
+  const y2Cfg = ctx.config.yAxis?.secondary;
   const y2Axis = secondary.length
-    ? makeAxis(y2Values, { ...(ctx.config.yAxis as AxisConfig), min: null, max: null }, [box.y + box.h, box.y], { pad: ctx.rawConfig.yAxis?.axisMargin ?? 0.1 })
+    ? makeAxis(y2Values, {
+      ...(ctx.config.yAxis as AxisConfig),
+      min: y2Cfg?.min ?? null,
+      max: y2Cfg?.max ?? null,
+      decimals: y2Cfg?.decimals ?? ctx.config.yAxis?.decimals ?? null,
+      title: y2Cfg?.title ?? '',
+      unit: y2Cfg?.unit ?? '',
+      showMajorGrid: y2Cfg?.showGrid === true,
+    }, [box.y + box.h, box.y], { pad: ctx.rawConfig.yAxis?.axisMargin ?? 0.1 })
     : null;
   let g = plotBackground(ctx, box);
   const categoryLabels = spec.xLabels && spec.xLabels.length
@@ -1731,10 +2066,14 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>, ctx: RenderContext
   g += drawAxes(ctx, box, xAxis, yAxis, { xTitle: spec.xLabel, yTitle: spec.yLabel, hideXLabels: Boolean(categoryLabels), xCategoryLabels: categoryLabels });
   if (y2Axis) {
     let y2 = `<g data-chart-role="axis-y2">`;
+    if (y2Axis.cfg.showAxisLine !== false) {
+      y2 += `<line data-chart-role="axis-line-y2" x1="${px(box.x + box.w)}" y1="${px(box.y)}" x2="${px(box.x + box.w)}" y2="${px(box.y + box.h)}" stroke="${esc(ctx.style.axisColor)}" stroke-width="${ctx.style.axisWidth}"/>`;
+    }
     y2Axis.ticks.forEach((tick) => {
       const p = y2Axis.toPixel(tick.value);
       if (p < box.y - 0.1 || p > box.y + box.h + 0.1) return;
-      y2 += `<text x="${px(box.x + box.w + 7)}" y="${px(p + 3)}" text-anchor="start" font-family="${esc(ctx.style.monoFontFamily)}" font-size="${ctx.style.fontSize}" fill="${esc(ctx.style.labelColor)}">${esc(tick.label)}</text>`;
+      if (y2Axis.cfg.tickDirection !== 'none') y2 += `<line data-chart-role="tick-y2" x1="${px(box.x + box.w)}" y1="${px(p)}" x2="${px(box.x + box.w + 4)}" y2="${px(p)}" stroke="${esc(ctx.style.tickColor)}" stroke-width="${ctx.style.axisWidth}"/>`;
+      if (y2Axis.cfg.showTickLabels !== false) y2 += `<text x="${px(box.x + box.w + 7)}" y="${px(p + 3)}" text-anchor="start" font-family="${esc(ctx.style.monoFontFamily)}" font-size="${ctx.style.fontSize}" fill="${esc(ctx.style.labelColor)}">${esc(tick.label)}</text>`;
     });
     g += `${y2}</g>`;
   }
@@ -1743,21 +2082,41 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>, ctx: RenderContext
     if (!isFinite(ref.y)) return;
     plot += hLine(box, yAxis.toPixel(ref.y), ref.label ?? '', ctx.style.alarmColor);
   });
-  spec.series.forEach((series, index) => {
+  let pointIndex = 0;
+  orderedSeriesIndices(spec.series.length, adv.order).forEach((index) => {
+    const series = spec.series[index];
     const look = seriesOverride(ctx, index);
     if (!look.visible) return;
     const color = series.color != null ? seriesColor(ctx.style, series.color) : look.color;
-    const axis = series.axis === 'secondary' && y2Axis ? y2Axis : yAxis;
+    const axis = isSecondary(series, index) && y2Axis ? y2Axis : yAxis;
     const points = [...series.points]
       .sort((a, b) => a.x - b.x)
       .map((p) => ({ p, x: xAxis.toPixel(p.x), y: axis.toPixel(p.y) }))
       .filter((entry) => Number.isFinite(entry.x) && Number.isFinite(entry.y));
+    if (adv.dropLines && points.length) {
+      const dashed = dashString(adv.dropLineDash);
+      points.forEach((entry) => {
+        plot += `<line data-chart-role="chart-drop-line" x1="${px(entry.x)}" y1="${px(entry.y)}" x2="${px(entry.x)}" y2="${px(box.y + box.h)}" stroke="${esc(adv.dropLineColor || color)}" stroke-width="0.9"${dashed ? ` stroke-dasharray="${dashed}"` : ''} opacity="0.55"/>`;
+      });
+    }
+    if (adv.areaFill && points.length > 1) {
+      const zeroPixel = axis.toPixel(0);
+      const baseline = Number.isFinite(zeroPixel) ? zeroPixel : box.y + box.h;
+      const top = points.map((entry) => `${px(entry.x)},${px(entry.y)}`).join(' ');
+      plot += `<polygon class="chart-area" data-chart-role="chart-area" data-series="${index}" points="${top} ${px(points[points.length - 1].x)},${px(baseline)} ${px(points[0].x)},${px(baseline)}" fill="${esc(color)}" opacity="${adv.areaOpacity}" stroke="none"/>`;
+    }
     if (options.showLines !== false && series.showLine !== false && points.length > 1) {
       plot += `<polyline class="chart-series" data-chart-role="chart-series" points="${points.map((entry) => `${px(entry.x)},${px(entry.y)}`).join(' ')}" fill="none" stroke="${esc(color)}" stroke-width="${look.lineWidth}" stroke-dasharray="${esc(series.dash ?? look.lineDash)}" opacity="0.95"/>`;
     }
     if (options.showMarkers !== false && series.showMarkers !== false) points.forEach((entry) => {
-      plot += marker(series.markerShape ?? look.markerShape, entry.x, entry.y, look.markerSize, color, ` class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${esc(entry.p.x)}" data-y="${esc(entry.p.y)}"`);
+      const style = adv.pointStyles[pointIndex];
+      const mark = pointLook({ shape: series.markerShape ?? look.markerShape, size: look.markerSize, color }, style);
+      pointIndex += 1;
+      plot += marker(mark.shape, entry.x, entry.y, mark.size, mark.color, ` class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${esc(entry.p.x)}" data-y="${esc(entry.p.y)}"`);
     });
+    if (adv.errorBars.kind !== 'none' && barsApplyTo(adv, index)) {
+      plot += errorBarLayer(adv, points.map((entry) => ({ x: entry.p.x, y: entry.p.y, px: entry.x, py: entry.y, replicates: entry.p.replicates })), axis, color);
+    }
     if (options.showDataLabels) points.forEach((entry) => {
       plot += `<text x="${px(entry.x + 4)}" y="${px(entry.y - 5)}" font-size="7.6" fill="${esc(ctx.style.labelColor)}">${esc(fmt(entry.p.y, 2))}</text>`;
     });
@@ -1769,7 +2128,7 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>, ctx: RenderContext
   g += clipGroup(ctx, box, plot);
   if (spec.xLabel) g += `<text x="${px(box.x + box.w / 2)}" y="${px(box.y + box.h + 30)}" text-anchor="middle" font-size="${FS + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc(spec.xLabel)}</text>`;
   if (spec.yLabel) g += `<text transform="translate(${px(box.x - 42)} ${px(box.y + box.h / 2)}) rotate(-90)" text-anchor="middle" font-size="${FS + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc(spec.yLabel)}</text>`;
-  if (spec.y2Label) g += `<text transform="translate(${px(box.x + box.w + 34)} ${px(box.y + box.h / 2)}) rotate(90)" text-anchor="middle" font-size="${FS + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc(spec.y2Label)}</text>`;
+  if (spec.y2Label || y2Cfg?.title) g += `<text transform="translate(${px(box.x + box.w + 34)} ${px(box.y + box.h / 2)}) rotate(90)" text-anchor="middle" font-size="${FS + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc((spec.y2Label ?? y2Cfg?.title ?? '') + (y2Cfg?.unit ? ` (${y2Cfg.unit})` : ''))}</text>`;
   if (legendEntries.length) {
     g += legendBlock(ctx, box, legendEntries);
   }
@@ -1898,6 +2257,64 @@ function contourOptions(ctx: RenderContext): ContourConfig {
   return { ...defaultContourConfig(), ...(ctx.config.contour ?? {}) };
 }
 
+/* ── contour colour resolution (Stage 3D, WO-08) ──────────────────────────
+   Priority, highest first: a per-level colour the reader chose, the user's own
+   colour stops (a custom map), then the palette. Under/overflow colours are
+   the outermost bands, which is where values outside the colour-bar range end
+   up. */
+
+function hexParts(color: string): [number, number, number] | null {
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+  if (!match) return null;
+  const clean = match[1].length === 3 ? match[1].split('').map((c) => c + c).join('') : match[1];
+  return [parseInt(clean.slice(0, 2), 16), parseInt(clean.slice(2, 4), 16), parseInt(clean.slice(4, 6), 16)];
+}
+
+/** Sample a user colour map (absolute stops) at `value`. */
+export function sampleCustomStops(stops: { value: number; color: string }[], value: number): string {
+  if (!stops.length) return '';
+  const sorted = [...stops].sort((a, b) => a.value - b.value);
+  if (sorted.length === 1) return sorted[0].color;
+  if (!(value > sorted[0].value)) return sorted[0].color;
+  if (!(value < sorted[sorted.length - 1].value)) return sorted[sorted.length - 1].color;
+  for (let i = 0; i < sorted.length - 1; i += 1) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    if (value >= a.value && value <= b.value) {
+      const t = b.value === a.value ? 0 : (value - a.value) / (b.value - a.value);
+      const pa = hexParts(a.color);
+      const pb = hexParts(b.color);
+      if (!pa || !pb) return t < 0.5 ? a.color : b.color;
+      const mix = pa.map((c, k) => Math.round(c + (pb[k] - c) * t));
+      return `#${mix.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+    }
+  }
+  return sorted[sorted.length - 1].color;
+}
+
+/** Fill colour of band `index` among `count`, at data value `value`. */
+function contourBandFill(cfg: ContourConfig, index: number, count: number, value: number): string {
+  const perLevel = cfg.levelStyles.find((style) => style.index === index);
+  if (perLevel?.color) return perLevel.color;
+  if (cfg.underflowColor && index === 0) return cfg.underflowColor;
+  if (cfg.overflowColor && index === count - 1) return cfg.overflowColor;
+  if (cfg.customStops.length >= 2) {
+    const sampled = sampleCustomStops(cfg.customStops, value);
+    if (sampled) return sampled;
+  }
+  return bandColor(cfg.colormap, index, count);
+}
+
+/** Stroke settings of the contour line that borders band `index` from above. */
+function contourLineLook(cfg: ContourConfig, index: number, fallback: string): { color: string; width: number; dash: string } {
+  const perLevel = cfg.levelStyles.find((style) => style.index === index);
+  return {
+    color: perLevel?.lineColor || cfg.lineColor || fallback,
+    width: perLevel?.lineWidth ?? cfg.lineWidth,
+    dash: perLevel?.lineDash ?? '',
+  };
+}
+
 function colorbar(
   ctx: RenderContext,
   cfg: ContourConfig,
@@ -1920,7 +2337,7 @@ function colorbar(
     } else {
       const bandW = barW / Math.max(1, count);
       for (let i = 0; i < count; i += 1) {
-        svg += `<rect x="${px(left + i * bandW)}" y="${px(top)}" width="${px(bandW + 0.4)}" height="${height}" fill="${bandColor(cfg.colormap, i, count)}"/>`;
+        svg += `<rect x="${px(left + i * bandW)}" y="${px(top)}" width="${px(bandW + 0.4)}" height="${height}" fill="${contourBandFill(cfg, i, count, zMin + ((i + 0.5) / count) * (zMax - zMin))}"/>`;
       }
       svg += `<rect x="${px(left)}" y="${px(top)}" width="${px(barW)}" height="${height}" fill="none" stroke="${esc(ctx.style.gridColor)}"/>`;
     }
@@ -1947,7 +2364,7 @@ function colorbar(
   } else {
     const bandH = height / Math.max(1, count);
     for (let i = 0; i < count; i += 1) {
-      svg += `<rect x="${px(left)}" y="${px(top + height - (i + 1) * bandH)}" width="${width}" height="${px(bandH + 0.4)}" fill="${bandColor(cfg.colormap, i, count)}"/>`;
+      svg += `<rect x="${px(left)}" y="${px(top + height - (i + 1) * bandH)}" width="${width}" height="${px(bandH + 0.4)}" fill="${contourBandFill(cfg, i, count, zMin + ((i + 0.5) / count) * (zMax - zMin))}"/>`;
     }
     svg += `<rect x="${px(left)}" y="${px(top)}" width="${width}" height="${height}" fill="none" stroke="${esc(ctx.style.gridColor)}"/>`;
   }
@@ -1965,6 +2382,39 @@ function colorbar(
     svg += `<text transform="translate(${px(tx)} ${px(top - 6)})" text-anchor="${onLeft ? 'end' : 'start'}" font-size="8.5" fill="${esc(ctx.style.labelColor)}">${esc(title)}</text>`;
   }
   return { svg: `${svg}</g>`, reserve: 42 + 14 };
+}
+
+/* Contour: a masked (NaN) cell is part of the data story, so the reader can
+   ask for it to be shown — grey, or hatched to read as "no data" rather than
+   as one more colour in the palette. */
+function maskedRegion(
+  ctx: RenderContext,
+  cfg: ContourConfig,
+  grid: ContourGrid,
+  xAxis: AxisInfo,
+  yAxis: AxisInfo,
+  box: Box,
+): string {
+  const maskId = `sigrun-mask-${ctx.id}`;
+  if (cfg.maskedStyle === 'hatch') {
+    ctx.defs.push(`<pattern id="${maskId}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${esc(ctx.style.gridColor)}" stroke-width="1.2"/></pattern>`);
+  }
+  const fill = cfg.maskedStyle === 'hatch' ? `url(#${maskId})` : esc(ctx.style.gridColor);
+  const opacity = cfg.maskedStyle === 'hatch' ? '0.9' : '0.35';
+  let svg = '';
+  for (let j = 0; j < grid.ys.length - 1; j += 1) {
+    for (let i = 0; i < grid.xs.length - 1; i += 1) {
+      const corners = [grid.z[j]?.[i], grid.z[j]?.[i + 1], grid.z[j + 1]?.[i], grid.z[j + 1]?.[i + 1]];
+      if (corners.every((value) => typeof value === 'number' && Number.isFinite(value))) continue;
+      const x0 = xAxis.toPixel(grid.xs[i]);
+      const x1 = xAxis.toPixel(grid.xs[i + 1]);
+      const y0 = yAxis.toPixel(grid.ys[j]);
+      const y1 = yAxis.toPixel(grid.ys[j + 1]);
+      if (![x0, x1, y0, y1].every(Number.isFinite)) continue;
+      svg += `<rect data-chart-role="chart-mask" x="${px(Math.min(x0, x1))}" y="${px(Math.min(y0, y1))}" width="${px(Math.abs(x1 - x0) + 0.4)}" height="${px(Math.abs(y1 - y0) + 0.4)}" fill="${fill}" opacity="${opacity}"/>`;
+    }
+  }
+  return svg ? `<g data-chart-role="chart-mask-layer" clip-path="url(#${nextClip(ctx, box)})">${svg}</g>` : '';
 }
 
 function drawContour(spec: Extract<ChartSpec, { kind: 'contour' }>, ctx: RenderContext): string {
@@ -1999,6 +2449,7 @@ function drawContour(spec: Extract<ChartSpec, { kind: 'contour' }>, ctx: RenderC
   const bands = Math.max(2, levelSet.boundaries.length - 1);
   let plot = '';
   const mode = cfg.renderMode;
+  if (cfg.maskedStyle !== 'blank') plot += maskedRegion(ctx, cfg, grid, xAxis, yAxis, box);
   if (extentZ.zMax - extentZ.zMin < 1e-12) {
     // A constant surface has no iso-lines: fill the frame with the mid colour
     // and say so, instead of drawing an empty plot.
@@ -2014,7 +2465,7 @@ function drawContour(spec: Extract<ChartSpec, { kind: 'contour' }>, ctx: RenderC
       const path = polygonsToPath(band.polygons, xAxis.toPixel, yAxis.toPixel);
       if (!path) return;
       const count = Math.max(1, bandSet.boundaries.length - 1);
-      plot += `<path class="chart-contour-band" data-chart-role="chart-contour-band" data-band="${band.index}" d="${path}" fill="${bandColor(cfg.colormap, band.index, count)}" stroke="none"/>`;
+      plot += `<path class="chart-contour-band" data-chart-role="chart-contour-band" data-band="${band.index}" d="${path}" fill="${contourBandFill(cfg, band.index, count, (band.lo + band.hi) / 2)}" stroke="none"/>`;
     });
     if (continuous) {
       // A continuous heat map draws no interior boundary lines.
@@ -2022,16 +2473,23 @@ function drawContour(spec: Extract<ChartSpec, { kind: 'contour' }>, ctx: RenderC
   }
   if (mode === 'lines' || mode === 'filled-lines') {
     const lines = contourPolylines(grid, levelSet.levels);
-    lines.forEach((entry) => {
+    lines.forEach((entry, levelIndex) => {
       const path = polylinesToPath(entry.lines, xAxis.toPixel, yAxis.toPixel);
       if (!path) return;
       const strong = cfg.targetValue != null && Math.abs(entry.level - cfg.targetValue) <= Math.max(1e-9, (levelSet.max - levelSet.min) * 1e-9);
-      plot += `<path class="chart-contour-line" data-chart-role="chart-contour-line" data-level="${esc(entry.level)}" d="${path}" fill="none" stroke="${esc(cfg.lineColor || ctx.style.axisColor)}" stroke-width="${strong ? cfg.lineWidth + 1.4 : cfg.lineWidth}" opacity="0.8"/>`;
-      if (cfg.showContourLabels) {
+      const look = contourLineLook(cfg, levelIndex, ctx.style.axisColor);
+      plot += `<path class="chart-contour-line" data-chart-role="chart-contour-line" data-level="${esc(entry.level)}" data-level-index="${levelIndex}" d="${path}" fill="none" stroke="${esc(look.color)}" stroke-width="${strong ? look.width + 1.4 : look.width}"${look.dash ? ` stroke-dasharray="${esc(look.dash)}"` : ''} opacity="0.8"/>`;
+      const levelStyle = cfg.levelStyles.find((style) => style.index === levelIndex);
+      const wantLabel = levelStyle?.showLabel ?? cfg.showContourLabels;
+      if (wantLabel) {
         entry.lines.forEach((line) => {
           const mid = line.points[Math.floor(line.points.length / 2)];
           if (!mid) return;
-          plot += `<text class="chart-contour-label" data-chart-role="chart-contour-label" x="${px(xAxis.toPixel(mid.x))}" y="${px(yAxis.toPixel(mid.y) - 3)}" text-anchor="middle" font-family="${esc(ctx.style.monoFontFamily)}" font-size="7.4" fill="${esc(ctx.style.labelColor)}">${esc(formatTickValue(entry.level, (levelSet.max - levelSet.min) / Math.max(2, bands)))}</text>`;
+          const step = (levelSet.max - levelSet.min) / Math.max(2, bands);
+          const text = cfg.labelDecimals != null
+            ? entry.level.toFixed(Math.max(0, Math.min(8, Math.round(cfg.labelDecimals))))
+            : formatTickValue(entry.level, step);
+          plot += `<text class="chart-contour-label" data-chart-role="chart-contour-label" data-level-index="${levelIndex}" x="${px(xAxis.toPixel(mid.x))}" y="${px(yAxis.toPixel(mid.y) - 3)}" text-anchor="middle" font-family="${esc(ctx.style.monoFontFamily)}" font-size="${cfg.labelFontSize}" fill="${esc(ctx.style.labelColor)}">${esc(text)}</text>`;
         });
       }
     });

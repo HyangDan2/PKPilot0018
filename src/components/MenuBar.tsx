@@ -12,7 +12,7 @@ export type MenuAction =
   | 'clear' | 'insertRow' | 'deleteRow' | 'insertColumn' | 'deleteColumn' | 'addColumn' | 'newSheet' | 'renameSheet' | 'deleteSheet'
   | 'findReplace' | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout' | 'toggleNav'
   | 'layoutBalanced' | 'layoutSheet' | 'layoutResults' | 'layoutFocus'
-  | 'wsTri' | 'wsFocus' | 'wsClassic' | 'toggleDrawer' | 'modelManager';
+  | 'wsTri' | 'wsFocus' | 'wsClassic' | 'toggleDrawer' | 'modelManager' | 'graphLayout';
 
 interface MenuLeaf {
   labelKey: string;
@@ -204,6 +204,7 @@ function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, lay
         { labelKey: 'graph.boxplot', analysis: 'boxplot' },
         { labelKey: 'graph.scatter', analysis: 'scatter' },
         { labelKey: 'graph.timeseries', analysis: 'timeseries' },
+        { labelKey: 'graph.layoutEditor', action: 'graphLayout', separatorBefore: true },
       ],
     },
     {

@@ -2,7 +2,7 @@
 
 - 대상: `HyangDan2/PKPilot0018`, `main` `0bfe385` (QA 착수 시점) — 이후 후속 QA(REVIEW 3·UNVERIFIED 9 해소, Section 7)로 케이스 확장
 - 범위: `src/lib/` 전체 (통계 엔진 12개 모듈 + 유틸 9개) 및 `analyses.ts`의 **분석 40종**
-- 방법: 엔진을 브라우저 UI 없이 Node에서 직접 호출하는 어댑터(`qa/adapters/sigrun/`)와 Python 독립 기준 엔진(`qa/reference/`)을 만들어 케이스 199건으로 대조. 산출물은 `qa/reports/latest.html`.
+- 방법: 엔진을 브라우저 UI 없이 Node에서 직접 호출하는 어댑터(`qa/adapters/sigrun/`)와 Python 독립 기준 엔진(`qa/reference/`)을 만들어 케이스 205건으로 대조. 산출물은 `qa/reports/latest.html`.
 - 표기: **검증** 열의 `PASS n`은 `qa/cases`의 통과 케이스 수, `REVIEW`/`UNVERIFIED`는 5단계 판정에서 PASS로 합산하지 않는 항목이다.
 
 ## 0. 요약
@@ -11,7 +11,7 @@
 | --- | --- |
 | `analyses.ts` 분석 ID | 40 (계산 31 / 시각화·유틸 9) |
 | `src/lib` 모듈 | 21 (통계 12 + 지원 9) |
-| 수치 검증 케이스 | 199 (PASS 199 · FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0 — Phase 3B Corrective QA 종료 시점) |
+| 수치 검증 케이스 | 205 (PASS 205 · FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0 — Phase 3B Corrective QA 종료 시점) |
 | 10대 데이터 유형 | 전부 구성 (`qa/datasets/`, 25개 파일, 차트·변환용 `charts` 추가) |
 | 기존 단위 테스트 | 12개 파일 280건 (QA-01~QA-15 + followup-qa 회귀 포함) |
 

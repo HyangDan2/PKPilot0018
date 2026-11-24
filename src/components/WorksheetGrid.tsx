@@ -43,6 +43,8 @@ interface Props {
   onContextMenu: (target: GridContextTarget, at: { x: number; y: number }) => void;
   /** Cells marked by Ctrl+X, drawn with a dashed frame until they are pasted. */
   cutRanges?: Range[];
+  /** Worksheet rows a chart selection points at (Stage 3D, WO-09). */
+  highlightRows?: number[];
 }
 
 /** Row pitch of .ws-cell (24px) plus its 1px border, used by the virtual window. */
@@ -71,7 +73,7 @@ function inAnyRange(ranges: Range[] | undefined, row: number, col: number): bool
 
 export function WorksheetGrid({
   lang, sheet, selection, onSelectionChange, onEdit, onPaste, onCopy, onCut, onClear,
-  onAddColumn, onRenameColumn, onContextMenu, cutRanges,
+  onAddColumn, onRenameColumn, onContextMenu, cutRanges, highlightRows,
 }: Props) {
   const [editing, setEditing] = useState<Cell | null>(null);
   const [draft, setDraft] = useState('');
@@ -335,6 +337,7 @@ export function WorksheetGrid({
   };
 
   const isCut = (row: number, col: number) => inAnyRange(cutRanges, row, col);
+  const highlighted = new Set(highlightRows ?? []);
 
   return (
     <div
@@ -438,7 +441,7 @@ export function WorksheetGrid({
           {Array.from({ length: last - first }, (_, offset) => first + offset).map((row) => {
             const rowWhole = selection.mode === 'row' || selection.mode === 'all';
             return (
-              <tr key={row} data-row={row + 1}>
+              <tr key={row} data-row={row + 1} className={highlighted.has(row) ? 'row-highlight' : undefined} data-highlight={highlighted.has(row) ? '1' : undefined}>
                 <th
                   className={`ws-rownum${selection.activeCell.row === row ? ' current' : ''}${rowWhole && coversCell(selection, row, 0, size) ? ' sel' : ''}`}
                   data-row={row}

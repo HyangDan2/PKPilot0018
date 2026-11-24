@@ -63,12 +63,30 @@ interface ChartBase {
   subtitle?: string;
   /** Optional professional appearance / options; absent means legacy defaults. */
   config?: ChartConfig;
+  /**
+   * Where the plotted values came from (Stage 3D, WO-09). Two charts are
+   * linked-selection compatible when they point at the same sheet and the same
+   * x/y column pair; a chart without a source never links.
+   */
+  source?: ChartSource;
+}
+
+/** Worksheet provenance of a chart, used by row highlighting and linked selection. */
+export interface ChartSource {
+  sheetId?: string;
+  sheetName?: string;
+  xColumnId?: string;
+  yColumnId?: string;
+  /** The plotted elements aggregate several worksheet rows. */
+  aggregate?: boolean;
 }
 
 export type ChartSpec =
   | (ChartBase & {
       kind: 'histogram';
       values: number[];
+      /** Worksheet row behind each value (same length and order as `values`). */
+      rows?: (number | null)[];
       bins?: number;
       /** Optional explicit bin origin and width (histogram options). */
       binStart?: number;
@@ -84,7 +102,7 @@ export type ChartSpec =
     })
   | (ChartBase & {
       kind: 'line';
-      series: { label: string; points: { x: number; y: number }[]; color?: number; dash?: string; markerShape?: MarkerShape; axis?: 'primary' | 'secondary'; showMarkers?: boolean; showLine?: boolean }[];
+      series: { label: string; points: { x: number; y: number; row?: number; replicates?: number[] }[]; color?: number; dash?: string; markerShape?: MarkerShape; axis?: 'primary' | 'secondary'; showMarkers?: boolean; showLine?: boolean; rows?: (number | null)[] }[];
       xLabels?: string[];
       xLabel?: string;
       yLabel?: string;
@@ -95,7 +113,7 @@ export type ChartSpec =
     })
   | (ChartBase & {
       kind: 'bar';
-      items: { label: string; value: number; color?: number; group?: string }[];
+      items: { label: string; value: number; color?: number; group?: string; rows?: number[] }[];
       yLabel?: string;
       xLabel?: string;
       refLine?: { y: number; label?: string };
@@ -136,24 +154,30 @@ export type ChartSpec =
     })
   | (ChartBase & {
       kind: 'boxplot';
-      groups: { label: string; values: number[]; color?: number }[];
+      groups: { label: string; values: number[]; color?: number; rows?: number[] }[];
       yLabel?: string;
       xLabel?: string;
     })
   | (ChartBase & {
       kind: 'scatter';
-      points: { x: number; y: number; g?: string }[];
+      points: { x: number; y: number; g?: string; row?: number; replicates?: number[] }[];
       fit?: { intercept: number; slope: number } | null;
       groups?: string[];
       xLabel?: string;
       yLabel?: string;
+      /** Right-hand scale title for series marked `axis: 'secondary'`. */
+      y2Label?: string;
       /** Several X-Y combinations drawn in one frame (overlaid layout). */
       series?: {
         label: string;
-        points: { x: number; y: number }[];
+        points: { x: number; y: number; row?: number; replicates?: number[] }[];
         fit?: { intercept: number; slope: number } | null;
         markerShape?: MarkerShape;
         labels?: string[];
+        /** Worksheet row behind each point, when the analysis knows it. */
+        rows?: (number | null)[];
+        /** Plot this series against the right-hand scale. */
+        axis?: 'primary' | 'secondary';
       }[];
       /** Fixed axis range so every panel of a grid can share one scale. */
       xDomain?: [number, number];
@@ -346,6 +370,8 @@ export interface ProjectFile {
   customChartStyles?: CustomChartStyle[];
   /** Stored fitted models travel with the project (WO-02). */
   models?: StoredModelFileEntry[];
+  /** Figure layouts saved with the project (Stage 3D, WO-07). */
+  figures?: Record<string, unknown>[];
 }
 
 /** A stored model as written into a project file (no runtime import needed). */

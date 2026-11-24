@@ -1,7 +1,7 @@
 # Sigrún Phase 3B Corrective QA — 완료 보고
 
 > 대상: `HyangDan2/PKPilot0018` (Sigrún) · 브랜치 `fix/phase3b-corrective-qa` · 기준선 `2c50f483`
-> 참고: 작업 중 main이 Stage 3C(`c827471`)로 전진해 브랜치에 병합했다. Stage 3C 코드는 그대로 보존했고, 아래 수치는 병합 후 트리에서 다시 측정한 값이다.
+> 참고: 작업 중 main이 Stage 3C(`c827471`)와 Stage 3D(`22d0e30`)로 전진해 브랜치에 차례로 병합했다. 두 단계의 코드는 그대로 보존했고, 아래 수치는 마지막 병합 후 트리에서 다시 측정한 값이다.
 > 범위: F-01 ~ F-08 결함 수정, 신규 QA-V 19건, 전체 검증·배포
 > 제외: Stage 3C Optimizer (착수하지 않음)
 
@@ -10,12 +10,12 @@
 | 항목 | 결과 |
 | --- | --- |
 | `npx tsc --noEmit` | **0 errors** |
-| `npm test` | **874 / 874 PASS** (기존 795 + 이번 신규 40 + 같은 기간 main에 들어온 Stage 3C 39) |
-| `npm run qa:stats` | **199 / 199 PASS** — FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0 (기존 168 + QA-V 19 + main의 QA-W 12) |
+| `npm test` | **953 / 953 PASS** (기존 795 + 이번 신규 40 + 같은 기간 main에 들어온 Stage 3C 39 · 3D 79) |
+| `npm run qa:stats` | **205 / 205 PASS** — FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0 (기존 168 + QA-V 19 + main의 QA-W 12 · 3D 6) |
 | `npm run build` | 성공 (4.3 s) |
 | E2E `tools/e2e_phase3_3b.cjs` | **41 / 41 PASS** (로컬 dist, WebGL + 비WebGL) |
 | E2E `tools/e2e_phase3_3b_corrective.cjs` (신규) | **13 / 13 PASS** |
-| E2E 회귀 | Stage 3C 24/24 · Stage 3A 29/29 · Phase 2 차트 34/34 · 차트 축 6/6 |
+| E2E 회귀 | Stage 3D 48/48 · Stage 3C 24/24 · Stage 3A 29/29 · Phase 2 차트 34/34 · 차트 축 6/6 |
 | Ultra(401×401, 2모형) 평가 시간 | 약 140 ms (Node 24, `basis: mean`) — 수정 전에도 401+401을 계산했으므로 이번 수정으로 오히려 2배 이상 빨라졌다 |
 
 ## 2. 수정 전후 독립 기준값
@@ -113,6 +113,7 @@
 | `tools/e2e_chart_upgrade.cjs` | 34/34 | 차트 드로어·스타일 |
 | `tools/e2e_chart_axes.cjs` | 6/6 | 축 대화상자 |
 | `tools/e2e_phase3_3c.cjs` | 24/24 | Stage 3C 최적화 — 이번 수정과 같은 트리에서 회귀 확인 |
+| `tools/e2e_phase3_3d.cjs` | 48/48 | Stage 3D 레이아웃 편집기·고급 옵션 — 같은 트리에서 회귀 확인 |
 
 스크린샷(로컬 dist):
 

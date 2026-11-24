@@ -19,7 +19,7 @@ import type {
   FeasibleConfig,
   FeasibleBasis,
 } from '../lib/chartConfig';
-import { defaultChartConfig, defaultSurfaceViewConfig, defaultFeasibleConfig } from '../lib/chartConfig';
+import { defaultChartConfig, defaultSurfaceViewConfig, defaultFeasibleConfig, defaultErrorBarConfig } from '../lib/chartConfig';
 import {
   ChartConfigHistory,
   factorPairCount,
@@ -143,10 +143,10 @@ function NumberField({
   );
 }
 
-function TextField({ label, value, onChange, placeholder }: { label: string; value: string | undefined; onChange: (value: string) => void; placeholder?: string }) {
+function TextField({ label, value, onChange, placeholder, testId }: { label: string; value: string | undefined; onChange: (value: string) => void; placeholder?: string; testId?: string }) {
   return (
     <Row label={label}>
-      <input className="cd-input" type="text" value={value ?? ''} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <input className="cd-input" type="text" value={value ?? ''} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} {...(testId ? { 'data-testid': testId } : {})} />
     </Row>
   );
 }
@@ -195,6 +195,41 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+/**
+ * Data extent of one axis, used only to seed a sensible default when the
+ * reader switches on an axis break: an empty break (from = to) describes
+ * nothing, so the drawer needs a starting window that the chart actually has.
+ */
+function axisDataRange(chart: ChartSpec, axis: 'x' | 'y'): [number, number] | null {
+  const numbers: number[] = [];
+  const push = (value: unknown) => { if (typeof value === 'number' && Number.isFinite(value)) numbers.push(value); };
+  if (chart.kind === 'scatter') {
+    chart.points.forEach((point) => { push(axis === 'x' ? point.x : point.y); });
+    chart.series?.forEach((series) => series.points.forEach((point) => { push(axis === 'x' ? point.x : point.y); }));
+    if (axis === 'x') chart.xDomain?.forEach(push);
+    else chart.yDomain?.forEach(push);
+  } else if (chart.kind === 'line') {
+    chart.series.forEach((series) => series.points.forEach((point) => { push(axis === 'x' ? point.x : point.y); }));
+  } else if (chart.kind === 'bar') {
+    if (axis === 'y') {
+      chart.items.forEach((item) => push(item.value));
+      chart.groups?.forEach((group) => group.values.forEach(push));
+    }
+  } else if (chart.kind === 'timeseries' || chart.kind === 'boxplot') {
+    if (axis === 'y') {
+      if (chart.kind === 'timeseries') chart.values.forEach(push);
+      else chart.groups.forEach((group) => group.values.forEach(push));
+    }
+  } else if (chart.kind === 'contour' || chart.kind === 'surface3d') {
+    const values = axis === 'x' ? chart.xs : chart.ys;
+    values.forEach(push);
+  }
+  if (numbers.length < 2) return null;
+  const min = Math.min(...numbers);
+  const max = Math.max(...numbers);
+  return max > min ? [min, max] : null;
+}
+
 /* ── drawer ───────────────────────────────────────────────────────────── */
 
 export function ChartPropertiesDrawer({
@@ -208,6 +243,7 @@ export function ChartPropertiesDrawer({
   });
   const [tab, setTab] = useState<ChartDrawerTab>(initialTab);
   const [scaleAxis, setScaleAxis] = useState<'x' | 'y' | 'z' | 'y2'>(initialAxis);
+  const [pointStyleIndex, setPointStyleIndex] = useState(0);
   const [customStyles, setCustomStyles] = useState<CustomChartStyle[]>(() => loadCustomStyles());
   const [styleName, setStyleName] = useState('');
   const history = useRef(new ChartConfigHistory(60));
@@ -587,6 +623,67 @@ export function ChartPropertiesDrawer({
                     <NumberField label={tLabel('cd.specUsl')} value={contour.specUsl} step={0.1} onChange={(value) => patch((config) => { config.contour = { ...(config.contour ?? {}), specUsl: value }; })} />
                     <Toggle label={tLabel('cd.specRegion')} checked={contour.showSpecRegion} onChange={(value) => patch((config) => { config.contour = { ...(config.contour ?? {}), showSpecRegion: value }; })} />
                   </Group>
+
+                  <Group title={tLabel('cd.contourColors')}>
+                    <label className="cd-row cd-column">
+                      <span className="cd-row-label">{tLabel('cd.customStops')}</span>
+                      <textarea
+                        className="cd-input"
+                        rows={3}
+                        placeholder="0:#f6f3ff, 10:#a78bfa, 20:#45308f"
+                        value={contour.customStops.map((stop) => `${stop.value}:${stop.color}`).join('\n')}
+                        onChange={(event) => patch((config) => {
+                          const stops = event.target.value.split(/[\n,]/).map((line) => line.trim()).filter(Boolean).map((line) => {
+                            const [value, color] = line.split(':');
+                            return { value: Number(value), color: (color ?? '').trim() };
+                          }).filter((stop) => Number.isFinite(stop.value) && /^#[0-9a-f]{3,8}$/i.test(stop.color));
+                          config.contour = { ...(config.contour ?? {}), customStops: stops };
+                        })}
+                        data-testid="cd-custom-stops"
+                      />
+                      <small className="cd-hint">{tLabel('cd.customStopsHint')}</small>
+                    </label>
+                    <ColorField label={tLabel('cd.underflow')} value={contour.underflowColor} onChange={(value) => patch((config) => { config.contour = { ...(config.contour ?? {}), underflowColor: value }; })} />
+                    <ColorField label={tLabel('cd.overflow')} value={contour.overflowColor} onChange={(value) => patch((config) => { config.contour = { ...(config.contour ?? {}), overflowColor: value }; })} />
+                    <SelectField
+                      label={tLabel('cd.maskedStyle')}
+                      value={contour.maskedStyle}
+                      options={[
+                        { value: 'blank', label: tLabel('cd.masked.blank') },
+                        { value: 'gray', label: tLabel('cd.masked.gray') },
+                        { value: 'hatch', label: tLabel('cd.masked.hatch') },
+                      ]}
+                      onChange={(value) => patch((config) => { config.contour = { ...(config.contour ?? {}), maskedStyle: value as ContourConfig['maskedStyle'] }; })}
+                      testId="cd-masked-style"
+                    />
+                    <NumberField label={tLabel('cd.labelFont')} value={contour.labelFontSize} min={4} max={24} step={0.2} onChange={(value) => patch((config) => { config.contour = { ...(config.contour ?? {}), labelFontSize: value ?? 7.4 }; })} testId="cd-label-size" />
+                    <NumberField label={tLabel('cd.labelDecimals')} value={contour.labelDecimals} min={0} max={8} step={1} onChange={(value) => patch((config) => { config.contour = { ...(config.contour ?? {}), labelDecimals: value }; })} testId="cd-label-decimals" />
+                  </Group>
+
+                  <Group title={tLabel('cd.levelStyles')}>
+                    <p className="cd-hint">{tLabel('cd.levelStylesHint')}</p>
+                    {Array.from({ length: Math.max(2, Math.min(12, contour.levelCount)) }, (_, index) => {
+                      const style = contour.levelStyles.find((entry) => entry.index === index) ?? { index };
+                      const update = (patchStyle: (entry: NonNullable<ContourConfig['levelStyles']>[number]) => void) => patch((config) => {
+                        const current = [...(config.contour?.levelStyles ?? [])];
+                        const at = current.findIndex((entry) => entry.index === index);
+                        const next = at >= 0 ? { ...current[at] } : { index };
+                        patchStyle(next);
+                        if (at >= 0) current[at] = next;
+                        else current.push(next);
+                        config.contour = { ...(config.contour ?? {}), levelStyles: current };
+                      });
+                      return (
+                        <div className="cd-pair" key={index} data-testid={`cd-level-${index}`}>
+                          <span className="cd-pair-label">{index + 1}</span>
+                          <input className="cd-input" type="color" aria-label={`level ${index + 1} color`} value={/^#[0-9a-f]{6}$/i.test(style.color ?? '') ? (style.color as string) : '#8b6ce8'} onChange={(event) => update((entry) => { entry.color = event.target.value; })} />
+                          <input className="cd-input" type="number" step={0.2} min={0} max={8} aria-label={`level ${index + 1} width`} value={show(style.lineWidth ?? contour.lineWidth)} onChange={(event) => update((entry) => { entry.lineWidth = num(event.target.value) ?? contour.lineWidth; })} />
+                          <input className="cd-input" type="text" placeholder="dash" aria-label={`level ${index + 1} dash`} value={style.lineDash ?? ''} onChange={(event) => update((entry) => { entry.lineDash = event.target.value; })} />
+                          <input type="checkbox" aria-label={`level ${index + 1} label`} checked={style.showLabel ?? contour.showContourLabels} onChange={(event) => update((entry) => { entry.showLabel = event.target.checked; })} />
+                        </div>
+                      );
+                    })}
+                  </Group>
                 </>
               ) : (
                 <>
@@ -602,9 +699,19 @@ export function ChartPropertiesDrawer({
                       options={[
                         { value: 'linear', label: tLabel('cd.scale.linear') },
                         { value: 'log10', label: tLabel('cd.scale.log10') },
+                        { value: 'ln', label: tLabel('cd.scale.ln') },
+                        { value: 'symlog', label: tLabel('cd.scale.symlog') },
+                        { value: 'power', label: tLabel('cd.scale.power') },
                       ]}
-                      onChange={(value) => patchAxis((config) => { config.scale = value; })}
+                      onChange={(value) => patchAxis((config) => { config.scale = value as AxisConfig['scale']; })}
+                      testId="cd-scale-type"
                     />
+                    {axis.scale === 'power' && (
+                      <NumberField label={tLabel('cd.power')} value={axis.power ?? 0.5} step={0.05} min={0.05} max={5} onChange={(value) => patchAxis((config) => { config.power = value ?? 0.5; })} testId="cd-power" />
+                    )}
+                    {axis.scale === 'symlog' && (
+                      <NumberField label={tLabel('cd.logConstant')} value={axis.logConstant ?? 1} step={0.1} onChange={(value) => patchAxis((config) => { config.logConstant = value && value > 0 ? value : 1; })} testId="cd-log-constant" />
+                    )}
                     {logWarning && <div className="cd-warn" data-testid="cd-log-warning" role="status">{tLabel('cd.logWarning')}</div>}
                     <Toggle label={tLabel('cd.reverse')} checked={axis.reverse === true} onChange={(value) => patchAxis((config) => { config.reverse = value; })} />
                     <TextField label={tLabel('cd.axisTitle')} value={axis.title} onChange={(value) => patchAxis((config) => { config.title = value; })} />
@@ -665,6 +772,106 @@ export function ChartPropertiesDrawer({
                       </>
                     )}
                   </Group>
+
+                  <Group title={tLabel('cd.ticksAdvanced')}>
+                    <NumberField label={tLabel('cd.tickCount')} value={axis.tickCount} min={2} max={20} step={1} onChange={(value) => patchAxis((config) => { config.tickCount = value == null ? null : Math.round(value); })} testId="cd-tick-count" />
+                    <TextField
+                      label={tLabel('cd.tickValues')}
+                      value={(axis.tickValues ?? []).join(', ')}
+                      placeholder="0, 10, 20"
+                      onChange={(value) => patchAxis((config) => {
+                        const values = value.split(',').map((part) => Number(part.trim())).filter((v) => Number.isFinite(v));
+                        config.tickValues = values;
+                        config.tickCount = values.length ? null : config.tickCount ?? null;
+                      })}
+                    />
+                    <small className="cd-hint">{tLabel('cd.tickValuesHint')}</small>
+                    <NumberField label={tLabel('cd.minorCount')} value={axis.minorTickCount} min={1} max={20} step={1} onChange={(value) => patchAxis((config) => { config.minorTickCount = value == null ? null : Math.round(value); })} testId="cd-minor-count" />
+                    <NumberField label={tLabel('cd.tickLength')} value={axis.tickLength} min={0} max={40} step={0.5} onChange={(value) => patchAxis((config) => { config.tickLength = value; })} testId="cd-tick-length" />
+                    <Toggle label={tLabel('cd.axisLine')} checked={axis.showAxisLine !== false} onChange={(value) => patchAxis((config) => { config.showAxisLine = value; })} testId="cd-axis-line" />
+                    <Toggle label={tLabel('cd.tickLabels')} checked={axis.showTickLabels !== false} onChange={(value) => patchAxis((config) => { config.showTickLabels = value; })} testId="cd-tick-labels" />
+                  </Group>
+
+                  <Group title={tLabel('cd.axisBreak')}>
+                    <Toggle
+                      label={tLabel('cd.axisBreakOn')}
+                      checked={Boolean(axis.axisBreak)}
+                      onChange={(value) => patchAxis((config) => {
+                        const range: [number, number] = config.min != null && config.max != null && config.max > config.min
+                          ? [config.min, config.max]
+                          : (axisDataRange(chart, scaleAxis === 'x' ? 'x' : 'y') ?? [0, 10]);
+                        const span = range[1] - range[0];
+                        config.axisBreak = value ? { from: range[0] + span * 0.4, to: range[0] + span * 0.6, size: 10 } : null;
+                      })}
+                      testId="cd-axis-break"
+                    />
+                    {axis.axisBreak && (
+                      <>
+                        <NumberField label={tLabel('cd.breakFrom')} value={axis.axisBreak.from} onChange={(value) => patchAxis((config) => { if (config.axisBreak && value != null) config.axisBreak = { ...config.axisBreak, from: value }; })} testId="cd-break-from" />
+                        <NumberField label={tLabel('cd.breakTo')} value={axis.axisBreak.to} onChange={(value) => patchAxis((config) => { if (config.axisBreak && value != null) config.axisBreak = { ...config.axisBreak, to: value }; })} testId="cd-break-to" />
+                        <NumberField label={tLabel('cd.breakSize')} value={axis.axisBreak.size} min={2} max={60} step={1} onChange={(value) => patchAxis((config) => { if (config.axisBreak) config.axisBreak = { ...config.axisBreak, size: value ?? 10 }; })} testId="cd-break-size" />
+                        <small className="cd-hint">{tLabel('cd.axisBreakHint')}</small>
+                      </>
+                    )}
+                  </Group>
+
+                  <Group title={tLabel('cd.dateAxis')}>
+                    <Toggle
+                      label={tLabel('cd.dateAxisOn')}
+                      checked={Boolean(axis.dateAxis)}
+                      onChange={(value) => patchAxis((config) => { config.dateAxis = value ? { epoch: 0, unit: 'day', format: 'date' } : null; })}
+                      testId="cd-date-axis"
+                    />
+                    {axis.dateAxis && (
+                      <>
+                        <NumberField label={tLabel('cd.dateEpoch')} value={axis.dateAxis.epoch} step={86400000} onChange={(value) => patchAxis((config) => { if (config.dateAxis) config.dateAxis = { ...config.dateAxis, epoch: value ?? 0 }; })} testId="cd-date-epoch" />
+                        <SelectField
+                          label={tLabel('cd.dateUnit')}
+                          value={axis.dateAxis.unit}
+                          options={[
+                            { value: 'day', label: tLabel('cd.date.day') },
+                            { value: 'week', label: tLabel('cd.date.week') },
+                            { value: 'month', label: tLabel('cd.date.month') },
+                            { value: 'year', label: tLabel('cd.date.year') },
+                          ]}
+                          onChange={(value) => patchAxis((config) => { if (config.dateAxis) config.dateAxis = { ...config.dateAxis, unit: value }; })}
+                          testId="cd-date-unit"
+                        />
+                        <SelectField
+                          label={tLabel('cd.dateFormat')}
+                          value={axis.dateAxis.format}
+                          options={[
+                            { value: 'date', label: tLabel('cd.dateFormat.date') },
+                            { value: 'month-year', label: tLabel('cd.dateFormat.month') },
+                            { value: 'year', label: tLabel('cd.dateFormat.year') },
+                          ]}
+                          onChange={(value) => patchAxis((config) => { if (config.dateAxis) config.dateAxis = { ...config.dateAxis, format: value }; })}
+                          testId="cd-date-format"
+                        />
+                        <small className="cd-hint">{tLabel('cd.dateHint')}</small>
+                      </>
+                    )}
+                  </Group>
+
+                  <Group title={tLabel('cd.secondaryAxis')}>
+                    <Toggle
+                      label={tLabel('cd.secondaryOn')}
+                      checked={Boolean(axis.secondary)}
+                      onChange={(value) => patchAxis((config) => { config.secondary = value ? { title: '', unit: '', min: null, max: null, decimals: null, showGrid: false } : null; })}
+                      testId="cd-secondary"
+                    />
+                    {axis.secondary && (
+                      <>
+                        <TextField label={tLabel('cd.axisTitle')} value={axis.secondary.title} onChange={(value) => patchAxis((config) => { if (config.secondary) config.secondary = { ...config.secondary, title: value }; })} />
+                        <TextField label={tLabel('cd.axisUnit')} value={axis.secondary.unit} onChange={(value) => patchAxis((config) => { if (config.secondary) config.secondary = { ...config.secondary, unit: value }; })} />
+                        <NumberField label={tLabel('cd.min')} value={axis.secondary.min} onChange={(value) => patchAxis((config) => { if (config.secondary) config.secondary = { ...config.secondary, min: value }; })} />
+                        <NumberField label={tLabel('cd.max')} value={axis.secondary.max} onChange={(value) => patchAxis((config) => { if (config.secondary) config.secondary = { ...config.secondary, max: value }; })} />
+                        <NumberField label={tLabel('cd.decimals')} value={axis.secondary.decimals} min={0} max={12} onChange={(value) => patchAxis((config) => { if (config.secondary) config.secondary = { ...config.secondary, decimals: value }; })} />
+                        <Toggle label={tLabel('cd.majorGrid')} checked={axis.secondary.showGrid === true} onChange={(value) => patchAxis((config) => { if (config.secondary) config.secondary = { ...config.secondary, showGrid: value }; })} />
+                      </>
+                    )}
+                    <small className="cd-hint">{tLabel('cd.secondaryHint')}</small>
+                  </Group>
                 </>
               )}
             </>
@@ -692,6 +899,91 @@ export function ChartPropertiesDrawer({
                   })}
                 />
                 <small className="cd-hint">{tLabel('cd.paletteHint')}</small>
+              </Group>
+
+              <Group title={tLabel('cd.seriesAdvanced')}>
+                <Toggle label={tLabel('cd.areaFill')} checked={draft.seriesAdvanced?.areaFill === true} onChange={(value) => patch((config) => { config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), areaFill: value }; })} testId="cd-area-fill" />
+                <NumberField label={tLabel('cd.areaOpacity')} value={draft.seriesAdvanced?.areaOpacity} step={0.05} min={0} max={1} onChange={(value) => patch((config) => { config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), areaOpacity: value ?? 0.22 }; })} testId="cd-area-opacity" />
+                <Toggle label={tLabel('cd.dropLines')} checked={draft.seriesAdvanced?.dropLines === true} onChange={(value) => patch((config) => { config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), dropLines: value }; })} testId="cd-drop-lines" />
+                <ColorField label={tLabel('cd.dropLineColor')} value={draft.seriesAdvanced?.dropLineColor} onChange={(value) => patch((config) => { config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), dropLineColor: value }; })} />
+                <TextField
+                  label={tLabel('cd.seriesOrder')}
+                  value={(draft.seriesAdvanced?.order ?? []).join(', ')}
+                  placeholder="1, 0"
+                  onChange={(value) => patch((config) => {
+                    const order = value.split(',').map((part) => Number(part.trim())).filter((index) => Number.isInteger(index) && index >= 0);
+                    config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), order };
+                  })}
+                />
+                <small className="cd-hint">{tLabel('cd.seriesOrderHint')}</small>
+                <TextField
+                  label={tLabel('cd.secondarySeries')}
+                  value={(draft.seriesAdvanced?.secondarySeries ?? []).join(', ')}
+                  placeholder="1"
+                  testId="cd-secondary-series"
+                  onChange={(value) => patch((config) => {
+                    const indices = value.split(',').map((part) => Number(part.trim())).filter((index) => Number.isInteger(index) && index >= 0);
+                    config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), secondarySeries: indices };
+                  })}
+                />
+                <small className="cd-hint">{tLabel('cd.secondarySeriesHint')}</small>
+              </Group>
+
+              <Group title={tLabel('cd.errorBars')}>
+                <SelectField
+                  label={tLabel('cd.errorKind')}
+                  value={draft.seriesAdvanced?.errorBars?.kind ?? 'none'}
+                  options={[
+                    { value: 'none', label: tLabel('cd.errorNone') },
+                    { value: 'sd', label: tLabel('cd.errorSd') },
+                    { value: 'se', label: tLabel('cd.errorSe') },
+                    { value: 'ci', label: tLabel('cd.errorCi') },
+                  ]}
+                  onChange={(value) => patch((config) => { config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), errorBars: { ...defaultErrorBarConfig(), ...(config.seriesAdvanced?.errorBars ?? {}), kind: value as 'none' | 'sd' | 'se' | 'ci' } }; })}
+                  testId="cd-error-kind"
+                />
+                <SelectField
+                  label={tLabel('cd.errorScope')}
+                  value={draft.seriesAdvanced?.errorBars?.scope ?? 'point'}
+                  options={[
+                    { value: 'point', label: tLabel('cd.errorPoint') },
+                    { value: 'series', label: tLabel('cd.errorSeries') },
+                  ]}
+                  onChange={(value) => patch((config) => { config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), errorBars: { ...defaultErrorBarConfig(), ...(config.seriesAdvanced?.errorBars ?? {}), scope: value as 'point' | 'series' } }; })}
+                  testId="cd-error-scope"
+                />
+                <NumberField label={tLabel('cd.errorConf')} value={draft.seriesAdvanced?.errorBars?.conf} step={0.01} min={0.5} max={0.999} onChange={(value) => patch((config) => { config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), errorBars: { ...defaultErrorBarConfig(), ...(config.seriesAdvanced?.errorBars ?? {}), conf: value ?? 0.95 } }; })} testId="cd-error-conf" />
+                <NumberField label={tLabel('cd.errorCaps')} value={draft.seriesAdvanced?.errorBars?.capWidth} step={1} min={0} max={20} onChange={(value) => patch((config) => { config.seriesAdvanced = { ...(config.seriesAdvanced ?? {}), errorBars: { ...defaultErrorBarConfig(), ...(config.seriesAdvanced?.errorBars ?? {}), capWidth: value ?? 3 } }; })} testId="cd-error-caps" />
+                <small className="cd-hint">{tLabel('cd.errorHint')}</small>
+              </Group>
+
+              <Group title={tLabel('cd.pointStyle')}>
+                <NumberField label={tLabel('cd.pointIndex')} value={pointStyleIndex + 1} min={1} step={1} onChange={(value) => setPointStyleIndex(Math.max(0, Math.round((value ?? 1) - 1)))} testId="cd-point-index" />
+                <SelectField
+                  label={tLabel('cd.markerShape')}
+                  value={(draft.seriesAdvanced?.pointStyles?.[pointStyleIndex]?.shape ?? 'circle') as MarkerShape}
+                  options={MARKERS.map((shape) => ({ value: shape, label: tLabel(`cd.shape.${shape}`) }))}
+                  onChange={(value) => patch((config) => {
+                    config.seriesAdvanced = {
+                      ...(config.seriesAdvanced ?? {}),
+                      pointStyles: { ...(config.seriesAdvanced?.pointStyles ?? {}), [pointStyleIndex]: { ...(config.seriesAdvanced?.pointStyles?.[pointStyleIndex] ?? {}), shape: value } },
+                    };
+                  })}
+                  testId="cd-point-shape"
+                />
+                <NumberField label={tLabel('cd.markerSize')} value={draft.seriesAdvanced?.pointStyles?.[pointStyleIndex]?.size} step={0.2} min={1} max={12} onChange={(value) => patch((config) => {
+                  config.seriesAdvanced = {
+                    ...(config.seriesAdvanced ?? {}),
+                    pointStyles: { ...(config.seriesAdvanced?.pointStyles ?? {}), [pointStyleIndex]: { ...(config.seriesAdvanced?.pointStyles?.[pointStyleIndex] ?? {}), size: value ?? undefined } },
+                  };
+                })} />
+                <ColorField label={tLabel('cd.color')} value={draft.seriesAdvanced?.pointStyles?.[pointStyleIndex]?.color} onChange={(value) => patch((config) => {
+                  config.seriesAdvanced = {
+                    ...(config.seriesAdvanced ?? {}),
+                    pointStyles: { ...(config.seriesAdvanced?.pointStyles ?? {}), [pointStyleIndex]: { ...(config.seriesAdvanced?.pointStyles?.[pointStyleIndex] ?? {}), color: value } },
+                  };
+                })} />
+                <small className="cd-hint">{tLabel('cd.pointStyleHint')}</small>
               </Group>
 
               {seriesCountOf(chart) > 0 && (

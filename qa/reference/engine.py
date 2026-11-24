@@ -2943,6 +2943,50 @@ def op_sheet(bag, ds, args, cid):
     raise RuntimeError(f"unknown emit {emit}")
 
 
+def op_errorbars(bag, ds, args, cid):
+    """Error-bar statistic (Stage 3D, WO-08) against NumPy/SciPy.
+
+    Two definitions are compared, both documented in the case note:
+      sd   numpy.std(values, ddof=1)
+      se   sd / sqrt(n)
+      ci   mean ± scipy.stats.t.ppf(1 - (1-conf)/2, n-1) · se
+    A single value has no spread: the adapter reports available=0 and the
+    reference does the same, so "not drawn" is tested, not assumed.
+    """
+    if args.get("values"):
+        raw_values = [float(v) for v in args["values"]]
+    else:
+        raw_values = nums(ds, args["column"])
+    values = [v for v in raw_values if v is not None and np.isfinite(v)]
+    kind = str(args.get("stat", "sd"))
+    conf = float(args.get("conf", 0.95))
+    bag.put("n", len(values))
+    if len(values) < 2:
+        bag.put("available", 0)
+        return
+    arr = np.asarray(values, dtype=float)
+    mean = float(arr.mean())
+    sd = float(arr.std(ddof=1))
+    se = sd / float(np.sqrt(len(arr)))
+    t_crit = float(stats.t.ppf(1 - (1 - conf) / 2, len(arr) - 1))
+    if kind == "sd":
+        half = sd
+    elif kind == "se":
+        half = se
+    elif kind == "ci":
+        half = t_crit * se
+    else:
+        raise ValueError(f"unknown error-bar statistic {kind}")
+    bag.put("available", 1)
+    bag.put("mean", mean)
+    bag.put("sd", sd)
+    bag.put("se", se)
+    bag.put("t_crit", t_crit)
+    bag.put("half", half)
+    bag.put("lower", mean - half)
+    bag.put("upper", mean + half)
+
+
 def op_nelson(bag, ds, args, cid):
     values = [v for v in nums(ds, args["column"]) if np.isfinite(v)]
     flags = F.nelson_rules(values, args["center"], args["sigma"])
@@ -2989,6 +3033,7 @@ OPS = {
     "overlay": op_overlay,
     "overlay_order": op_overlay_order,
     "nelson": op_nelson,
+    "errorbars": op_errorbars,
 }
 
 

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { Block, ChartSpec, Lang, OutputDoc } from '../types';
+import type { Block, ChartSource, ChartSpec, Lang, OutputDoc } from '../types';
 import { fmtTime } from '../lib/format';
 import { resolveLabel, t } from '../lib/i18n';
 import { downloadBlob, downloadFile } from '../lib/project';
@@ -19,6 +19,7 @@ import {
 import { batchSvgDocument, chartSvgDocument, exportFileName, svgToPngWithConfig } from '../lib/chartExport';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ChartFrame, ChartViewer, type ChartEditRequest } from './ChartFrame';
+import { selectionCompatible } from '../lib/chartInteraction';
 import { ChartPropertiesDrawer, type ChartDrawerTab } from './ChartPropertiesDrawer';
 import { IconChevronDown, IconCopy, IconDownload, IconPrinter, IconRerun, IconTrash, IconX } from './Icons';
 
@@ -36,6 +37,10 @@ interface Props {
   onUpdateBlocks: (id: string, blocks: Block[]) => void;
   /** Hand this card's fitted model to the model store (WO-02). */
   onSaveModel: (output: OutputDoc) => void;
+  /** Chart selection lifted to the app, so the worksheet can follow it. */
+  selection?: { rows: number[]; source?: ChartSource } | null;
+  onSelectRows?: (rows: number[], additive: boolean, source?: ChartSource) => void;
+  onExportSelection?: (rows: number[], source?: ChartSource) => void;
 }
 
 interface ChartTarget {
@@ -251,6 +256,7 @@ function blocksWithChart(output: OutputDoc, target: ChartTarget, chart: ChartSpe
 
 export function OutputPanel({
   lang, outputs, focusedOutput, onFocus, onDelete, onToggleCollapse, onCollapseAll, onToast, onRerun, onReproduce, onUpdateBlocks, onSaveModel,
+  selection, onSelectRows, onExportSelection,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; outputId: string | null; target?: ChartTarget } | null>(null);
@@ -723,6 +729,9 @@ export function OutputPanel({
                   onCopyPng={(target, chart) => void copyChartPng(chart, fullChartConfig(chart), captionAt(output, target))}
                   onExport={(target) => openDrawer(target, 'export')}
                   onChartChange={commitChart}
+                  selection={selection}
+                  onSelectRows={onSelectRows}
+                  onExportSelection={onExportSelection}
                 />
               ))}
             </div>
@@ -789,6 +798,7 @@ export function OutputPanel({
 
 function BlockView({
   block, lang, outputId, blockIndex, previewFor, chartForFrame, onEdit, onMenu, onView, onCopyPng, onExport, onChartChange,
+  selection, onSelectRows, onExportSelection,
 }: {
   block: Block;
   lang: Lang;
@@ -802,6 +812,9 @@ function BlockView({
   onCopyPng: (target: ChartTarget, chart: ChartSpec) => void;
   onExport: (target: ChartTarget, chart: ChartSpec) => void;
   onChartChange: (target: ChartTarget, chart: ChartSpec) => void;
+  selection?: { rows: number[]; source?: ChartSource } | null;
+  onSelectRows?: (rows: number[], additive: boolean, source?: ChartSource) => void;
+  onExportSelection?: (rows: number[], source?: ChartSource) => void;
 }) {
   if (block.type === 'text') {
     return (
@@ -828,6 +841,9 @@ function BlockView({
           onView={(mode) => onView(target, mode)}
           onCopyPng={() => onCopyPng(target, chart)}
           onExport={() => onExport(target, chart)}
+          highlightRows={selection && selectionCompatible(selection.source, chart.source) ? selection.rows : undefined}
+          onSelectRows={onSelectRows}
+          onExportSelection={onExportSelection}
         />
       </div>
     );
@@ -851,6 +867,9 @@ function BlockView({
                 onView={(mode) => onView(target, mode)}
                 onCopyPng={() => onCopyPng(target, chart)}
                 onExport={() => onExport(target, chart)}
+                highlightRows={selection && selectionCompatible(selection.source, chart.source) ? selection.rows : undefined}
+                onSelectRows={onSelectRows}
+                onExportSelection={onExportSelection}
               />
             </div>
           );
