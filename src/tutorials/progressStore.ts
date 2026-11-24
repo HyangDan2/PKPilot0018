@@ -33,8 +33,12 @@ export class ProgressStorageError extends Error {
   }
 }
 
+let lastStamp = 0;
+
+/** Strictly increasing, so two saves in one millisecond still order. */
 function nowIso(): string {
-  return new Date().toISOString();
+  lastStamp = Math.max(Date.now(), lastStamp + 1);
+  return new Date(lastStamp).toISOString();
 }
 
 let sequence = 0;
@@ -109,8 +113,8 @@ function sanitise(record: unknown): TutorialProgress | null {
 }
 
 export class TutorialProgressStore {
-  /** The last record seen in this window, so a blocked store cannot swing progress back. */
-  private memory: Record<string, TutorialProgress> = {};
+  /** The newest record this window has seen, by session, so a stale store cannot swing progress back. */
+  private memory = new Map<string, TutorialProgress>();
 
   constructor(private readonly storage: ProgressStoreLike | null) {}
 
@@ -121,32 +125,58 @@ export class TutorialProgressStore {
     return this.storage;
   }
 
+  /** Every session this store can see, keyed by its own session id. */
+  private sessions(): Map<string, TutorialProgress> {
+    const output = new Map<string, TutorialProgress>();
+    if (this.storage) {
+      let raw: string | null = null;
+      try {
+        raw = this.storage.getItem(TUTORIAL_PROGRESS_KEY);
+      } catch {
+        raw = null;
+      }
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as { version?: number; sessions?: Record<string, TutorialProgress> };
+          Object.entries(parsed?.sessions ?? {}).forEach(([key, record]) => {
+            const clean = sanitise(record);
+            if (!clean) return;
+            // v1 was keyed by tutorial id; v2 by session id. Either way the
+            // record states its own identity, and that is what is used.
+            output.set(clean.sessionId || key, clean);
+          });
+        } catch {
+          // A corrupted record is not repaired by guessing: the reader restarts.
+        }
+      }
+    }
+    // The in-window copy wins when it is at least as new as the stored one
+    // (WO-FINAL-001 · F-REL-09): a blocked or slow store cannot move progress
+    // backwards.
+    this.memory.forEach((record, sessionId) => {
+      const stored = output.get(sessionId);
+      if (!stored || record.updatedAt >= stored.updatedAt) output.set(sessionId, record);
+    });
+    return output;
+  }
+
   loadAll(): Record<string, TutorialProgress> {
-    const output: Record<string, TutorialProgress> = { ...this.memory };
-    if (!this.storage) return output;
-    let raw: string | null = null;
-    try {
-      raw = this.storage.getItem(TUTORIAL_PROGRESS_KEY);
-    } catch {
-      return output;
-    }
-    if (!raw) return output;
-    try {
-      const parsed = JSON.parse(raw) as { sessions?: Record<string, TutorialProgress> };
-      const sessions = parsed?.sessions ?? {};
-      Object.entries(sessions).forEach(([tutorialId, record]) => {
-        const clean = sanitise(record);
-        if (clean && clean.tutorialId === tutorialId) output[tutorialId] = clean;
-      });
-      return output;
-    } catch {
-      // A corrupted record is not repaired by guessing: the reader restarts.
-      return output;
-    }
+    const newest: Record<string, TutorialProgress> = {};
+    this.sessions().forEach((record) => {
+      const current = newest[record.tutorialId];
+      if (!current || record.updatedAt > current.updatedAt) newest[record.tutorialId] = record;
+    });
+    return newest;
   }
 
   load(tutorialId: string): TutorialProgress | null {
     return this.loadAll()[tutorialId] ?? null;
+  }
+
+  /** One exact session of one tutorial (never a different session). */
+  loadSession(tutorialId: string, sessionId: string): TutorialProgress | null {
+    const record = this.sessions().get(sessionId);
+    return record && record.tutorialId === tutorialId ? record : null;
   }
 
   /**
@@ -155,32 +185,37 @@ export class TutorialProgressStore {
    */
   save(progress: TutorialProgress): void {
     const record = { ...progress, updatedAt: nowIso() };
-    this.memory[record.tutorialId] = record;
+    this.memory.set(record.sessionId, record);
     const storage = this.require();
-    const all = this.loadAll();
-    all[record.tutorialId] = record;
+    const all = this.sessions();
+    all.set(record.sessionId, record);
     try {
-      storage.setItem(TUTORIAL_PROGRESS_KEY, JSON.stringify({ version: 1, sessions: all }));
+      storage.setItem(TUTORIAL_PROGRESS_KEY, JSON.stringify({ version: 2, sessions: Object.fromEntries(all) }));
     } catch (error) {
       const quota = error instanceof Error && /quota/i.test(error.message);
       throw new ProgressStorageError(quota ? 'quota' : 'unavailable', error instanceof Error ? error.message : 'storage failed');
     }
   }
 
+  /** Forget every session of one tutorial. */
   remove(tutorialId: string): void {
-    delete this.memory[tutorialId];
+    [...this.memory.entries()].forEach(([sessionId, record]) => {
+      if (record.tutorialId === tutorialId) this.memory.delete(sessionId);
+    });
     if (!this.storage) return;
-    const all = this.loadAll();
-    delete all[tutorialId];
+    const all = this.sessions();
+    [...all.entries()].forEach(([sessionId, record]) => {
+      if (record.tutorialId === tutorialId) all.delete(sessionId);
+    });
     try {
-      this.storage.setItem(TUTORIAL_PROGRESS_KEY, JSON.stringify({ version: 1, sessions: all }));
+      this.storage.setItem(TUTORIAL_PROGRESS_KEY, JSON.stringify({ version: 2, sessions: Object.fromEntries(all) }));
     } catch {
       /* a failed removal leaves the old record; the reader can restart anyway */
     }
   }
 
   clear(): void {
-    this.memory = {};
+    this.memory.clear();
     if (!this.storage) return;
     try {
       this.storage.removeItem(TUTORIAL_PROGRESS_KEY);
@@ -247,12 +282,19 @@ export class TutorialProgressStore {
     }
   }
 
-  /** The newest slot for a tutorial, preferring the session named. */
+  /**
+   * The slot for a tutorial: the exact session named, or the newest one.
+   *
+   * A named session that is not stored returns null — a resume must never
+   * restore a different session's practice (WO-FINAL-001 · F-REL-09).
+   */
   loadPracticeSlot(tutorialId: string, sessionId?: string | null): PracticeSlot | null {
     const slots = this.listPracticeSlots().filter((slot) => slot.tutorialId === tutorialId);
     if (sessionId) {
       const exact = slots.find((slot) => slot.sessionId === sessionId);
       if (exact) return exact;
+      const legacy = this.readLegacySlot(tutorialId);
+      return legacy && legacy.sessionId === sessionId ? legacy : null;
     }
     return slots[0] ?? this.readLegacySlot(tutorialId);
   }
@@ -396,6 +438,23 @@ export class TutorialProgressStore {
   }
 }
 
+
+/**
+ * Why a kept practice cannot be resumed as this tutorial (null when it can).
+ *
+ * A lesson that changed its steps and a project that was replaced are two
+ * different incompatibilities; the panel names which one it is instead of
+ * resuming a session that no longer matches (WO-FINAL-001 · F-REL-09).
+ */
+export function practiceSlotIssue(
+  slot: Pick<PracticeSlot, 'tutorialVersion' | 'projectId'>,
+  tutorialVersion: number,
+  projectId?: string | null,
+): 'tut.slotVersionMismatch' | 'tut.slotProjectMismatch' | null {
+  if (Number(slot.tutorialVersion) !== Number(tutorialVersion)) return 'tut.slotVersionMismatch';
+  if (projectId && slot.projectId !== projectId) return 'tut.slotProjectMismatch';
+  return null;
+}
 
 /** The browser store, or null when storage is blocked. */
 export function browserProgressStorage(): ProgressStoreLike | null {
