@@ -1867,7 +1867,7 @@ kbd {
 }
 
 /* ── 3D surface (Stage 3B) ─────────────────────────────────────────────── */
-.surface3d-canvas-wrap { min-width: 0; }
+.surface3d-canvas-wrap { min-width: 0; margin-inline: auto; }
 .surface3d { display: flex; flex-direction: column; gap: 6px; }
 .surface3d-stage { border-radius: var(--radius-sm, 6px); overflow: hidden; background: transparent; }
 .surface3d-stage.dragging { user-select: none; }
