@@ -27,3 +27,11 @@ export function aboutVersionLine(lang: 'en' | 'ko'): string {
     ? `시그룬 v${APP_VERSION} · ${APP_PHASE} · ${year}`
     : `Sigrún v${APP_VERSION} · ${APP_PHASE} · ${year}`;
 }
+
+/**
+ * The status bar's build line. It reads the stage from {@link APP_PHASE} so a
+ * released build cannot keep advertising an earlier one (WO-TQA-13).
+ */
+export function statusBarLabel(): string {
+  return `HD2LAB · SIGRÚN · ${APP_PHASE.toUpperCase()}`;
+}

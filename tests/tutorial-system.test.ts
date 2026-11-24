@@ -126,8 +126,19 @@ describe('validation rules', () => {
       titleKey: 'an.rsmanalyze',
       createdAt: Date.now(),
       collapsed: false,
-      blocks: [],
-      meta: { engine: 'test', analysisId: 'rsmanalyze', values: {}, sheetId: displaySheet.id, sheetName: displaySheet.name, ranAt: Date.now(), rowCount: 20, columns: [] },
+      // A card with no table or chart is not an answer (WO-TQA-04); the fixture
+      // carries the table the engine would have produced.
+      blocks: [{ type: 'table' as const, headers: ['Source', 'DF'], rows: [['Model', 9], ['Error', 10]] }],
+      meta: {
+        engine: 'test',
+        analysisId: 'rsmanalyze',
+        values: {},
+        sheetId: displaySheet.id,
+        sheetName: displaySheet.name,
+        ranAt: Date.now(),
+        rowCount: 20,
+        columns: factorColumns.map((name) => displaySheet.columns.find((column) => column.name === name)!),
+      },
       model: undefined,
     };
     expect(validateStep(rule, facts({ outputs: [output] })).status).toBe('pass');
@@ -334,7 +345,8 @@ describe('progress storage', () => {
     const store = new TutorialProgressStore(null);
     const progress = createProgress(tutorial, 'practice-1');
     expect(() => store.save(progress)).toThrow(ProgressStorageError);
-    expect(store.loadAll()).toEqual({});
+    // The store refused the write, but the record is not lost in this window (WO-TQA-11).
+    expect(store.load('tutorial-start-001')?.practiceProjectId).toBe('practice-1');
   });
 
   it('keeps a practice project in its own slot', () => {

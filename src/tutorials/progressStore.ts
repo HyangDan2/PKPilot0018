@@ -9,10 +9,22 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { Tutorial } from './types';
-import type { ProgressStoreLike, TutorialProgress, StepProgress } from './types';
+import type {
+  OriginalProjectSlot,
+  PracticeSlot,
+  ProgressStoreLike,
+  TutorialEvent,
+  TutorialProgress,
+  StepProgress,
+} from './types';
 
 export const TUTORIAL_PROGRESS_KEY = 'sigrun.tutorials.progress.v1';
-export const TUTORIAL_PRACTICE_KEY = 'sigrun.tutorials.practice.v1';
+export const TUTORIAL_PRACTICE_KEY = 'sigrun.tutorials.practice.v2';
+/** Slots written by the previous build; read once, then superseded. */
+export const TUTORIAL_PRACTICE_KEY_V1 = 'sigrun.tutorials.practice.v1';
+export const TUTORIAL_ORIGINAL_KEY = 'sigrun.tutorials.original.v1';
+/** A slot written before sessions existed keeps one stable name. */
+const LEGACY_SESSION = 'legacy-session';
 
 export class ProgressStorageError extends Error {
   constructor(readonly code: 'unavailable' | 'corrupt' | 'quota', message: string) {
@@ -30,6 +42,23 @@ let sequence = 0;
 export function newSessionId(prefix = 'tut'): string {
   sequence += 1;
   return `${prefix}-${Date.now().toString(36)}-${sequence.toString(36)}`;
+}
+
+/** What a storage write reported: a blocked or full store is not a silent success. */
+export interface SaveResult {
+  ok: boolean;
+  code?: 'unavailable' | 'quota';
+  error?: string;
+}
+
+function failure(error: unknown): SaveResult {
+  if (error instanceof ProgressStorageError) return { ok: false, code: error.code === 'quota' ? 'quota' : 'unavailable', error: error.message };
+  const message = error instanceof Error ? error.message : String(error);
+  return { ok: false, code: /quota/i.test(message) ? 'quota' : 'unavailable', error: message };
+}
+
+export function practiceSlotId(tutorialId: string, sessionId: string): string {
+  return `${tutorialId}::${sessionId}`;
 }
 
 export function emptySteps(tutorial: Tutorial): Record<string, StepProgress> {
@@ -80,6 +109,9 @@ function sanitise(record: unknown): TutorialProgress | null {
 }
 
 export class TutorialProgressStore {
+  /** The last record seen in this window, so a blocked store cannot swing progress back. */
+  private memory: Record<string, TutorialProgress> = {};
+
   constructor(private readonly storage: ProgressStoreLike | null) {}
 
   private require(): ProgressStoreLike {
@@ -90,18 +122,18 @@ export class TutorialProgressStore {
   }
 
   loadAll(): Record<string, TutorialProgress> {
-    if (!this.storage) return {};
+    const output: Record<string, TutorialProgress> = { ...this.memory };
+    if (!this.storage) return output;
     let raw: string | null = null;
     try {
       raw = this.storage.getItem(TUTORIAL_PROGRESS_KEY);
     } catch {
-      return {};
+      return output;
     }
-    if (!raw) return {};
+    if (!raw) return output;
     try {
       const parsed = JSON.parse(raw) as { sessions?: Record<string, TutorialProgress> };
       const sessions = parsed?.sessions ?? {};
-      const output: Record<string, TutorialProgress> = {};
       Object.entries(sessions).forEach(([tutorialId, record]) => {
         const clean = sanitise(record);
         if (clean && clean.tutorialId === tutorialId) output[tutorialId] = clean;
@@ -109,7 +141,7 @@ export class TutorialProgressStore {
       return output;
     } catch {
       // A corrupted record is not repaired by guessing: the reader restarts.
-      return {};
+      return output;
     }
   }
 
@@ -117,10 +149,16 @@ export class TutorialProgressStore {
     return this.loadAll()[tutorialId] ?? null;
   }
 
+  /**
+   * Write the record. The in-window copy is updated first: a blocked or full
+   * store stops the persistence, never the progress (WO-TQA-11).
+   */
   save(progress: TutorialProgress): void {
+    const record = { ...progress, updatedAt: nowIso() };
+    this.memory[record.tutorialId] = record;
     const storage = this.require();
     const all = this.loadAll();
-    all[progress.tutorialId] = { ...progress, updatedAt: nowIso() };
+    all[record.tutorialId] = record;
     try {
       storage.setItem(TUTORIAL_PROGRESS_KEY, JSON.stringify({ version: 1, sessions: all }));
     } catch (error) {
@@ -130,6 +168,7 @@ export class TutorialProgressStore {
   }
 
   remove(tutorialId: string): void {
+    delete this.memory[tutorialId];
     if (!this.storage) return;
     const all = this.loadAll();
     delete all[tutorialId];
@@ -141,6 +180,7 @@ export class TutorialProgressStore {
   }
 
   clear(): void {
+    this.memory = {};
     if (!this.storage) return;
     try {
       this.storage.removeItem(TUTORIAL_PROGRESS_KEY);
@@ -149,42 +189,213 @@ export class TutorialProgressStore {
     }
   }
 
-  savePracticeProject(project: { tutorialId: string; projectId: string; savedAt: string; json: string }): void {
-    const storage = this.require();
+  /* ── practice projects: one slot per tutorial and session (WO-TQA-07) ── */
+
+  private readSlots(): Record<string, PracticeSlot> {
+    if (!this.storage) return {};
+    const output: Record<string, PracticeSlot> = {};
     try {
-      storage.setItem(TUTORIAL_PRACTICE_KEY, JSON.stringify(project));
+      const raw = this.storage.getItem(TUTORIAL_PRACTICE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { slots?: Record<string, PracticeSlot> };
+        Object.entries(parsed?.slots ?? {}).forEach(([slotId, slot]) => {
+          if (slot && typeof slot.json === 'string' && typeof slot.tutorialId === 'string') output[slotId] = slot;
+        });
+      }
+    } catch {
+      /* a damaged slot file falls back to the previous format below */
+    }
+    return output;
+  }
+
+  listPracticeSlots(): PracticeSlot[] {
+    return Object.values(this.readSlots()).sort((a, b) => (a.savedAt < b.savedAt ? 1 : a.savedAt > b.savedAt ? -1 : 0));
+  }
+
+  savePracticeSlot(slot: {
+    tutorialId: string;
+    tutorialVersion?: number;
+    sessionId?: string;
+    projectId: string;
+    savedAt?: string;
+    json: string;
+    events?: TutorialEvent[];
+    progress?: TutorialProgress | null;
+    originalProjectId?: string | null;
+  }): SaveResult {
+    try {
+      const storage = this.require();
+      const sessionId = slot.sessionId && slot.sessionId.length ? slot.sessionId : newSessionId();
+      const record: PracticeSlot = {
+        slotId: practiceSlotId(slot.tutorialId, sessionId),
+        tutorialId: slot.tutorialId,
+        tutorialVersion: slot.tutorialVersion ?? 1,
+        sessionId,
+        projectId: slot.projectId,
+        savedAt: slot.savedAt ?? nowIso(),
+        json: slot.json,
+        events: (slot.events ?? []).slice(-300),
+        progress: slot.progress ?? null,
+        originalProjectId: slot.originalProjectId ?? null,
+      };
+      const slots = this.readSlots();
+      slots[record.slotId] = record;
+      storage.setItem(TUTORIAL_PRACTICE_KEY, JSON.stringify({ version: 2, slots }));
+      return { ok: true };
     } catch (error) {
-      throw new ProgressStorageError('quota', error instanceof Error ? error.message : 'storage failed');
+      return failure(error);
     }
   }
 
-  loadPracticeProject(): { tutorialId: string; projectId: string; savedAt: string; json: string } | null {
+  /** The newest slot for a tutorial, preferring the session named. */
+  loadPracticeSlot(tutorialId: string, sessionId?: string | null): PracticeSlot | null {
+    const slots = this.listPracticeSlots().filter((slot) => slot.tutorialId === tutorialId);
+    if (sessionId) {
+      const exact = slots.find((slot) => slot.sessionId === sessionId);
+      if (exact) return exact;
+    }
+    return slots[0] ?? this.readLegacySlot(tutorialId);
+  }
+
+  removePracticeSlot(slotId: string): void {
+    if (!this.storage) return;
+    try {
+      const storage = this.storage;
+      const slots = this.readSlots();
+      if (!(slotId in slots)) return;
+      delete slots[slotId];
+      storage.setItem(TUTORIAL_PRACTICE_KEY, JSON.stringify({ version: 2, slots }));
+    } catch {
+      /* a failed removal leaves the slot; the reader can discard it again */
+    }
+  }
+
+  /** A slot written by the previous build is read, then superseded by its next save. */
+  private readLegacySlot(tutorialId: string): PracticeSlot | null {
     if (!this.storage) return null;
     try {
-      const raw = this.storage.getItem(TUTORIAL_PRACTICE_KEY);
+      const raw = this.storage.getItem(TUTORIAL_PRACTICE_KEY_V1);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as { tutorialId?: string; projectId?: string; savedAt?: string; json?: string };
       if (!parsed?.json || !parsed.tutorialId) return null;
+      if (tutorialId && parsed.tutorialId !== tutorialId) return null;
+      const sessionId = LEGACY_SESSION;
       return {
+        slotId: practiceSlotId(parsed.tutorialId, sessionId),
         tutorialId: parsed.tutorialId,
+        tutorialVersion: 1,
+        sessionId,
         projectId: parsed.projectId ?? '',
         savedAt: parsed.savedAt ?? '',
         json: parsed.json,
+        events: [],
+        progress: null,
+        originalProjectId: null,
       };
     } catch {
       return null;
     }
   }
 
-  clearPracticeProject(): void {
+  /** Previous name of {@link savePracticeSlot}; kept for the older call sites. */
+  savePracticeProject(project: { tutorialId: string; projectId: string; savedAt: string; json: string; sessionId?: string; events?: TutorialEvent[]; progress?: TutorialProgress | null; originalProjectId?: string | null }): void {
+    const result = this.savePracticeSlot(project);
+    if (!result.ok) throw new ProgressStorageError(result.code === 'quota' ? 'quota' : 'unavailable', result.error ?? 'storage failed');
+  }
+
+  loadPracticeProject(tutorialId?: string): PracticeSlot | null {
+    if (tutorialId) return this.loadPracticeSlot(tutorialId);
+    return this.listPracticeSlots()[0] ?? this.readLegacySlot('');
+  }
+
+  /** Remove only the slot named; a second kept practice must survive (WO-TQA-07). */
+  clearPracticeProject(slotId?: string): void {
     if (!this.storage) return;
+    if (slotId) {
+      this.removePracticeSlot(slotId);
+      return;
+    }
     try {
       this.storage.removeItem(TUTORIAL_PRACTICE_KEY);
+      this.storage.removeItem(TUTORIAL_PRACTICE_KEY_V1);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /* ── the reader's original project (WO-TQA-01) ─────────────────────── */
+
+  private readOriginals(): Record<string, OriginalProjectSlot> {
+    if (!this.storage) return {};
+    try {
+      const raw = this.storage.getItem(TUTORIAL_ORIGINAL_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as { slots?: Record<string, OriginalProjectSlot> };
+      const output: Record<string, OriginalProjectSlot> = {};
+      Object.entries(parsed?.slots ?? {}).forEach(([id, slot]) => {
+        if (slot && typeof slot.json === 'string' && typeof slot.fingerprint === 'string') output[id] = slot;
+      });
+      return output;
+    } catch {
+      return {};
+    }
+  }
+
+  listOriginalProjects(): OriginalProjectSlot[] {
+    return Object.values(this.readOriginals()).sort((a, b) => (a.savedAt < b.savedAt ? 1 : a.savedAt > b.savedAt ? -1 : 0));
+  }
+
+  saveOriginalProject(slot: { projectId: string; tutorialId?: string | null; sessionId?: string | null; savedAt?: string; json: string; fingerprint: string }): SaveResult {
+    try {
+      const storage = this.require();
+      const record: OriginalProjectSlot = {
+        projectId: slot.projectId,
+        tutorialId: slot.tutorialId ?? null,
+        sessionId: slot.sessionId ?? null,
+        savedAt: slot.savedAt ?? nowIso(),
+        json: slot.json,
+        fingerprint: slot.fingerprint,
+      };
+      const slots = this.readOriginals();
+      slots[record.projectId] = record;
+      storage.setItem(TUTORIAL_ORIGINAL_KEY, JSON.stringify({ version: 1, slots }));
+      return { ok: true };
+    } catch (error) {
+      return failure(error);
+    }
+  }
+
+  loadOriginalProject(projectId: string): OriginalProjectSlot | null {
+    return this.readOriginals()[projectId] ?? null;
+  }
+
+  latestOriginalProject(): OriginalProjectSlot | null {
+    return this.listOriginalProjects()[0] ?? null;
+  }
+
+  removeOriginalProject(projectId: string): void {
+    if (!this.storage) return;
+    try {
+      const storage = this.storage;
+      const slots = this.readOriginals();
+      if (!(projectId in slots)) return;
+      delete slots[projectId];
+      storage.setItem(TUTORIAL_ORIGINAL_KEY, JSON.stringify({ version: 1, slots }));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  clearOriginalProjects(): void {
+    if (!this.storage) return;
+    try {
+      this.storage.removeItem(TUTORIAL_ORIGINAL_KEY);
     } catch {
       /* ignore */
     }
   }
 }
+
 
 /** The browser store, or null when storage is blocked. */
 export function browserProgressStorage(): ProgressStoreLike | null {

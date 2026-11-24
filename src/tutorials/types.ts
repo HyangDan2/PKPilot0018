@@ -101,13 +101,33 @@ export type ValidationRule =
   | { kind: 'sample-loaded'; sampleId: string; columns: string[] }
   | { kind: 'help-opened'; helpId?: string }
   | { kind: 'analysis-opened'; analysisId: string }
-  | { kind: 'analysis-output'; analysisId: string; minCount?: number; requireModel?: boolean; withChart?: ChartKind }
+  | {
+    kind: 'analysis-output';
+    analysisId: string;
+    minCount?: number;
+    requireModel?: boolean;
+    withChart?: ChartKind;
+    /** Column names the run must have consumed (input verification). */
+    columns?: string[];
+    /** Dialog parameters the run must have used (parameter verification). */
+    params?: Record<string, string | number | boolean>;
+    /** Preset whose filled slots state the expected columns and parameters. */
+    presetId?: string;
+  }
   | { kind: 'analysis-outputs'; requirements: { analysisId: string; withChart?: ChartKind }[] }
   | { kind: 'column-created'; name: string; mean?: number; sd?: number; tolerance?: ComparisonTolerance }
   | { kind: 'model-stored'; responses?: string[]; minCount?: number; minR2?: number; modelKind?: StoredModel['kind']; quadratic?: boolean }
   | { kind: 'chart'; chartKind: ChartKind; minCount?: number; responses?: string[]; requireFeasible?: boolean }
   | { kind: 'optimizer-run'; goals?: { response: string; goal: string }[]; minComposite?: number; statuses?: string[]; consistent?: boolean }
-  | { kind: 'profiler-check'; consistent?: boolean; atOptimizerPoint?: boolean }
+  | {
+    kind: 'profiler-check';
+    consistent?: boolean;
+    atOptimizerPoint?: boolean;
+    /** The condition must have been saved, not only viewed. */
+    requireSaved?: boolean;
+    /** Responses the profiler must show a prediction for. */
+    responses?: string[];
+  }
   | { kind: 'layout-saved'; minChartPanels?: number; requireFigureLabel?: boolean }
   | { kind: 'layout-export'; minChartPanels?: number; requireFigureLabel?: boolean; format?: 'png' | 'svg' }
   | { kind: 'practice-complete'; requireModels?: number; requireOptimizer?: boolean; requireProject?: boolean; requireLayout?: boolean }
@@ -197,6 +217,37 @@ export interface PracticeProjectInfo {
   mode: 'isolated' | 'current';
   tutorialId: string;
   sampleIds: string[];
+  /** The tutorial session this practice belongs to (WO-TQA-12). */
+  sessionId?: string;
+}
+
+/** One practice project kept for later, keyed by tutorial and session (WO-TQA-07). */
+export interface PracticeSlot {
+  slotId: string;
+  tutorialId: string;
+  tutorialVersion: number;
+  sessionId: string;
+  projectId: string;
+  savedAt: string;
+  /** The practice project file, as it was written. */
+  json: string;
+  /** The evidence the validators read, so a resumed lesson is re-judged (WO-TQA-08). */
+  events: TutorialEvent[];
+  /** The progress record of that session, kept beside its project. */
+  progress?: TutorialProgress | null;
+  /** The original project this practice was opened from. */
+  originalProjectId: string | null;
+}
+
+/** The reader's own project, saved before a practice isolates it (WO-TQA-01). */
+export interface OriginalProjectSlot {
+  projectId: string;
+  tutorialId: string | null;
+  sessionId: string | null;
+  savedAt: string;
+  json: string;
+  /** Fingerprint of what was written; the read-back must match it. */
+  fingerprint: string;
 }
 
 export interface WorkspaceFacts {

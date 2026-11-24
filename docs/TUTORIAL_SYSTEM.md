@@ -270,3 +270,24 @@ E2E가 확인한 것: 라이브러리 12개·검색, 샘플 8종, 도움말 23�
   - PR 검사 `qa-stats` — **success** (run 45409791603)
 - 배포 확인: <https://hyangdan2.github.io/PKPilot0018/> 에서 라이브러리 12개·실습 시작·샘플 로드 검증 통과 (`10-live.png`)
 - 원격 브랜치 삭제는 자격 증명 범위 제한(HTTP 403)으로 실패해 `feat/phase3e-guided-tutorial`이 원격에 남아 있다.
+
+## Corrective pass (T-01 … T-13, 2026-11-25)
+
+The tutorial system above is unchanged in structure. The corrective pass hardened
+what a step is allowed to conclude and what happens to the reader's own project:
+
+- the original project is written to `sigrun.tutorials.original.v1` and read back
+  before any practice replaces it; a refused store stops the start and offers an
+  explicit project backup (`tools/probe_tutorial_guard.cjs` measures this),
+- settings and custom chart styles are part of the practice snapshot,
+- samples are identified by row count and values, not by column names,
+- analysis steps verify input columns, dialog parameters and a produced result,
+- stored models are counted per response; the profiler must carry every factor and
+  be saved before a "consistent" verdict,
+- practice projects are kept per tutorial and session with their evidence, and a
+  resumed lesson is re-evaluated,
+- the project round trip is compared record by record (`src/lib/projectCompare.ts`),
+- endings are separated into verified / manual / skipped, and the status bar reads
+  the stage from `APP_PHASE`.
+
+Full report and the per-defect before/after assertions: `docs/TUTORIAL_CORRECTIVE_QA.md`.

@@ -100,6 +100,10 @@ export function TutorialRunner(props: Props) {
         <span className="tut-practice-note">
           {practiceMode === 'current' ? t(lang, 'tut.practiceCurrentNote') : t(lang, 'tut.practiceIsolatedNote')}
         </span>
+        {/* WO-TQA-12: the session and project a verdict belongs to are stated, not implied. */}
+        <span className="mono-note" data-testid="tut-session-id">
+          {t(lang, 'tut.sessionId')} {progress.sessionId}{progress.practiceProjectId ? ` · ${progress.practiceProjectId}` : ''}
+        </span>
         <span className="spacer" />
         <button type="button" className="btn tiny ghost" onClick={onExitPractice} data-testid="tut-exit">{t(lang, 'tut.exitPractice')}</button>
       </div>
