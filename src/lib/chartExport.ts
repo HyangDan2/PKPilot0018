@@ -10,6 +10,7 @@
 import type { ChartSpec } from '../types';
 import { renderChart, resolveStandaloneSvg } from './charts';
 import { defaultExportConfig } from './chartConfig';
+import { pngBlobWithDpi } from './pngDpi';
 import type { ChartConfig, ExportBackground, ExportConfig, ExportFormat, PhysicalUnit } from './chartConfig';
 
 /** The DPI presets the drawer offers; a custom value is allowed too. */
@@ -262,7 +263,11 @@ export async function svgToPngWithConfig(
     }
     ctx.drawImage(image, 0, 0, size.widthPx, size.heightPx);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((result) => resolve(result), 'image/png'));
-    return blob ? { blob, size } : null;
+    if (!blob) return null;
+    // The canvas writes pixels only: stamp the requested DPI into `pHYs` so a
+    // 300 DPI figure opens as 300 DPI in print, not as 72.
+    const withDpi = await pngBlobWithDpi(blob, size.dpi);
+    return { blob: withDpi, size };
   } catch {
     return null;
   } finally {

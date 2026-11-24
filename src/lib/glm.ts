@@ -321,6 +321,8 @@ export interface GlmResult {
   rank: number;
   aliased: string[];
   design: Design;
+  /** (X'X)⁻¹ on the estimable columns (zeros elsewhere): mse·this is the covariance. */
+  xtxInv: number[][];
 }
 
 function sse(X: number[][], y: number[], colLimit: number): number {
@@ -410,6 +412,7 @@ export function fitGlm(y: (number | null)[], factors: ModelFactor[], terms: Mode
     rank: full.rank,
     aliased: full.aliased.map((idx) => design.labels[idx] ?? `#${idx}`),
     design,
+    xtxInv: full.xtxInv,
   };
 }
 

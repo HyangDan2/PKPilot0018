@@ -7,6 +7,21 @@
 > **분류**: `SUPPORTED` 구현·검증됨 / `PARTIAL` 일부만 / `MISSING` 없음 / `DIFFERENT` 다른 방식 / `UNKNOWN` 미확인
 > **공수**: S 0.5일 이하 · M 1–2일 · L 3일 이상
 
+## 검증 스냅샷 (2026-11-24, Phase 3A)
+
+| 항목 | 결과 |
+| --- | --- |
+| `npx tsc --noEmit` | 0 errors |
+| `npm test` | **735 / 735 PASS** (Phase 2 661 + Stage 3A 신규 74) |
+| `npm run qa:stats` | **162 / 162 PASS, 0 FAIL** (기존 156 + 저장 모형 6) |
+| `npm run build` | 성공 (외부 CDN 없음) |
+| PNG DPI | `pHYs` 청크 바이트 단위 검증 — 150/300/600 DPI = 5906/11811/23622 px/m, CRC-32 재계산, 중복 `pHYs` 교체 (`tests/png-dpi.test.ts` 8건) |
+| Filled contour 정합성 | 평면·포물면·안장·상호작용·기울어진 안장 × 5/6/11/21 격자에서 밴드 면적 합 = 정의역 (오차 ≤ 1e-9), 밴드 꼭짓점이 자기 구간을 벗어나지 않음, 모든 등고선이 밴드 경계 위 (≤ 1.8e-12) (`tests/contour-bands.test.ts` 7건) |
+| 설정 가드 | NaN·Infinity·역전 범위·0 눈금 간격·알 수 없는 enum이 렌더 좌표에 도달하지 않음 (`tests/chart-guards.test.ts` 12건) |
+| 재실행 보존 | 스타일·축·RSM 뷰가 재실행 카드에 유지되고, 차트 삽입 시에도 항목별로 짝지어짐 (`tests/chart-memory.test.ts` 11건) |
+| 저장 모형 | 회귀·GLM·DOE·RSM 적합을 저장/이름변경/복제/삭제/비교/재적합, Coded↔Actual 예측, 랭크 부족 거부 (`tests/model-store.test.ts` 30건) |
+| 감사 집계 | 이 문서의 구역별 분류 집계가 §1 요약과 일치하고, 인용한 모든 코드 심볼이 `src/`에 존재함을 테스트가 확인 (`tests/gap-doc.test.ts` 6건) |
+
 ## 검증 스냅샷 (2026-11-24, Phase 2)
 
 | 항목 | 결과 |
@@ -29,18 +44,18 @@
 
 | 영역 | 항목 | SUPPORTED | PARTIAL | MISSING | DIFFERENT | P1 | P2 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Minitab 그래프 편집 | 8 | 3 | 3 | 2 | 0 | 2 | 6 |
+| Minitab 그래프 편집 | 8 | 5 | 2 | 1 | 0 | 2 | 6 |
 | Minitab 축·눈금 편집 | 12 | 7 | 5 | 0 | 0 | 3 | 9 |
-| Minitab Contour Plot | 14 | 7 | 4 | 2 | 1 | 7 | 7 |
+| Minitab Contour Plot | 14 | 8 | 3 | 2 | 1 | 7 | 7 |
 | Minitab Surface Plot | 5 | 0 | 1 | 4 | 0 | 2 | 3 |
 | Origin Plot Details | 10 | 5 | 4 | 1 | 0 | 6 | 4 |
 | Origin Axis Dialog | 11 | 5 | 4 | 2 | 0 | 2 | 9 |
 | Origin Colormap/Contour | 11 | 4 | 4 | 3 | 0 | 5 | 6 |
-| **합계** | **71** | **31** | **25** | **14** | **1** | **27** | **44** |
+| **합계** | **71** | **34** | **23** | **13** | **1** | **27** | **44** |
 
 - **P0(정확성) 격차 없음.** Phase 1 [P0] 항목 — 등고선 16-case·안장 판정, 렌더 컨텍스트 격리, 축 정밀도, XML 이스케이프 — 은 모두 구현·검증됐다. 남은 것은 전부 UI 연결(P1)과 편의 기능(P2)이다.
 - **P1 27건**의 절반은 *엔진은 있고 화면이 없는* 항목이다. 모델(`ChartConfig`, `RsmViewConfig`)과 렌더러는 완성됐고 Phase 2 Drawer/ContextMenu가 이를 편집하면 된다(§9).
-- **MISSING 14건**은 대부분 3D Surface Plot(4), 축 분리·대칭로그(2), 다중 응답 오버레이(1), 수준별 개별 색(1)처럼 새 렌더러가 필요한 기능이다.
+- **MISSING 13건**은 대부분 3D Surface Plot(4), 축 분리·대칭로그(2), 다중 응답 오버레이(1), 수준별 개별 색(1)처럼 새 렌더러가 필요한 기능이다.
 - **DIFFERENT 1건**은 등고선 메쉬 보간 방식이다. Minitab은 방식을 고르게 하지만 Sigrún은 쌍선형 Marching Squares + 점근 판정기로 고정한다 — 결과가 해석적으로 정확한 쪽을 택했다.
 
 ---
@@ -107,6 +122,8 @@
 | 해상도(격자) | (없음) | 41/101/201/401 프리셋 | SUPPORTED | `CONTOUR_RESOLUTIONS`, `resolutionPoints()` | — | P2 | S |
 
 > **기하 검증**: `tests/contour-geometry.test.ts` 가 해석적 평면 `Z = X + Y`, 포물면 `Z = X² + Y²`, 안장 `Z = X² − Y²`, 상호작용 `Z = XY`, 상수면, NaN 마스크를 정확해와 대조한다. 16개 케이스 전부와 두 안장 케이스의 두 선분, 꼭짓점 접점의 결정론적 처리도 포함한다.
+
+> **Stage 3A (WO-01/8) — Filled Contour 정합성**: 밴드 폴리곤이 셀 사각형을 선형으로만 잘라내던 방식은 **안장 셀에서 이웃 밴드와 겹쳤다**(최대 셀 면적의 100%, 정의역의 5.5%). 이제 밴드는 등고선과 **같은 `saddleValue` 판정과 같은 교차점**으로 셀을 분해하고(안장이면 두 조각), 두 임계값이 모두 평범하면 기존 이중 클리핑을 쓴다. 하한을 strict로 잘라 값이 정확히 경계인 셀이 두 밴드에 동시에 속하지 않게 했고, 평평한 셀은 `break`로 한 밴드만 차지한다. 결과: 평면·포물면·안장·상호작용·기울어진 안장 × 5/6/11/21 격자에서 밴드 면적 합 = 정의역(오차 ≤ 1e-9), 밴드 꼭짓점이 자기 구간을 벗어나지 않음(0), 모든 등고선이 밴드 경계 위(≤ 1.8e-12). 검증은 `tests/contour-bands.test.ts`.
 
 ---
 
@@ -223,7 +240,20 @@ node_modules/.bin/vite-node tools/contour_benchmark.ts
 
 ---
 
-## 11. Phase 2 반영 — 화면이 붙은 항목
+## 11. Stage 3A — 저장 모형 계층 (WO-02)
+
+차트 격차 감사와 별개로, 적합 모형을 후속 실행에서 재사용하기 위한 계층이 추가됐다. 상세 설계는 `docs/MODEL_STORE_ARCHITECTURE.md`.
+
+| 항목 | 상태 | 근거 |
+| --- | --- | --- |
+| 모형 저장·이름변경·복제·삭제·비교 | SUPPORTED | `src/lib/modelStore.ts`, `src/components/ModelManager.tsx` |
+| 저장 정보(계수·공분산·잔차분산·자유도·요인범위·코딩변환·범주수준·학습데이터·진단·버전·시각) | SUPPORTED | `StoredModel`, `draftFromGlm()`, `draftFromRegression()`, `draftFromRsmPayload()` |
+| 모형 예측(단위 전환·SE·예측구간) | SUPPORTED | `predictStoredModel()` |
+| 랭크 부족 시 추정 불가 표시 | SUPPORTED | `nonEstimable`, QA-J-06 |
+| 원본 데이터 변경 시 Stale 표시·재적합 | SUPPORTED | `modelStaleness()`, `refitStoredModel()` |
+| 모형 기반 후속 진입점 | PARTIAL | `modelSurface()` → 등고선 활성, 표면·최적화는 Stage 3B–3C |
+
+## 12. Phase 2 반영 — 화면이 붙은 항목
 
 Phase 2는 엔진 심볼을 UI에 연결하고, 내보내기와 검증을 마쳤다. 아래 항목은 Phase 1에서 엔진만 있던 것이 이제 화면에서 직접 편집·검증된다.
 

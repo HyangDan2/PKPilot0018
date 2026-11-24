@@ -34,6 +34,8 @@ interface Props {
   onRerun: (output: OutputDoc) => void;
   onReproduce: (output: OutputDoc) => void;
   onUpdateBlocks: (id: string, blocks: Block[]) => void;
+  /** Hand this card's fitted model to the model store (WO-02). */
+  onSaveModel: (output: OutputDoc) => void;
 }
 
 interface ChartTarget {
@@ -248,7 +250,7 @@ function blocksWithChart(output: OutputDoc, target: ChartTarget, chart: ChartSpe
 }
 
 export function OutputPanel({
-  lang, outputs, focusedOutput, onFocus, onDelete, onToggleCollapse, onCollapseAll, onToast, onRerun, onReproduce, onUpdateBlocks,
+  lang, outputs, focusedOutput, onFocus, onDelete, onToggleCollapse, onCollapseAll, onToast, onRerun, onReproduce, onUpdateBlocks, onSaveModel,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; outputId: string | null; target?: ChartTarget } | null>(null);
@@ -466,6 +468,7 @@ export function OutputPanel({
     { id: 'out-csv', label: t(lang, 'outctx.csv'), onSelect: () => handleCsv(output) },
     { id: 'out-sep-1', label: '', separator: true },
     { id: 'out-rerun', label: t(lang, 'outctx.rerun'), onSelect: () => onRerun(output) },
+    ...(output.model ? [{ id: 'out-save-model', label: t(lang, 'outctx.saveModel'), onSelect: () => onSaveModel(output) }] : []),
     { id: 'out-reproduce', label: t(lang, 'outctx.reproduce'), onSelect: () => onReproduce(output) },
     { id: 'out-sep-2', label: '', separator: true },
     {
@@ -672,6 +675,7 @@ export function OutputPanel({
               <div className="out-sub">
                 {output.subtitle ? `${output.subtitle} · ` : ''}{fmtTime(output.createdAt)}
                 {output.meta && <span className="out-meta"> · {output.meta.sheetName} · {t(lang, 'card.snapshot')}</span>}
+                {output.model && <span className="out-meta" data-testid="card-model-badge"> · {t(lang, 'card.hasModel')}</span>}
               </div>
             </div>
             <div className="out-tools" onClick={(event) => event.stopPropagation()}>

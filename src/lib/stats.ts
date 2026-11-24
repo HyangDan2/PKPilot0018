@@ -482,6 +482,8 @@ export interface RegressionResult {
   order: number[];
   yName: string;
   xNames: string[];
+  /** mse·(X'X)⁻¹ on the coefficient order — the covariance of the estimates. */
+  covariance: number[][];
 }
 
 function solve(A: number[][], b: number[]): number[] {
@@ -597,8 +599,10 @@ export function regress(
     coefficients.push({ term: predictors[j].name, coef, se, t, p: 2 * (1 - tCdf(Math.abs(t), dfErr)), vif: vifs[j] });
   }
   coefficients[0].p = 2 * (1 - tCdf(Math.abs(coefficients[0].t), dfErr));
+  const covariance = inv.map((row) => row.map((value) => value * msErr));
   return {
     coefficients,
+    covariance,
     anova: { dfReg, dfErr, ssReg, ssErr, ssTotal, msReg, msErr, f, p: 1 - fCdf(f, dfReg, dfErr) },
     r2,
     r2adj,

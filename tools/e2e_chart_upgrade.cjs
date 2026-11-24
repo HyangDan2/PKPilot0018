@@ -25,7 +25,7 @@ function loadPlaywright() {
 }
 const { chromium } = loadPlaywright();
 
-const BASE = process.env.BASE || 'http://127.0.0.1:4190/PKPilot0018/';
+const BASE = process.env.BASE || require('./serve_inline.cjs').ensureServed();
 const BASELINE = process.env.BASELINE || '';
 const OUT = process.env.OUT || '/workspace/downloads/sigrun-upgrade-shots';
 const EXE = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';

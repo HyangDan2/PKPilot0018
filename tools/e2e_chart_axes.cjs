@@ -22,7 +22,7 @@ function loadPlaywright() {
 }
 const { chromium } = loadPlaywright();
 
-const BASE = process.env.BASE || 'http://localhost:4178/PKPilot0018/';
+const BASE = process.env.BASE || require('./serve_inline.cjs').ensureServed();
 const OUT = process.env.OUT || '/workspace/work/pkpilot0018';
 const EXE = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
 const results = [];

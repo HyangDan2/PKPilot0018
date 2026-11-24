@@ -50,11 +50,13 @@ import {
   seriesMarker,
   type ResolvedChartStyle,
 } from './chartStyles';
+import { sanitizeChartConfig } from './chartGuards';
 import {
   bandColor,
   bandPolygons,
   computeContourLevels,
   contourPolylines,
+  gridFiniteCells,
   gridZExtent,
   marchingSquares,
   stitchSegments,
@@ -219,13 +221,20 @@ function linearTicks(min: number, max: number, count: number, stepOverride?: num
   if (!isFinite(min) || !isFinite(max)) return { values: [0], step: 1 };
   if (min === max) { min -= 0.5; max += 0.5; }
   if (min > max) [min, max] = [max, min];
-  const step = stepOverride != null && stepOverride > 0 ? stepOverride : niceStep((max - min) / Math.max(1, count));
+  // A span beyond the double range (−1e308 … 1e308) is infinite: fall back to
+  // the magnitude so the step stays a real number.
+  const span = max - min;
+  const raw = Number.isFinite(span) ? span / Math.max(1, count) : Math.max(Math.abs(min), Math.abs(max)) / Math.max(1, count);
+  let step = stepOverride != null && stepOverride > 0 ? stepOverride : niceStep(raw);
+  if (!isFinite(step) || step <= 0) step = 1;
   const start = Math.floor(min / step + 1e-9) * step;
   const end = Math.ceil(max / step - 1e-9) * step;
   const values: number[] = [];
   const maxTicks = 64;
   for (let v = start; v <= end + step * 1e-6 && values.length < maxTicks; v += step) {
+    if (!isFinite(v)) break;
     const rounded = Math.abs(v) < step * 1e-6 ? 0 : Number(v.toPrecision(14));
+    if (!isFinite(rounded)) break;
     if (!values.length || Math.abs(rounded - values[values.length - 1]) > step * 1e-9) values.push(rounded);
   }
   if (values.length > maxTicks) values.length = maxTicks;
@@ -370,7 +379,10 @@ let renderSequence = 0;
 function createContext(spec: ChartSpec, options: RenderOptions): RenderContext {
   renderSequence += 1;
   const raw = options.config ? mergeChartConfig(spec.config, options.config) : (spec.config ?? {});
-  const config = mergeChartConfig(undefined, raw);
+  // Every hostile value (NaN, Infinity, a reversed range, an unknown preset)
+  // becomes a sane default here, before any renderer multiplies it into a
+  // coordinate.
+  const config = sanitizeChartConfig(mergeChartConfig(undefined, raw));
   const appearance: ChartAppearance = { ...defaultChartAppearance(), ...(config.appearance ?? {}) };
   if (options.preset) appearance.preset = options.preset as ChartAppearance['preset'];
   const resolved = resolveChartStyle(appearance.preset, appearance);
@@ -1950,6 +1962,9 @@ function drawContour(spec: Extract<ChartSpec, { kind: 'contour' }>, ctx: RenderC
   const h = ctx.H;
   if (spec.xs.length < 2 || spec.ys.length < 2) return emptyChart(ctx, spec.title ?? 'Contour plot');
   const grid: ContourGrid = { xs: spec.xs, ys: spec.ys, z: spec.z };
+  // An all-NaN grid is not a constant surface: say there is nothing to draw
+  // instead of colouring the frame and claiming "Constant surface 0".
+  if (gridFiniteCells(grid) === 0) return emptyChart(ctx, spec.title ?? 'Contour plot', 'No finite values to contour');
   const extentZ = gridZExtent(grid);
   const levelSet = computeContourLevels(grid, {
     ...cfg,

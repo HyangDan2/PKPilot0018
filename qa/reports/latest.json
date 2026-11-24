@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-24T09:59:07+09:00",
-  "commit": "ee1dafe58bed73aed66d58426537db90e5cdd445",
+  "generated_at": "2026-11-24T13:22:53+09:00",
+  "commit": "87728e9fe7fd6095ebe930ef77586646e092514e",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
-   "node": "v24.11.0",
-   "commit": "ee1dafe58bed73aed66d58426537db90e5cdd445",
-   "cases": 156,
-   "generatedAt": "2026-11-24T00:58:48.368Z"
+   "node": "v22.20.0",
+   "commit": "87728e9fe7fd6095ebe930ef77586646e092514e",
+   "cases": 162,
+   "generatedAt": "2026-11-24T04:22:39.199Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",
@@ -19,7 +19,7 @@
    "pandas": "3.1.1",
    "patsy": "1.0.3",
    "platform": "Linux-6.12.118-guest-1.1-x86_64-with-glibc2.41",
-   "cases": 156,
+   "cases": 162,
    "methods": {
     "QA-A-01": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
     "QA-A-02": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
@@ -149,6 +149,11 @@
     "QA-I-02": "numpy elementwise evaluation of the same documented formula",
     "QA-I-03": "numpy elementwise evaluation of the same documented formula",
     "QA-I-04": "numpy elementwise evaluation of the same documented formula",
+    "QA-J-01": "numpy X'β · X'ΣX · scipy t prediction interval",
+    "QA-J-02": "numpy X'β · X'ΣX · scipy t prediction interval",
+    "QA-J-03": "numpy X'β · X'ΣX · scipy t prediction interval",
+    "QA-J-04": "numpy X'β · X'ΣX · scipy t prediction interval",
+    "QA-J-05": "numpy X'β · X'ΣX · scipy t prediction interval",
     "QA-U-01": "pandas value counts + documented 1-decimal display rule",
     "QA-U-02": "documented bin rule (max(5,min(20,1+log2 n))) + scipy.stats.norm.pdf curve",
     "QA-U-03": "numpy.quantile(method='weibull') + 1.5·IQR whisker rule",
@@ -253,14 +258,14 @@
  },
  "summary": {
   "counts": {
-   "PASS": 156,
+   "PASS": 162,
    "FAIL": 0,
    "REVIEW": 0,
    "UNVERIFIED": 0,
    "ERROR": 0
   },
-  "total": 156,
-  "verifiable": 156,
+  "total": 162,
+  "verifiable": 162,
   "pass_rate_verifiable": 1.0,
   "review_rate": 0.0,
   "unverified_rate": 0.0,
@@ -354,6 +359,16 @@
     "max_rel": 7.708011427158365e-15,
     "max_abs": 3.1086244689504383e-15,
     "total": 4
+   },
+   "QA-J": {
+    "PASS": 6,
+    "FAIL": 0,
+    "REVIEW": 0,
+    "UNVERIFIED": 0,
+    "ERROR": 0,
+    "max_rel": 2.6075664870790826e-12,
+    "max_abs": 7.989342520886566e-11,
+    "total": 6
    },
    "QA-U": {
     "PASS": 9,
@@ -734,10 +749,10 @@
      "key": "skewness",
      "tol": "default",
      "kind": "number",
-     "adapter": -0.08966254046060233,
+     "adapter": -0.08966254046060237,
      "reference": -0.08966254046060233,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 4.163336342344337e-17,
+     "rel": 4.643339705697615e-16,
      "status": "match"
     },
     {
@@ -1426,10 +1441,10 @@
      "key": "skewness",
      "tol": "default",
      "kind": "number",
-     "adapter": 0.0032767476552246506,
+     "adapter": 0.0032767476552246575,
      "reference": 0.003276747655220395,
-     "abs": 4.255710367440102e-15,
-     "rel": 1.298760483023482e-12,
+     "abs": 4.262649261344009e-15,
+     "rel": 1.300878099219179e-12,
      "status": "match"
     },
     {
@@ -1446,7 +1461,7 @@
    "verdict": "PASS",
    "errors": [],
    "max_abs": 4.656612873077393e-10,
-   "max_rel": 1.298760483023482e-12
+   "max_rel": 1.300878099219179e-12
   },
   {
    "id": "QA-A-07",
@@ -14675,10 +14690,10 @@
      "key": "b10",
      "tol": "mle",
      "kind": "number",
-     "adapter": 39.9533320231273,
+     "adapter": 39.953332023127295,
      "reference": 39.95329443896208,
-     "abs": 3.758416522003927e-05,
-     "rel": 9.407025314885557e-07,
+     "abs": 3.758416521293384e-05,
+     "rel": 9.407025313107124e-07,
      "status": "match"
     },
     {
@@ -14695,10 +14710,10 @@
      "key": "b90",
      "tol": "mle",
      "kind": "number",
-     "adapter": 195.1657959120553,
+     "adapter": 195.16579591205533,
      "reference": 195.16585600417477,
-     "abs": 6.0092119468890814e-05,
-     "rel": 3.079028304397947e-07,
+     "abs": 6.0092119440469105e-05,
+     "rel": 3.079028302941662e-07,
      "status": "match"
     },
     {
@@ -14795,7 +14810,7 @@
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 6.0092119468890814e-05,
+   "max_abs": 6.0092119440469105e-05,
    "max_rel": 9.981502653844906e-06
   },
   {
@@ -14956,10 +14971,10 @@
      "key": "b5",
      "tol": "mle",
      "kind": "number",
-     "adapter": 26.162340122288477,
+     "adapter": 26.162340122288473,
      "reference": 26.162313151005314,
-     "abs": 2.6971283162424697e-05,
-     "rel": 1.0309211959489254e-06,
+     "abs": 2.6971283158871984e-05,
+     "rel": 1.0309211958131303e-06,
      "status": "match"
     },
     {
@@ -15234,10 +15249,10 @@
      "key": "b90",
      "tol": "mle",
      "kind": "number",
-     "adapter": 175.9947116435528,
+     "adapter": 175.99471164355276,
      "reference": 175.9946810757103,
-     "abs": 3.056784248656186e-05,
-     "rel": 1.7368617221682982e-07,
+     "abs": 3.056784245814015e-05,
+     "rel": 1.7368617205533793e-07,
      "status": "match"
     },
     {
@@ -15760,10 +15775,10 @@
      "key": "b5",
      "tol": "mle",
      "kind": "number",
-     "adapter": 70.88283640453696,
+     "adapter": 70.88283640453695,
      "reference": 70.8828675227163,
-     "abs": 3.111817933643124e-05,
-     "rel": 4.3900847163750243e-07,
+     "abs": 3.1118179350642095e-05,
+     "rel": 4.390084718379861e-07,
      "status": "match"
     },
     {
@@ -16349,10 +16364,10 @@
      "key": "b10",
      "tol": "mle",
      "kind": "number",
-     "adapter": 6.18116039625076,
+     "adapter": 6.181160396250761,
      "reference": 6.181158711689048,
-     "abs": 1.6845617123451007e-06,
-     "rel": 2.725317033454366e-07,
+     "abs": 1.684561713233279e-06,
+     "rel": 2.7253170348912786e-07,
      "status": "match"
     },
     {
@@ -20021,10 +20036,10 @@
      "key": "run[4]:f0",
      "tol": "default",
      "kind": "number",
-     "adapter": -1.4142135623730951,
+     "adapter": -1.414213562373095,
      "reference": -1.4142135623730951,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.570092458683775e-16,
      "status": "match"
     },
     {
@@ -20041,10 +20056,10 @@
      "key": "run[5]:f0",
      "tol": "default",
      "kind": "number",
-     "adapter": 1.4142135623730951,
+     "adapter": 1.414213562373095,
      "reference": 1.4142135623730951,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.570092458683775e-16,
      "status": "match"
     },
     {
@@ -20071,10 +20086,10 @@
      "key": "run[6]:f1",
      "tol": "default",
      "kind": "number",
-     "adapter": -1.4142135623730951,
+     "adapter": -1.414213562373095,
      "reference": -1.4142135623730951,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.570092458683775e-16,
      "status": "match"
     },
     {
@@ -20091,10 +20106,10 @@
      "key": "run[7]:f1",
      "tol": "default",
      "kind": "number",
-     "adapter": 1.4142135623730951,
+     "adapter": 1.414213562373095,
      "reference": 1.4142135623730951,
-     "abs": 0.0,
-     "rel": 0.0,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.570092458683775e-16,
      "status": "match"
     },
     {
@@ -20230,8 +20245,8 @@
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0
+   "max_abs": 2.220446049250313e-16,
+   "max_rel": 1.570092458683775e-16
   },
   {
    "id": "QA-H-05",
@@ -22310,6 +22325,1562 @@
    "errors": [],
    "max_abs": 0.0,
    "max_rel": 0.0
+  },
+  {
+   "id": "QA-J-01",
+   "area": "QA-J",
+   "title": "저장 모형 예측 — 다중 회귀 (실제 단위 입력, SE·예측구간)",
+   "op": "modelpredict",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "",
+   "args": {
+    "model": {
+     "kind": "multiple",
+     "response": "Yield",
+     "predictors": [
+      {
+       "name": "Temperature",
+       "id": "C1",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 172.0,
+        "halfRange": 12.0
+       }
+      },
+      {
+       "name": "Pressure",
+       "id": "C2",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 2.6,
+        "halfRange": 0.6
+       }
+      },
+      {
+       "name": "Speed",
+       "id": "C3",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 50.0,
+        "halfRange": 10.0
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "Temperature",
+       "factors": [
+        "Temperature"
+       ]
+      },
+      {
+       "label": "Pressure",
+       "factors": [
+        "Pressure"
+       ]
+      },
+      {
+       "label": "Speed",
+       "factors": [
+        "Speed"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 58.2,
+       "se": 0.927
+      },
+      {
+       "label": "Temperature",
+       "value": 0.121,
+       "se": 0.00632
+      },
+      {
+       "label": "Pressure",
+       "value": 4.05,
+       "se": 0.1113
+      },
+      {
+       "label": "Speed",
+       "value": -0.155,
+       "se": 0.000458
+      }
+     ],
+     "covariance": [
+      [
+       0.86,
+       -0.0021,
+       0.031,
+       0.00012
+      ],
+      [
+       -0.0021,
+       4e-05,
+       -0.00011,
+       -3e-06
+      ],
+      [
+       0.031,
+       -0.00011,
+       0.0124,
+       1.2e-06
+      ],
+      [
+       0.00012,
+       -3e-06,
+       1.2e-06,
+       2.1e-07
+      ]
+     ],
+     "residual": {
+      "mse": 2.1,
+      "df": 43,
+      "s": 1.449137674618944
+     }
+    },
+    "points": [
+     {
+      "mode": "actual",
+      "values": {
+       "Temperature": 180.0,
+       "Pressure": 2.9,
+       "Speed": 55.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "Temperature": 160.0,
+       "Pressure": 2.0,
+       "Speed": 40.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "Temperature": 172.0,
+       "Pressure": 2.6,
+       "Speed": 50.0
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 83.2,
+     "reference": 83.2,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.2345290802569213,
+     "reference": 1.2345290802569213,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pi_low[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 79.36082922585508,
+     "reference": 79.36082922577519,
+     "abs": 7.989342520886566e-11,
+     "rel": 1.0067110687764525e-12,
+     "status": "match"
+    },
+    {
+     "key": "pi_high[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 87.03917077414492,
+     "reference": 87.03917077422481,
+     "abs": 7.989342520886566e-11,
+     "rel": 9.179019572245828e-13,
+     "status": "match"
+    },
+    {
+     "key": "pred[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 79.46,
+     "reference": 79.46,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.1344284904743887,
+     "reference": 1.1344284904743887,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pi_low[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 75.74855866201308,
+     "reference": 75.74855866193585,
+     "abs": 7.723599537712289e-11,
+     "rel": 1.0196365018881144e-12,
+     "status": "match"
+    },
+    {
+     "key": "pi_high[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 83.1714413379869,
+     "reference": 83.17144133806414,
+     "abs": 7.723599537712289e-11,
+     "rel": 9.286360093626892e-13,
+     "status": "match"
+    },
+    {
+     "key": "pred[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 81.792,
+     "reference": 81.792,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.1953397006709017,
+     "reference": 1.1953397006709015,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.857585795907269e-16,
+     "status": "match"
+    },
+    {
+     "key": "pi_low[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 78.00360357954308,
+     "reference": 78.00360357946425,
+     "abs": 7.882761110522551e-11,
+     "rel": 1.010563711007554e-12,
+     "status": "match"
+    },
+    {
+     "key": "pi_high[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 85.58039642045692,
+     "reference": 85.58039642053575,
+     "abs": 7.882761110522551e-11,
+     "rel": 9.210942505789813e-13,
+     "status": "match"
+    },
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "issues[0]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "",
+     "reference": "",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 7.989342520886566e-11,
+   "max_rel": 1.0196365018881144e-12
+  },
+  {
+   "id": "QA-J-02",
+   "area": "QA-J",
+   "title": "저장 모형 예측 — 같은 회귀 모형을 코딩 단위로 입력",
+   "op": "modelpredict",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "",
+   "args": {
+    "model": {
+     "kind": "multiple",
+     "response": "Yield",
+     "predictors": [
+      {
+       "name": "Temperature",
+       "id": "C1",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 172.0,
+        "halfRange": 12.0
+       }
+      },
+      {
+       "name": "Pressure",
+       "id": "C2",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 2.6,
+        "halfRange": 0.6
+       }
+      },
+      {
+       "name": "Speed",
+       "id": "C3",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 50.0,
+        "halfRange": 10.0
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "Temperature",
+       "factors": [
+        "Temperature"
+       ]
+      },
+      {
+       "label": "Pressure",
+       "factors": [
+        "Pressure"
+       ]
+      },
+      {
+       "label": "Speed",
+       "factors": [
+        "Speed"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 58.2,
+       "se": 0.927
+      },
+      {
+       "label": "Temperature",
+       "value": 0.121,
+       "se": 0.00632
+      },
+      {
+       "label": "Pressure",
+       "value": 4.05,
+       "se": 0.1113
+      },
+      {
+       "label": "Speed",
+       "value": -0.155,
+       "se": 0.000458
+      }
+     ],
+     "covariance": [
+      [
+       0.86,
+       -0.0021,
+       0.031,
+       0.00012
+      ],
+      [
+       -0.0021,
+       4e-05,
+       -0.00011,
+       -3e-06
+      ],
+      [
+       0.031,
+       -0.00011,
+       0.0124,
+       1.2e-06
+      ],
+      [
+       0.00012,
+       -3e-06,
+       1.2e-06,
+       2.1e-07
+      ]
+     ],
+     "residual": {
+      "mse": 2.1,
+      "df": 43,
+      "s": 1.449137674618944
+     }
+    },
+    "points": [
+     {
+      "mode": "coded",
+      "values": {
+       "Temperature": 0.6666666666666666,
+       "Pressure": 0.5,
+       "Speed": 0.5
+      }
+     },
+     {
+      "mode": "coded",
+      "values": {
+       "Temperature": -1.0,
+       "Pressure": -1.0,
+       "Speed": -1.0
+      }
+     },
+     {
+      "mode": "coded",
+      "values": {
+       "Temperature": 0.0,
+       "Pressure": 0.0,
+       "Speed": 0.0
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 83.2,
+     "reference": 83.2,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.2345290802569213,
+     "reference": 1.2345290802569213,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pi_low[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 79.36082922585508,
+     "reference": 79.36082922577519,
+     "abs": 7.989342520886566e-11,
+     "rel": 1.0067110687764525e-12,
+     "status": "match"
+    },
+    {
+     "key": "pi_high[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 87.03917077414492,
+     "reference": 87.03917077422481,
+     "abs": 7.989342520886566e-11,
+     "rel": 9.179019572245828e-13,
+     "status": "match"
+    },
+    {
+     "key": "pred[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 79.46,
+     "reference": 79.46,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.1344284904743887,
+     "reference": 1.1344284904743887,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pi_low[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 75.74855866201308,
+     "reference": 75.74855866193585,
+     "abs": 7.723599537712289e-11,
+     "rel": 1.0196365018881144e-12,
+     "status": "match"
+    },
+    {
+     "key": "pi_high[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 83.1714413379869,
+     "reference": 83.17144133806414,
+     "abs": 7.723599537712289e-11,
+     "rel": 9.286360093626892e-13,
+     "status": "match"
+    },
+    {
+     "key": "pred[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 81.792,
+     "reference": 81.792,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.1953397006709017,
+     "reference": 1.1953397006709015,
+     "abs": 2.220446049250313e-16,
+     "rel": 1.857585795907269e-16,
+     "status": "match"
+    },
+    {
+     "key": "pi_low[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 78.00360357954308,
+     "reference": 78.00360357946425,
+     "abs": 7.882761110522551e-11,
+     "rel": 1.010563711007554e-12,
+     "status": "match"
+    },
+    {
+     "key": "pi_high[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 85.58039642045692,
+     "reference": 85.58039642053575,
+     "abs": 7.882761110522551e-11,
+     "rel": 9.210942505789813e-13,
+     "status": "match"
+    },
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "issues[0]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "",
+     "reference": "",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 7.989342520886566e-11,
+   "max_rel": 1.0196365018881144e-12
+  },
+  {
+   "id": "QA-J-03",
+   "area": "QA-J",
+   "title": "저장 모형 예측 — RSM 2차 모형 (코딩 단위, 공분산 없음)",
+   "op": "modelpredict",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "",
+   "args": {
+    "model": {
+     "kind": "rsm",
+     "response": "Y",
+     "predictors": [
+      {
+       "name": "A",
+       "id": "C4",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 160.0,
+        "halfRange": 20.0
+       }
+      },
+      {
+       "name": "B",
+       "id": "C5",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 2.0,
+        "halfRange": 0.5
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "A",
+       "factors": [
+        "A"
+       ]
+      },
+      {
+       "label": "B",
+       "factors": [
+        "B"
+       ]
+      },
+      {
+       "label": "A×B",
+       "factors": [
+        "A",
+        "B"
+       ]
+      },
+      {
+       "label": "A²",
+       "factors": [
+        "A²"
+       ]
+      },
+      {
+       "label": "B²",
+       "factors": [
+        "B²"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 80.3
+      },
+      {
+       "label": "A",
+       "value": 3.1
+      },
+      {
+       "label": "B",
+       "value": 2.2
+      },
+      {
+       "label": "A×B",
+       "value": 1.9
+      },
+      {
+       "label": "A²",
+       "value": -5.2
+      },
+      {
+       "label": "B²",
+       "value": -4.1
+      }
+     ],
+     "covariance": null,
+     "residual": {
+      "mse": 0.1225,
+      "s": 0.35
+     },
+     "nonEstimable": []
+    },
+    "points": [
+     {
+      "mode": "coded",
+      "values": {
+       "A": 0.0,
+       "B": 0.0
+      }
+     },
+     {
+      "mode": "coded",
+      "values": {
+       "A": 1.0,
+       "B": -1.0
+      }
+     },
+     {
+      "mode": "coded",
+      "values": {
+       "A": -1.682,
+       "B": 1.682
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 80.3,
+     "reference": 80.3,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_low[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_high[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pred[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 78.19999999999997,
+     "reference": 78.19999999999997,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_low[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_high[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pred[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 75.2610644,
+     "reference": 75.2610644,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_low[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_high[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "issues[0]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "",
+     "reference": "",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-J-04",
+   "area": "QA-J",
+   "title": "저장 모형 예측 — RSM 모형을 실제 단위로 입력 (Coded/Actual 변환)",
+   "op": "modelpredict",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "",
+   "args": {
+    "model": {
+     "kind": "rsm",
+     "response": "Y",
+     "predictors": [
+      {
+       "name": "A",
+       "id": "C4",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 160.0,
+        "halfRange": 20.0
+       }
+      },
+      {
+       "name": "B",
+       "id": "C5",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 2.0,
+        "halfRange": 0.5
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "A",
+       "factors": [
+        "A"
+       ]
+      },
+      {
+       "label": "B",
+       "factors": [
+        "B"
+       ]
+      },
+      {
+       "label": "A×B",
+       "factors": [
+        "A",
+        "B"
+       ]
+      },
+      {
+       "label": "A²",
+       "factors": [
+        "A²"
+       ]
+      },
+      {
+       "label": "B²",
+       "factors": [
+        "B²"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 80.3
+      },
+      {
+       "label": "A",
+       "value": 3.1
+      },
+      {
+       "label": "B",
+       "value": 2.2
+      },
+      {
+       "label": "A×B",
+       "value": 1.9
+      },
+      {
+       "label": "A²",
+       "value": -5.2
+      },
+      {
+       "label": "B²",
+       "value": -4.1
+      }
+     ],
+     "covariance": null,
+     "residual": {
+      "mse": 0.1225,
+      "s": 0.35
+     },
+     "nonEstimable": []
+    },
+    "points": [
+     {
+      "mode": "actual",
+      "values": {
+       "A": 160.0,
+       "B": 2.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "A": 180.0,
+       "B": 1.5
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "A": 126.36,
+       "B": 2.841
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 80.3,
+     "reference": 80.3,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_low[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_high[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pred[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 78.19999999999997,
+     "reference": 78.19999999999997,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_low[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_high[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pred[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 75.26106439999998,
+     "reference": 75.26106439999998,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_low[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_high[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "issues[0]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "",
+     "reference": "",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-J-05",
+   "area": "QA-J",
+   "title": "저장 모형 예측 — 범주형 요인 (sum-to-zero 대비)",
+   "op": "modelpredict",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "",
+   "args": {
+    "model": {
+     "kind": "glm",
+     "response": "Strength",
+     "predictors": [
+      {
+       "name": "Machine",
+       "id": "C1",
+       "kind": "categorical",
+       "levels": [
+        "A",
+        "B",
+        "C"
+       ]
+      },
+      {
+       "name": "Temp",
+       "id": "C2",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 20.0,
+        "halfRange": 5.0
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "Machine",
+       "factors": [
+        "Machine"
+       ]
+      },
+      {
+       "label": "Temp",
+       "factors": [
+        "Temp"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 10.4,
+       "se": 0.648
+      },
+      {
+       "label": "Machine[A]",
+       "value": 1.5,
+       "se": 0.436
+      },
+      {
+       "label": "Machine[B]",
+       "value": -0.5,
+       "se": 0.458
+      },
+      {
+       "label": "Temp",
+       "value": 0.25,
+       "se": 0.0307
+      }
+     ],
+     "covariance": [
+      [
+       0.42,
+       0.0,
+       0.0,
+       -0.0008
+      ],
+      [
+       0.0,
+       0.19,
+       0.031,
+       0.0
+      ],
+      [
+       0.0,
+       0.031,
+       0.21,
+       0.0
+      ],
+      [
+       -0.0008,
+       0.0,
+       0.0,
+       0.00094
+      ]
+     ],
+     "residual": {
+      "mse": 0.42,
+      "df": 26,
+      "s": 0.6480740698407862
+     }
+    },
+    "points": [
+     {
+      "mode": "actual",
+      "values": {
+       "Machine": "A",
+       "Temp": 22.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "Machine": "B",
+       "Temp": 18.0
+      }
+     },
+     {
+      "mode": "actual",
+      "values": {
+       "Machine": "C",
+       "Temp": 20.0
+      }
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "pred[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 17.4,
+     "reference": 17.4,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.014770910107301,
+     "reference": 1.014770910107301,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pi_low[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 14.925019636871475,
+     "reference": 14.925019636900261,
+     "abs": 2.878586258248106e-11,
+     "rel": 1.9286984729528653e-12,
+     "status": "match"
+    },
+    {
+     "key": "pi_high[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 19.874980363128522,
+     "reference": 19.874980363099734,
+     "abs": 2.878763893932046e-11,
+     "rel": 1.4484360946976398e-12,
+     "status": "match"
+    },
+    {
+     "key": "pred[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 14.4,
+     "reference": 14.4,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.9517142428271208,
+     "reference": 0.9517142428271208,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pi_low[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 12.03322944923007,
+     "reference": 12.033229449257597,
+     "abs": 2.752642558334628e-11,
+     "rel": 2.2875343397565274e-12,
+     "status": "match"
+    },
+    {
+     "key": "pi_high[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 16.76677055076993,
+     "reference": 16.766770550742404,
+     "abs": 2.752642558334628e-11,
+     "rel": 1.6417249523419677e-12,
+     "status": "match"
+    },
+    {
+     "key": "pred[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 14.4,
+     "reference": 14.4,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.1072488428533127,
+     "reference": 1.1072488428533127,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pi_low[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11.76282702582299,
+     "reference": 11.762827025853662,
+     "abs": 3.0672353545924125e-11,
+     "rel": 2.6075664870790826e-12,
+     "status": "match"
+    },
+    {
+     "key": "pi_high[2]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 17.03717297417701,
+     "reference": 17.037172974146337,
+     "abs": 3.0674129902763525e-11,
+     "rel": 1.8004236940783e-12,
+     "status": "match"
+    },
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "issues[0]",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "",
+     "reference": "",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 3.0674129902763525e-11,
+   "max_rel": 2.6075664870790826e-12
+  },
+  {
+   "id": "QA-J-06",
+   "area": "QA-J",
+   "title": "저장 모형 예측 — 랭크 부족 모형은 값을 만들지 않고 거부한다",
+   "op": "modelpredict",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "",
+   "args": {
+    "model": {
+     "kind": "glm",
+     "response": "Strength",
+     "predictors": [
+      {
+       "name": "Machine",
+       "id": "C1",
+       "kind": "categorical",
+       "levels": [
+        "A",
+        "B",
+        "C"
+       ]
+      },
+      {
+       "name": "Temp",
+       "id": "C2",
+       "kind": "numeric",
+       "coding": {
+        "mode": "actual",
+        "center": 20.0,
+        "halfRange": 5.0
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "Machine",
+       "factors": [
+        "Machine"
+       ]
+      },
+      {
+       "label": "Temp",
+       "factors": [
+        "Temp"
+       ]
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 10.4,
+       "se": 0.648
+      },
+      {
+       "label": "Machine[A]",
+       "value": 1.5,
+       "se": 0.436
+      },
+      {
+       "label": "Machine[B]",
+       "value": -0.5,
+       "se": 0.458
+      },
+      {
+       "label": "Temp",
+       "value": 0.25,
+       "se": 0.0307
+      }
+     ],
+     "covariance": [
+      [
+       0.42,
+       0.0,
+       0.0,
+       -0.0008
+      ],
+      [
+       0.0,
+       0.19,
+       0.031,
+       0.0
+      ],
+      [
+       0.0,
+       0.031,
+       0.21,
+       0.0
+      ],
+      [
+       -0.0008,
+       0.0,
+       0.0,
+       0.00094
+      ]
+     ],
+     "residual": {
+      "mse": 0.42,
+      "df": 26,
+      "s": 0.6480740698407862
+     },
+     "nonEstimable": [
+      "Machine[A]"
+     ]
+    },
+    "points": [
+     {
+      "mode": "actual",
+      "values": {
+       "Machine": "A",
+       "Temp": 22.0
+      }
+     }
+    ]
+   },
+   "fields": [],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0,
+   "errors_detail": {
+    "adapter": "model.nonEstimable",
+    "reference": "model.nonEstimable"
+   }
   },
   {
    "id": "QA-U-01",
@@ -26632,6 +28203,11 @@
   "QA-I-02": "numpy elementwise evaluation of the same documented formula",
   "QA-I-03": "numpy elementwise evaluation of the same documented formula",
   "QA-I-04": "numpy elementwise evaluation of the same documented formula",
+  "QA-J-01": "numpy X'β · X'ΣX · scipy t prediction interval",
+  "QA-J-02": "numpy X'β · X'ΣX · scipy t prediction interval",
+  "QA-J-03": "numpy X'β · X'ΣX · scipy t prediction interval",
+  "QA-J-04": "numpy X'β · X'ΣX · scipy t prediction interval",
+  "QA-J-05": "numpy X'β · X'ΣX · scipy t prediction interval",
   "QA-U-01": "pandas value counts + documented 1-decimal display rule",
   "QA-U-02": "documented bin rule (max(5,min(20,1+log2 n))) + scipy.stats.norm.pdf curve",
   "QA-U-03": "numpy.quantile(method='weibull') + 1.5·IQR whisker rule",
