@@ -1,0 +1,18 @@
+(node:88101) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+browser playwright
+PASS · web: the page loads and makes requests · 5 requests
+PASS · web: no request leaves the page’s own origin · none
+PASS · web: performance timeline agrees · none
+PASS · web: the public build keeps its outbound menu links · https://hyangdan2.github.io/ | https://hyangdan2.github.io/ApplicationHub/
+PASS · web: no anchor is fetched by the page itself · 0 anchors, none requested
+PASS · portable: opens from file:// · Sigrún — HD2Lab Statistical Workspace (Portable)
+PASS · portable: issues no HTTP(S) request at all · none
+PASS · portable: no failed subresource is retried over the network · none
+PASS · portable: writes only its own storage keys · sigrun.workspace.v2, sigrun.autosave.v1, sigrun.settings.v1, sigrun.floatSizes.v1
+PASS · enterprise: the outbound menu links are absent · none
+PASS · enterprise: no request leaves its own server · none
+PASS · enterprise: settings land in its own namespace · sigrun.enterprise.sigrun.autosave.v1, sigrun.enterprise.sigrun.workspace.v2, sigrun.enterprise.sigrun.settings.v1, sigrun.enterprise.sigrun.floatSizes.v1
+PASS · enterprise: the manifest names the enterprise edition · Sigrún Enterprise — Statistical Workspace
+
+13/13 checks passed

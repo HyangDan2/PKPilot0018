@@ -18,7 +18,8 @@
     "qa:portable": "node tools/e2e_portable_offline.cjs",
     "qa:tutorials": "node tools/e2e_tutorials.cjs",
     "qa:tutorials:portable": "node tools/e2e_portable_tutorials.cjs",
-    "qa:guard": "node tools/probe_tutorial_guard.cjs"
+    "qa:guard": "node tools/probe_tutorial_guard.cjs",
+    "qa:network": "node tools/qa_network_audit.cjs"
   },
   "dependencies": {
     "react": "^19.0.0",
