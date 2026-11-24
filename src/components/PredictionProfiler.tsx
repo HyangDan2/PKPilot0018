@@ -4,7 +4,7 @@ import { t } from '../lib/i18n';
 import { fmt } from '../lib/format';
 import type { StoredModel } from '../lib/modelStore';
 import type { FactorSettings, ResponseSettings, Solution } from '../lib/optimizationTypes';
-import { optimize } from '../lib/optimizer';
+import { optimizeAsync } from '../lib/optimizer';
 import { responseLimits } from '../lib/desirability';
 import { centrePoint, normaliseValue, profileCurves, profilePoint } from '../lib/profiler';
 
@@ -57,6 +57,7 @@ export function PredictionProfiler({ lang, models, responses, factors, initialPo
   const [values, setValues] = useState<Record<string, number | string>>(start);
   const [applied, setApplied] = useState<Record<string, number | string>>(start);
   const [showBands, setShowBands] = useState(true);
+  const [optimizeNote, setOptimizeNote] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
 
   // Debounce: the curves follow the slider a tick after the last movement.
@@ -79,18 +80,24 @@ export function PredictionProfiler({ lang, models, responses, factors, initialPo
   const reset = () => {
     setValues(centrePoint(factors));
     setApplied(centrePoint(factors));
+    setOptimizeNote(null);
   };
 
   const doOptimize = () => {
-    const result = optimize(models, responses, factors, { method: 'auto', topN: 1 });
-    const best = result.solutions[0];
-    if (!best) return;
-    const next: Record<string, number | string> = {};
-    factors.forEach((factor) => {
-      const value = best.settings[factor.name];
-      if (value !== undefined) next[factor.name] = normaliseValue(factor, value);
-    });
-    setValues((prev) => ({ ...prev, ...next }));
+    void (async () => {
+      const result = await optimizeAsync(models, responses, factors, { method: 'auto', topN: 1 });
+      const best = result.solutions[0];
+      if (!best) return;
+      const next: Record<string, number | string> = {};
+      factors.forEach((factor) => {
+        const value = best.settings[factor.name];
+        if (value !== undefined) next[factor.name] = normaliseValue(factor, value);
+      });
+      setValues((prev) => ({ ...prev, ...next }));
+      // The condition is adopted so the reader can see it, but a search that
+      // missed a specification is labelled where it is shown (Stage 3C).
+      setOptimizeNote(result.recommended ? null : 'opt.result.notRecommended');
+    })();
   };
 
   const specFor = (modelId: string): { lower: number | null; upper: number | null; target: number | null } => {
@@ -193,6 +200,9 @@ export function PredictionProfiler({ lang, models, responses, factors, initialPo
             })}
           </div>
 
+          {optimizeNote && (
+            <div className="opt-warn" data-testid="prof-not-recommended">{t(lang, optimizeNote)}</div>
+          )}
           <p className="mono-note prof-note">{t(lang, 'prof.note')}</p>
         </div>
 
@@ -219,11 +229,16 @@ function ProfilerRow({ lang, row, factors, spec, showBands, values }: RowProps) 
   const prediction = row.prediction;
   return (
     <>
-      <div className="prof-cell prof-rowlabel" data-testid="prof-row" data-model-id={row.modelId}>
+      <div className="prof-cell prof-rowlabel" data-testid="prof-row" data-model-id={row.modelId} data-blocked={row.blocked ? '1' : '0'}>
         <div className="opt-name">{row.responseName}</div>
         <div className="mono-note">
           {prediction?.value == null ? t(lang, 'opt.notEstimable') : fmt(prediction.value, 5)}
         </div>
+        {row.issues.length > 0 && (
+          <div className="opt-issue" data-testid={`prof-issue-${row.modelId}`}>
+            {row.issues.map((code) => t(lang, code)).join(' · ')}
+          </div>
+        )}
       </div>
       {row.curves.map((curve, index) => {
         const factor = factors[index];
@@ -235,11 +250,13 @@ function ProfilerRow({ lang, row, factors, spec, showBands, values }: RowProps) 
         const pad = (yMax - yMin) * 0.06 || 1;
         return (
           <div className="prof-cell prof-plot" key={factor.name} data-testid={`prof-cell-${row.modelId}-${factor.name}`}>
-            {curve.xs.length < 2 || !all.length ? (
+            {row.blocked ? (
+              <div className="prof-empty">{t(lang, 'opt.profile.blocked')}</div>
+            ) : curve.xs.length < 2 || !all.length ? (
               <div className="prof-empty">{t(lang, 'prof.noCurve')}</div>
             ) : (
               <svg width={CURVE_W} height={CURVE_H} role="img" aria-label={`${row.responseName} × ${factor.name}`}>
-                {showBands && curve.pi && (
+                {showBands && curve.pi && row.interval.pi && (
                   <polygon
                     points={bandPoints(curve.xs, curve.pi.lo, curve.pi.hi, yMin - pad, yMax + pad)}
                     fill="var(--alarm, #b4690e)"
@@ -295,6 +312,7 @@ function ProfilerRow({ lang, row, factors, spec, showBands, values }: RowProps) 
         </div>
         {prediction?.ci && <div className="mono-note">{t(lang, 'prof.ci')} {fmt(prediction.ci[0], 4)} … {fmt(prediction.ci[1], 4)}</div>}
         {prediction?.pi && <div className="mono-note">{t(lang, 'prof.pi')} {fmt(prediction.pi[0], 4)} … {fmt(prediction.pi[1], 4)}</div>}
+        {prediction && !prediction.pi && row.interval.ci && <div className="mono-note">{t(lang, 'prof.pi')} {t(lang, 'model.cmp.unavailable')}</div>}
         {prediction && (
           <span className={`opt-badge ${prediction.compliant ? 'ok' : 'bad'}`}>
             {prediction.compliant ? t(lang, 'opt.result.specOk') : t(lang, 'opt.result.specNo')}
