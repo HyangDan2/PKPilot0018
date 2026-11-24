@@ -1,10 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Block, ChartSpec, Lang, OutputDoc } from '../types';
 import { fmtTime } from '../lib/format';
 import { resolveLabel, t } from '../lib/i18n';
 import { downloadBlob, downloadFile } from '../lib/project';
 import { inlineTheme, renderChart } from '../lib/charts';
+import type { ChartConfig, ExportConfig } from '../lib/chartConfig';
+import { defaultExportConfig } from '../lib/chartConfig';
+import {
+  applyStylePack,
+  fullChartConfig,
+  materializeRsm,
+  packChartStyle,
+  resetChartConfig,
+  withChartConfig,
+  allPairSurfaces,
+  type ChartStylePack,
+} from '../lib/chartConfigOps';
+import { batchSvgDocument, chartSvgDocument, exportFileName, svgToPngWithConfig } from '../lib/chartExport';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { ChartFrame, ChartViewer, type ChartEditRequest } from './ChartFrame';
+import { ChartPropertiesDrawer, type ChartDrawerTab } from './ChartPropertiesDrawer';
 import { IconChevronDown, IconCopy, IconDownload, IconPrinter, IconRerun, IconTrash, IconX } from './Icons';
 
 interface Props {
@@ -21,18 +36,17 @@ interface Props {
   onUpdateBlocks: (id: string, blocks: Block[]) => void;
 }
 
-interface ChartEdit {
+interface ChartTarget {
   outputId: string;
   blockIndex: number;
   chartIndex: number;
-  chart: ChartSpec;
 }
 
-function chartsOf(blocks: Block[]): { chart: ChartSpec; title: string }[] {
-  const out: { chart: ChartSpec; title: string }[] = [];
-  blocks.forEach((block) => {
-    if (block.type === 'chart') out.push({ chart: block.chart, title: block.caption ?? '' });
-    if (block.type === 'chartgrid') out.push(...block.charts);
+function chartsOf(blocks: Block[]): { chart: ChartSpec; title: string; blockIndex: number; chartIndex: number }[] {
+  const out: { chart: ChartSpec; title: string; blockIndex: number; chartIndex: number }[] = [];
+  blocks.forEach((block, blockIndex) => {
+    if (block.type === 'chart') out.push({ chart: block.chart, title: block.caption ?? '', blockIndex, chartIndex: 0 });
+    if (block.type === 'chartgrid') block.charts.forEach((item, chartIndex) => out.push({ chart: item.chart, title: item.title, blockIndex, chartIndex }));
   });
   return out;
 }
@@ -126,7 +140,7 @@ function captionMarkup(label: string): string {
   return `<text x="10" y="14" font-family="ui-monospace, Menlo, monospace" font-size="10" letter-spacing="1" fill="#7C7690">${escText(label.toUpperCase())}</text>`;
 }
 
-/** One chart as a self-contained, theme-inlined SVG document (for export and clipboard). */
+/** One chart as a self-contained, theme-inlined SVG document (page export). */
 export function chartSvgDoc(chart: ChartSpec, lang: Lang, caption?: string): string {
   const { inner, h } = chartBody(renderChart(chart));
   const label = caption ? resolveLabel(lang, caption) : '';
@@ -211,13 +225,43 @@ function replaceChart(block: Block, chartIndex: number, chart: ChartSpec): Block
   return block;
 }
 
+function chartAt(output: OutputDoc | undefined, target: ChartTarget): ChartSpec | null {
+  if (!output) return null;
+  const block = output.blocks[target.blockIndex];
+  if (!block) return null;
+  if (block.type === 'chart') return block.chart;
+  if (block.type === 'chartgrid') return block.charts[target.chartIndex]?.chart ?? null;
+  return null;
+}
+
+function captionAt(output: OutputDoc | undefined, target: ChartTarget): string {
+  if (!output) return '';
+  const block = output.blocks[target.blockIndex];
+  if (!block) return '';
+  if (block.type === 'chart') return block.caption ?? '';
+  if (block.type === 'chartgrid') return block.charts[target.chartIndex]?.title ?? '';
+  return '';
+}
+
+function blocksWithChart(output: OutputDoc, target: ChartTarget, chart: ChartSpec): Block[] {
+  return output.blocks.map((block, index) => (index === target.blockIndex ? replaceChart(block, target.chartIndex, chart) : block));
+}
+
 export function OutputPanel({
   lang, outputs, focusedOutput, onFocus, onDelete, onToggleCollapse, onCollapseAll, onToast, onRerun, onReproduce, onUpdateBlocks,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [edit, setEdit] = useState<ChartEdit | null>(null);
-  const [menu, setMenu] = useState<{ x: number; y: number; outputId: string | null } | null>(null);
-  const [draft, setDraft] = useState({ title: '', xLabel: '', yLabel: '', bins: '', normal: false });
+  const [menu, setMenu] = useState<{ x: number; y: number; outputId: string | null; target?: ChartTarget } | null>(null);
+  const [drawer, setDrawer] = useState<{ target: ChartTarget; tab: ChartDrawerTab; axis?: 'x' | 'y' | 'z' | 'y2' } | null>(null);
+  const [preview, setPreview] = useState<ChartConfig | null>(null);
+  const [viewer, setViewer] = useState<{ target: ChartTarget; mode: 'zoom' | 'full' } | null>(null);
+  const [styleClip, setStyleClip] = useState<ChartStylePack | null>(null);
+  const [session, setSession] = useState(0);
+
+  const findOutput = (id: string) => outputs.find((output) => output.id === id);
+  const targetChart = drawer ? chartAt(findOutput(drawer.target.outputId), drawer.target) : null;
+  const viewerOutput = viewer ? findOutput(viewer.target.outputId) : undefined;
+  const viewerChart = viewer ? chartAt(viewerOutput, viewer.target) : null;
 
   /** Copy text blocks and tables of one card (or every card) to the clipboard. */
   const copyAsText = async (text: string) => {
@@ -228,6 +272,192 @@ export function OutputPanel({
     const ok = await writeTextToClipboard(text);
     onToast(t(lang, ok ? 'toast.textCopied' : 'toast.textCopyFailed'));
   };
+
+  const openDrawer = (target: ChartTarget, tab: ChartDrawerTab, axis?: 'x' | 'y' | 'z' | 'y2') => {
+    const chart = chartAt(findOutput(target.outputId), target);
+    if (!chart) return;
+    setSession((value) => value + 1);
+    setPreview(fullChartConfig(chart));
+    setDrawer({ target, tab, axis });
+  };
+
+  const closeDrawer = () => {
+    setDrawer(null);
+    setPreview(null);
+  };
+
+  const commitChart = (target: ChartTarget, next: ChartSpec) => {
+    const output = findOutput(target.outputId);
+    if (!output) return;
+    onUpdateBlocks(output.id, blocksWithChart(output, target, next));
+  };
+
+  const applyConfig = (config: ChartConfig) => {
+    if (!drawer) return;
+    const chart = chartAt(findOutput(drawer.target.outputId), drawer.target);
+    if (!chart) return;
+    const materialized = materializeRsm(chart, config);
+    commitChart(drawer.target, withChartConfig(materialized, config));
+    onToast(t(lang, 'toast.cfgApplied'));
+    closeDrawer();
+  };
+
+  const resetConfig = (config: ChartConfig) => {
+    if (!drawer) return;
+    const chart = chartAt(findOutput(drawer.target.outputId), drawer.target);
+    if (!chart) return;
+    const reset = withChartConfig(materializeRsm(resetChartConfig(chart), config), config);
+    commitChart(drawer.target, reset);
+    onToast(t(lang, 'toast.styleReset'));
+    setPreview(config);
+  };
+
+  const generatePairs = (config: ChartConfig) => {
+    if (!drawer) return;
+    const output = findOutput(drawer.target.outputId);
+    const chart = chartAt(output, drawer.target);
+    if (!output || !chart || chart.kind !== 'contour' || !chart.rsmModel) return;
+    const surfaces = allPairSurfaces(chart.rsmModel, config.rsm, config.contour);
+    if (!surfaces.length) return;
+    const baseConfig = materializeRsm(chart, config).config;
+    const items = surfaces.map((surface) => ({
+      title: `${surface.xName} × ${surface.yName}`,
+      chart: {
+        kind: 'contour' as const,
+        xs: surface.grid.xs,
+        ys: surface.grid.ys,
+        z: surface.grid.z,
+        xLabel: surface.xName,
+        yLabel: surface.yName,
+        xRange: surface.xRange,
+        yRange: surface.yRange,
+        points: surface.points,
+        rsmModel: chart.rsmModel,
+        title: `${surface.xName} × ${surface.yName}`,
+        config: baseConfig,
+      },
+    }));
+    const gridBlock: Block = { type: 'chartgrid', charts: items, caption: '@chart.grid.pairContours' };
+    const blocks = [...output.blocks];
+    blocks.splice(drawer.target.blockIndex + 1, 0, gridBlock);
+    onUpdateBlocks(output.id, blocks);
+    onToast(t(lang, 'toast.pairsAdded', { n: items.length }));
+    closeDrawer();
+  };
+
+  /* ── export ─────────────────────────────────────────────────────────── */
+
+  const downloadChart = async (chart: ChartSpec, config: ChartConfig, format: 'svg' | 'png', caption: string) => {
+    const exportCfg: ExportConfig = { ...defaultExportConfig(), ...(config.export ?? {}), format };
+    const { svg } = chartSvgDocument(chart, exportCfg, { caption: resolveLabel(lang, caption) });
+    const name = exportFileName(chart, exportCfg, resolveLabel(lang, caption) || chart.title);
+    if (format === 'svg') {
+      downloadFile(name, svg, 'image/svg+xml');
+      onToast(t(lang, 'toast.chartExported'));
+      return;
+    }
+    const raster = await svgToPngWithConfig(svg, exportCfg);
+    if (!raster) {
+      onToast(t(lang, 'toast.chartExportFailed'));
+      return;
+    }
+    downloadBlob(name, raster.blob);
+    onToast(t(lang, 'toast.chartExported'));
+  };
+
+  const copyChartPng = async (chart: ChartSpec, config: ChartConfig, caption: string) => {
+    const exportCfg: ExportConfig = { ...defaultExportConfig(), ...(config.export ?? {}), format: 'png' };
+    const { svg } = chartSvgDocument(chart, exportCfg, { caption: resolveLabel(lang, caption) });
+    const raster = await svgToPngWithConfig(svg, exportCfg);
+    if (!raster) {
+      onToast(t(lang, 'toast.chartExportFailed'));
+      return;
+    }
+    const outcome = await writePngToClipboard(raster.blob);
+    if (outcome === 'copied') {
+      onToast(t(lang, 'toast.pngCopied'));
+      return;
+    }
+    downloadBlob(exportFileName(chart, exportCfg, resolveLabel(lang, caption) || chart.title), raster.blob);
+    onToast(t(lang, outcome === 'denied' ? 'card.copyDenied' : 'card.copyUnsupported'));
+  };
+
+  const batchExport = async (output: OutputDoc, config: ChartConfig, format: 'svg' | 'png') => {
+    const entries = chartsOf(output.blocks).map((entry) => ({ chart: entry.chart, caption: resolveLabel(lang, entry.title) }));
+    if (!entries.length) {
+      onToast(t(lang, 'card.noChart'));
+      return;
+    }
+    const exportCfg: ExportConfig = { ...defaultExportConfig(), ...(config.export ?? {}), format };
+    const svg = batchSvgDocument(entries, exportCfg);
+    const stem = `sigrun-${output.titleKey.replace('an.', '')}-${output.id}`;
+    if (format === 'svg') {
+      downloadFile(`${stem}-charts.svg`, svg, 'image/svg+xml');
+      onToast(t(lang, 'toast.batchExported', { n: entries.length }));
+      return;
+    }
+    const raster = await svgToPngWithConfig(svg, { ...exportCfg, background: exportCfg.background === 'transparent' ? 'transparent' : 'white' });
+    if (!raster) {
+      onToast(t(lang, 'toast.chartExportFailed'));
+      return;
+    }
+    downloadBlob(`${stem}-charts.png`, raster.blob);
+    onToast(t(lang, 'toast.batchExported', { n: entries.length }));
+  };
+
+  /* ── style clipboard ────────────────────────────────────────────────── */
+
+  const copyStyleFrom = (config: ChartConfig) => {
+    if (!drawer) return;
+    const chart = chartAt(findOutput(drawer.target.outputId), drawer.target);
+    if (!chart) return;
+    setStyleClip(packChartStyle(withChartConfig(chart, config)));
+    onToast(t(lang, 'toast.styleCopied'));
+  };
+
+  const pasteStyleTo = (config: ChartConfig) => {
+    if (!styleClip || !drawer) return;
+    const chart = chartAt(findOutput(drawer.target.outputId), drawer.target);
+    if (!chart) return;
+    const withStyle = withChartConfig(applyStylePack(materializeRsm(chart, config), styleClip), { ...config, ...styleClip });
+    commitChart(drawer.target, withStyle);
+    onToast(t(lang, 'toast.stylePasted'));
+    closeDrawer();
+  };
+
+  const applyStyleToAll = (config: ChartConfig) => {
+    if (!drawer) return;
+    const source = chartAt(findOutput(drawer.target.outputId), drawer.target);
+    if (!source) return;
+    const pack = packChartStyle(withChartConfig(source, config));
+    let count = 0;
+    outputs.forEach((output) => {
+      const charts = chartsOf(output.blocks);
+      if (!charts.length) return;
+      const blocks = output.blocks.map((block) => {
+        if (block.type === 'chart') {
+          count += 1;
+          return { ...block, chart: applyStylePack(block.chart, pack) };
+        }
+        if (block.type === 'chartgrid') {
+          count += block.charts.length;
+          return { ...block, charts: block.charts.map((item) => ({ ...item, chart: applyStylePack(item.chart, pack) })) };
+        }
+        return block;
+      });
+      onUpdateBlocks(output.id, blocks);
+    });
+    onToast(t(lang, 'toast.styleAppliedAll', { n: count }));
+  };
+
+  const resetStyleOf = (target: ChartTarget) => {
+    const chart = chartAt(findOutput(target.outputId), target);
+    if (!chart) return;
+    commitChart(target, resetChartConfig(chart));
+    onToast(t(lang, 'toast.styleReset'));
+  };
+
+  /* ── menus ──────────────────────────────────────────────────────────── */
 
   const cardMenuItems = (output: OutputDoc): ContextMenuItem[] => [
     { id: 'out-copy-text', label: t(lang, 'outctx.copyText'), onSelect: () => void copyAsText(cardText(output, lang)) },
@@ -246,6 +476,56 @@ export function OutputPanel({
     { id: 'out-sep-3', label: '', separator: true },
     { id: 'out-delete', label: t(lang, 'outctx.delete'), danger: true, onSelect: () => onDelete(output.id) },
   ];
+
+  const chartMenuItems = (target: ChartTarget): ContextMenuItem[] => {
+    const output = findOutput(target.outputId);
+    const chart = chartAt(output, target);
+    const caption = captionAt(output, target);
+    if (!chart) return [];
+    return [
+      { id: 'ch-scale', label: t(lang, 'cm.scale'), onSelect: () => openDrawer(target, 'scale') },
+      { id: 'ch-appearance', label: t(lang, 'cm.appearance'), onSelect: () => openDrawer(target, 'style') },
+      { id: 'ch-export', label: t(lang, 'cm.export'), onSelect: () => openDrawer(target, 'export') },
+      { id: 'ch-props', label: t(lang, 'cm.properties'), onSelect: () => openDrawer(target, 'general') },
+      { id: 'ch-sep-1', label: '', separator: true },
+      { id: 'ch-zoom', label: t(lang, 'cm.zoom'), onSelect: () => setViewer({ target, mode: 'zoom' }) },
+      { id: 'ch-full', label: t(lang, 'cm.fullscreen'), onSelect: () => setViewer({ target, mode: 'full' }) },
+      { id: 'ch-sep-2', label: '', separator: true },
+      { id: 'ch-copy-style', label: t(lang, 'cm.copyStyle'), onSelect: () => { setStyleClip(packChartStyle(chart)); onToast(t(lang, 'toast.styleCopied')); } },
+      {
+        id: 'ch-paste-style',
+        label: t(lang, 'cm.pasteStyle'),
+        disabled: !styleClip,
+        onSelect: () => {
+          if (!styleClip) return;
+          commitChart(target, applyStylePack(chart, styleClip));
+          onToast(t(lang, 'toast.stylePasted'));
+        },
+      },
+      {
+        id: 'ch-apply-all',
+        label: t(lang, 'cm.applyAll'),
+        onSelect: () => {
+          const pack = packChartStyle(chart);
+          let count = 0;
+          outputs.forEach((doc) => {
+            const charts = chartsOf(doc.blocks);
+            if (!charts.length) return;
+            count += charts.length;
+            onUpdateBlocks(doc.id, doc.blocks.map((block) => {
+              if (block.type === 'chart') return { ...block, chart: applyStylePack(block.chart, pack) };
+              if (block.type === 'chartgrid') return { ...block, charts: block.charts.map((item) => ({ ...item, chart: applyStylePack(item.chart, pack) })) };
+              return block;
+            }));
+          });
+          onToast(t(lang, 'toast.styleAppliedAll', { n: count }));
+        },
+      },
+      { id: 'ch-copy-png', label: t(lang, 'cm.copyPng'), onSelect: () => void copyChartPng(chart, fullChartConfig(chart), caption) },
+      { id: 'ch-sep-3', label: '', separator: true },
+      { id: 'ch-reset', label: t(lang, 'cm.reset'), danger: true, onSelect: () => resetStyleOf(target) },
+    ];
+  };
 
   const areaMenuItems = (): ContextMenuItem[] => [
     {
@@ -266,43 +546,20 @@ export function OutputPanel({
     setMenu({ x: event.clientX, y: event.clientY, outputId: output.id });
   };
 
+  const openChartMenu = (event: React.MouseEvent, target: ChartTarget) => {
+    onFocus(target.outputId);
+    setMenu({ x: event.clientX, y: event.clientY, outputId: target.outputId, target });
+  };
+
   const openAreaMenu = (event: React.MouseEvent) => {
     event.preventDefault();
+    if (menu) return;
     setMenu({ x: event.clientX, y: event.clientY, outputId: null });
   };
 
-  const menuOutput = menu?.outputId ? outputs.find((output) => output.id === menu.outputId) : undefined;
+  const menuOutput = menu?.outputId && !menu.target ? outputs.find((output) => output.id === menu.outputId) : undefined;
 
-  const openEditor = (output: OutputDoc, blockIndex: number, chartIndex: number, chart: ChartSpec) => {
-    setEdit({ outputId: output.id, blockIndex, chartIndex, chart });
-    setDraft({
-      title: chart.title ?? '',
-      xLabel: ('xLabel' in chart ? chart.xLabel : '') ?? '',
-      yLabel: ('yLabel' in chart ? chart.yLabel : '') ?? '',
-      bins: chart.kind === 'histogram' && chart.bins ? String(chart.bins) : '',
-      normal: chart.kind === 'histogram' ? Boolean(chart.normal) : false,
-    });
-  };
-
-  const applyEdit = () => {
-    if (!edit) return;
-    const output = outputs.find((o) => o.id === edit.outputId);
-    if (!output) {
-      setEdit(null);
-      return;
-    }
-    const chart = edit.chart;
-    const next: ChartSpec = { ...chart, title: draft.title.trim() || undefined };
-    if ('xLabel' in next) next.xLabel = draft.xLabel.trim() || undefined;
-    if ('yLabel' in next) next.yLabel = draft.yLabel.trim() || undefined;
-    if (next.kind === 'histogram') {
-      next.normal = draft.normal;
-      const bins = Number(draft.bins);
-      next.bins = Number.isFinite(bins) && bins >= 2 ? Math.round(bins) : undefined;
-    }
-    onUpdateBlocks(output.id, output.blocks.map((block, index) => (index === edit.blockIndex ? replaceChart(block, edit.chartIndex, next) : block)));
-    setEdit(null);
-  };
+  /* ── card-level actions ─────────────────────────────────────────────── */
 
   const handleSvg = (output: OutputDoc) => {
     const svg = composeSvg(output.blocks, lang, t(lang, output.titleKey));
@@ -353,10 +610,6 @@ export function OutputPanel({
     await copyPng(svg, `sigrun-${output.titleKey.replace('an.', '')}-${output.id}.png`);
   };
 
-  const handleCopyOne = async (chart: ChartSpec, caption?: string) => {
-    await copyPng(chartSvgDoc(chart, lang, caption), `sigrun-chart-${Date.now()}.png`);
-  };
-
   const handleCsv = (output: OutputDoc) => {
     const csv = tableCsv(output.blocks, lang);
     if (!csv.trim()) {
@@ -376,6 +629,14 @@ export function OutputPanel({
       document.body.classList.remove('printing-one');
       node.classList.remove('print-target');
     }, 400);
+  };
+
+  const previewFor = (target: ChartTarget): ChartConfig | undefined =>
+    (drawer && drawer.target.outputId === target.outputId && drawer.target.blockIndex === target.blockIndex && drawer.target.chartIndex === target.chartIndex ? preview ?? undefined : undefined);
+
+  const chartForFrame = (target: ChartTarget, chart: ChartSpec): ChartSpec => {
+    const cfg = previewFor(target);
+    return cfg ? materializeRsm(chart, cfg) : chart;
   };
 
   return (
@@ -443,13 +704,20 @@ export function OutputPanel({
 
           {!output.collapsed && (
             <div className="out-body">
-              {output.blocks.map((block, index) => (
+              {output.blocks.map((block, blockIndex) => (
                 <BlockView
-                  key={index}
+                  key={blockIndex}
                   block={block}
                   lang={lang}
-                  onEditChart={(chartIndex, chart) => openEditor(output, index, chartIndex, chart)}
-                  onCopyChart={(chart, caption) => void handleCopyOne(chart, caption)}
+                  outputId={output.id}
+                  blockIndex={blockIndex}
+                  previewFor={previewFor}
+                  chartForFrame={chartForFrame}
+                  onEdit={(target, request) => openDrawer(target, request.tab, request.axis)}
+                  onMenu={openChartMenu}
+                  onView={(target, mode) => setViewer({ target, mode })}
+                  onCopyPng={(target, chart) => void copyChartPng(chart, fullChartConfig(chart), captionAt(output, target))}
+                  onExport={(target) => openDrawer(target, 'export')}
                 />
               ))}
             </div>
@@ -467,113 +735,67 @@ export function OutputPanel({
         <ContextMenu
           x={menu.x}
           y={menu.y}
-          label={t(lang, 'outctx.title')}
-          items={menuOutput ? cardMenuItems(menuOutput) : areaMenuItems()}
+          label={t(lang, menu.target ? 'cm.title' : 'outctx.title')}
+          items={menu.target ? chartMenuItems(menu.target) : menuOutput ? cardMenuItems(menuOutput) : areaMenuItems()}
           onClose={() => setMenu(null)}
         />
       )}
 
-      {edit && (
-        <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setEdit(null); }}>
-          <div className="modal chart-edit-modal" role="dialog" aria-modal="true" aria-label={t(lang, 'card.editChart')} data-testid="chart-edit-modal">
-            <div className="modal-head">
-              <div>
-                <h3>{t(lang, 'card.editChart')}</h3>
-                <div className="modal-sub">{edit.chart.kind.toUpperCase()}</div>
-              </div>
-              <span className="spacer" />
-              <button type="button" className="icon-btn" onClick={() => setEdit(null)} aria-label={t(lang, 'dlg.cancel')}><IconX size={16} /></button>
-            </div>
-            <div className="modal-body">
-              <div className="slot">
-                <span className="slot-label">{t(lang, 'chart.title')}</span>
-                <input className="text-input" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} data-testid="chart-title" />
-              </div>
-              {'xLabel' in edit.chart && (
-                <div className="slot">
-                  <span className="slot-label">{t(lang, 'chart.xLabel')}</span>
-                  <input className="text-input" value={draft.xLabel} onChange={(e) => setDraft({ ...draft, xLabel: e.target.value })} data-testid="chart-xlabel" />
-                </div>
-              )}
-              {'yLabel' in edit.chart && (
-                <div className="slot">
-                  <span className="slot-label">{t(lang, 'chart.yLabel')}</span>
-                  <input className="text-input" value={draft.yLabel} onChange={(e) => setDraft({ ...draft, yLabel: e.target.value })} data-testid="chart-ylabel" />
-                </div>
-              )}
-              {edit.chart.kind === 'histogram' && (
-                <>
-                  <div className="slot">
-                    <span className="slot-label">{t(lang, 'slot.bins')}</span>
-                    <input className="num-input" type="number" min={2} max={50} value={draft.bins} onChange={(e) => setDraft({ ...draft, bins: e.target.value })} data-testid="chart-bins" />
-                  </div>
-                  <label className="check-row">
-                    <input type="checkbox" checked={draft.normal} onChange={(e) => setDraft({ ...draft, normal: e.target.checked })} data-testid="chart-normal" />
-                    {t(lang, 'opt.normalCurve')}
-                  </label>
-                </>
-              )}
-            </div>
-            <div className="modal-foot">
-              <span className="spacer" />
-              <button type="button" className="btn ghost" onClick={() => setEdit(null)}>{t(lang, 'dlg.cancel')}</button>
-              <button type="button" className="btn primary" onClick={applyEdit} data-testid="chart-edit-ok">{t(lang, 'dlg.ok')}</button>
-            </div>
-          </div>
-        </div>
+      {drawer && targetChart && (
+        <ChartPropertiesDrawer
+          key={`cd-${session}`}
+          lang={lang}
+          chart={targetChart}
+          initialTab={drawer.tab}
+          initialAxis={drawer.axis}
+          onPreview={setPreview}
+          onApply={applyConfig}
+          onClose={closeDrawer}
+          onReset={resetConfig}
+          onExport={(config, format) => void downloadChart(materializeRsm(targetChart, config), config, format, captionAt(findOutput(drawer.target.outputId), drawer.target))}
+          onCopyPng={(config) => void copyChartPng(materializeRsm(targetChart, config), config, captionAt(findOutput(drawer.target.outputId), drawer.target))}
+          onBatchExport={(config, format) => {
+            const output = findOutput(drawer.target.outputId);
+            if (output) void batchExport(output, config, format);
+          }}
+          onGeneratePairs={generatePairs}
+          styleClipboard={styleClip}
+          onCopyStyle={copyStyleFrom}
+          onPasteStyle={pasteStyleTo}
+          onApplyAll={applyStyleToAll}
+        />
+      )}
+
+      {viewer && viewerChart && (
+        <ChartViewer
+          lang={lang}
+          chart={viewerChart}
+          caption={captionAt(viewerOutput, viewer.target)}
+          mode={viewer.mode}
+          onClose={() => setViewer(null)}
+          onEdit={() => { setViewer(null); openDrawer(viewer.target, 'general'); }}
+          onCopyPng={() => void copyChartPng(viewerChart, fullChartConfig(viewerChart), captionAt(viewerOutput, viewer.target))}
+        />
       )}
     </div>
   );
 }
 
-const CHART_MIN_WIDTH = 280;
-const CHART_MAX_WIDTH = 780;
-
-/**
- * Renders a chart at the width its card actually has. A ResizeObserver feeds
- * the measured width back in, so widening or narrowing a floating output
- * window redraws the chart at that width instead of stretching a fixed SVG.
- */
-function ChartCanvas({ chart, compact }: { chart: ChartSpec; compact: boolean }) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const [measured, setMeasured] = useState(compact ? 380 : 560);
-
-  useEffect(() => {
-    const node = hostRef.current;
-    if (!node) return;
-    let frame = 0;
-    const read = () => {
-      frame = 0;
-      const next = Math.round(node.clientWidth);
-      if (next > 0) setMeasured((prev) => (Math.abs(prev - next) >= 1 ? next : prev));
-    };
-    const schedule = () => {
-      if (!frame) frame = window.requestAnimationFrame(read);
-    };
-    read();
-    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
-    observer?.observe(node);
-    window.addEventListener('resize', schedule);
-    return () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      observer?.disconnect();
-      window.removeEventListener('resize', schedule);
-    };
-  }, []);
-
-  const width = Math.max(CHART_MIN_WIDTH, Math.min(measured, CHART_MAX_WIDTH));
-  return <div ref={hostRef} className="chart-canvas" dangerouslySetInnerHTML={{ __html: renderChart(chart, width) }} />;
-}
-
 function BlockView({
-  block, lang, onEditChart, onCopyChart,
+  block, lang, outputId, blockIndex, previewFor, chartForFrame, onEdit, onMenu, onView, onCopyPng, onExport,
 }: {
   block: Block;
   lang: Lang;
-  onEditChart: (chartIndex: number, chart: ChartSpec) => void;
-  onCopyChart: (chart: ChartSpec, caption?: string) => void;
+  outputId: string;
+  blockIndex: number;
+  previewFor: (target: ChartTarget) => ChartConfig | undefined;
+  chartForFrame: (target: ChartTarget, chart: ChartSpec) => ChartSpec;
+  onEdit: (target: ChartTarget, request: ChartEditRequest) => void;
+  onMenu: (event: React.MouseEvent, target: ChartTarget) => void;
+  onView: (target: ChartTarget, mode: 'zoom' | 'full') => void;
+  onCopyPng: (target: ChartTarget, chart: ChartSpec) => void;
+  onExport: (target: ChartTarget, chart: ChartSpec) => void;
 }) {
-  const compact = typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
   if (block.type === 'text') {
     return (
       <div className="out-text">
@@ -584,66 +806,46 @@ function BlockView({
     );
   }
   if (block.type === 'chart') {
+    const target: ChartTarget = { outputId, blockIndex, chartIndex: 0 };
+    const chart = chartForFrame(target, block.chart);
     return (
       <div className="chart-card">
         {block.caption && <h5>{resolveLabel(lang, block.caption)}</h5>}
-        <div className="chart-holder">
-          <ChartCanvas chart={block.chart} compact={compact} />
-          <button
-            type="button"
-            className="chart-copy-btn"
-            onClick={() => onCopyChart(block.chart, block.caption)}
-            title={t(lang, 'card.copyOne')}
-            aria-label={t(lang, 'card.copyOne')}
-            data-testid="chart-copy"
-          >
-            <IconCopy size={13} />
-          </button>
-          <button
-            type="button"
-            className="chart-edit-btn"
-            onClick={() => onEditChart(0, block.chart)}
-            title={t(lang, 'card.editChart')}
-            aria-label={t(lang, 'card.editChart')}
-            data-testid="chart-edit"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z" /></svg>
-          </button>
-        </div>
+        <ChartFrame
+          lang={lang}
+          chart={chart}
+          config={previewFor(target)}
+          onEdit={(request) => onEdit(target, request)}
+          onMenu={(event) => onMenu(event, target)}
+          onView={(mode) => onView(target, mode)}
+          onCopyPng={() => onCopyPng(target, chart)}
+          onExport={() => onExport(target, chart)}
+        />
       </div>
     );
   }
   if (block.type === 'chartgrid') {
     return (
       <div className="chart-grid">
-        {block.charts.map((item, i) => (
-          <div className="chart-card" key={i}>
-            <h5>{resolveLabel(lang, item.title)}</h5>
-            <div className="chart-holder">
-              <ChartCanvas chart={item.chart} compact={compact} />
-              <button
-                type="button"
-                className="chart-copy-btn"
-                onClick={() => onCopyChart(item.chart, item.title)}
-                title={t(lang, 'card.copyOne')}
-                aria-label={t(lang, 'card.copyOne')}
-                data-testid={`chart-copy-${i}`}
-              >
-                <IconCopy size={13} />
-              </button>
-              <button
-                type="button"
-                className="chart-edit-btn"
-                onClick={() => onEditChart(i, item.chart)}
-                title={t(lang, 'card.editChart')}
-                aria-label={t(lang, 'card.editChart')}
-                data-testid={`chart-edit-${i}`}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z" /></svg>
-              </button>
+        {block.charts.map((item, i) => {
+          const target: ChartTarget = { outputId, blockIndex, chartIndex: i };
+          const chart = chartForFrame(target, item.chart);
+          return (
+            <div className="chart-card" key={i}>
+              <h5>{resolveLabel(lang, item.title)}</h5>
+              <ChartFrame
+                lang={lang}
+                chart={chart}
+                config={previewFor(target)}
+                onEdit={(request) => onEdit(target, request)}
+                onMenu={(event) => onMenu(event, target)}
+                onView={(mode) => onView(target, mode)}
+                onCopyPng={() => onCopyPng(target, chart)}
+                onExport={() => onExport(target, chart)}
+              />
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }

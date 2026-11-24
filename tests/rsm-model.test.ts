@@ -123,7 +123,7 @@ describe('RSM model payload (WO-06)', () => {
     const svg = renderChart(chart);
     expect(svg.startsWith('<svg')).toBe(true);
     expect(svg).not.toContain('NaN');
-    expect(svg).toContain('data-chart-role="chart-colorbar"');
+    expect(svg).toContain('data-chart-role="colorbar"');
     expect(svg).toContain('data-chart-role="chart-contour-line"');
   });
 });

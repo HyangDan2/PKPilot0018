@@ -35,7 +35,7 @@ function specLines(svg: string): { x1: number; y1: number; x2: number; y2: numbe
 
 /** Bar rectangles of a histogram/capability chart. */
 function bars(svg: string): { x: number; y: number; w: number }[] {
-  return [...svg.matchAll(/<rect class="chart-bar" data-chart-role="chart-bar" x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="[\d.]+"/g)].map((m) => ({
+  return [...svg.matchAll(/<rect class="chart-bar" data-point="1" data-chart-role="chart-bar"[^>]*? x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="[\d.]+"/g)].map((m) => ({
     x: Number(m[1]),
     y: Number(m[2]),
     w: Number(m[3]),

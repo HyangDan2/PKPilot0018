@@ -402,8 +402,8 @@ export function contourGrid(glm: GlmResult, factors: Factor[], xi = 0, yi = 1, r
     xName: names[xi],
     yName: names[yi],
     points,
-    zMin: flat.length ? Math.min(...flat) : 0,
-    zMax: flat.length ? Math.max(...flat) : 1,
+    zMin: flat.length ? extentOf(flat).min : 0,
+    zMax: flat.length ? extentOf(flat).max : 1,
   };
 }
 
@@ -505,6 +505,18 @@ export interface RsmModelPayload {
   s?: number;
   r2?: number;
   n?: number;
+}
+
+/** min/max over a whole grid without spreading 160k arguments onto the stack. */
+function extentOf(values: number[]): { min: number; max: number } {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const value of values) {
+    if (!Number.isFinite(value)) continue;
+    if (value < min) min = value;
+    if (value > max) max = value;
+  }
+  return { min, max };
 }
 
 /** Build the payload from a fitted quadratic and its analysis. */
@@ -667,8 +679,9 @@ export function rsmPredictSurface(model: RsmModelPayload, options: RsmSurfaceOpt
   const outside = (range: [number, number], b: { min: number; max: number }) =>
     Math.min(range[0], range[1]) < b.min - 1e-9 || Math.max(range[0], range[1]) > b.max + 1e-9;
   const extrapolated = outside(codedXRange, xb) || outside(codedYRange, yb) || Boolean(model.stationary?.outsideRegion);
-  const gridZMin = flat.length ? Math.min(...flat) : 0;
-  const gridZMax = flat.length ? Math.max(...flat) : 1;
+  const gridExtent = extentOf(flat);
+  const gridZMin = flat.length ? gridExtent.min : 0;
+  const gridZMax = flat.length ? gridExtent.max : 1;
   return {
     grid: {
       xs,
@@ -688,8 +701,8 @@ export function rsmPredictSurface(model: RsmModelPayload, options: RsmSurfaceOpt
     yRange,
     unitMode,
     points,
-    zMin: flat.length ? Math.min(...flat) : 0,
-    zMax: flat.length ? Math.max(...flat) : 1,
+    zMin: flat.length ? extentOf(flat).min : 0,
+    zMax: flat.length ? extentOf(flat).max : 1,
     extrapolated,
   };
 }

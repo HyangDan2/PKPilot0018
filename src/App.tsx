@@ -13,6 +13,7 @@ import { AnalysisDialog } from './components/AnalysisDialog';
 import { HelpModal } from './components/HelpModal';
 import { ImportDialog, type PreviewSheet } from './components/ImportDialog';
 import { ANALYSES, defaultValues as defaultDialogValues, findAnalysis, type AnalysisDef, type RunResult } from './lib/analyses';
+import type { ChartConfig as ChartSpecConfig } from './lib/chartConfig';
 import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { loadAutosave, saveAutosave } from './lib/db';
 import { fmtInt } from './lib/format';
@@ -862,6 +863,56 @@ export default function App() {
     meta,
   });
 
+  /*
+   * Chart configurations belong to the reader, not to the run: a re-run keeps
+   * the style, scale and contour view the card already had, matched on kind and
+   * index, while the numbers come fresh from the analysis.
+   */
+  const chartConfigMemory = useRef<Map<string, { kind: string; config?: ChartSpecConfig }[]>>(new Map());
+
+  const collectChartSlots = (blocks: OutputDoc['blocks']): { kind: string; config?: ChartSpecConfig }[] => {
+    const out: { kind: string; config?: ChartSpecConfig }[] = [];
+    blocks.forEach((block) => {
+      if (block.type === 'chart') out.push({ kind: block.chart.kind, config: block.chart.config ? JSON.parse(JSON.stringify(block.chart.config)) as ChartSpecConfig : undefined });
+      if (block.type === 'chartgrid') block.charts.forEach((item) => out.push({ kind: item.chart.kind, config: item.chart.config ? JSON.parse(JSON.stringify(item.chart.config)) as ChartSpecConfig : undefined }));
+    });
+    return out;
+  };
+
+  const rememberChartConfigs = (doc: OutputDoc) => {
+    const key = doc.meta?.analysisId ?? doc.dialog?.analysisId;
+    if (!key) return;
+    chartConfigMemory.current.set(key, collectChartSlots(doc.blocks));
+  };
+
+  const restoreChartConfigs = (doc: OutputDoc): OutputDoc => {
+    const key = doc.meta?.analysisId ?? doc.dialog?.analysisId;
+    const saved = key ? chartConfigMemory.current.get(key) : undefined;
+    if (!saved || !saved.length) return doc;
+    let index = 0;
+    const applyBlock = (block: OutputDoc['blocks'][number]) => {
+      if (block.type === 'chart') {
+        const slot = saved[index];
+        index += 1;
+        if (slot && slot.config && slot.kind === block.chart.kind) return { ...block, chart: { ...block.chart, config: slot.config } };
+        return block;
+      }
+      if (block.type === 'chartgrid') {
+        return {
+          ...block,
+          charts: block.charts.map((item) => {
+            const slot = saved[index];
+            index += 1;
+            if (slot && slot.config && slot.kind === item.chart.kind) return { ...item, chart: { ...item.chart, config: slot.config } };
+            return item;
+          }),
+        };
+      }
+      return block;
+    };
+    return { ...doc, blocks: doc.blocks.map(applyBlock) };
+  };
+
   const focusDoc = (doc: OutputDoc) => {
     setOutputs((prev) => [...prev, doc]);
     setFocusedOutput(doc.id);
@@ -897,7 +948,8 @@ export default function App() {
         applySheets((list) => [...list, created]);
         setActiveSheetId(created.id);
       }
-      const doc = makeDoc(def, result, buildMeta(def, values, sheet));
+      const doc = restoreChartConfigs(makeDoc(def, result, buildMeta(def, values, sheet)));
+      rememberChartConfigs(doc);
       focusDoc(doc);
       setLastDialog({ analysisId: def.id, values });
       setDialog(null);
@@ -924,7 +976,8 @@ export default function App() {
     try {
       const result = def.run({ lang, sheet: snapshotSheet, values: { ...meta.values } });
       // The snapshot is read-only: a transform's sheet patch is not applied here.
-      const doc = makeDoc(def, result, { ...meta, ranAt: Date.now() });
+      const doc = restoreChartConfigs(makeDoc(def, result, { ...meta, ranAt: Date.now() }));
+      rememberChartConfigs(doc);
       focusDoc(doc);
     } catch (error) {
       toast(errorText(error));
@@ -1114,7 +1167,12 @@ export default function App() {
   };
 
   const updateOutputBlocks = (id: string, blocks: OutputDoc['blocks']) => {
-    setOutputs((prev) => prev.map((o) => (o.id === id ? { ...o, blocks } : o)));
+    setOutputs((prev) => prev.map((o) => {
+      if (o.id !== id) return o;
+      const next = { ...o, blocks };
+      rememberChartConfigs(next);
+      return next;
+    }));
   };
 
   /* ── shortcuts ─────────────────────────────────────────────────────── */

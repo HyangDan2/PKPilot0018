@@ -9,6 +9,10 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 **Minitab feature gap audit:** [docs/MINITAB_FEATURE_GAP.md](docs/MINITAB_FEATURE_GAP.md) — all 40 analyses compared with the official Minitab dialogs (SUPPORTED / PARTIAL / MISSING / DIFFERENT), with code evidence, document links and P1/P2 priorities.
 
+**Chart engine upgrade (Phase 2):** [docs/CHART_ENGINE_UPGRADE_REPORT.md](docs/CHART_ENGINE_UPGRADE_REPORT.md) — contour fixes, 7-tab properties drawer, DPI export, before/after visual QA and the resolution benchmark.
+
+**Minitab/Origin chart gap audit:** [docs/CHART_FEATURE_GAP.md](docs/CHART_FEATURE_GAP.md) — Graph Editing, Scale, Contour, Surface, Plot Details, Axis Dialog and Colormap compared item by item.
+
 **Independent statistics QA:** [`qa/reports/latest.html`](qa/reports/latest.html) — 156 cases compared against a NumPy/SciPy/statsmodels reference engine (`npm run qa:stats`, also run in CI by `.github/workflows/qa-stats.yml`). Inventory: [`qa/inventory.md`](qa/inventory.md).
 
 ## What is inside

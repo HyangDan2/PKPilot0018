@@ -1,4 +1,4 @@
-# Sigrún ↔ Minitab · OriginLab 차트 기능 격차 감사 (Phase 1)
+# Sigrún ↔ Minitab · OriginLab 차트 기능 격차 감사 (Phase 1 → Phase 2)
 
 > **대상**: `HD2Lab Sigrún` — 브라우저에서만 도는 통계·품질 워크스페이스 (`repos/PKPilot0018`)
 > **기준 커밋**: `ee1dafe` 위 Phase 1 차트 엔진 작업 (`src/lib/chartConfig.ts`, `chartStyles.ts`, `contour.ts`, `charts.ts`, `doe.ts`, `stats.ts`)
@@ -7,15 +7,18 @@
 > **분류**: `SUPPORTED` 구현·검증됨 / `PARTIAL` 일부만 / `MISSING` 없음 / `DIFFERENT` 다른 방식 / `UNKNOWN` 미확인
 > **공수**: S 0.5일 이하 · M 1–2일 · L 3일 이상
 
-## 검증 스냅샷 (2026-11-24)
+## 검증 스냅샷 (2026-11-24, Phase 2)
 
 | 항목 | 결과 |
 | --- | --- |
 | `npx tsc --noEmit` | 0 errors |
-| `npm test` | **635 / 635 PASS** (기존 583 + Phase 1 신규 52) |
+| `npm test` | **661 / 661 PASS** (Phase 1 635 + Phase 2 신규 26) |
 | `npm run qa:stats` | **156 / 156 PASS, 0 FAIL** |
-| `npm run build` | 성공 (196 modules, gzip JS 240.41 kB, 외부 CDN 없음) |
-| 콘투어 벤치마크 | 41: 14–18 ms · **101: 22–33 ms** · 201: 43–49 ms · 401: 110–125 ms (5회 중앙값, 560×300, filled-lines 10밴드) / 출력 58,052 · 135,204 · 263,271 · 520,106 B |
+| `npm run build` | 성공 (201 modules, gzip JS 262.55 kB, 외부 CDN 없음) |
+| 콘투어 벤치마크 | 41: 4.7–8.5 ms · **101: 19.7–30.2 ms** · 201: 33.9–50.7 ms · 401: 92.7–100.9 ms (5회 중앙값, 560×300, filled-lines 10밴드) / 출력 57,935 · 135,063 · 263,130 · 519,965 B |
+| 브라우저 실측 (E2E) | 41: 521 ms · 101: 482 ms · 201: 555 ms · **401: 702 ms** (드로어에서 해상도 전환 후 SVG 재생성, Playwright 4190 포트) |
+| Phase 2 E2E | `tools/e2e_chart_upgrade.cjs` **35 / 35 PASS** (데스크톱 1440×900 + 모바일 390×844) |
+| 기존 E2E 회귀 | `e2e_chart_axes.cjs` 6/6 · `e2e_stage3.cjs` 176/176 PASS |
 
 벤치마크 재현: `PATH="/workspace/node/bin:$PATH" node_modules/.bin/vite-node tools/contour_benchmark.ts` (560×300 SVG, filled-lines 10밴드, 1회 워밍업 + 5회 중앙값).
 **기본 해상도 결정: `standard` = 101×101.** 201×201은 1.4배 시간에 2배 바이트지만 560 px 플롯에서 셀당 2.8 px로 육안 차이가 거의 없고, 101은 셀당 5.5 px로 등고선이 매끄럽다. `high`/`ultra`는 사용자가 명시할 때만 쓴다.
@@ -48,14 +51,14 @@
 
 | 항목 | Minitab | Sigrún | 분류 | 코드 근거 | 공식 문서 | 우선순위 | 공수 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 그래프 편집 대화상자 | 그래프 더블클릭 → Options pane → Edit Graph | 편집 UI 없음. `config` 객체로만 지정 | MISSING | `ChartConfig` (`src/lib/chartConfig.ts`) — UI는 Phase 2 | 위 링크 | P1 | M |
+| 그래프 편집 대화상자 | 그래프 더블클릭 → Options pane → Edit Graph | 더블클릭 → 7탭 속성 드로어(일반·축·계열·스타일·참조선·범례·내보내기), 실시간 미리보기·적용/취소·실행취소 | SUPPORTED | `ChartPropertiesDrawer.tsx`, `chartConfigOps.ts` | 위 링크 | P1 | S |
 | 제목·부제 | 제목/부제 텍스트·위치 | `appearance.title` / `subtitle`, `chart-title` 그룹 | SUPPORTED | `titleBlock()` (`charts.ts`), `ChartAppearance` | 위 링크 | P1 | S |
 | 글꼴·크기 | 글꼴·스타일·색 | `fontFamily`, `fontSize`, 프리셋별 서체 | SUPPORTED | `resolveChartStyle()` (`chartStyles.ts`) | 위 링크 | P2 | S |
 | 배경·플롯 색 | 그래프/데이터 영역 채우기 | `chartBg`, `plotBg`, 프리셋 7종 | SUPPORTED | `background()`, `plotBackground()` | [Edit Background](https://support.minitab.com/en-us/minitab/help-and-how-to/graphs/general-graph-options/graph-editing-basics/edit-graphs/) | P2 | S |
 | 여백·크기 | 그래프 크기·여백 드래그 | `width`/`height`/`aspectRatio`/`margins` — 명시할 때만 적용 | PARTIAL | `createContext()`, `ctx.rawConfig.appearance?.margins` | 위 링크 | P2 | S |
 | 주석·도형·텍스트 상자 | 자유 주석, 선·화살표·사각형 | 없음 | MISSING | — | 위 링크 | P2 | M |
 | 다중 그래프 배치 | 그래프 여러 개 배치·정렬 | `chartgrid` 블록으로 나란히 출력, 자유 배치는 없음 | PARTIAL | `Block` (`src/types.ts`) `chartgrid` | 위 링크 | P2 | M |
-| 그래프 파일 저장 | Save Graph As (PNG/JPG/…) | SVG 직렬화·PNG 래스터 함수 있음, 저장 UI는 Phase 2 | PARTIAL | `resolveStandaloneSvg()`, `svgToPng()` (`OutputPanel.tsx`) | [Save graphs](https://support.minitab.com/en-us/minitab/help-and-how-to/graphs/general-graph-options/graph-editing-basics/edit-graphs/) | P1 | S |
+| 그래프 파일 저장 | Save Graph As (PNG/JPG/…) | Export 탭에서 SVG/PNG, 150/300/600 DPI, mm·in×DPI→픽셀, 투명/흰색/현재 배경, 제목·범례 포함 여부, 단일 내려받기·클립보드 복사·카드 전체 일괄 내보내기 | SUPPORTED | `chartExport.ts`, `ChartPropertiesDrawer.tsx` | [Save graphs](https://support.minitab.com/en-us/minitab/help-and-how-to/graphs/general-graph-options/graph-editing-basics/edit-graphs/) | P1 | S |
 
 ---
 
@@ -99,7 +102,7 @@
 | 다른 요인 고정값 | Hold continuous/categorical at | `RsmViewConfig.holdingValues` (coded) | SUPPORTED | `rsmPredictSurface()` (`doe.ts`) | [Specify settings](https://support.minitab.com/en-us/minitab/help-and-how-to/statistical-modeling/using-fitted-models/how-to/contour-plot/perform-the-analysis/specify-settings/) | P1 | S |
 | Coded / Uncoded 단위 | 요인 단위 전환 | `unitMode`, `actualTransform` | SUPPORTED | `RsmViewConfig`, `codedToActual()` | 위 링크 | P1 | S |
 | Z 최소/최대 | Z 범위 지정 | `zMin` / `zMax` (컬러바·밴드 동시) | SUPPORTED | `computeContourLevels()` | [Define contour values](https://support.minitab.com/en-us/minitab/help-and-how-to/statistical-modeling/using-fitted-models/how-to/contour-plot/perform-the-analysis/define-the-contour-values/) | P1 | S |
-| 스펙 영역·목표값 | Overlaid contour의 feasible region | `specLsl`/`specUsl`/`targetValue`/`targetTolerance` 엔진 지원 | PARTIAL | `ContourConfig`, `drawContour()` | 위 링크 | P1 | S |
+| 스펙 영역·목표값 | Overlaid contour의 feasible region | 축 눈금 ▸ Z 탭에서 목표값·허용폭·LSL/USL·만족 영역 음영을 직접 편집 | SUPPORTED | `ContourConfig`, `drawContour()`, `ChartPropertiesDrawer` | 위 링크 | P1 | S |
 | 다중 응답 오버레이 | Overlaid Contour Plot | 없음(단일 응답) | MISSING | — | [Overlaid contour](https://support.minitab.com/en-us/minitab/help-and-how-to/statistical-modeling/using-fitted-models/how-to/contour-plot/before-you-start/overview/) | P2 | L |
 | 해상도(격자) | (없음) | 41/101/201/401 프리셋 | SUPPORTED | `CONTOUR_RESOLUTIONS`, `resolutionPoints()` | — | P2 | S |
 
@@ -198,7 +201,7 @@ Phase 1은 *모델과 렌더러*를 끝냈다. 아래는 P1인데 UI만 남은 �
 | 툴팁·표 데이터 연동 | `data-chart-role="chart-point"` + `data-x`/`data-y`/`data-z`/`data-label` | 점 요소에 이미 부착 |
 | 확대·이동(Zoom/Pan) | `renderChart(spec, { width, height })` + viewBox | 렌더러는 매 호출 독립 컨텍스트 |
 | 내보내기(SVG/PNG, DPI·물리 크기) | `resolveStandaloneSvg()`, `ExportConfig`, `svgToPng()` | 내보낸 SVG에 `var(--…)` 0개 보장 |
-| 컨텍스트 메뉴(계열 숨김·색 변경) | `SeriesStyle.perSeries` | `perSeries[i].visible` 지원 |
+| 컨텍스트 메뉴(계열 숨김·색 변경) | `SeriesStyle.perSeries` | 차트 우클릭 메뉴(축·모양·내보내기·속성·확대·전체화면·스타일 복사/붙여넣기·전체 적용·PNG 복사·초기화) 및 계열 탭의 계열별 표시/색 |
 
 **Phase 2에서 새로 만들어야 하는 것**: 3D Surface/Wireframe(§5), 축 분리, 다중 응답 오버레이, 수준별 개별 색·라벨, 주석/도형, 자유 레이아웃. 이들은 모두 P2 이상이며 Phase 1의 P0/P1 엔진 항목과 충돌하지 않는다.
 
@@ -217,3 +220,28 @@ node_modules/.bin/vite-node tools/contour_benchmark.ts
 ```
 
 관련 테스트: `tests/chart-config.test.ts` (모델·프리셋·축 정밀도·이스케이프·프로젝트 호환), `tests/contour-geometry.test.ts` (16-case·안장·해석적 곡면·밴드·팔레트), `tests/rsm-model.test.ts` (모형 페이로드·슬라이스·단위·전 요인 쌍), `tests/regression-bands.test.ts` (statsmodels 대조).
+
+---
+
+## 11. Phase 2 반영 — 화면이 붙은 항목
+
+Phase 2는 엔진 심볼을 UI에 연결하고, 내보내기와 검증을 마쳤다. 아래 항목은 Phase 1에서 엔진만 있던 것이 이제 화면에서 직접 편집·검증된다.
+
+| Phase 2 산출물 | 연결한 심볼 | 검증 |
+| --- | --- | --- |
+| 7탭 차트 속성 드로어 (일반·축 눈금·계열·스타일·참조선·범례·내보내기) | `ChartConfig`, `ChartConfigHistory` | `tests/chart-drawer.test.ts`, E2E `drawer_*` 35/35 |
+| 실시간 미리보기 + 적용/취소/초기화 + Ctrl+Z/Y | `ChartConfigHistory`, `materializeRsm()` | E2E `a scale change previews live` |
+| 축 눈금 편집(X/Y/Z/Y2) | `AxisConfig` (`min`/`max`/`majorInterval`/`scale`/`reverse`/`tickDirection`/`crossAt`) | `tests/chart-config.test.ts`, E2E |
+| RSM 뷰 전환(요인 쌍·고정값·단위·표시 범위·실험/정상/최적점) | `rsmPredictSurface()`, `resliceRsm()` | `tests/chart-drawer.test.ts` |
+| 전 요인 쌍 등고선 생성 | `allPairSurfaces()`, `C(k,2)` | E2E `Generate all factor-pair contours` |
+| 등고 옵션(해상도 41/101/201/401·5 렌더 모드·9 팔레트·수준·컬러바) | `ContourConfig`, `CONTOUR_RESOLUTIONS` | E2E 5모드·4해상도, `contour_*.png` |
+| 범례 오른쪽/아래 여백 확보 | `legendReserve()`, `legendGeometry()` | `tests/chart-drawer.test.ts` 4건 |
+| 더블클릭 라우팅(축·컬러바·제목·범례·플롯) | `data-chart-role` | E2E `double-clicking the Y axis` |
+| 차트 우클릭 전용 메뉴 | `ContextMenu` | E2E `right-click opens a chart context menu` |
+| 점/등고선 호버·탭 값 읽기 | `data-point`, `data-plot-box`, `probeContour()` | E2E `hovering a point`, `chart-tip` |
+| 확대·전체화면 뷰어 | `ChartViewer` | E2E `chart_zoom.png` |
+| SVG/PNG 내보내기(DPI·물리 크기·배경·제목/범례) | `chartSvgDocument()`, `svgToPngWithConfig()` | `tests/chart-export.test.ts` 9건, E2E 1890×1181 / 3780×2362 |
+| 스타일 복사/붙여넣기·전체 적용 | `packChartStyle()`, `applyStylePack()` | `tests/chart-drawer.test.ts` |
+| 재실행 시 차트 설정 보존 | `chartConfigMemory` (`App.tsx`) | 수동 검증(카드별 kind/index 매칭) |
+
+**남은 항목**: 3D Surface/Wireframe(§5), 축 분리, 다중 응답 오버레이, 수준별 개별 색·라벨, 주석·도형, 자유 레이아웃은 Phase 3 이후다. 드로어는 이들 자리를 비워 두지 않고, 해당 차트 종류에서만 관련 탭을 노출한다.

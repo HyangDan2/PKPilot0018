@@ -428,16 +428,17 @@ function background(ctx: RenderContext): string {
 
 function plotBackground(ctx: RenderContext, box: Box): string {
   if (!ctx.style.plotBg || ctx.style.plotBg === 'transparent' || ctx.style.plotBg === ctx.style.chartBg) return '';
-  return `<rect data-chart-role="chart-plot" x="${px(box.x)}" y="${px(box.y)}" width="${px(box.w)}" height="${px(box.h)}" fill="${esc(ctx.style.plotBg)}"/>`;
+  return `<rect data-chart-role="chart-plot-bg" x="${px(box.x)}" y="${px(box.y)}" width="${px(box.w)}" height="${px(box.h)}" fill="${esc(ctx.style.plotBg)}"/>`;
 }
 
 function titleBlock(ctx: RenderContext, spec: ChartSpec): string {
   const appearance = ctx.rawConfig.appearance;
-  const show = Boolean(appearance && appearance.titleVisible !== false);
-  const heading = appearance?.title || ctx.appearance.title || spec.title || '';
+  const show = ctx.appearance.titleVisible !== false;
+  // A chart with no explicit title keeps the one the analysis gave it.
+  const heading = appearance?.title || spec.title || '';
   const subtitle = appearance?.subtitle || spec.subtitle || '';
   if (!show || (!heading && !subtitle)) return '';
-  let g = `<g data-chart-role="chart-title">`;
+  let g = `<g data-chart-role="title">`;
   if (heading) {
     g += `<text x="${px(ctx.W / 2)}" y="13" text-anchor="middle" font-family="${esc(ctx.style.titleFontFamily)}" font-size="${ctx.style.titleSize}" font-weight="600" fill="${esc(ctx.style.inkColor)}">${esc(heading)}</text>`;
   }
@@ -491,24 +492,67 @@ function hLine(box: Box, yPos: number, label: string, color: string, dash = '4 3
     + (label ? `<text x="${px(box.x + box.w - 2)}" y="${px(yPos - 3)}" text-anchor="end" font-family="${MONO_FONT}" font-size="8" fill="${esc(color)}">${esc(label)}</text>` : '');
 }
 
+interface LegendEntry { label: string; color: string; dash?: string; shape?: MarkerShape }
+
+interface LegendGeometry {
+  position: string;
+  fontSize: number;
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+  shown: LegendEntry[];
+}
+
+/**
+ * Where the legend sits and how much of the frame it needs.
+ *
+ * `right` and `bottom` keep the legend out of the data area: the renderer takes
+ * the same reserve out of its plot box before the axes are built, so a legend
+ * never covers a point or a contour band again.
+ */
+function legendGeometry(ctx: RenderContext, box: Box, entries: LegendEntry[], options: { position?: string; fontSize?: number } = {}): LegendGeometry {
+  const position = options.position ?? ctx.config.legend?.position ?? 'top-right';
+  const shown = entries.slice(0, 10);
+  const fontSize = options.fontSize ?? ctx.config.legend?.fontSize ?? 8.6;
+  const longest = Math.max(0, ...shown.map((entry) => Math.min(24, entry.label.length)));
+  const width = Math.min(Math.max(52, box.w * 0.68), 30 + longest * fontSize * 0.56);
+  const rows = shown.length + (entries.length > shown.length ? 1 : 0);
+  const height = rows * (fontSize + 3) + 5;
+  if (position === 'right') {
+    return { position, fontSize, width, height, left: box.x + box.w + 12, top: box.y + 2, shown };
+  }
+  if (position === 'bottom') {
+    return { position, fontSize, width, height, left: box.x + Math.max(2, (box.w - width) / 2), top: box.y + box.h + 34, shown };
+  }
+  const top = position.startsWith('bottom') ? box.y + box.h - height - 6 : box.y + 6;
+  const left = position.endsWith('left') ? box.x + 6 : box.x + box.w - width - 6;
+  return { position, fontSize, width, height, left, top, shown };
+}
+
+/** Plot-box space a legend needs outside the data area (0 for inside corners). */
+function legendReserve(ctx: RenderContext, entries: LegendEntry[], options: { fontSize?: number } = {}): { right: number; bottom: number } {
+  const position = ctx.config.legend?.position ?? 'top-right';
+  if (position === 'none' || ctx.config.legend?.visible === false || entries.length < 2) return { right: 0, bottom: 0 };
+  const prose: Box = { x: 0, y: 0, w: 560, h: 300 };
+  const geo = legendGeometry(ctx, prose, entries, options);
+  if (position === 'right') return { right: geo.width + 22, bottom: 0 };
+  if (position === 'bottom') return { right: 0, bottom: geo.height + 44 };
+  return { right: 0, bottom: 0 };
+}
+
 function legendBlock(
   ctx: RenderContext,
   box: Box,
-  entries: { label: string; color: string; dash?: string; shape?: MarkerShape }[],
+  entries: LegendEntry[],
   options: { position?: string; fontSize?: number } = {},
 ): string {
   const position = options.position ?? ctx.config.legend?.position ?? 'top-right';
   if (position === 'none' || ctx.config.legend?.visible === false || entries.length < 2) return '';
-  const shown = entries.slice(0, 10);
-  const fontSize = options.fontSize ?? ctx.config.legend?.fontSize ?? 8.6;
-  const longest = Math.max(...shown.map((entry) => Math.min(24, entry.label.length)));
-  const width = Math.min(box.w * 0.68, 26 + longest * fontSize * 0.56 + (entries.length > 1 ? 0 : 0));
-  const rows = shown.length + (entries.length > shown.length ? 1 : 0);
-  const height = rows * (fontSize + 3) + 5;
+  const geo = legendGeometry(ctx, box, entries, options);
+  const { shown, fontSize, width, height, left, top } = geo;
   const withBackground = ctx.config.legend?.showBackground !== false;
-  const top = position.startsWith('bottom') ? box.y + box.h - height - 6 : box.y + 6;
-  const left = position.endsWith('left') ? box.x + 6 : box.x + box.w - width - 6;
-  let g = `<g data-chart-role="chart-legend">`;
+  let g = `<g data-chart-role="legend">`;
   if (withBackground) g += `<rect x="${px(left)}" y="${px(top)}" width="${px(width)}" height="${px(height)}" rx="3" fill="${esc(ctx.style.legendBg)}" opacity="0.88" stroke="${esc(ctx.style.legendBorder)}"/>`;
   shown.forEach((entry, i) => {
     const cy = top + 9 + i * (fontSize + 3);
@@ -546,7 +590,7 @@ function dashString(dash: string): string {
 function clipGroup(ctx: RenderContext, box: Box, content: string): string {
   if (!content) return '';
   const id = nextClip(ctx, box);
-  return `<g data-chart-role="chart-plot" clip-path="url(#${id})">${content}</g>`;
+  return `<g data-chart-role="plot-content" clip-path="url(#${id})">${content}</g>`;
 }
 
 /* ── axis engine ──────────────────────────────────────────────────────── */
@@ -587,7 +631,11 @@ function makeAxis(
     max = cfg.max != null && isFinite(cfg.max) ? cfg.max : hi;
   }
   if (scale === 'log10') {
-    if (!(min > 0)) min = Math.max(1e-12, Math.min(...usable.filter((v) => v > 0), Number.POSITIVE_INFINITY));
+    if (!(min > 0)) {
+      let smallest = Number.POSITIVE_INFINITY;
+      for (const value of usable) if (value > 0 && value < smallest) smallest = value;
+      min = Math.max(1e-12, smallest);
+    }
     if (!isFinite(min) || min <= 0) min = 1;
     if (!(max > min)) max = min * 10;
   }
@@ -736,9 +784,14 @@ function drawAxes(
   if (yTitle) {
     titles += `<text transform="translate(${px(box.x - 42)} ${px(box.y + box.h / 2)}) rotate(-90)" data-chart-role="axis-title-y" text-anchor="middle" font-size="${fontSize + 0.5}" fill="${esc(style.labelColor)}">${esc(yTitle + unitSuffix(y.cfg))}</text>`;
   }
-  return `<g data-chart-role="chart-grid">${gridSvg}</g>`
-    + `<g data-chart-role="chart-axis-y">${yMarks.join('')}${yLabels.join('')}</g>`
-    + `<g data-chart-role="chart-axis-x">${xMarks.join('')}${xLabels.join('')}</g>`
+  // The plot region carries the mapping from a pixel to a data value, which is
+  // what the hover readout and the live contour probe need.
+  const plotRegion = `<rect data-chart-role="plot" data-plot-box="${px(box.x)},${px(box.y)},${px(box.w)},${px(box.h)}"`
+    + ` data-x-min="${esc(x.min)}" data-x-max="${esc(x.max)}" data-y-min="${esc(y.min)}" data-y-max="${esc(y.max)}"`
+    + ` fill="none" pointer-events="none"/>`;
+  return `<g data-chart-role="chart-grid">${plotRegion}${gridSvg}</g>`
+    + `<g data-chart-role="axis-y">${yMarks.join('')}${yLabels.join('')}</g>`
+    + `<g data-chart-role="axis-x">${xMarks.join('')}${xLabels.join('')}</g>`
     + axisSvg + titles;
 }
 
@@ -949,7 +1002,7 @@ function drawHistogram(spec: Extract<ChartSpec, { kind: 'histogram' }>, ctx: Ren
     const y = yAxis.toPixel(bin.value);
     if (![x0, x1, y].every((v) => Number.isFinite(v))) return;
     const width = Math.max(0.8, x1 - x0 - 0.8);
-    plot += `<rect class="chart-bar" data-chart-role="chart-bar" x="${px(x0 + 0.4)}" y="${px(y)}" width="${px(width)}" height="${px(box.y + box.h - y)}" fill="${esc(seriesColor(ctx.style, 0))}" opacity="${ctx.config.series?.fillOpacity ?? 0.72}" rx="1.5"/>`;
+    plot += `<rect class="chart-bar" data-point="1" data-chart-role="chart-bar" data-x="${esc((bin.lo + bin.hi) / 2)}" data-y="${esc(bin.value)}" x="${px(x0 + 0.4)}" y="${px(y)}" width="${px(width)}" height="${px(box.y + box.h - y)}" fill="${esc(seriesColor(ctx.style, 0))}" opacity="${ctx.config.series?.fillOpacity ?? 0.72}" rx="1.5"/>`;
   });
   if ((spec.normal || options.showFittedCurve) && values.length > 2) {
     const curve = histogramCurve(values, spec.bins ?? options.binCount ?? undefined);
@@ -1050,7 +1103,7 @@ function drawBoxplot(spec: Extract<ChartSpec, { kind: 'boxplot' }>, ctx: RenderC
       g += `<line class="chart-median" x1="${px(xAxis.toPixel(stats.median))}" y1="${px(cy - bw / 2)}" x2="${px(xAxis.toPixel(stats.median))}" y2="${px(cy + bw / 2)}" stroke="${esc(color)}" stroke-width="2.2"/>`;
       if (options.showMean) g += `<circle class="chart-mean" cx="${px(xAxis.toPixel(stats.mean))}" cy="${px(cy)}" r="2.4" fill="${esc(ctx.style.surfaceColor)}" stroke="${esc(color)}" stroke-width="1.4"/>`;
       if (options.showOutliers) stats.outliers.forEach((out) => {
-        g += `<circle class="chart-outlier" cx="${px(xAxis.toPixel(out))}" cy="${px(cy)}" r="2.6" fill="none" stroke="${esc(ctx.style.alarmColor)}" stroke-width="1.2" opacity="0.85"><title>${esc(`Outlier ${fmt(out, 3)} · outside 1.5×IQR`)}</title></circle>`;
+        g += `<circle class="chart-outlier" cx="${px(xAxis.toPixel(out))}" cy="${px(cy)}" r="2.6" fill="none" stroke="${esc(ctx.style.alarmColor)}" stroke-width="1.2" opacity="0.85" data-point="1" data-chart-role="chart-outlier" data-x="${esc(out)}" data-y="${esc(out)}"><title>${esc(`Outlier ${fmt(out, 3)} · outside 1.5×IQR`)}</title></circle>`;
       });
       if (options.showPoints) v.forEach((point, pi) => {
         const jitter = ((Math.sin((index + 1) * 12.9898 + pi * 78.233) * 43758.5453) % 1) * (bw * 0.5);
@@ -1079,14 +1132,14 @@ function drawBoxplot(spec: Extract<ChartSpec, { kind: 'boxplot' }>, ctx: RenderC
     if (options.showMean) g += `<circle class="chart-mean" cx="${px(cx)}" cy="${px(yAxis.toPixel(stats.mean))}" r="2.4" fill="${esc(ctx.style.surfaceColor)}" stroke="${esc(color)}" stroke-width="1.4"/>`;
     if (options.showOutliers && stats.outliers.length) hasOutliers = true;
     if (options.showOutliers) stats.outliers.forEach((out) => {
-      g += `<circle class="chart-outlier" cx="${px(cx)}" cy="${px(yAxis.toPixel(out))}" r="2.6" fill="none" stroke="${esc(ctx.style.alarmColor)}" stroke-width="1.2" opacity="0.85"><title>${esc(`Outlier ${fmt(out, 3)} · outside 1.5×IQR`)}</title></circle>`;
+      g += `<circle class="chart-outlier" cx="${px(cx)}" cy="${px(yAxis.toPixel(out))}" r="2.6" fill="none" stroke="${esc(ctx.style.alarmColor)}" stroke-width="1.2" opacity="0.85" data-point="1" data-chart-role="chart-outlier" data-x="${esc(out)}" data-y="${esc(out)}"><title>${esc(`Outlier ${fmt(out, 3)} · outside 1.5×IQR`)}</title></circle>`;
     });
     if (options.showPoints) v.forEach((point, pi) => {
       const jitter = ((Math.sin((index + 1) * 12.9898 + pi * 78.233) * 43758.5453) % 1) * (bw * 0.55);
       g += `<circle class="chart-point chart-point-jitter" cx="${px(cx + jitter)}" cy="${px(yAxis.toPixel(point))}" r="1.4" fill="${esc(color)}" opacity="0.45"/>`;
     });
-    g += `<text x="${px(cx)}" y="${px(box.y + box.h + 30)}" text-anchor="middle" font-size="${FS}" fill="${esc(ctx.style.labelColor)}">${esc(truncate(group.label, 12))}</text>`;
-    g += `<text x="${px(cx)}" y="${px(box.y + box.h + 41)}" text-anchor="middle" font-family="${esc(ctx.style.monoFontFamily)}" font-size="8" fill="${esc(ctx.style.labelColor)}">n=${v.length}</text>`;
+    g += `<text x="${px(cx)}" y="${px(box.y + box.h + 24)}" text-anchor="middle" font-size="${FS}" fill="${esc(ctx.style.labelColor)}">${esc(truncate(group.label, 12))}</text>`;
+    g += `<text x="${px(cx)}" y="${px(box.y + box.h + 35)}" text-anchor="middle" font-family="${esc(ctx.style.monoFontFamily)}" font-size="8" fill="${esc(ctx.style.labelColor)}">n=${v.length}</text>`;
   });
   if (hasOutliers) {
     g += `<circle cx="${px(ctx.W - 104)}" cy="9" r="2.8" fill="none" stroke="${esc(ctx.style.alarmColor)}" stroke-width="1.2"/>`;
@@ -1113,12 +1166,6 @@ function bandPolygon(bands: ChartBand[] | undefined, toX: (v: number) => number,
 function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>, ctx: RenderContext): string {
   const options = scatterOptions(ctx);
   const h = ctx.H;
-  const box: Box = {
-    x: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left : 58,
-    y: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.top : 18,
-    w: ctx.W - (ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left + ctx.appearance.margins.right : 80),
-    h: h - 64,
-  };
   const series = spec.series && spec.series.length
     ? spec.series
     : spec.points.length
@@ -1126,6 +1173,20 @@ function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>, ctx: RenderC
       : [];
   const all = series.flatMap((s) => s.points);
   if (!all.length) return emptyChart(ctx, spec.title ?? 'Scatterplot');
+  const groups = spec.groups ?? [];
+  const multi = series.length > 1;
+  const legendEntries: LegendEntry[] = spec.legend
+    ? (multi
+      ? series.map((s, i) => ({ label: s.label, color: seriesColor(ctx.style, i), shape: s.markerShape ?? seriesMarker(ctx.style, i) }))
+      : groups.map((label, i) => ({ label, color: seriesColor(ctx.style, i), shape: options.markerShape })))
+    : [];
+  const reserve = legendReserve(ctx, legendEntries);
+  const box: Box = {
+    x: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left : 58,
+    y: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.top : 18,
+    w: ctx.W - (ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left + ctx.appearance.margins.right : 80) - reserve.right,
+    h: h - 64 - reserve.bottom,
+  };
   const xCfg = { ...(ctx.config.xAxis as AxisConfig), scale: (options.logX ? 'log10' : ctx.config.xAxis?.scale ?? 'linear') as AxisScale };
   const yCfg = { ...(ctx.config.yAxis as AxisConfig), scale: (options.logY ? 'log10' : ctx.config.yAxis?.scale ?? 'linear') as AxisScale };
   const xAxis = spec.xDomain
@@ -1136,8 +1197,6 @@ function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>, ctx: RenderC
     : makeAxis(all.map((p) => p.y), yCfg, [box.y + box.h, box.y], { pad: ctx.rawConfig.yAxis?.axisMargin ?? 0.08 });
   let g = plotBackground(ctx, box);
   g += drawAxes(ctx, box, xAxis, yAxis, { xTitle: spec.xLabel, yTitle: spec.yLabel });
-  const groups = spec.groups ?? [];
-  const multi = series.length > 1;
   let plot = '';
   if (options.showPredictionBand) plot += `<g fill="${esc(ctx.style.bandColor)}" opacity="0.5">${bandPolygon(spec.bands?.individual, xAxis.toPixel, yAxis.toPixel)}</g>`;
   if (options.showMeanCi) plot += `<g fill="${esc(ctx.style.guideColor)}" opacity="0.22">${bandPolygon(spec.bands?.mean, xAxis.toPixel, yAxis.toPixel)}</g>`;
@@ -1153,7 +1212,7 @@ function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>, ctx: RenderC
       const cx = xAxis.toPixel(p.x);
       const cy = yAxis.toPixel(p.y);
       if (!isFinite(cx) || !isFinite(cy)) return;
-      plot += marker(shape, cx, cy, look.markerSize, color, ` opacity="0.82" class="chart-point" data-chart-role="chart-point" data-x="${esc(p.x)}" data-y="${esc(p.y)}"${grouped ? ` data-group="${esc((p as { g?: string }).g ?? '')}"` : ''}`);
+      plot += marker(shape, cx, cy, look.markerSize, color, ` opacity="0.82" class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${esc(p.x)}" data-y="${esc(p.y)}"${grouped ? ` data-group="${esc((p as { g?: string }).g ?? '')}"` : ''}`);
       if (options.showDataLabels) {
         const label = s.labels?.[pi] ?? spec.pointLabels?.[pi] ?? fmt(p.y, 2);
         plot += `<text class="chart-point-label" x="${px(cx + 4)}" y="${px(cy - 4)}" font-size="7.6" fill="${esc(ctx.style.labelColor)}">${esc(label)}</text>`;
@@ -1172,11 +1231,8 @@ function drawScatter(spec: Extract<ChartSpec, { kind: 'scatter' }>, ctx: RenderC
     });
   }
   g += clipGroup(ctx, box, plot);
-  if (spec.legend) {
-    const entries = multi
-      ? series.map((s, i) => ({ label: s.label, color: seriesColor(ctx.style, i), shape: s.markerShape ?? seriesMarker(ctx.style, i) }))
-      : groups.map((label, i) => ({ label, color: seriesColor(ctx.style, i), shape: options.markerShape }));
-    g += legendBlock(ctx, box, entries);
+  if (spec.legend && legendEntries.length) {
+    g += legendBlock(ctx, box, legendEntries);
   }
   const notes = [...(spec.notes ?? [])];
   if (options.showEquation) {
@@ -1224,7 +1280,7 @@ function drawTimeseries(spec: Extract<ChartSpec, { kind: 'timeseries' }>, ctx: R
     plot += `<polyline class="chart-series" data-chart-role="chart-series" points="${pts}" fill="none" stroke="${esc(seriesColor(ctx.style, 0))}" stroke-width="${ctx.config.series?.lineWidth ?? 1.6}" opacity="0.85"/>`;
   }
   if (options.showMarkers !== false) tsPoints.forEach((p) => {
-    plot += marker('circle', p.x, p.y, 2.4, seriesColor(ctx.style, 0), ` class="chart-point" data-chart-role="chart-point" data-x="${p.i + 1}" data-y="${esc(p.v)}"`);
+    plot += marker('circle', p.x, p.y, 2.4, seriesColor(ctx.style, 0), ` class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${p.i + 1}" data-y="${esc(p.v)}"`);
   });
   if (options.showDataLabels) tsPoints.forEach((p) => {
     plot += `<text x="${px(p.x + 3)}" y="${px(p.y - 4)}" font-size="7.4" fill="${esc(ctx.style.labelColor)}">${esc(fmt(p.v, 2))}</text>`;
@@ -1299,7 +1355,7 @@ function drawNormalProb(spec: Extract<ChartSpec, { kind: 'normalprob' }>, ctx: R
     const cx = xAxis.toPixel(p.x);
     const cy = yAxis.toPixel(p.y);
     if (!Number.isFinite(cx) || !Number.isFinite(cy)) return;
-    plot += marker(options.pointShape, cx, cy, options.pointSize, seriesColor(ctx.style, 0), ' opacity="0.85" class="chart-point" data-chart-role="chart-point"');
+    plot += marker(options.pointShape, cx, cy, options.pointSize, seriesColor(ctx.style, 0), ` opacity="0.85" class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${esc(p.x)}" data-y="${esc(p.y)}"`);
   });
   g += clipGroup(ctx, box, plot);
   g += `<text x="${px(box.x + box.w / 2)}" y="${px(box.y + box.h + 30)}" text-anchor="middle" font-size="${FS + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc(spec.xLabel ?? 'Data')}</text>`;
@@ -1368,7 +1424,7 @@ function drawProbplot(spec: Extract<ChartSpec, { kind: 'probplot' }>, ctx: Rende
     const cx = xAxis.toPixel(p.x);
     const cy = yAxis.toPixel(p.y);
     if (!Number.isFinite(cx) || !Number.isFinite(cy)) return;
-    plot += marker(options.pointShape, cx, cy, options.pointSize, seriesColor(ctx.style, 0), ' opacity="0.85" class="chart-point" data-chart-role="chart-point"');
+    plot += marker(options.pointShape, cx, cy, options.pointSize, seriesColor(ctx.style, 0), ` opacity="0.85" class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${esc(p.x)}" data-y="${esc(p.y)}"`);
   });
   g += clipGroup(ctx, box, plot);
   if (spec.xLabel) g += `<text x="${px(box.x + box.w / 2)}" y="${px(box.y + box.h + 30)}" text-anchor="middle" font-size="${FS + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc(spec.xLabel)}</text>`;
@@ -1438,7 +1494,7 @@ function drawControl(spec: Extract<ChartSpec, { kind: 'control' }>, ctx: RenderC
   ptPixels.forEach(({ v, i }) => {
     const rules = options.showViolations ? flagged.get(i) : undefined;
     const color = rules ? ctx.style.alarmColor : seriesColor(ctx.style, 0);
-    plot += marker('circle', xAxis.toPixel(i + 1), yAxis.toPixel(v), rules ? 3.6 : 2.6, color, ` class="chart-point${rules ? ' chart-point-alarm' : ''}" data-chart-role="chart-point" data-y="${esc(v)}"${rules ? ` data-violation="${esc(rules.join(','))}"` : ''}${rules ? ` stroke="${esc(ctx.style.surfaceColor)}" stroke-width="1.2"` : ''}`);
+    plot += marker('circle', xAxis.toPixel(i + 1), yAxis.toPixel(v), rules ? 3.6 : 2.6, color, ` class="chart-point${rules ? ' chart-point-alarm' : ''}" data-point="1" data-chart-role="chart-point" data-x="${i + 1}" data-y="${esc(v)}"${rules ? ` data-violation="${esc(rules.join(','))}"` : ''}${rules ? ` stroke="${esc(ctx.style.surfaceColor)}" stroke-width="1.2"` : ''}`);
     if (rules) plot += `<text x="${px(xAxis.toPixel(i + 1))}" y="${px(yAxis.toPixel(v) - 7)}" text-anchor="middle" font-family="${esc(ctx.style.monoFontFamily)}" font-size="8" fill="${esc(ctx.style.alarmColor)}">${rules.join(',')}</text>`;
     if (options.showDataLabels) plot += `<text x="${px(xAxis.toPixel(i + 1) + 3)}" y="${px(yAxis.toPixel(v) - 4)}" font-size="7.2" fill="${esc(ctx.style.labelColor)}">${esc(fmt(v, 2))}</text>`;
   });
@@ -1502,7 +1558,7 @@ function drawPareto(spec: Extract<ChartSpec, { kind: 'pareto' }>, ctx: RenderCon
     const y = yAxis.toPixel(item.count);
     cumulative += item.count;
     const pct = (cumulative / total) * 100;
-    g += `<rect class="chart-bar" data-chart-role="chart-bar" x="${px(cx - barW / 2)}" y="${px(y)}" width="${px(barW)}" height="${px(box.y + box.h - y)}" fill="${esc(seriesColor(ctx.style, options.perGroupColor ? i : 0))}" opacity="0.82" rx="2"/>`;
+    g += `<rect class="chart-bar" data-point="1" data-chart-role="chart-bar" data-x="${esc(i + 1)}" data-y="${esc(item.count)}" x="${px(cx - barW / 2)}" y="${px(y)}" width="${px(barW)}" height="${px(box.y + box.h - y)}" fill="${esc(seriesColor(ctx.style, options.perGroupColor ? i : 0))}" opacity="0.82" rx="2"/>`;
     if (options.showDataLabels) g += `<text x="${px(cx)}" y="${px(y - 4)}" text-anchor="middle" font-family="${esc(ctx.style.monoFontFamily)}" font-size="8.5" fill="${esc(ctx.style.labelColor)}">${item.count}</text>`;
     if (items.length <= 6) {
       const maxChars = Math.max(4, Math.floor(slot / 6.2));
@@ -1529,13 +1585,20 @@ function drawBar(spec: Extract<ChartSpec, { kind: 'bar' }>, ctx: RenderContext):
   const h = ctx.H;
   const items = spec.items.filter((item) => isFinite(item.value));
   if (!items.length && !(spec.groups && spec.groups.length)) return emptyChart(ctx, spec.title ?? 'Bar chart');
+  const groups = spec.groups ?? [];
+  const legendEntries: LegendEntry[] = options.showLegend === false || (groups.length <= 1 && !(spec.lines ?? []).length)
+    ? []
+    : [
+      ...groups.map((group, i) => ({ label: group.label, color: seriesColor(ctx.style, group.color ?? i), shape: 'square' as MarkerShape })),
+      ...(spec.lines ?? []).map((line, i) => ({ label: line.label, color: seriesColor(ctx.style, line.color ?? i + 3) })),
+    ];
+  const reserve = legendReserve(ctx, legendEntries);
   const box: Box = {
     x: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left : 58,
     y: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.top : 22,
-    w: ctx.W - (ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left + ctx.appearance.margins.right : 80),
-    h: h - 62,
+    w: ctx.W - (ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left + ctx.appearance.margins.right : 80) - reserve.right,
+    h: h - 62 - reserve.bottom,
   };
-  const groups = spec.groups ?? [];
   const values = [
     ...items.map((i) => i.value),
     ...groups.flatMap((g) => g.values.filter((v) => isFinite(v))),
@@ -1553,7 +1616,7 @@ function drawBar(spec: Extract<ChartSpec, { kind: 'bar' }>, ctx: RenderContext):
   let g = plotBackground(ctx, box);
   g += drawAxes(ctx, box, catAxis, yAxis, { yTitle: spec.yLabel, hideXLabels: true });
   if (y2Axis) {
-    let right = `<g data-chart-role="chart-axis-y2">`;
+    let right = `<g data-chart-role="axis-y2">`;
     y2Axis.ticks.forEach((tick) => {
       const p = y2Axis.toPixel(tick.value);
       if (p < box.y - 0.1 || p > box.y + box.h + 0.1) return;
@@ -1569,7 +1632,7 @@ function drawBar(spec: Extract<ChartSpec, { kind: 'bar' }>, ctx: RenderContext):
   const zero = yAxis.toPixel(clampNumber(0, yAxis.min, yAxis.max));
   const drawBarAt = (cx: number, value: number, color: string, label?: string) => {
     const y = yAxis.toPixel(value);
-    let out = `<rect class="chart-bar" data-chart-role="chart-bar" x="${px(cx - barW / 2)}" y="${px(Math.min(y, zero))}" width="${px(barW)}" height="${px(Math.max(1, Math.abs(zero - y)))}" fill="${esc(color)}" opacity="0.82" rx="2"/>`;
+    let out = `<rect class="chart-bar" data-point="1" data-chart-role="chart-bar" data-y="${esc(value)}" x="${px(cx - barW / 2)}" y="${px(Math.min(y, zero))}" width="${px(barW)}" height="${px(Math.max(1, Math.abs(zero - y)))}" fill="${esc(color)}" opacity="0.82" rx="2"/>`;
     if (options.showDataLabels) out += `<text x="${px(cx)}" y="${px(Math.min(y, zero) - 4)}" text-anchor="middle" font-family="${esc(ctx.style.monoFontFamily)}" font-size="8.5" fill="${esc(ctx.style.inkColor)}">${esc(label ?? value.toFixed(spec.decimals ?? 2))}</text>`;
     return out;
   };
@@ -1606,12 +1669,8 @@ function drawBar(spec: Extract<ChartSpec, { kind: 'bar' }>, ctx: RenderContext):
       g += `<polyline class="chart-series-secondary" points="${pts}" fill="none" stroke="${esc(seriesColor(ctx.style, line.color ?? li + 3))}" stroke-width="1.7"/>`;
     });
   }
-  if (options.showLegend && (groups.length > 1 || (spec.lines ?? []).length)) {
-    const entries: { label: string; color: string; shape?: MarkerShape }[] = [
-      ...groups.map((group, i) => ({ label: group.label, color: seriesColor(ctx.style, group.color ?? i), shape: 'square' as MarkerShape })),
-      ...(spec.lines ?? []).map((line, i) => ({ label: line.label, color: seriesColor(ctx.style, line.color ?? i + 3) })),
-    ];
-    g += legendBlock(ctx, box, entries);
+  if (legendEntries.length) {
+    g += legendBlock(ctx, box, legendEntries);
   }
   return g;
 }
@@ -1621,11 +1680,15 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>, ctx: RenderContext
   const h = ctx.H;
   const all = spec.series.flatMap((s) => s.points);
   if (!all.length) return emptyChart(ctx, spec.title ?? 'Line plot');
+  const legendEntries: LegendEntry[] = options.showLegend === false
+    ? []
+    : spec.series.filter((s) => s.label).map((s, i) => ({ label: s.label, color: seriesColor(ctx.style, s.color ?? i), dash: s.dash, shape: s.markerShape }));
+  const reserve = legendReserve(ctx, legendEntries);
   const box: Box = {
     x: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left : 58,
     y: ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.top : 22,
-    w: ctx.W - (ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left + ctx.appearance.margins.right : 80),
-    h: h - 66,
+    w: ctx.W - (ctx.rawConfig.appearance?.margins ? ctx.appearance.margins.left + ctx.appearance.margins.right : 80) - reserve.right,
+    h: h - 66 - reserve.bottom,
   };
   const primary = spec.series.filter((s) => s.axis !== 'secondary');
   const secondary = spec.series.filter((s) => s.axis === 'secondary');
@@ -1645,7 +1708,7 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>, ctx: RenderContext
     : undefined;
   g += drawAxes(ctx, box, xAxis, yAxis, { xTitle: spec.xLabel, yTitle: spec.yLabel, hideXLabels: Boolean(categoryLabels), xCategoryLabels: categoryLabels });
   if (y2Axis) {
-    let y2 = `<g data-chart-role="chart-axis-y2">`;
+    let y2 = `<g data-chart-role="axis-y2">`;
     y2Axis.ticks.forEach((tick) => {
       const p = y2Axis.toPixel(tick.value);
       if (p < box.y - 0.1 || p > box.y + box.h + 0.1) return;
@@ -1671,7 +1734,7 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>, ctx: RenderContext
       plot += `<polyline class="chart-series" data-chart-role="chart-series" points="${points.map((entry) => `${px(entry.x)},${px(entry.y)}`).join(' ')}" fill="none" stroke="${esc(color)}" stroke-width="${look.lineWidth}" stroke-dasharray="${esc(series.dash ?? look.lineDash)}" opacity="0.95"/>`;
     }
     if (options.showMarkers !== false && series.showMarkers !== false) points.forEach((entry) => {
-      plot += marker(series.markerShape ?? look.markerShape, entry.x, entry.y, look.markerSize, color, ` class="chart-point" data-chart-role="chart-point" data-x="${esc(entry.p.x)}" data-y="${esc(entry.p.y)}"`);
+      plot += marker(series.markerShape ?? look.markerShape, entry.x, entry.y, look.markerSize, color, ` class="chart-point" data-point="1" data-chart-role="chart-point" data-x="${esc(entry.p.x)}" data-y="${esc(entry.p.y)}"`);
     });
     if (options.showDataLabels) points.forEach((entry) => {
       plot += `<text x="${px(entry.x + 4)}" y="${px(entry.y - 5)}" font-size="7.6" fill="${esc(ctx.style.labelColor)}">${esc(fmt(entry.p.y, 2))}</text>`;
@@ -1685,11 +1748,8 @@ function drawLine(spec: Extract<ChartSpec, { kind: 'line' }>, ctx: RenderContext
   if (spec.xLabel) g += `<text x="${px(box.x + box.w / 2)}" y="${px(box.y + box.h + 30)}" text-anchor="middle" font-size="${FS + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc(spec.xLabel)}</text>`;
   if (spec.yLabel) g += `<text transform="translate(${px(box.x - 42)} ${px(box.y + box.h / 2)}) rotate(-90)" text-anchor="middle" font-size="${FS + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc(spec.yLabel)}</text>`;
   if (spec.y2Label) g += `<text transform="translate(${px(box.x + box.w + 34)} ${px(box.y + box.h / 2)}) rotate(90)" text-anchor="middle" font-size="${FS + 0.5}" fill="${esc(ctx.style.labelColor)}">${esc(spec.y2Label)}</text>`;
-  if (options.showLegend !== false) {
-    const entries: { label: string; color: string; dash?: string; shape?: MarkerShape }[] = spec.series
-      .filter((s) => s.label)
-      .map((s, i) => ({ label: s.label, color: seriesColor(ctx.style, s.color ?? i), dash: s.dash, shape: s.markerShape }));
-    g += legendBlock(ctx, box, entries);
+  if (legendEntries.length) {
+    g += legendBlock(ctx, box, legendEntries);
   }
   return g;
 }
@@ -1778,7 +1838,7 @@ function drawCapability(spec: Extract<ChartSpec, { kind: 'capability' }>, ctx: R
     const binLo = lo + i * binWidth;
     const binHi = binLo + binWidth;
     const y = yAxis.toPixel(count);
-    g += `<rect class="chart-bar" data-chart-role="chart-bar" x="${px(xAxis.toPixel(binLo) + 0.4)}" y="${px(y)}" width="${px(Math.max(0.8, xAxis.toPixel(binHi) - xAxis.toPixel(binLo) - 0.8))}" height="${px(box.y + box.h - y)}" fill="${esc(seriesColor(ctx.style, 0))}" opacity="0.3" rx="1.5"/>`;
+    g += `<rect class="chart-bar" data-point="1" data-chart-role="chart-bar" data-x="${esc(binLo + binWidth / 2)}" data-y="${esc(count)}" x="${px(xAxis.toPixel(binLo) + 0.4)}" y="${px(y)}" width="${px(Math.max(0.8, xAxis.toPixel(binHi) - xAxis.toPixel(binLo) - 0.8))}" height="${px(box.y + box.h - y)}" fill="${esc(seriesColor(ctx.style, 0))}" opacity="0.3" rx="1.5"/>`;
   });
   const drawCurve = (sd: number, dash: string, color: string, opacity: number) => {
     const curve: string[] = [];
@@ -1829,7 +1889,7 @@ function colorbar(
     const left = box.x + (box.w - barW) / 2;
     const top = box.y + box.h + 46;
     const height = 12;
-    let svg = `<g data-chart-role="chart-colorbar">`;
+    let svg = `<g data-chart-role="colorbar">`;
     if (cfg.colorbarMode === 'continuous') {
       const id = `sigrun-gradient-${ctx.id}`;
       const stops = Array.from({ length: 11 }, (_, i) => `<stop offset="${(i * 10).toFixed(0)}%" stop-color="${sampleColormap(cfg.colormap, i / 10)}"/>`).join('');
@@ -1842,7 +1902,7 @@ function colorbar(
       }
       svg += `<rect x="${px(left)}" y="${px(top)}" width="${px(barW)}" height="${height}" fill="none" stroke="${esc(ctx.style.gridColor)}"/>`;
     }
-    const ticks = computeAxisTicks(zMin, zMax, { count: 4 }).ticks;
+    const ticks = computeAxisTicks(zMin, zMax, { count: 4 }).ticks.filter((tick) => tick.value >= zMin - 1e-9 && tick.value <= zMax + 1e-9);
     ticks.forEach((tick) => {
       const x = left + ((tick.value - zMin) / (zMax - zMin || 1)) * barW;
       svg += `<text x="${px(x)}" y="${px(top + height + 10)}" text-anchor="middle" font-family="${esc(ctx.style.monoFontFamily)}" font-size="8" fill="${esc(ctx.style.labelColor)}">${esc(tick.label)}</text>`;
@@ -1856,7 +1916,7 @@ function colorbar(
   const left = onLeft ? box.x - 42 : box.x + box.w + 14;
   const top = box.y;
   const height = box.h;
-  let svg = `<g data-chart-role="chart-colorbar">`;
+  let svg = `<g data-chart-role="colorbar">`;
   if (cfg.colorbarMode === 'continuous') {
     const id = `sigrun-gradient-${ctx.id}`;
     const stops = Array.from({ length: 11 }, (_, i) => `<stop offset="${(i * 10).toFixed(0)}%" stop-color="${sampleColormap(cfg.colormap, i / 10)}"/>`).join('');
@@ -1869,7 +1929,9 @@ function colorbar(
     }
     svg += `<rect x="${px(left)}" y="${px(top)}" width="${width}" height="${height}" fill="none" stroke="${esc(ctx.style.gridColor)}"/>`;
   }
-  const ticks = computeAxisTicks(zMin, zMax, { count: 4 }).ticks;
+  // A nice-number step can overshoot the data range; a tick outside the bar
+  // would be drawn outside the frame, so only ticks inside it are labelled.
+  const ticks = computeAxisTicks(zMin, zMax, { count: 4 }).ticks.filter((tick) => tick.value >= zMin - 1e-9 && tick.value <= zMax + 1e-9);
   ticks.forEach((tick) => {
     const y = top + height - ((tick.value - zMin) / (zMax - zMin || 1)) * height;
     const tx = onLeft ? left - 4 : left + width + 4;
@@ -1974,10 +2036,10 @@ function drawContour(spec: Extract<ChartSpec, { kind: 'contour' }>, ctx: RenderC
       const cy = yAxis.toPixel(point.y);
       if (point.kind === 'stationary' || point.kind === 'optimal') {
         const shape = point.kind === 'stationary' ? 'diamond' : 'cross';
-        plot += marker(shape, cx, cy, 5, ctx.style.inkColor, ` data-chart-role="chart-point" data-kind="${point.kind}" data-x="${esc(point.x)}" data-y="${esc(point.y)}"${point.z != null && Number.isFinite(point.z) ? ` data-z="${esc(point.z)}"` : ''}${point.label ? ` data-label="${esc(point.label)}"` : ''}`);
+        plot += marker(shape, cx, cy, 5, ctx.style.inkColor, ` data-point="1" data-chart-role="chart-point" data-kind="${point.kind}" data-x="${esc(point.x)}" data-y="${esc(point.y)}"${point.z != null && Number.isFinite(point.z) ? ` data-z="${esc(point.z)}"` : ''}${point.label ? ` data-label="${esc(point.label)}"` : ''}`);
         if (point.label) plot += `<text x="${px(cx + 7)}" y="${px(cy - 6)}" font-family="${esc(ctx.style.monoFontFamily)}" font-size="8" fill="${esc(ctx.style.inkColor)}">${esc(point.label)}</text>`;
       } else {
-        plot += marker('circle', cx, cy, 2.6, ctx.style.surfaceColor, ` stroke="${esc(ctx.style.inkColor)}" stroke-width="1" data-chart-role="chart-point" data-x="${esc(point.x)}" data-y="${esc(point.y)}"${point.z != null && Number.isFinite(point.z) ? ` data-z="${esc(point.z)}"` : ''}${point.label ? ` data-label="${esc(point.label)}"` : ''}`);
+        plot += marker('circle', cx, cy, 2.6, ctx.style.surfaceColor, ` stroke="${esc(ctx.style.inkColor)}" stroke-width="1" data-point="1" data-chart-role="chart-point" data-x="${esc(point.x)}" data-y="${esc(point.y)}"${point.z != null && Number.isFinite(point.z) ? ` data-z="${esc(point.z)}"` : ''}${point.label ? ` data-label="${esc(point.label)}"` : ''}`);
       }
     });
   }

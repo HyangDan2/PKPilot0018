@@ -91,7 +91,7 @@ describe('professional style presets (WO-07)', () => {
     };
     const svg = renderChart(spec, 700);
     expect(svg).toContain('viewBox="0 0 700 240"');
-    expect(svg).toContain('data-chart-role="chart-title"');
+    expect(svg).toContain('data-chart-role="title"');
     expect(svg).toContain('Custom &lt;Title&gt; &amp; &quot;More&quot;');
     expect(svg).not.toContain('<Title>');
   });
@@ -232,14 +232,16 @@ describe('render stability and semantics (WO-11)', () => {
       groups: ['A', 'B'],
       legend: true,
     });
-    ['chart-axis-x', 'chart-axis-y', 'chart-plot', 'chart-point'].forEach((role) => expect(scatter).toContain(`data-chart-role="${role}"`));
+    ['axis-x', 'axis-y', 'plot', 'chart-point'].forEach((role) => expect(scatter).toContain(`data-chart-role="${role}"`));
+    expect(scatter).toContain('data-chart-role="legend"');
+    expect(scatter).toMatch(/data-chart-role="plot" data-plot-box="[-\d.]+,[-\d.]+,[-\d.]+,[-\d.]+" data-x-min="[-\d.e]+" data-x-max="[-\d.e]+" data-y-min="[-\d.e]+" data-y-max="[-\d.e]+"/);
     const contour = renderChart({
       kind: 'contour',
       xs: [-1, 0, 1],
       ys: [-1, 0, 1],
       z: [[1, 2, 3], [2, 3, 4], [3, 4, 5]],
     });
-    expect(contour).toContain('data-chart-role="chart-colorbar"');
+    expect(contour).toContain('data-chart-role="colorbar"');
     expect(contour).toContain('data-chart-role="chart-contour-band"');
   });
 
@@ -325,7 +327,7 @@ describe('render stability and semantics (WO-11)', () => {
           config: { contour: { renderMode, colorbarPosition, showContourLabels: true } },
         });
         expect(svg, `${renderMode}/${colorbarPosition}`).not.toContain('NaN');
-        expect(svg).toContain('data-chart-role="chart-colorbar"');
+        expect(svg).toContain('data-chart-role="colorbar"');
         if (renderMode !== 'lines') expect(svg).toContain('data-chart-role="chart-contour-band"');
         else expect(svg).toContain('data-chart-role="chart-contour-line"');
       });
@@ -370,7 +372,7 @@ describe('render stability and semantics (WO-11)', () => {
       ],
       y2Label: 'Secondary',
     });
-    expect(line).toContain('data-chart-role="chart-axis-y2"');
+    expect(line).toContain('data-chart-role="axis-y2"');
   });
 });
 
