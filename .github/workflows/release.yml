@@ -1,0 +1,113 @@
+name: Release candidate (tag)
+
+# A tag is the only trigger. The job builds from that commit, verifies every
+# hash and the reproducible rebuild, and uploads the release folder as an
+# artifact. Tags are never created, moved or deleted by this workflow.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # The same browser regression gate deploy.yml runs on main (WO-FINAL-002).
+  # A tag release is only packaged when these suites pass on this commit.
+  browser-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Stage 1 (worksheet, selection, menus)
+        run: |
+          mkdir -p "$RUNNER_TEMP/shots"
+          node tools/e2e_stage1.cjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          OUT: ${{ runner.temp }}/shots
+      - name: Stage 3 (workspace and regression list)
+        run: node tools/e2e_stage3.cjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          OUT: ${{ runner.temp }}/shots
+          SHOTS: ${{ runner.temp }}/shots
+
+  release:
+    needs: [browser-regression]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npm test
+
+      - name: Install the pinned reference stack
+        run: pip install -r qa/reference/requirements.txt
+
+      - name: Independent statistics QA
+        run: npm run qa:stats
+
+      - name: Upload QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa/reports/
+          retention-days: 90
+
+      - name: Preflight (tag, version and manifest agree)
+        run: npm run release:check
+
+      - name: Build release artifacts
+        run: |
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          npm run release:build
+
+      - name: Verify artifacts and reproducible rebuild
+        run: npm run release:verify -- --repro
+
+      - name: Portable offline E2E
+        run: npm run qa:portable
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Portable tutorial E2E
+        run: npm run qa:tutorials:portable
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Tutorial guard probe
+        run: npm run qa:guard
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Network audit (public, portable, enterprise)
+        run: npm run qa:network
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sigrun-release
+          path: release/
+          retention-days: 90

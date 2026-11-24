@@ -1,0 +1,17 @@
+(node:14851) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[PASS] the drawer states node convergence — 0.16%
+[PASS] the drawer states area convergence separately — 0.01%
+[PASS] the grid pair behind the convergence figure is named — compared with 202×202 (refined)
+[PASS] the drawer says the intervals are pointwise — pointwise note
+[PASS] the drawer states the narrow/discontinuous limit — limit note
+[PASS] Ultra compares with 201×201 — compared with 201×201 (coarsened)
+[PASS] Ultra convergence is a real measurement, not 0 from self-comparison — compared with 201×201 (coarsened)
+[PASS] no page errors during the convergence session
+[PASS] the manager names the blocked model — Interval basis disabled for: Speed (rpm) ← Temperature (C), Pressure (bar) · The model car
+[PASS] the manager states why it is blocked — iance matrix., The model has no residual degrees of freedom.
+[PASS] only the predicted-mean basis is offered — 1
+[PASS] the drawer states the reason the basis is unavailable — Interval basis unavailable — no covariance / df: Speed (rpm) ← Temperature (C), Pressure (
+[PASS] no page errors during the blocked-basis session
+
+13 / 13 PASS

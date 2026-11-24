@@ -1,0 +1,135 @@
+(node:11238) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+── part: selection ──
+[PASS] grid renders the default worksheet — 78
+[FAIL] block paste lands in A1:B4
+[PASS] paste leaves a range selected
+[PASS] Shift+click selects the rectangle — 8
+[PASS] status names the blocked range — Worksheet 1 | Cell C11:C24 | 3 columns | Last analysis — | Auto-saved | HD2LAB · SIGRÚN · PHASE 3
+[PASS] Ctrl+click adds a non-adjacent cell — Worksheet 1 | Cell C11:C24, C37 | 3 columns | Last analysis — | Auto-saved | HD2LAB · SIGRÚN · PHASE 3
+[PASS] both blocks stay selected — 9
+[PASS] drag paints a rectangle — 6
+[PASS] row header selects the whole row — 3
+[PASS] column header selects the whole column — 26
+[PASS] Shift on a column header extends across columns — 26 → 52
+[PASS] Ctrl+A selects the whole sheet — Worksheet 1 | Cell All | 3 columns | Last analysis — | Auto-saved | HD2LAB · SIGRÚN · PHASE 3
+[FAIL] Ctrl+C copies the active cell — "1\t2\n3\t4\n5\t6\n7\t8"
+[FAIL] Ctrl+V pastes at the new cell
+[PASS] Ctrl+Z undoes the paste
+[FAIL] Ctrl+Shift+Z redoes the paste
+[FAIL] Ctrl+Down lands on the last value of the block — Worksheet 1 | Cell C136 | 3 columns | Last analysis — | Auto-saved | HD2LAB · SIGRÚN · PHASE 3
+[PASS] Ctrl+Home returns to A1 — Worksheet 1 | Cell C11 | 3 columns | Last analysis — | Auto-saved | HD2LAB · SIGRÚN · PHASE 3
+[FAIL] End jumps to the row end — Worksheet 1 | Cell C11 | 3 columns | Last analysis — | Auto-saved | HD2LAB · SIGRÚN · PHASE 3
+[FAIL] multi-block paste is refused with a toast — Nothing to copy in the selection. | Nothing to undo. | Nothing to redo.
+[FAIL] refused paste wrote nothing
+[FAIL] Ctrl+Shift+Down extends to the data boundary — Worksheet 1 | Cell C11, C36 | 3 columns | Last analysis — | Auto-saved | HD2LAB · SIGRÚN · PHASE 3
+[PASS] F2 + Enter commits and moves down
+[PASS] Esc cancels an edit
+[FAIL] cut + paste moves the value
+[FAIL] one undo restores both sides of the move
+[PASS] worksheet tab menu offers rename/new/delete — Rename worksheet / New worksheet / Delete worksheet
+[PASS] the last worksheet cannot be deleted from the tab menu
+[PASS] no console errors during selection
+
+── part: menus ──
+[PASS] right-click opens the cell menu
+[PASS] cell menu has Copy — Copy
+Ctrl+C / Cut
+Ctrl+X / Paste
+Ctrl+V / Clear contents
+Del / Insert cells (shift down) / Delete cells (shift up) / Insert row above / Insert row below / Delete row(s) / Insert column left / Insert column right / Delete column(s) / Find & replace…
+[PASS] cell menu has Cut — Copy
+Ctrl+C / Cut
+Ctrl+X / Paste
+Ctrl+V / Clear contents
+Del / Insert cells (shift down) / Delete cells (shift up) / Insert row above / Insert row below / Delete row(s) / Insert column left / Insert column right / Delete column(s) / Find & replace…
+[PASS] cell menu has Paste — Copy
+Ctrl+C / Cut
+Ctrl+X / Paste
+Ctrl+V / Clear contents
+Del / Insert cells (shift down) / Delete cells (shift up) / Insert row above / Insert row below / Delete row(s) / Insert column left / Insert column right / Delete column(s) / Find & replace…
+[PASS] cell menu has Clear contents — Copy
+Ctrl+C / Cut
+Ctrl+X / Paste
+Ctrl+V / Clear contents
+Del / Insert cells (shift down) / Delete cells (shift up) / Insert row above / Insert row below / Delete row(s) / Insert column left / Insert column right / Delete column(s) / Find & replace…
+[PASS] cell menu has Insert row above — Copy
+Ctrl+C / Cut
+Ctrl+X / Paste
+Ctrl+V / Clear contents
+Del / Insert cells (shift down) / Delete cells (shift up) / Insert row above / Insert row below / Delete row(s) / Insert column left / Insert column right / Delete column(s) / Find & replace…
+[PASS] cell menu has Insert column left — Copy
+Ctrl+C / Cut
+Ctrl+X / Paste
+Ctrl+V / Clear contents
+Del / Insert cells (shift down) / Delete cells (shift up) / Insert row above / Insert row below / Delete row(s) / Insert column left / Insert column right / Delete column(s) / Find & replace…
+[PASS] cell menu has Find & replace — Copy
+Ctrl+C / Cut
+Ctrl+X / Paste
+Ctrl+V / Clear contents
+Del / Insert cells (shift down) / Delete cells (shift up) / Insert row above / Insert row below / Delete row(s) / Insert column left / Insert column right / Delete column(s) / Find & replace…
+[PASS] menu stays inside the viewport — {"x":364,"y":324,"width":224,"height":436}
+[PASS] Escape closes the menu
+[PASS] right-click outside the selection moves it to that cell — Worksheet 1
+Cell 2
+3 columns
+Last analysis —
+Auto-saved
+HD2LAB · SIGRÚN · PHASE 3 → Worksheet 1
+Cell C21
+3 columns
+Last analysis —
+Auto-saved
+HD2LAB · SIGRÚN · PHASE 3
+[PASS] column description is stored on the header — Coating thickness, mm
+[PASS] column menu keeps the whole-column selection — 26
+[PASS] column rename reaches the header input
+[FAIL] sort submenu reorders the rows
+[FAIL] Ctrl+Z restores the pre-sort order
+[PASS] data type menu checks the current type — true
+[PASS] row menu lists insert above/below and delete — Insert row above / Insert row below / Delete row(s) / Copy row(s) / Extend selection to row 1
+[FAIL] insert row above shifts the data down
+[PASS] clear contents empties the cell
+[FAIL] Ctrl+Z restores a cleared cell
+[PASS] menu stays on screen near the bottom edge — {"x":349,"y":324,"width":224,"height":436}
+[PASS] clicking outside closes the menu
+E2E crashed: page.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-testid=find-next]')[22m
+[2m    - locator resolved to <button disabled type="button" class="btn ghost sm" data-testid="find-next">Find next</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not enabled[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not enabled[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    58 × waiting for element to be visible, enabled and stable[22m
+[2m       - element is not enabled[22m
+[2m     - retrying click action[22m
+[2m       - waiting 500ms[22m
+
+    at partMenus (/private/tmp/pk18-base/tools/e2e_stage1.cjs:353:14)
+    at async /private/tmp/pk18-base/tools/e2e_stage1.cjs:492:31 {
+  log: [
+    "  - waiting for locator('[data-testid=find-next]')",
+    '    - locator resolved to <button disabled type="button" class="btn ghost sm" data-testid="find-next">Find next</button>',
+    '  - attempting click action',
+    '    2 × waiting for element to be visible, enabled and stable',
+    '      - element is not enabled',
+    '    - retrying click action',
+    '    - waiting 20ms',
+    '    2 × waiting for element to be visible, enabled and stable',
+    '      - element is not enabled',
+    '    - retrying click action',
+    '      - waiting 100ms',
+    '    58 × waiting for element to be visible, enabled and stable',
+    '       - element is not enabled',
+    '     - retrying click action',
+    '       - waiting 500ms'
+  ],
+  name: 'TimeoutError'
+}

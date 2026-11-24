@@ -1,0 +1,24 @@
+WO-04 enterprise configuration — GREEN evidence
+date: 2026-11-24T16:43:34Z
+commit: 36fa843 (+ working tree)
+
+$ npx vitest run tests/release-enterprise-config.test.ts
+ ✓ tests/release-enterprise-config.test.ts (17 tests) 7ms
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+
+$ VITE_EDITION=enterprise vite build
+dist-ent/index.html                     2.93 kB │ gzip:   1.12 kB
+✓ built in 1.74s
+<title>Sigrún Enterprise — Statistical Workspace</title>
+no canonical tag
+getItem('sigrun.enterprise.sigrun.settings.v1')
+0
+
+$ BASE_PATH=/ vite build
+✓ built in 3.42s
+src="/assets/index-22x7b5Mp.js"
+
+$ VITE_BASE_PATH=/lab/stats vite build
+✓ built in 1.73s
+src="/lab/stats/assets/index-Jg4kxNKZ.js"

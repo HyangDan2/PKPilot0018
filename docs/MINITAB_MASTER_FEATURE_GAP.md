@@ -173,9 +173,9 @@ Stage 2는 **84개 항목**을 세었고(SUPPORTED 32 · PARTIAL 17 · MISSING 3
 | 2표본 동등성 검정 | 없음 | MISSING | UNVERIFIED | 도구 없음 |
 | 대응 동등성 검정 | 없음 | MISSING | UNVERIFIED | 도구 없음 |
 | 2×2 교차설계 동등성 | 없음 | MISSING | UNVERIFIED | 도구 없음 |
-| 검정력·표본크기(1표본 t) | 검정력과 표본 크기 — 1표본 t | PARTIAL | INDEPENDENT_VERIFIED | 근사 방법만 |
-| 검정력·표본크기(2표본 t) | 검정력과 표본 크기 — 2표본 t | PARTIAL | INDEPENDENT_VERIFIED | 근사 방법만 |
-| 검정력·표본크기(대응 t) | 검정력과 표본 크기 — 대응표본 t | PARTIAL | INDEPENDENT_VERIFIED | 근사 방법만 |
+| 검정력·표본크기(1표본 t) | 검정력과 표본 크기 — 1표본 t | PARTIAL | INDEPENDENT_VERIFIED | 표 반올림 차이 |
+| 검정력·표본크기(2표본 t) | 검정력과 표본 크기 — 2표본 t | PARTIAL | INDEPENDENT_VERIFIED | 표 반올림 차이 |
+| 검정력·표본크기(대응 t) | 검정력과 표본 크기 — 대응표본 t | PARTIAL | INDEPENDENT_VERIFIED | 표 반올림 차이 |
 | 검정력·표본크기(1표본 Z) | 없음 | MISSING | UNVERIFIED | 도구 없음 |
 | 검정력·표본크기(1비율) | 검정력과 표본 크기 — 1 비율 | PARTIAL | INDEPENDENT_VERIFIED | 정규근사만 |
 | 검정력·표본크기(2비율) | 검정력과 표본 크기 — 2 비율 | PARTIAL | INDEPENDENT_VERIFIED | 정규근사만 |
@@ -183,7 +183,7 @@ Stage 2는 **84개 항목**을 세었고(SUPPORTED 32 · PARTIAL 17 · MISSING 3
 | 검정력·표본크기(2 포아송) | 없음 | MISSING | UNVERIFIED | 도구 없음 |
 | 검정력·표본크기(1분산) | 없음 | MISSING | UNVERIFIED | 도구 없음 |
 | 검정력·표본크기(2분산) | 없음 | MISSING | UNVERIFIED | 도구 없음 |
-| 검정력·표본크기(일원 ANOVA) | 검정력과 표본 크기 — 일원배치 ANOVA | PARTIAL | INDEPENDENT_VERIFIED | 비중심 F 근사만 |
+| 검정력·표본크기(일원 ANOVA) | 검정력과 표본 크기 — 일원배치 ANOVA | PARTIAL | INDEPENDENT_VERIFIED | 표 반올림 차이 |
 | 검정력·표본크기(2수준 요인) | 없음 | MISSING | UNVERIFIED | 도구 없음 |
 | 검정력·표본크기(PB 설계) | 없음 | MISSING | UNVERIFIED | 도구 없음 |
 | 검정력·표본크기(일반 요인) | 없음 | MISSING | UNVERIFIED | 도구 없음 |
@@ -464,7 +464,7 @@ Stage 2는 **84개 항목**을 세었고(SUPPORTED 32 · PARTIAL 17 · MISSING 3
 - **Missing value policy** — 행 단위 제외(열별 유효값). Minitab의 "*" 결측과 같은 결과를 노리지만 셀 표시는 공백이다.
 - **Confidence interval method** — t 분위수 기반 정확 구간(비율은 정규근사). Minitab의 정확 이항 구간과 다르다.
 - **Hypothesis direction** — two-sided/less/greater 3종. 단측에서 반대 방향 효과는 검정력 α로 떨어지는 것을 QA-G-16·17이 고정한다.
-- **P-value approximation** — AD 정규성 p는 근사식, 검정력은 비중심 분포 근사, Weibull CI는 프로파일 우도. Minitab의 표·정확 방법과 수치 동등성을 주장하지 않는다.
+- **P-value approximation** — AD 정규성 p는 근사식, Weibull CI는 프로파일 우도. 검정력은 비중심 t·F 분포의 CDF(`src/lib/dist.ts`의 `nctCdf`·`ncfCdf`: Simpson 수치 적분·Poisson 혼합 불완전 베타)로 그대로 계산하며, Minitab 표와는 반올림 자리에서만 다를 수 있다. Minitab의 표·정확 방법과 수치 동등성은 주장하지 않는다.
 - **Numerical stability** — ULP 격자 허용오차, s=0·n<3 등 퇴화 입력은 NaN/명시 오류로 처리하고 0으로 위장하지 않는다.
 - **Distribution fitting** — Weibull·로그정규·감마 3종 MLE. Minitab 11종과 범위가 다르다.
 - **Optimization criteria** — Derringer–Suich 만족도 + 중요도 가중 기하평균, 격자+다국소 탐색. Minitab의 최적화 알고리즘과 동일하다고 주장하지 않는다(QA-W가 SciPy differential_evolution+L-BFGS-B로 독립 확인).
@@ -512,8 +512,8 @@ Stage 2는 **84개 항목**을 세었고(SUPPORTED 32 · PARTIAL 17 · MISSING 3
 | 기준 커밋 | `43b0b071cf010352d8add7600dfa29d158a2b3e3` |
 | Minitab 참조 URL | 284개 요청 · HTTP 200 284 · 실패 0 |
 | 독립 QA | 225/225 PASS (`npm run qa:stats`) |
-| 단위 테스트 | `npm test` — 47 파일 1,096건 통과(감사 시작 기준) |
-| 감사 자산 검산 | `node tools/verify_audit.mjs` — 0 errors |
+| 단위 테스트 | `npm test` — 47 파일 1,096건 통과(감사 시작 기준) · 2026-11-25 WO-FINAL-001 재검증 54 파일 1,215건 |
+| 감사 자산 검산 | `node tools/verify_audit.mjs` — 0 errors(2026-11-25 재실행 포함) |
 
 ## 10. 산출물
 
@@ -532,7 +532,7 @@ Stage 2는 **84개 항목**을 세었고(SUPPORTED 32 · PARTIAL 17 · MISSING 3
 ## 11. 재현
 
 ```bash
-npm test            # 47 파일 / 1,096건
+npm test            # 54 파일 / 1,215건 (감사 시작 시 47 파일 / 1,096건)
 npm run qa:stats    # 225/225 PASS
 npx tsc --noEmit    # 0 errors
 node tools/verify_audit.mjs   # 감사 자산 정합성 0 errors

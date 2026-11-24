@@ -14,6 +14,7 @@
 
 import type { ChartSpec } from '../types';
 import type { ChartConfig } from './chartConfig';
+import { PRODUCT } from '../config/product';
 
 export type PagePresetId =
   | 'a4-portrait'
@@ -822,7 +823,7 @@ export function layoutSvg(doc: LayoutDoc, render: (panel: ChartPanel) => LayoutR
 
 /** File name stem for an exported figure. */
 export function figureFileName(doc: LayoutDoc, format: 'svg' | 'png', dpi?: number): string {
-  return `sigrun-figure-${doc.page.preset}${dpi ? `-${dpi}dpi` : ''}.${format}`;
+  return `${PRODUCT.EXPORT_FILE_PREFIX}-figure-${doc.page.preset}${dpi ? `-${dpi}dpi` : ''}.${format}`;
 }
 
 /** Physical size of the page in the export config's terms. */

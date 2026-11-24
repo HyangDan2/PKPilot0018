@@ -18,6 +18,7 @@
 
 import { tInv } from './dist';
 import type { ModelVariable, StoredModel } from './modelStore';
+import { rangeSlack } from './factorDomain';
 
 export type InputMode = 'actual' | 'coded';
 
@@ -581,10 +582,12 @@ export function modelSurface(model: StoredModel, options: SurfaceOptions): Model
   }));
   const boundX = model.factorBounds?.[xPredictor.name];
   const boundY = model.factorBounds?.[yPredictor.name];
-  const outOfRange = Boolean(
-    (boundX && (xRange[0] < boundX.min - 1e-9 || xRange[1] > boundX.max + 1e-9))
-    || (boundY && (yRange[0] < boundY.min - 1e-9 || yRange[1] > boundY.max + 1e-9)),
-  );
+  const outside = (bound: { min: number; max: number } | undefined, range: [number, number]): boolean => {
+    if (!bound || !Number.isFinite(bound.min) || !Number.isFinite(bound.max)) return false;
+    const slack = rangeSlack(bound.min, bound.max, Math.max(Math.abs(range[0]), Math.abs(range[1])));
+    return range[0] < bound.min - slack || range[1] > bound.max + slack;
+  };
+  const outOfRange = outside(boundX, xRange) || outside(boundY, yRange);
   return {
     xName: xPredictor.name,
     yName: yPredictor.name,

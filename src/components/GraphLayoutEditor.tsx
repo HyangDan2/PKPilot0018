@@ -6,6 +6,7 @@ import { renderChart, resolveStandaloneSvg } from '../lib/charts';
 import { downloadBlob, downloadFile } from '../lib/project';
 import { svgToPngWithConfig } from '../lib/chartExport';
 import { t } from '../lib/i18n';
+import { PRODUCT } from '../config/product';
 import { ChartCanvas } from './ChartFrame';
 import {
   LayoutHistory,
@@ -260,7 +261,7 @@ export function GraphLayoutEditor({ lang, outputs, initial, onClose, onSave, onT
 
   const saveLayout = () => {
     onSave(view);
-    downloadFile('sigrun-layout.sigrun.json', serializeLayout(view), 'application/json');
+    downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-layout.sigrun.json`, serializeLayout(view), 'application/json');
     onToast(t(lang, 'gl.saved'));
   };
 

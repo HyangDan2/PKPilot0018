@@ -48,11 +48,41 @@ export const MAX_SAFE_MAGNITUDE = Number.MAX_SAFE_INTEGER;
 export const MAX_AXIS_POINTS = 20001;
 
 /**
- * The absolute slack the range policy allows around a value.
+ * The slack allowed around a range's limits (WO-FINAL-001 · F-REL-04, WO-07).
  *
- * One place, one number: a limit check compares with this, never with a
- * hard-coded epsilon of its own, so the optimiser and the profiler agree about
- * what "inside the range" means at every magnitude.
+ * A bounds question is answered at the resolution the numbers themselves can
+ * carry — a few ULPs at this magnitude — plus a tiny share of the range's own
+ * width. It is deliberately NOT proportional to the offset alone: at 1e8 the
+ * spacing of adjacent doubles is ≈1.5e-8, so a 0.001-wide range still refuses
+ * a value 0.05 past Upper, while an endpoint that one arithmetic step rounded
+ * by an ULP is still the endpoint.
+ *
+ * `width × 1e-9` absorbs a bound that was rounded on its way into a data
+ * column: a design limit such as 1.189207115002721 kept at full precision
+ * against a column written with nine decimals (±1.189207115) differs in the
+ * tenth significant digit, which is ≈1.1e-12 of the width. That share is
+ * still far below anything a reader could choose to search — a range at 1e8
+ * that is 0.001 wide gets 1e-12 of slack — so a physical excursion is never
+ * adopted as an endpoint.
+ */
+export function rangeSlack(lower: number, upper: number, value = 0, ulps = 4): number {
+  const magnitude = Math.max(
+    Math.abs(Number.isFinite(lower) ? lower : 0),
+    Math.abs(Number.isFinite(upper) ? upper : 0),
+    Math.abs(Number.isFinite(value) ? value : 0),
+  );
+  const spacing = doubleSpacing(magnitude);
+  const fromUlps = Number.isFinite(spacing) ? ulps * spacing : 0;
+  const width = Number.isFinite(upper - lower) ? Math.abs(upper - lower) : 0;
+  return Math.max(fromUlps, width * 1e-9);
+}
+
+/**
+ * The slack allowed when asking whether a typed input changed when it was
+ * snapped or clamped.
+ *
+ * This is a note in the report ("the value was moved"), not a bounds verdict:
+ * every range question uses {@link rangeSlack}.
  */
 export function relativeSlack(...values: number[]): number {
   let magnitude = 1;
@@ -294,7 +324,7 @@ export function nearestStepValue(lower: number, upper: number, step: number, val
   return {
     value: snapped,
     k: clamped,
-    inside: value >= lower - relativeSlack(lower) && value <= upper + relativeSlack(upper),
+    inside: value >= lower - rangeSlack(lower, upper, value) && value <= upper + rangeSlack(lower, upper, value),
     onStep,
   };
 }
@@ -377,7 +407,7 @@ export function factorIssues(factor: FactorSettings): string[] {
     } else {
       const value = Number(factor.fixedValue);
       if (!Number.isFinite(value)) issues.push('opt.issue.fixedOffStep');
-      else if (value < factor.lower - relativeSlack(factor.lower) || value > factor.upper + relativeSlack(factor.upper)) {
+      else if (value < factor.lower - rangeSlack(factor.lower, factor.upper, value) || value > factor.upper + rangeSlack(factor.lower, factor.upper, value)) {
         issues.push('opt.issue.fixedOutside');
       } else if (factor.kind === 'discrete' && hasRange && !isOnStep(factor.lower, factor.upper, factor.step, value)) {
         issues.push('opt.issue.fixedOffStep');
@@ -436,20 +466,30 @@ export function validateFactorValue(factor: FactorSettings, value: number | stri
     const domain = discreteDomainIssue(factor.lower, factor.upper, factor.step);
     if (domain) return domain;
   }
-  const slack = relativeSlack(factor.lower, factor.upper);
+  const slack = rangeSlack(factor.lower, factor.upper, numeric);
   if (numeric < factor.lower - slack || numeric > factor.upper + slack) return 'opt.issue.valueOutside';
   if (factor.kind === 'discrete' && !isOnStep(factor.lower, factor.upper, factor.step, numeric)) return 'opt.issue.valueOffStep';
   return null;
 }
 
-/** The intersection of several closed ranges, or null when they do not overlap. */
+/**
+ * The intersection of several closed ranges, or null when they do not overlap.
+ *
+ * Near-touch policy (Q-03): two ranges whose bounds differ only by the rounding
+ * of their own doubles (at most a few ULPs, plus a 1e-9 share of the gap) are
+ * one point, reported as `[b, b]` with `b` the shared bound. A gap wider than
+ * that rounding is no intersection, and an inverted interval (`lower > upper`)
+ * is never returned.
+ */
 export function rangeIntersection(ranges: [number, number][]): [number, number] | null {
   const usable = ranges.filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b)).map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as [number, number]);
   if (!usable.length) return null;
   const lower = Math.max(...usable.map(([a]) => a));
   const upper = Math.min(...usable.map(([, b]) => b));
-  const slack = DOMAIN_EPS * Math.max(1, Math.abs(lower), Math.abs(upper));
-  return upper >= lower - slack ? [lower, upper] : null;
+  if (upper >= lower) return [lower, upper];
+  const slack = rangeSlack(lower, upper);
+  if (lower - upper <= slack) return [upper, upper];
+  return null;
 }
 
 /** The levels every model fitted, in the first model's order. */

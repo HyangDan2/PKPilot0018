@@ -1,7 +1,14 @@
 name: Deploy Sigrún to GitHub Pages
 
+# Every push to main is the candidate release: the same checks a release tag
+# runs, then the Pages upload. A pull request runs the identical quality gate
+# with the deploy job skipped (WO-FINAL-002 · Q-06). The release folder stays
+# an artifact; nothing here creates, moves or deletes a tag.
+
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -11,7 +18,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -22,17 +29,99 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --no-audit --no-fund
       - run: npx tsc --noEmit
       - run: npm test
-      - run: npm run build
+
+      - name: Install the pinned reference stack
+        run: pip install -r qa/reference/requirements.txt
+
+      - name: Independent statistics QA
+        run: npm run qa:stats
+
+      - name: Upload QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa/reports/
+          retention-days: 30
+
+      - name: Release build (web + portable, reproducible)
+        run: |
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          npm run release:build
+
+      - name: Verify release artifacts and rebuild
+        run: npm run release:verify -- --repro
+
+      - name: Portable offline E2E
+        run: npm run qa:portable
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Portable tutorial E2E
+        run: npm run qa:tutorials:portable
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Tutorial guard probe
+        run: npm run qa:guard
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Network audit (public, portable, enterprise)
+        run: npm run qa:network
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release/
+          retention-days: 30
+
       - uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
         with:
           path: dist
 
+  # WO-FINAL-002: the clipboard-heavy suites failed on the macOS sandbox host
+  # and could not be settled there. They run here, on Linux with the runner's
+  # own Chrome, so an unresolved failure is visible in CI too.
+  browser-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Stage 1 (worksheet, selection, menus)
+        run: |
+          mkdir -p "$RUNNER_TEMP/shots"
+          node tools/e2e_stage1.cjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          OUT: ${{ runner.temp }}/shots
+      - name: Stage 3 (workspace and regression list)
+        run: node tools/e2e_stage3.cjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          OUT: ${{ runner.temp }}/shots
+          SHOTS: ${{ runner.temp }}/shots
+
   deploy:
-    needs: build
+    needs: [build, browser-regression]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

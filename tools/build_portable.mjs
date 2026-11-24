@@ -53,15 +53,25 @@ assert(fs.existsSync(vite), 'vite is not installed (node_modules/vite is missing
 execFileSync(process.execPath, [vite, 'build', '--config', 'vite.portable.config.ts'], {
   cwd: ROOT,
   stdio: 'inherit',
-  env: process.env,
+  // The page's About line prints the same year as the artefact timestamps.
+  env: { ...process.env, VITE_BUILD_YEAR: String(BUILT_AT.getUTCFullYear()) },
 });
 
 const rawHtml = path.join(RAW, 'portable.html');
 const rawJs = path.join(RAW, 'sigrun.js');
 const rawCss = path.join(RAW, 'sigrun.css');
+const rawProduct = path.join(RAW, 'product.json');
 assert(fs.existsSync(rawHtml), 'portable.html was not produced');
 assert(fs.existsSync(rawJs), 'sigrun.js was not produced');
 assert(fs.existsSync(rawCss), 'sigrun.css was not produced');
+assert(fs.existsSync(rawProduct), 'product.json was not produced');
+/* The edition record the build used: the README and the manifest read the
+   product's own name and owner instead of repeating them here. */
+const PRODUCT = JSON.parse(fs.readFileSync(rawProduct, 'utf8'));
+const OWNER_LINE = PRODUCT.COPYRIGHT || (PRODUCT.BRAND_NAME ? `© ${PRODUCT.BRAND_NAME}` : '');
+const SHORT = PRODUCT.BRAND_NAME && PRODUCT.APP_NAME.startsWith(PRODUCT.BRAND_NAME)
+  ? PRODUCT.APP_NAME.slice(PRODUCT.BRAND_NAME.length).trim()
+  : PRODUCT.APP_NAME;
 
 /* 2 ── inline ------------------------------------------------------------- */
 step('2/6 inline the bundle and the stylesheet');
@@ -120,10 +130,10 @@ console.log(`   ${HTML_NAME}  ${(bytes / 1024).toFixed(1)} kB  sha256 ${sha.slic
 
 /* 4 ── release copies ------------------------------------------------------ */
 step('4/6 release copies');
-const readme = `Sigrún — Portable Build (HD2Lab)
-================================
+const readme = `${SHORT} — Portable Build${PRODUCT.BRAND_NAME ? ` (${PRODUCT.BRAND_NAME})` : ''}
+==========================================
 
-This folder carries the portable build of Sigrún (PKPilot0018), the
+This folder carries the portable build of ${PRODUCT.APP_NAME} (${PRODUCT.PRODUCT_ID}), the
 pure-browser statistical and quality workspace.
 
   sigrun-portable.html    the entire application in one file
@@ -161,11 +171,12 @@ Notes
 Build information
 -----------------
 version     ${PACKAGE.version}
+edition     ${PRODUCT.EDITION_ID}
 generated   ${BUILT_AT.toISOString()}
 size        ${bytes} bytes
 sha256      ${sha}
 
-© HD2Lab
+${OWNER_LINE}
 `;
 const readmePath = path.join(OUT, 'README.txt');
 fs.writeFileSync(readmePath, readme, 'utf8');
@@ -173,9 +184,9 @@ fs.writeFileSync(readmePath, readme, 'utf8');
 /* 5 ── manifest ----------------------------------------------------------- */
 step('5/6 build manifest');
 const info = buildManifest({
-  name: 'HD2Lab Sigrún',
+  name: PRODUCT.APP_NAME,
   version: PACKAGE.version,
-  phase: 'Phase 3',
+  phase: PRODUCT.APP_PHASE,
   commit: readCommit(ROOT),
   builtAt: BUILT_AT,
   zipTimestamp: ZIP_DATE,

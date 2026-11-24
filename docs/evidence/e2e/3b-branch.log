@@ -1,0 +1,45 @@
+(node:15430) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[PASS] 3D surface entry is enabled for a stored model
+[PASS] the surface card renders through WebGL — webgl
+[PASS] WebGL surface draws a canvas
+[PASS] the frame overlay is drawn above the canvas
+[PASS] dragging rotates the camera — azimuth -55→238.6, elevation 28→43.7
+[PASS] the wheel zooms the surface — zoom 1→1.433
+[PASS] the Top view stands the camera above the plane — elevation 89
+[PASS] the Side view turns the camera to −90° — azimuth 270
+[PASS] the projection toggles to orthographic
+[PASS] Reset camera returns to the framed view
+[PASS] the 3D tab is offered for a surface chart
+[PASS] Draft resolution rebuilds the 41×41 grid — 41×41
+[PASS] the render mode reaches the chart — wireframe
+[PASS] the drawer applies the 3D settings to the card
+[PASS] the surface card exports a PNG — sigrun-modelsurface-out-mwuyyd5b-4.png
+[PASS] no page errors during the 3D session
+[PASS] without WebGL the surface falls back to a static projection
+[PASS] the fallback notice is shown
+[PASS] the static projection is a real drawing
+[PASS] the static picture carries the surface geometry
+[PASS] no page errors during the fallback session
+[PASS] two models are stored — 2
+[PASS] the overlaid entry is enabled for two compatible models
+[PASS] both models share two numeric factors
+[PASS] the overlaid card names both responses — Overlaid contour from stored models 2 responses · Temperature (C) × Pressure (bar) · 02:29
+[PASS] the overlaid plot draws a joint feasible region
+[PASS] the overlaid plot draws per-response regions
+[PASS] the feasible area ratio is printed on the plot
+[PASS] the grid approximation note is printed
+[PASS] the Overlay tab is offered for an overlaid chart
+[PASS] the interval bases are offered when every model carries a covariance — 3
+[PASS] a specification edit recomputes the feasible region — Feasible area 100.0% → Feasible area 69.9%
+[PASS] the applied spec lines reach the plot
+[PASS] the confidence basis shrinks the region — Feasible area 69.9% → Feasible area 29.9%
+[PASS] the legend states the basis in use — basis label
+[PASS] no page errors during the overlaid session
+[PASS] the manager names the model that blocks intervals
+[PASS] only the predicted-mean basis remains — 1
+[PASS] the drawer explains why the interval bases are disabled
+[PASS] no page errors during the blocked-interval session
+[PASS] the 3D surface does not overflow a 390 px screen — 0px
+
+41 / 41 PASS

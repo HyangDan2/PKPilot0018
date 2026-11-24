@@ -1,0 +1,30 @@
+(node:16292) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[PASS] output detaches into a floating window
+[PASS] dock placeholder appears in place
+[PASS] floating window keeps the analysis card
+[PASS] floating window drags by its header — 330,170 → 450,264
+[PASS] dragged window stays on screen
+[PASS] bottom-right resize grip is visible — 22×22
+[PASS] bottom-right corner grows the window — 780×560 → 920×620
+[PASS] resized window stays inside the viewport — 1370,884
+[PASS] chart redraws at the new width — 706 → 780
+[PASS] resized body does not overflow sideways — 0px
+[PASS] docking restores the docked output panel
+[PASS] re-detached window reopens at the resized size — 920×620 vs 920×620
+[PASS] reloaded page re-detaches at the remembered size — 920×620 vs 920×620
+[PASS] west edge widens the window and keeps its right edge fixed — x 260→140, w 920→1040
+[PASS] resize stops at the minimum window size — 360×240
+[PASS] worksheet detaches
+[PASS] detached worksheet still shows cells
+[PASS] worksheet docks back
+[PASS] navigator detaches
+[PASS] navigator docks back
+[PASS] worksheet-focus preset shrinks the output pane — 412 → 206
+[PASS] results-focus preset enlarges the output pane — 618
+[PASS] full-focus preset hides the navigator
+[PASS] balanced preset restores the navigator
+[PASS] balanced preset restores the split — 412
+[PASS] no console or page errors
+
+26/26 checks passed (panels)

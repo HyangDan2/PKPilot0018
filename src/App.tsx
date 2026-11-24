@@ -55,6 +55,7 @@ import {
   browserProgressStorage,
   createProgress,
   practiceSlotId,
+  practiceSlotIssue,
 } from './tutorials/progressStore';
 import {
   evaluateSession,
@@ -79,9 +80,19 @@ import type {
   ValidationOutcome,
   WorkspaceFacts,
 } from './tutorials/types';
-import { loadAutosave, saveAutosave } from './lib/db';
+import { AUTOSAVE_STORAGE_KEY, loadAutosaveRecord, saveAutosave, type AutosaveSaveResult } from './lib/db';
+import { PRODUCT } from './config/product';
+import { STORAGE_KEY, namespacedKey } from './config/storageNamespace';
 import { statusBarLabel } from './lib/appInfo';
 import { compareProjects, projectFingerprint } from './lib/projectCompare';
+import {
+  originalBackupWins,
+  restoredStateMatches,
+  stateFromAutosave,
+  stateFromProject,
+  type RestorePersistence,
+  type RestoredWorkspace,
+} from './lib/restorePolicy';
 import { fmt, fmtInt } from './lib/format';
 import { t } from './lib/i18n';
 import {
@@ -118,6 +129,7 @@ import {
   downloadFile,
   looksLikeMinitabBinary,
   makeOutputId,
+  migrateWorksheet,
   columnSequence,
   newColumnId,
   parseCsv,
@@ -166,8 +178,8 @@ import {
 } from './lib/sheetOps';
 import { XLSX_ACCEPT, readXlsxRows, workbookToWorksheets, writeXlsx, xlsxFileName } from './lib/xlsx';
 
-const SETTINGS_KEY = 'sigrun.settings.v1';
-const FLOAT_SIZES_KEY = 'sigrun.floatSizes.v1';
+const SETTINGS_KEY = namespacedKey(STORAGE_KEY.settings);
+const FLOAT_SIZES_KEY = namespacedKey(STORAGE_KEY.floatSizes);
 const ENGINE_VERSION = 'sigrun-1.2';
 /* Tutorial progress survives a reload; the practice workspace does not, which is
    why a resumed lesson re-validates every step against what is actually open. */
@@ -217,6 +229,19 @@ interface StoredState {
   settings: Settings;
   /** Stored fitted models (WO-02). */
   models?: unknown;
+  /** Stage 3 figures (WO-01 F-REL-09). */
+  figures?: unknown;
+  /** Custom chart styles (WO-01 F-REL-09). */
+  customChartStyles?: unknown;
+}
+
+type AutosaveUi = 'saving' | 'saved' | 'failed' | 'unavailable' | 'quota';
+
+function autosaveUiFor(result: AutosaveSaveResult): AutosaveUi {
+  if (result.status === 'SAVED') return 'saved';
+  if (result.status === 'QUOTA_EXCEEDED') return 'quota';
+  if (result.status === 'STORAGE_UNAVAILABLE') return 'unavailable';
+  return 'failed';
 }
 
 interface HistorySnapshot { worksheets: Worksheet[]; activeSheetId: string }
@@ -314,7 +339,11 @@ export default function App() {
   const [floatSizes, setFloatSizes] = useState<FloatSizes>(readFloatSizes);
   const [mobileTab, setMobileTab] = useState<'output' | 'worksheet'>('output');
   const [navOpen, setNavOpen] = useState(false);
-  const [autosave, setAutosave] = useState<'saved' | 'saving'>('saved');
+  const [autosave, setAutosave] = useState<AutosaveUi>('saved');
+  /** WO-01 F-REL-02: a failed write keeps the session open until the reader retries or exports. */
+  const [autosavePrompt, setAutosavePrompt] = useState(false);
+  const [storageConflict, setStorageConflict] = useState(false);
+  const autosaveSeq = useRef(0);
   const [hydrated, setHydrated] = useState(false);
   const [, forceHistory] = useState(0);
   const [viewportW, setViewportW] = useState<number>(() => (typeof window === 'undefined' ? 1440 : window.innerWidth));
@@ -351,8 +380,10 @@ export default function App() {
   const [helpCenter, setHelpCenter] = useState<{ helpId?: string } | null>(null);
   const [startPrompt, setStartPrompt] = useState<{ tutorialId: string } | null>(null);
   /** WO-TQA-01: the practice is waiting for an explicit backup the reader makes. */
-  const [backupPrompt, setBackupPrompt] = useState<{ tutorialId: string; useCurrent: boolean; json: string } | null>(null);
+  const [backupPrompt, setBackupPrompt] = useState<{ tutorialId: string; useCurrent: boolean; json: string; resumeSessionId?: string } | null>(null);
   const [exitPrompt, setExitPrompt] = useState(false);
+  /** WO-01 F-REL-01: the practice could not be written; the session stays open. */
+  const [practiceSaveFailure, setPracticeSaveFailure] = useState<string | null>(null);
   const [optimizerTutorial, setOptimizerTutorial] = useState<TutorialOptimizerSpec | null>(null);
   const [dialogNonce, setDialogNonce] = useState(0);
   const practiceSnapshot = useRef<{
@@ -393,40 +424,45 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    loadAutosave<StoredState>()
-      .then((saved) => {
+    loadAutosaveRecord<StoredState>()
+      .then(async (record) => {
         if (cancelled) return;
+        const saved = record?.payload;
         const usable = Boolean(saved && Array.isArray(saved.worksheets) && saved.worksheets.length);
         if (!usable) {
           // WO-TQA-01: no autosave, but a practice may have been cut off by a
           // reload. The guarded copy of the reader's project is what comes back.
           const original = TUTORIAL_STORE.latestOriginalProject();
-          if (original && loadProjectJson(original.json)) {
-            setTutorialMessage(t(lang, 'tut.originalRestored'));
-          }
+          if (original) await restoreGuardedAtStartup(original);
           return;
         }
         const loaded = saved!;
         // A practice project in the autosave slot is not the reader's project: the
-        // guarded copy wins (WO-TQA-01/T-02).
+        // guarded copy wins (WO-TQA-01/T-02). Q-01: so does a guard written after
+        // the autosave's last save — the autosave is then older than the reader's
+        // work, whether the save failed or never ran.
         const loadedPrint = projectFingerprint({
           worksheets: loaded.worksheets,
           activeSheetId: loaded.activeSheetId,
           outputs: loaded.outputs ?? [],
           models: loaded.models ? parseStoredModels(loaded.models) : [],
+          customChartStyles: Array.isArray(loaded.customChartStyles) ? loaded.customChartStyles : [],
         });
         const original = TUTORIAL_STORE.latestOriginalProject();
-        if (original && original.fingerprint !== loadedPrint && practiceSlotFingerprints().includes(loadedPrint)) {
-          if (loadProjectJson(original.json)) {
-            setTutorialMessage(t(lang, 'tut.originalRestored'));
-            return;
-          }
+        if (originalBackupWins(original, record, loadedPrint, practiceSlotFingerprints())) {
+          if (await restoreGuardedAtStartup(original!)) return;
         }
         setWorksheets(loaded.worksheets);
         setActiveSheetId(loaded.activeSheetId || loaded.worksheets[0].id);
         if (Array.isArray(loaded.outputs)) setOutputs(loaded.outputs);
         if (loaded.models) setStoredModels(parseStoredModels(loaded.models));
         if (loaded.settings) setSettings({ theme: loaded.settings.theme === 'dark' ? 'dark' : 'light', lang: loaded.settings.lang === 'ko' ? 'ko' : 'en' });
+        if (Array.isArray(loaded.figures)) setFigures(loaded.figures as unknown as LayoutDoc[]);
+        // An empty list is not written over the style library here: a style added
+        // after the last autosave is newer than this payload (Q-02).
+        if (Array.isArray(loaded.customChartStyles) && loaded.customChartStyles.length) {
+          writeCustomStyles(loaded.customChartStyles as Parameters<typeof writeCustomStyles>[0]);
+        }
       })
       .finally(() => {
         if (!cancelled) setHydrated(true);
@@ -505,18 +541,54 @@ export default function App() {
     return () => window.removeEventListener('resize', fitPanels);
   }, []);
 
+  const autosavePayload = useCallback((): StoredState => ({
+    worksheets,
+    activeSheetId,
+    outputs,
+    settings,
+    models: storedModels,
+    figures,
+    customChartStyles: loadCustomStyles(),
+  }), [worksheets, activeSheetId, outputs, settings, storedModels, figures]);
+
+  /**
+   * WO-01 F-REL-02: the status is whatever the stores actually reported. An
+   * older request never overwrites the status of a newer one.
+   */
+  const saveProjectState = useCallback(async (payload: StoredState): Promise<AutosaveSaveResult> => {
+    const seq = ++autosaveSeq.current;
+    setAutosave('saving');
+    const result = await saveAutosave<StoredState>(payload);
+    if (seq === autosaveSeq.current) {
+      setAutosave(autosaveUiFor(result));
+      setAutosavePrompt(result.status !== 'SAVED');
+    }
+    return result;
+  }, []);
+
+  const runAutosave = useCallback(async (): Promise<AutosaveSaveResult> => saveProjectState(autosavePayload()), [autosavePayload, saveProjectState]);
+
   useEffect(() => {
     // A practice session never writes to the reader's autosave: the original
     // project stays exactly as it was until the practice ends.
     if (!hydrated || practice) return;
     setAutosave('saving');
     const timer = setTimeout(() => {
-      saveAutosave({ worksheets, activeSheetId, outputs, settings, models: storedModels, savedAt: new Date().toISOString() })
-        .then(() => setAutosave('saved'))
-        .catch(() => setAutosave('saved'));
+      void runAutosave();
     }, 700);
     return () => clearTimeout(timer);
-  }, [worksheets, activeSheetId, outputs, settings, storedModels, hydrated, practice]);
+  }, [hydrated, practice, runAutosave]);
+
+  /* WO-01: another tab writing the autosave is a conflict this tab must show. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== AUTOSAVE_STORAGE_KEY) return;
+      setStorageConflict(true);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   /* ── worksheet mutations & history ─────────────────────────────────── */
 
@@ -1674,7 +1746,11 @@ export default function App() {
       // A refusal names its reason (a newer schema, a damaged sheet) so the
       // reader knows the file was not half-read.
       const code = error instanceof Error ? error.message : '';
-      const known = ['file.versionNewer', 'file.versionInvalid', 'file.worksheetCorrupt', 'file.modelCorrupt'];
+      const known = [
+        'file.versionNewer', 'file.versionInvalid', 'file.worksheetCorrupt', 'file.worksheetDuplicate',
+        'file.modelCorrupt', 'file.modelDuplicate', 'file.outputCorrupt', 'file.outputDuplicate',
+        'file.figureCorrupt', 'file.styleCorrupt', 'file.styleDuplicate',
+      ];
       toast(t(lang, known.includes(code) ? code : 'file.error'));
     }
   };
@@ -1920,15 +1996,11 @@ export default function App() {
       setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
     }
     // A save still owed by the autosave is finished before the workspace changes,
-    // so the stored autosave and the guarded original are the same project.
-    await saveAutosave({
-      worksheets,
-      activeSheetId,
-      outputs,
-      settings,
-      models: storedModels,
-      savedAt: new Date().toISOString(),
-    }).catch(() => undefined);
+    // so the stored autosave and the guarded original are the same project
+    // (WO-FINAL-001 · F-REL-03 step 4). The guard above already protects the data
+    // if this write fails, so the practice may still start.
+    const pending = await runAutosave();
+    if (pending.status !== 'SAVED') setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
     practiceSnapshot.current = captureWorkspace();
     practiceOriginalId.current = original.kept ? original.projectId : null;
     if (!useCurrent) {
@@ -1960,20 +2032,96 @@ export default function App() {
     toast(t(lang, 'tut.startedToast'));
   };
 
+  /** Put a parsed project into the workspace, styles included (Q-02). */
+  const applyProjectState = (parsed: ReturnType<typeof parseProject>): void => {
+    setWorksheets(parsed.worksheets);
+    setActiveSheetId(parsed.activeSheetId || parsed.worksheets[0]?.id || '');
+    setOutputs(parsed.outputs);
+    setSettings(parsed.settings);
+    setStoredModels(parsed.models ?? []);
+    setFigures((parsed.figures ?? []) as unknown as LayoutDoc[]);
+    // The styles travel with the project. An explicitly empty list is a state
+    // of its own: it clears the styles a practice created.
+    writeCustomStyles(parsed.customChartStyles ?? []);
+  };
+
   /** Load a project file into the workspace without touching the guard. */
   const loadProjectJson = (json: string): boolean => {
     try {
-      const parsed = parseProject(json);
-      setWorksheets(parsed.worksheets);
-      setActiveSheetId(parsed.activeSheetId || parsed.worksheets[0]?.id || '');
-      setOutputs(parsed.outputs);
-      setSettings(parsed.settings);
-      setStoredModels(parsed.models ?? []);
-      setFigures((parsed.figures ?? []) as unknown as LayoutDoc[]);
+      applyProjectState(parseProject(json));
       return true;
     } catch {
       return false;
     }
+  };
+
+  const currentWorkspaceState = (): RestoredWorkspace => stateFromProject({
+    worksheets, activeSheetId, settings, outputs, models: storedModels, figures, customChartStyles: loadCustomStyles(),
+  });
+
+  const snapshotWorkspaceState = (snapshot: WorkspaceSnapshot): RestoredWorkspace => stateFromProject({
+    worksheets: snapshot.worksheets,
+    activeSheetId: snapshot.activeSheetId,
+    settings: snapshot.settings,
+    outputs: snapshot.outputs,
+    models: snapshot.storedModels,
+    figures: snapshot.figures,
+    customChartStyles: snapshot.customStyles,
+  });
+
+  const slotWorkspaceState = (projectId: string | null): RestoredWorkspace | null => {
+    const slot = projectId ? TUTORIAL_STORE.loadOriginalProject(projectId) : null;
+    if (!slot) return null;
+    try {
+      return stateFromProject(parseProject(slot.json));
+    } catch {
+      return null;
+    }
+  };
+
+  /**
+   * Q-01: memory is not persistence. The restored workspace is written to the
+   * autosave stores, read back, and compared record by record; only `verified`
+   * may remove a protective backup or count as a restore.
+   */
+  const persistWorkspaceVerified = async (expected: RestoredWorkspace): Promise<RestorePersistence> => {
+    const result = await saveProjectState({
+      worksheets: expected.worksheets,
+      activeSheetId: expected.activeSheetId,
+      outputs: expected.outputs,
+      settings: expected.settings ?? settings,
+      models: expected.models,
+      figures: expected.figures,
+      customChartStyles: expected.customChartStyles,
+    });
+    if (result.status !== 'SAVED') return 'unsaved';
+    const record = await loadAutosaveRecord<StoredState>();
+    const stored = record ? stateFromAutosave(record.payload) : null;
+    if (!stored) return 'unsaved';
+    return restoredStateMatches(expected, stored).ok ? 'verified' : 'mismatch';
+  };
+
+  /**
+   * Restore the guarded copy at startup, then prove it is on disk before the
+   * backup is removed (Q-01). `true` means the guard was loaded into the
+   * workspace (whether or not the store accepted the copy yet).
+   */
+  const restoreGuardedAtStartup = async (original: { projectId: string; json: string }): Promise<boolean> => {
+    let parsed: ReturnType<typeof parseProject>;
+    try {
+      parsed = parseProject(original.json);
+    } catch {
+      return false;
+    }
+    applyProjectState(parsed);
+    setTutorialMessage(t(lang, 'tut.originalRestored'));
+    const outcome = await persistWorkspaceVerified(stateFromProject(parsed));
+    if (outcome === 'verified') {
+      TUTORIAL_STORE.removeOriginalProject(original.projectId);
+    } else {
+      setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+    }
+    return true;
   };
 
   /** Fingerprints of every kept practice project, to tell one from the reader's own. */
@@ -1987,6 +2135,7 @@ export default function App() {
         outputs: parsed.outputs,
         models: parsed.models ?? [],
         figures: parsed.figures ?? [],
+        customChartStyles: parsed.customChartStyles ?? [],
       })];
     } catch {
       return [];
@@ -2028,6 +2177,8 @@ export default function App() {
 
   const practiceProjectJson = (): string => workspaceProjectJson();
 
+  type WorkspaceSnapshot = NonNullable<typeof practiceSnapshot.current>;
+
   /**
    * WO-TQA-09 — the round trip is checked against the records themselves, not
    * against how many there are.
@@ -2036,7 +2187,9 @@ export default function App() {
     try {
       const parsed = parseProject(json);
       const comparison = compareProjects(
-        { worksheets, activeSheetId, settings, outputs, models: storedModels, figures, customChartStyles: loadCustomStyles() },
+        // A sheet that predates the current schema is compared as the loader
+        // will hand it back, so a derived migration value is not a difference.
+        { worksheets: worksheets.map(migrateWorksheet), activeSheetId, settings, outputs, models: storedModels, figures, customChartStyles: loadCustomStyles() },
         {
           worksheets: parsed.worksheets,
           activeSheetId: parsed.activeSheetId,
@@ -2058,8 +2211,8 @@ export default function App() {
       const json = practiceProjectJson();
       const roundtrip = verifyPracticeJson(json);
       const stamp = new Date().toISOString().slice(0, 10);
-      downloadFile(`sigrun-practice-${practice?.tutorialId ?? 'lesson'}-${stamp}.sigrun.json`, json, 'application/json');
-      if (exportCsvToo) downloadFile(`sigrun-practice-${sheet.name.replace(/\s+/g, '-')}.csv`, worksheetToCsv(sheet), 'text/csv;charset=utf-8');
+      downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-practice-${practice?.tutorialId ?? 'lesson'}-${stamp}.sigrun.json`, json, 'application/json');
+      if (exportCsvToo) downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-practice-${sheet.name.replace(/\s+/g, '-')}.csv`, worksheetToCsv(sheet), 'text/csv;charset=utf-8');
       pushTutorialEvent('project-saved', {
         roundtripOk: roundtrip.ok,
         mismatches: roundtrip.mismatches.slice(0, 5),
@@ -2090,57 +2243,98 @@ export default function App() {
     setTutorialMessage(null);
     setOptimizerTutorial(null);
     setBackupPrompt(null);
+    setPracticeSaveFailure(null);
   };
 
-  const keepPractice = () => {
+  /**
+   * WO-01 F-REL-01: the practice project is written and read back. A failure is
+   * reported as a failure and the session stays open; nothing is discarded
+   * without the reader's explicit choice.
+   */
+  const writePracticeSlot = (): string | null => {
+    if (!practice || practice.mode !== 'isolated') return null;
     try {
-      let kept = true;
-      if (practice?.mode === 'isolated') {
-        const slot = TUTORIAL_STORE.savePracticeSlot({
-          tutorialId: practice.tutorialId,
-          sessionId: practice.sessionId ?? tutorialSession?.sessionId ?? practice.id,
-          projectId: practice.id,
-          savedAt: new Date().toISOString(),
-          json: practiceProjectJson(),
-          // The evidence and the progress travel with the project (WO-TQA-08).
-          events: tutorialEvents,
-          progress: tutorialSession,
-          originalProjectId: practiceOriginalId.current,
-        });
-        kept = slot.ok;
-        if (!kept) setTutorialStorageWarning(t(lang, slot.code === 'quota' ? 'tut.storageQuota' : 'tut.storageBlocked'));
-      }
-      const isolated = practice?.mode !== 'current';
-      const originalId = practiceOriginalId.current;
-      endPracticeSession();
-      practiceOriginalId.current = null;
-      if (isolated) {
-        const restored = restoreOriginalProject(originalId);
-        if (restored && originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
-        if (!restored) setTutorialStorageWarning(t(lang, 'tut.originalMissing'));
-      }
-      toast(t(lang, kept ? 'tut.practiceKept' : 'tut.practiceKeptUnsaved'));
+      const tutorial = findTutorial(practice.tutorialId);
+      const sessionId = practice.sessionId ?? tutorialSession?.sessionId ?? practice.id;
+      const json = practiceProjectJson();
+      const slot = TUTORIAL_STORE.savePracticeSlot({
+        tutorialId: practice.tutorialId,
+        tutorialVersion: tutorial?.version ?? 1,
+        sessionId,
+        projectId: practice.id,
+        savedAt: new Date().toISOString(),
+        json,
+        // The evidence and the progress travel with the project (WO-TQA-08).
+        events: tutorialEvents,
+        progress: tutorialSession,
+        originalProjectId: practiceOriginalId.current,
+      });
+      if (!slot.ok) return slot.code === 'quota' ? 'quota' : 'blocked';
+      const readBack = TUTORIAL_STORE.loadPracticeSlot(practice.tutorialId, sessionId);
+      if (!readBack || readBack.json !== json) return 'unverified';
+      return null;
     } catch {
-      setTutorialStorageWarning(t(lang, 'tut.storageBlocked'));
+      return 'blocked';
     }
   };
 
-  const discardPractice = () => {
+  /**
+   * End the practice and put the guarded original back.
+   *
+   * Q-01: the backup is removed only after the restored workspace was written
+   * and read back identical. A save that fails (quota, blocked storage) leaves
+   * the backup in place and says so, for every exit path — discard, keep, file
+   * export and the switch to the next lesson.
+   */
+  const restoreAfterPractice = async (): Promise<void> => {
+    const isolated = practice?.mode !== 'current';
+    const originalId = practiceOriginalId.current;
+    const snapshot = practiceSnapshot.current;
+    const expected = isolated
+      ? (snapshot ? snapshotWorkspaceState(snapshot) : slotWorkspaceState(originalId))
+      : currentWorkspaceState();
+    endPracticeSession();
+    practiceOriginalId.current = null;
+    if (isolated && !restoreOriginalProject(originalId)) {
+      setTutorialStorageWarning(t(lang, 'tut.originalMissing'));
+      return;
+    }
+    if (!expected) return;
+    const outcome = await persistWorkspaceVerified(expected);
+    if (outcome === 'verified') {
+      if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
+    } else {
+      setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+    }
+  };
+
+  const keepPractice = async () => {
+    if (!practice) return;
+    const failure = writePracticeSlot();
+    if (failure) {
+      setPracticeSaveFailure(failure);
+      return;
+    }
+    setPracticeSaveFailure(null);
+    toast(t(lang, 'tut.practiceKept'));
+    await restoreAfterPractice();
+  };
+
+  /** The file is the kept copy: end only after a verified export. */
+  const exportFailedPractice = async () => {
+    if (!savePracticeProject()) return;
+    setPracticeSaveFailure(null);
+    toast(t(lang, 'tut.practiceKeptUnsaved'));
+    await restoreAfterPractice();
+  };
+
+  const discardPractice = async () => {
     if (!window.confirm(t(lang, 'tut.discardConfirm'))) return;
     const tutorialId = practice?.tutorialId;
     const sessionId = practice?.sessionId ?? tutorialSession?.sessionId;
-    const originalId = practiceOriginalId.current;
-    const isolated = practice?.mode !== 'current';
     // Only this session's slot goes; another kept practice must survive (WO-TQA-07).
     if (tutorialId && sessionId) TUTORIAL_STORE.removePracticeSlot(practiceSlotId(tutorialId, sessionId));
     else TUTORIAL_STORE.clearPracticeProject();
-    endPracticeSession();
-    practiceOriginalId.current = null;
-    if (isolated) {
-      const restored = restoreOriginalProject(originalId);
-      if (restored && originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
-      if (!restored) setTutorialStorageWarning(t(lang, 'tut.originalMissing'));
-    }
     if (tutorialId) {
       TUTORIAL_STORE.remove(tutorialId);
       setProgressMap((prev) => {
@@ -2149,10 +2343,11 @@ export default function App() {
         return next;
       });
     }
+    await restoreAfterPractice();
     toast(t(lang, 'tut.discarded'));
   };
 
-  const resumeTutorial = (tutorialId: string) => {
+  const resumeTutorial = async (tutorialId: string, backupAcknowledged = false) => {
     const tutorial = findTutorial(tutorialId);
     const saved = progressMap[tutorialId];
     if (!tutorial || !saved) {
@@ -2161,6 +2356,7 @@ export default function App() {
     }
     if (saved.tutorialVersion !== tutorial.version) {
       requestStartTutorial(tutorialId);
+      setTutorialMessage(t(lang, 'tut.slotVersionMismatch'));
       return;
     }
     if (practice) {
@@ -2173,18 +2369,43 @@ export default function App() {
       setLibraryOpen(false);
       return;
     }
+    // The exact session named is the only one that may be resumed (F-REL-09).
     const slot = TUTORIAL_STORE.loadPracticeSlot(tutorialId, saved.sessionId);
     if (slot && slot.tutorialId === tutorialId) {
+      // Tutorial version and project identity must both still match (F-REL-03).
+      const issue = practiceSlotIssue(slot, tutorial.version, saved.practiceProjectId ?? null);
+      if (issue) {
+        setStartPrompt({ tutorialId });
+        setLibraryOpen(false);
+        setTutorialMessage(t(lang, issue));
+        return;
+      }
       try {
         const parsed = parseProject(slot.json);
+        // The workspace being replaced gets the same protection a fresh start
+        // gets, under a new guard id — the previous session's guard is never
+        // reused for this one (F-REL-03).
+        const guard = guardOriginalProject(tutorialId, saved.sessionId);
+        if (!guard.kept && !backupAcknowledged) {
+          setBackupPrompt({ tutorialId, useCurrent: false, json: guard.json, resumeSessionId: saved.sessionId });
+          setStartPrompt(null);
+          setTutorialMessage(null);
+          return;
+        }
+        if (!guard.kept) setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
+        // Any autosave still owed is settled before the workspace changes.
+        const pending = await runAutosave();
+        if (pending.status !== 'SAVED') setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
         practiceSnapshot.current = captureWorkspace();
-        practiceOriginalId.current = slot.originalProjectId;
+        practiceOriginalId.current = guard.kept ? guard.projectId : null;
         setWorksheets(parsed.worksheets);
         setActiveSheetId(parsed.activeSheetId);
         setOutputs(parsed.outputs);
         setSettings(parsed.settings);
         setStoredModels(parsed.models ?? []);
         setFigures((parsed.figures ?? []) as unknown as LayoutDoc[]);
+        // Q-02: the practice's custom chart styles are part of what is resumed.
+        writeCustomStyles(parsed.customChartStyles ?? []);
         past.current = [];
         future.current = [];
         const resumed = slot.progress && slot.progress.tutorialId === tutorialId ? slot.progress : saved;
@@ -2484,10 +2705,33 @@ export default function App() {
   const tutorialFinished = Boolean(activeTutorial && tutorialSession && !reviewingTutorial && isTutorialComplete(activeTutorial, tutorialSession));
   const tutorialSummaryData = activeTutorial && tutorialSession ? tutorialSummary(activeTutorial, tutorialSession, tutorialFacts()) : null;
 
-  const onExitedTutorial = () => {
+  const onExitedTutorial = async () => {
     const nextId = activeTutorial?.nextTutorialId;
+    const originalId = practiceOriginalId.current;
+    const isolated = practice?.mode !== 'current';
+    const snapshot = practiceSnapshot.current;
+    const expected = isolated ? (snapshot ? snapshotWorkspaceState(snapshot) : null) : currentWorkspaceState();
     endPracticeSession();
-    restorePracticeSnapshot();
+    practiceOriginalId.current = null;
+    // Q-01: the next-tutorial path restores under the same policy — the backup
+    // goes only after the restored workspace is on disk and reads back equal.
+    if (isolated) {
+      if (restorePracticeSnapshot() && expected) {
+        const outcome = await persistWorkspaceVerified(expected);
+        if (outcome === 'verified') {
+          if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
+        } else {
+          setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+        }
+      }
+    } else {
+      const outcome = await persistWorkspaceVerified(currentWorkspaceState());
+      if (outcome === 'verified') {
+        if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
+      } else {
+        setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+      }
+    }
     setLibraryOpen(true);
     if (nextId) setTutorialMessage(t(lang, 'tut.nextAfterExit'));
   };
@@ -2696,6 +2940,17 @@ export default function App() {
   const setLang = (next: Lang) => setSettings((prev) => ({ ...prev, lang: next }));
 
   const lastTitle = lastDialog ? t(lang, (ANALYSES.find((a) => a.id === lastDialog.analysisId)?.titleKey ?? 'status.none')) : t(lang, 'status.none');
+  const autosaveLabel = practice
+    ? t(lang, 'tut.autosavePaused')
+    : autosave === 'saving'
+      ? t(lang, 'status.saving')
+      : autosave === 'saved'
+        ? t(lang, 'status.autosave')
+        : autosave === 'failed'
+          ? t(lang, 'status.saveFailed')
+          : autosave === 'quota'
+            ? t(lang, 'status.quotaFull')
+            : t(lang, 'status.storageBlocked');
   const cellLabel = `${sheet.columns[selection.col]?.id ?? '—'}:${selection.row + 1}`;
 
   const commitRename = () => {
@@ -2766,7 +3021,7 @@ export default function App() {
         onExportSelection={(rows) => {
           if (!rows.length) return;
           const csv = selectedRowsCsv(sheet.columns, rows);
-          downloadFile(`sigrun-selection-${sheet.name || 'sheet'}.csv`, csv, 'text/csv;charset=utf-8');
+          downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-selection-${sheet.name || 'sheet'}.csv`, csv, 'text/csv;charset=utf-8');
           toast(t(lang, 'toast.selectionExported', { n: rows.length }));
         }}
       />
@@ -3111,7 +3366,7 @@ export default function App() {
         <span>{t(lang, 'status.cols', { n: sheet.columns.length })}</span>
         <span>{t(lang, 'status.last')} <b>{lastTitle}</b></span>
         <span className="spacer" />
-        <span><i className="dot" />{practice ? t(lang, 'tut.autosavePaused') : autosave === 'saving' ? t(lang, 'status.saving') : t(lang, 'status.autosave')}</span>
+        <span><i className="dot" />{autosaveLabel}{storageConflict ? ` · ${t(lang, 'status.otherTab')}` : ''}</span>
         <span>{statusBarLabel()}</span>
       </footer>
 
@@ -3478,7 +3733,8 @@ export default function App() {
                     const pending = backupPrompt;
                     downloadFile(projectFileName(), pending.json, 'application/json');
                     setBackupPrompt(null);
-                    void beginTutorial(pending.tutorialId, pending.useCurrent, true);
+                    if (pending.resumeSessionId) void resumeTutorial(pending.tutorialId, true);
+                    else void beginTutorial(pending.tutorialId, pending.useCurrent, true);
                   }}
                 >
                   {t(lang, 'tut.backupDownloadAction')}
@@ -3488,6 +3744,51 @@ export default function App() {
             <div className="modal-foot">
               <span className="spacer" />
               <button type="button" className="btn ghost" onClick={() => setBackupPrompt(null)} data-testid="tutorial-backup-cancel">{t(lang, 'dlg.cancel')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {autosavePrompt && !practice && (
+        <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setAutosavePrompt(false); }}>
+          <div className="modal narrow" role="dialog" aria-modal="true" aria-label={t(lang, 'status.autosaveFailedTitle')} data-testid="autosave-failed-dialog">
+            <div className="modal-head">
+              <div>
+                <h3>{t(lang, 'status.autosaveFailedTitle')}</h3>
+                <div className="modal-sub">{autosave === 'quota' ? t(lang, 'status.quotaFull') : autosave === 'unavailable' ? t(lang, 'status.storageBlocked') : t(lang, 'status.saveFailed')}</div>
+              </div>
+            </div>
+            <div className="modal-body">
+              <p className="tut-warning">{t(lang, 'status.autosaveFailedBody')}</p>
+            </div>
+            <div className="modal-foot">
+              <button type="button" className="btn" onClick={() => { void runAutosave(); }} data-testid="autosave-failed-retry">{t(lang, 'status.retry')}</button>
+              <button type="button" className="btn" onClick={() => { saveProject(); setAutosavePrompt(false); }} data-testid="autosave-failed-export">{t(lang, 'tut.exportProject')}</button>
+              <span className="spacer" />
+              <button type="button" className="btn ghost" onClick={() => setAutosavePrompt(false)} data-testid="autosave-failed-dismiss">{t(lang, 'status.dismissSave')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {practiceSaveFailure && practice && (
+        <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setPracticeSaveFailure(null); }}>
+          <div className="modal narrow" role="dialog" aria-modal="true" aria-label={t(lang, 'tut.saveFailedTitle')} data-testid="practice-save-failed-dialog">
+            <div className="modal-head">
+              <div>
+                <h3>{t(lang, 'tut.saveFailedTitle')}</h3>
+                <div className="modal-sub">{t(lang, 'tut.saveFailedSub')}</div>
+              </div>
+            </div>
+            <div className="modal-body">
+              <p className="tut-warning">{t(lang, 'tut.saveFailedBody')}</p>
+            </div>
+            <div className="modal-foot">
+              <button type="button" className="btn primary" onClick={keepPractice} data-testid="practice-save-retry">{t(lang, 'tut.retrySave')}</button>
+              <button type="button" className="btn" onClick={exportFailedPractice} data-testid="practice-save-export">{t(lang, 'tut.exportPractice')}</button>
+              <button type="button" className="btn ghost danger" onClick={discardPractice} data-testid="practice-save-discard">{t(lang, 'tut.discardPractice')}</button>
+              <span className="spacer" />
+              <button type="button" className="btn ghost" onClick={() => setPracticeSaveFailure(null)} data-testid="practice-save-cancel">{t(lang, 'dlg.cancel')}</button>
             </div>
           </div>
         </div>

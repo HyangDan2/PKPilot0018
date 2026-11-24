@@ -1,0 +1,27 @@
+(node:16268) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[PASS] no separate logo header row
+[PASS] top bar is a single slim line — 40px
+[PASS] brand sits inside the menu bar
+[PASS] official CSS .mark logo, no svg logo
+[PASS] [data-testid=lang-ko] lives in the bar
+[PASS] [data-testid=lang-en] lives in the bar
+[PASS] [data-testid=theme-toggle] lives in the bar
+[PASS] [data-testid=menu-button] lives in the bar
+[PASS] all bar items share one line — 20,20,20,20,19
+[PASS] theme and kebab sit at the right end — {"theme":1398,"kebab":1430}
+[PASS] no horizontal overflow at 1440 — 0px
+[PASS] workspace starts higher than the old 88px header stack — 82px
+[PASS] sample dropdown inside the viewport — {"x":12,"y":79.40595245361328,"width":360,"height":330.24999237060547}
+[PASS] sample dropdown paints on top
+[PASS] every sample row is reachable (not clipped)
+[PASS] dropdown layer sits above the toolbars — .menubar:80 .toolbar:20 .output-panel:auto .worksheet-panel:auto
+[PASS] Escape closes the sample dropdown
+[PASS] File ▸ Sample data submenu still lists every dataset — 8
+[PASS] chart copy controls rendered
+[PASS] card copy writes a PNG image to the clipboard — image/png
+[PASS] card copy reports success — New worksheet added. | Chart image copied to the clipboard.
+[PASS] single-chart copy writes a PNG image — image/png
+[PASS] no console or page errors
+
+23/23 checks passed (ui)

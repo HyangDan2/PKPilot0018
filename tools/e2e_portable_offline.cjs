@@ -44,12 +44,20 @@ function note(name, value) {
   console.log(`[INFO] ${name} — ${value}`);
 }
 
+/* The macOS sandbox runs one browser process per context, which needs
+   --single-process and the software rasterizer that goes with it. On a normal
+   Linux headless run those flags make Chrome die at launch (ANGLE/Vulkan init
+   fails and the process ends with SIGTRAP), so there the suite uses the same
+   launch as the other suites. The checks are identical on both. */
 function launchArgs() {
+  const darwin = process.platform === 'darwin';
   return {
     headless: true,
     executablePath: CHROME,
     env: browserEnv,
-    args: ['--single-process', '--no-zygote', '--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+    args: darwin
+      ? ['--single-process', '--no-zygote', '--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+      : ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
   };
 }
 

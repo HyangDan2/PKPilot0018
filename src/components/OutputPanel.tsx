@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Block, ChartSource, ChartSpec, Lang, OutputDoc } from '../types';
 import { fmtTime } from '../lib/format';
+import { PRODUCT } from '../config/product';
 import { resolveLabel, t } from '../lib/i18n';
 import { downloadBlob, downloadFile } from '../lib/project';
 import { inlineTheme, renderChart } from '../lib/charts';
@@ -398,7 +399,7 @@ export function OutputPanel({
     }
     const exportCfg: ExportConfig = { ...defaultExportConfig(), ...(config.export ?? {}), format };
     const svg = batchSvgDocument(entries, exportCfg);
-    const stem = `sigrun-${output.titleKey.replace('an.', '')}-${output.id}`;
+    const stem = `${PRODUCT.EXPORT_FILE_PREFIX}-${output.titleKey.replace('an.', '')}-${output.id}`;
     if (format === 'svg') {
       downloadFile(`${stem}-charts.svg`, svg, 'image/svg+xml');
       onToast(t(lang, 'toast.batchExported', { n: entries.length }));
@@ -576,7 +577,7 @@ export function OutputPanel({
       onToast(t(lang, 'card.noTable'));
       return;
     }
-    downloadFile(`sigrun-${output.titleKey.replace('an.', '')}-${output.id}.svg`, svg, 'image/svg+xml');
+    downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-${output.titleKey.replace('an.', '')}-${output.id}.svg`, svg, 'image/svg+xml');
   };
 
   const handlePng = async (output: OutputDoc) => {
@@ -590,7 +591,7 @@ export function OutputPanel({
       onToast(t(lang, 'card.pngFailed'));
       return;
     }
-    downloadBlob(`sigrun-${output.titleKey.replace('an.', '')}-${output.id}.png`, blob);
+    downloadBlob(`${PRODUCT.EXPORT_FILE_PREFIX}-${output.titleKey.replace('an.', '')}-${output.id}.png`, blob);
     onToast(t(lang, 'card.pngSaved'));
   };
 
@@ -616,7 +617,7 @@ export function OutputPanel({
       onToast(t(lang, 'card.noChart'));
       return;
     }
-    await copyPng(svg, `sigrun-${output.titleKey.replace('an.', '')}-${output.id}.png`);
+    await copyPng(svg, `${PRODUCT.EXPORT_FILE_PREFIX}-${output.titleKey.replace('an.', '')}-${output.id}.png`);
   };
 
   const handleCsv = (output: OutputDoc) => {
@@ -625,7 +626,7 @@ export function OutputPanel({
       onToast(t(lang, 'card.noTable'));
       return;
     }
-    downloadFile(`sigrun-${output.titleKey.replace('an.', '')}-${output.id}.csv`, csv, 'text/csv;charset=utf-8');
+    downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-${output.titleKey.replace('an.', '')}-${output.id}.csv`, csv, 'text/csv;charset=utf-8');
   };
 
   const handlePrint = (output: OutputDoc) => {
