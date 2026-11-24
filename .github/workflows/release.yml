@@ -17,7 +17,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The same browser regression gate deploy.yml runs on main (WO-FINAL-002).
+  # A tag release is only packaged when these suites pass on this commit.
+  browser-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Stage 1 (worksheet, selection, menus)
+        run: |
+          mkdir -p "$RUNNER_TEMP/shots"
+          node tools/e2e_stage1.cjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          OUT: ${{ runner.temp }}/shots
+      - name: Stage 3 (workspace and regression list)
+        run: node tools/e2e_stage3.cjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          OUT: ${{ runner.temp }}/shots
+          SHOTS: ${{ runner.temp }}/shots
+
   release:
+    needs: [browser-regression]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -120,7 +120,7 @@ jobs:
           SHOTS: ${{ runner.temp }}/shots
 
   deploy:
-    needs: build
+    needs: [build, browser-regression]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
