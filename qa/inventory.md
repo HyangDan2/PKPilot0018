@@ -11,7 +11,7 @@
 | --- | --- |
 | `analyses.ts` 분석 ID | 40 (계산 31 / 시각화·유틸 9) |
 | `src/lib` 모듈 | 21 (통계 12 + 지원 9) |
-| 수치 검증 케이스 | 205 (PASS 205 · FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0 — Phase 3B Corrective QA 종료 시점) |
+| 수치 검증 케이스 | 225 (PASS 225 · FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0 — Phase 3C Corrective QA 종료 시점) |
 | 10대 데이터 유형 | 전부 구성 (`qa/datasets/`, 25개 파일, 차트·변환용 `charts` 추가) |
 | 기존 단위 테스트 | 12개 파일 280건 (QA-01~QA-15 + followup-qa 회귀 포함) |
 
@@ -113,6 +113,13 @@
 | `xlsx.ts` | 7.8 KB | Excel 읽기/쓰기 | 입출력 | 단위테스트(round-trip) |
 | `db.ts` | 2.9 KB | IndexedDB 자동저장 | 저장소 | UNVERIFIED(브라우저 전용) |
 | `types.ts` | — | `Worksheet`, `Column`, `Block`, `ChartSpec` | 타입 | — |
+| `modelPredictor.ts` | 24.9 KB | `predictStoredModel`, `designRow`, `compileSurfaceEvaluator`, `modelSurface`, `covarianceStatus`, `intervalStatus`, `designFromActual` | 저장 모형 예측 코어 | PASS 8 (QA-J) + QA-V |
+| `feasible.ts` | 21.0 KB | `buildOverlaid`, `commonNumericFactors`, `intervalAvailability`, `basisAvailability`, `validateOverlaidInput` | 중첩 등고선·만족 영역 | PASS 6 (QA-V) |
+| `optimizer.ts` | 33.8 KB | `optimize`, `optimizeAsync`, `buildProblem`, `resolvePoint`, `scorePoint`, `defaultFactorSettings` | 다중 반응 최적화 | PASS 32 (QA-W) |
+| `profiler.ts` | 8.6 KB | `profileCurves`, `profilePoint`, `curveAxis`, `centrePoint`, `normaliseValue` | 예측 프로파일러 | QA-W-30·31 + 단위테스트 11 |
+| `desirability.ts` | 7.0 KB | `individualDesirability`, `compositeDesirability`, `responseIssues`, `withinLimits` | Derringer–Suich 만족도 | QA-W-25·27 + 단위테스트 |
+| `factorDomain.ts` | 9.9 KB | `discreteAxis`, `discreteValueAt`, `isOnStep`, `nearestStepValue`, `rangeIntersection`, `levelIntersection`, `validateFactorValue` | 인자 정의역 (Stage 3C) | QA-W-14·15·16·30 |
+| `predictionAdapter.ts` | 10.1 KB | `createPredictionAdapter`, `crossCheck` | 실제 좌표 예측 어댑터 (Stage 3C) | QA-W-31·32 + 교정 테스트 41 |
 
 ## 3. 기존 테스트 재사용 현황
 

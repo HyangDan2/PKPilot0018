@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-24T18:17:45+09:00",
-  "commit": "fca4e6fc67ebdce5510eaea86c95d5b615964518",
+  "generated_at": "2026-11-24T18:48:23+09:00",
+  "commit": "d1bb0eb69a2bacd81ea41fd13fcf52ab1c3f67a8",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
-   "node": "v24.19.0",
-   "commit": "fca4e6fc67ebdce5510eaea86c95d5b615964518",
-   "cases": 205,
-   "generatedAt": "2026-11-24T09:17:30.118Z"
+   "node": "v24.11.0",
+   "commit": "d1bb0eb69a2bacd81ea41fd13fcf52ab1c3f67a8",
+   "cases": 225,
+   "generatedAt": "2026-11-24T09:48:02.622Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",
@@ -19,7 +19,7 @@
    "pandas": "3.1.1",
    "patsy": "1.0.3",
    "platform": "Linux-6.12.118-guest-1.1-x86_64-with-glibc2.41",
-   "cases": 205,
+   "cases": 225,
    "methods": {
     "QA-A-01": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
     "QA-A-02": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
@@ -183,18 +183,38 @@
     "QA-V-20b": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
     "QA-V-21a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
     "QA-V-21b": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
-    "QA-W-01": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-    "QA-W-02": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-    "QA-W-03": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-    "QA-W-04": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-    "QA-W-05": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-    "QA-W-06": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-    "QA-W-07": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-    "QA-W-08": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-    "QA-W-09": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-    "QA-W-10": "desirability rules re-implemented · unusable limits refused",
-    "QA-W-11": "desirability rules re-implemented · unusable limits refused",
-    "QA-W-12": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+    "QA-W-01": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-02": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-03": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-04": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-05": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-06": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-07": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-08": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-09": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-10": "documented domain/compatibility rules re-implemented · invalid refused",
+    "QA-W-11": "documented domain/compatibility rules re-implemented · invalid refused",
+    "QA-W-12": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-13": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-14": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-15": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-16": "domain re-derived from the documented Lower + k × Step rule",
+    "QA-W-17": "documented domain/compatibility rules re-implemented · invalid refused",
+    "QA-W-18": "documented domain/compatibility rules re-implemented · invalid refused",
+    "QA-W-19": "documented domain/compatibility rules re-implemented · invalid refused",
+    "QA-W-20": "documented domain/compatibility rules re-implemented · invalid refused",
+    "QA-W-21": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-22": "documented domain/compatibility rules re-implemented · invalid refused",
+    "QA-W-23": "documented domain/compatibility rules re-implemented · invalid refused",
+    "QA-W-24": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-25": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-26": "documented domain/compatibility rules re-implemented · invalid refused",
+    "QA-W-27": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-28": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-29": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+    "QA-W-30": "profiler axis re-derived from the documented domain",
+    "QA-W-31": "profiler path checked against one NumPy X'β prediction",
+    "QA-W-32": "all four prediction paths compared with one NumPy X'β",
     "QA-X-04": "scipy.stats.ttest_1samp + scipy.stats.t.ppf interval",
     "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f",
     "QA-X-06": "scipy.stats.ttest_1samp on the paired differences (= ttest_rel)"
@@ -330,14 +350,14 @@
  },
  "summary": {
   "counts": {
-   "PASS": 205,
+   "PASS": 225,
    "FAIL": 0,
    "REVIEW": 0,
    "UNVERIFIED": 0,
    "ERROR": 0
   },
-  "total": 205,
-  "verifiable": 205,
+  "total": 225,
+  "verifiable": 225,
   "pass_rate_verifiable": 1.0,
   "review_rate": 0.0,
   "unverified_rate": 0.0,
@@ -463,14 +483,14 @@
     "total": 25
    },
    "QA-W": {
-    "PASS": 12,
+    "PASS": 32,
     "FAIL": 0,
     "REVIEW": 0,
     "UNVERIFIED": 0,
     "ERROR": 0,
     "max_rel": 1.0,
-    "max_abs": 0.0004955581741368231,
-    "total": 12
+    "max_abs": 0.0006883626140007371,
+    "total": 32
    },
    "QA-X": {
     "PASS": 6,
@@ -36069,47 +36089,47 @@
      "key": "x:x",
      "tol": "optimizer_argmax",
      "kind": "number",
-     "adapter": 1.250244140625,
+     "adapter": 1.2498046875000002,
      "reference": 1.2500000249962007,
-     "abs": 0.00024411562879933513,
-     "rel": 0.0001952924991342117,
+     "abs": 0.00019533749620048724,
+     "rel": 0.00015626999383546488,
      "status": "match"
     },
     {
      "key": "pred:Y",
      "tol": "optimizer_prediction",
      "kind": "number",
-     "adapter": 25.12499988079071,
+     "adapter": 25.124999923706053,
      "reference": 25.125,
-     "abs": 1.1920928955078125e-07,
-     "rel": 4.744648340329602e-09,
+     "abs": 7.629394715991111e-08,
+     "rel": 3.0365750113397457e-09,
      "status": "match"
     },
     {
      "key": "d:Y",
      "tol": "optimizer_prediction",
      "kind": "number",
-     "adapter": 0.837499996026357,
+     "adapter": 0.8374999974568684,
      "reference": 0.8375,
-     "abs": 3.973642970223068e-09,
-     "rel": 4.744648322654409e-09,
+     "abs": 2.5431315942014976e-09,
+     "rel": 3.036575037852534e-09,
      "status": "match"
     },
     {
      "key": "composite",
      "tol": "optimizer_objective",
      "kind": "number",
-     "adapter": 0.837499996026357,
+     "adapter": 0.8374999974568684,
      "reference": 0.8375,
-     "abs": 3.973642970223068e-09,
-     "rel": 4.744648322654409e-09,
+     "abs": 2.5431315942014976e-09,
+     "rel": 3.036575037852534e-09,
      "status": "match"
     }
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 0.00024411562879933513,
-   "max_rel": 0.0001952924991342117
+   "max_abs": 0.00019533749620048724,
+   "max_rel": 0.00015626999383546488
   },
   {
    "id": "QA-W-06",
@@ -36152,8 +36172,8 @@
      "key": "status",
      "tol": "default",
      "kind": "string",
-     "adapter": "no-feasible",
-     "reference": "no-feasible",
+     "adapter": "feasible-not-found",
+     "reference": "feasible-not-found",
      "status": "match"
     },
     {
@@ -36590,8 +36610,8 @@
      "key": "status",
      "tol": "default",
      "kind": "string",
-     "adapter": "optimal",
-     "reference": "optimal",
+     "adapter": "best-found",
+     "reference": "best-found",
      "status": "match"
     },
     {
@@ -36830,17 +36850,2965 @@
      "key": "composite",
      "tol": "optimizer_coarse_grid",
      "kind": "number",
-     "adapter": 0.7182341636143084,
+     "adapter": 0.7180413591744444,
      "reference": 0.7187297217884452,
-     "abs": 0.0004955581741368231,
-     "rel": 0.00068949169501952,
+     "abs": 0.0006883626140007371,
+     "rel": 0.0009577489188673812,
      "status": "match"
     }
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 0.0004955581741368231,
-   "max_rel": 0.00068949169501952
+   "max_abs": 0.0006883626140007371,
+   "max_rel": 0.0009577489188673812
+  },
+  {
+   "id": "QA-W-13",
+   "area": "QA-W",
+   "title": "연속형 최적점이 격자 사이에 존재 — 국소 탐색으로만 도달",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "격자 11×11 위에는 최적점이 없다. 두 구현 모두 격자 뒤 국소 개선으로 최적점에 도달해야 하며, 상태는 전역 최적이 아니라 local-converged다(연속 공간의 전수 탐색은 불가능하다).",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 40.0,
+      "upper": 70.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "multistart",
+    "seed": 17,
+    "gridPoints": 11
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "local-converged",
+     "reference": "local-converged",
+     "status": "match"
+    },
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0.7187297215376851,
+     "reference": 0.7187297217884469,
+     "abs": 2.5076174470228807e-10,
+     "rel": 3.488957491257027e-10,
+     "status": "match"
+    },
+    {
+     "key": "x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": 0.376602434299496,
+     "reference": 0.3765971440931661,
+     "abs": 5.290206329944258e-06,
+     "rel": 1.4047388337696789e-05,
+     "status": "match"
+    },
+    {
+     "key": "x:y",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -0.27330280113549904,
+     "reference": -0.2732660472610965,
+     "abs": 3.6753874402550846e-05,
+     "rel": 0.00013449850345818395,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 61.561891646130555,
+     "reference": 61.561891653653404,
+     "abs": 7.522849898577988e-09,
+     "rel": 1.2219978458266792e-10,
+     "status": "match"
+    },
+    {
+     "key": "exhaustive",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 3.6753874402550846e-05,
+   "max_rel": 0.00013449850345818395
+  },
+  {
+   "id": "QA-W-14",
+   "area": "QA-W",
+   "title": "이산형 0~1 Step 0.6 — 허용값은 Lower + k × Step 뿐",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "허용값은 0과 0.6뿐이다(1.2 > Upper). 최적 x=0.6, y=2.8. 기준은 같은 규칙으로 값을 만들어 전수 열거한다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "x",
+        "value": 3.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 1
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "Y",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 5.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "discrete",
+      "lower": 0,
+      "upper": 1,
+      "step": 0.6
+     }
+    ],
+    "method": "enumerate",
+    "seed": 1
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "global-optimal",
+     "reference": "global-optimal",
+     "status": "match"
+    },
+    {
+     "key": "x:x",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.6,
+     "reference": 0.6,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 2.8,
+     "reference": 2.8,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "d:Y",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.5599999999999999,
+     "reference": 0.5599999999999999,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "exhaustive",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-15",
+   "area": "QA-W",
+   "title": "음수 Lower + 비정수 Step 0.3 — 정수 인덱스 연산",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "−1, −0.7, …, 0.8 — 0.8이 마지막 허용값이다(1.1 > Upper). 누적 덧셈은 부동소수 오차를 만들므로 정수 인덱스 k로 계산해야 한다. 최적 x=0.8, y=5.8.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0
+       },
+       {
+        "label": "x",
+        "value": 1.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": -1,
+        "max": 1
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "Y",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 10.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "discrete",
+      "lower": -1,
+      "upper": 1,
+      "step": 0.3
+     }
+    ],
+    "method": "enumerate",
+    "seed": 1
+   },
+   "fields": [
+    {
+     "key": "x:x",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.8,
+     "reference": 0.8,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 5.8,
+     "reference": 5.8,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "global-optimal",
+     "reference": "global-optimal",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-16",
+   "area": "QA-W",
+   "title": "매우 작은 Step 1e-4 — 값 손실·중복 없이 11개 좌표",
+   "op": "domain",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "0…0.001을 1e-4 간격으로 나누면 11개 값이고 모두 서로 다르다. 0.0003은 허용값, 0.00035는 아니다. 기준은 같은 규칙을 Python의 10진 스케일 산술로 계산한다.",
+   "args": {
+    "factors": [
+     {
+      "name": "x",
+      "kind": "discrete",
+      "lower": 0,
+      "upper": 0.001,
+      "step": 0.0001
+     }
+    ],
+    "checks": [
+     {
+      "factor": "x",
+      "value": 0.0003
+     },
+     {
+      "factor": "x",
+      "value": 0.00035
+     }
+    ]
+   },
+   "fields": [
+    {
+     "key": "count[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "v_second[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.0001,
+     "reference": 0.0001,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "v_last[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.001,
+     "reference": 0.001,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "distinct[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "listed[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11,
+     "reference": 11,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "check[0]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "check[1]",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-17",
+   "area": "QA-W",
+   "title": "범위를 벗어난 Fixed Value — 조용히 고정하지 않고 거부",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "고정값 7은 0~5 밖이므로 문제 정의 오류(opt.issue.fixedOutside)다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "x",
+        "value": 2.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 5
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "Y",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 20.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "discrete",
+      "lower": 0,
+      "upper": 5,
+      "step": 0.5,
+      "fixed": true,
+      "fixedValue": 7
+     }
+    ],
+    "method": "enumerate",
+    "seed": 1
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "invalid",
+     "reference": "invalid",
+     "status": "match"
+    },
+    {
+     "key": "issues",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "opt.issue.fixedOutside",
+     "reference": "opt.issue.fixedOutside",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-18",
+   "area": "QA-W",
+   "title": "활성 반응 중 일부의 규격 누락 — 즉시 중단",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "한 반응이라도 규격이 없으면 탐색하지 않는다 — status invalid, issues opt.issue.limitsMissing, evaluations 0.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y1",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "x",
+        "value": 2.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 5
+       }
+      }
+     },
+     {
+      "kind": "polynomial",
+      "response": "Y2",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 2.0
+       },
+       {
+        "label": "x",
+        "value": -1.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 5
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 20.0
+     },
+     {
+      "modelId": "m2",
+      "name": "Y2",
+      "goal": "maximize",
+      "lower": 0.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 0,
+      "upper": 5
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 11
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "invalid",
+     "reference": "invalid",
+     "status": "match"
+    },
+    {
+     "key": "issues",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "opt.issue.limitsMissing",
+     "reference": "opt.issue.limitsMissing",
+     "status": "match"
+    },
+    {
+     "key": "evaluations",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-19",
+   "area": "QA-W",
+   "title": "잘못된 Model ID 및 중복 반응 — 둘 다 명시",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "중복 반응(responseDuplicate)과 없는 모형(modelMissing)을 함께 보고하고 탐색하지 않는다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y1",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "x",
+        "value": 2.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 5
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 20.0
+     },
+     {
+      "modelId": "m1",
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 20.0
+     },
+     {
+      "modelId": "missing",
+      "name": "Y2",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 20.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 0,
+      "upper": 5
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 5,
+    "honourModelIds": true
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "invalid",
+     "reference": "invalid",
+     "status": "match"
+    },
+    {
+     "key": "issues",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "opt.issue.modelMissing,opt.issue.responseDuplicate",
+     "reference": "opt.issue.modelMissing,opt.issue.responseDuplicate",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-20",
+   "area": "QA-W",
+   "title": "동일 이름, 다른 단위 및 ID — 이름만으로 합치지 않음",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "°C와 °F는 같은 인자가 아니다 — unitConflict로 거부한다(열 ID도 함께 다르면 columnConflict).",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "A",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-Temp",
+        "name": "Temp",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        },
+        "unit": "°C"
+       }
+      ],
+      "terms": [
+       {
+        "label": "Temp",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "Temp",
+        "value": 1.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "Temp": {
+        "min": 0,
+        "max": 10
+       }
+      }
+     },
+     {
+      "kind": "polynomial",
+      "response": "B",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-Temp",
+        "name": "Temp",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        },
+        "unit": "°F"
+       }
+      ],
+      "terms": [
+       {
+        "label": "Temp",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "Temp",
+        "value": 1.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "Temp": {
+        "min": 0,
+        "max": 10
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "A",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 10.0
+     },
+     {
+      "modelId": "m2",
+      "name": "B",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 10.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "Temp",
+      "kind": "continuous",
+      "lower": 0,
+      "upper": 10
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 5
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "invalid",
+     "reference": "invalid",
+     "status": "match"
+    },
+    {
+     "key": "issues",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "opt.issue.unitConflict",
+     "reference": "opt.issue.unitConflict",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-21",
+   "area": "QA-W",
+   "title": "서로 다른 Coded 범위 — 같은 실제 좌표에서 독립 예측",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "A는 coded (15−10)/5 = 1 → 5 + 2 = 7. B는 실제값 15 → 3 + 7.5 = 10.5. 코드 단위는 모형마다 다르며, adapter는 두 모형을 각자의 코딩으로 평가해야 한다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "A",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 10,
+         "halfRange": 5
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0
+       },
+       {
+        "label": "x",
+        "value": 2.0
+       }
+      ],
+      "residual": {
+       "df": 8,
+       "mse": 0.09
+      },
+      "factorBounds": {
+       "x": {
+        "min": 5,
+        "max": 15
+       }
+      },
+      "covariance": [
+       [
+        0.04,
+        0
+       ],
+       [
+        0,
+        0.01
+       ]
+      ]
+     },
+     {
+      "kind": "polynomial",
+      "response": "B",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "actual",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 3.0
+       },
+       {
+        "label": "x",
+        "value": 0.5
+       }
+      ],
+      "residual": {
+       "df": 8,
+       "mse": 0.09
+      },
+      "factorBounds": {
+       "x": {
+        "min": 5,
+        "max": 15
+       }
+      },
+      "covariance": [
+       [
+        0.04,
+        0
+       ],
+       [
+        0,
+        0.0025
+       ]
+      ]
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "A",
+      "goal": "maximize",
+      "lower": -100.0,
+      "upper": 100.0
+     },
+     {
+      "modelId": "m2",
+      "name": "B",
+      "goal": "maximize",
+      "lower": -100.0,
+      "upper": 100.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 15,
+      "upper": 15,
+      "fixed": true,
+      "fixedValue": 15
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 3
+   },
+   "fields": [
+    {
+     "key": "pred:A",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 7,
+     "reference": 7.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pred:B",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 10.5,
+     "reference": 10.5,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se:A",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.22360679774997896,
+     "reference": 0.22360679774997896,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "se:B",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.7762087348130012,
+     "reference": 0.7762087348130012,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "global-optimal",
+     "reference": "global-optimal",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-22",
+   "area": "QA-W",
+   "title": "학습 범위 교집합 없음 — 빈 정의역은 오류",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "적합 범위 0~1과 4~6의 교집합이 없다 — rangeIntersection.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "A",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "x",
+        "value": 1.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 1
+       }
+      }
+     },
+     {
+      "kind": "polynomial",
+      "response": "B",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "x",
+        "value": 1.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 4,
+        "max": 6
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "A",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 10.0
+     },
+     {
+      "modelId": "m2",
+      "name": "B",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 10.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 0,
+      "upper": 6
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 11
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "invalid",
+     "reference": "invalid",
+     "status": "match"
+    },
+    {
+     "key": "issues",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "opt.issue.rangeIntersection",
+     "reference": "opt.issue.rangeIntersection",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-23",
+   "area": "QA-W",
+   "title": "범주형 수준 교집합 없음 — 공통 수준 없음",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "두 모형이 공유하는 수준이 없다 — levelIntersection.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "A",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-s",
+        "name": "S",
+        "kind": "categorical",
+        "levels": [
+         "Day",
+         "Night"
+        ]
+       }
+      ],
+      "terms": [
+       {
+        "label": "S[Day]",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "S[Day]",
+        "value": 1.0
+       }
+      ],
+      "residual": null
+     },
+     {
+      "kind": "polynomial",
+      "response": "B",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-s",
+        "name": "S",
+        "kind": "categorical",
+        "levels": [
+         "Early",
+         "Late"
+        ]
+       }
+      ],
+      "terms": [
+       {
+        "label": "S[Early]",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "S[Early]",
+        "value": 1.0
+       }
+      ],
+      "residual": null
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "A",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 10.0
+     },
+     {
+      "modelId": "m2",
+      "name": "B",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 10.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "S",
+      "kind": "categorical",
+      "lower": 0,
+      "upper": 0,
+      "levels": [
+       "Day",
+       "Night",
+       "Early",
+       "Late"
+      ]
+     }
+    ],
+    "method": "enumerate",
+    "seed": 1
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "invalid",
+     "reference": "invalid",
+     "status": "match"
+    },
+    {
+     "key": "issues",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "opt.issue.levelIntersection",
+     "reference": "opt.issue.levelIntersection",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-24",
+   "area": "QA-W",
+   "title": "좁은 만족 영역과 탐색 예산 초과 — 한도 도달을 숨기지 않음",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "11×11=121개 조합 중 40개만 평가하고 멈춘다 — status limit, stopped budget, exhaustive 0. 좁은 만족 영역은 전수 탐색으로 확인되지 않았으므로 전역 주장을 하지 않는다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       },
+       {
+        "id": "col-y",
+        "name": "y",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       },
+       {
+        "label": "y",
+        "factors": []
+       },
+       {
+        "label": "x²",
+        "factors": []
+       },
+       {
+        "label": "y²",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 20.0
+       },
+       {
+        "label": "x",
+        "value": 2.0
+       },
+       {
+        "label": "y",
+        "value": 1.0
+       },
+       {
+        "label": "x²",
+        "value": -0.5
+       },
+       {
+        "label": "y²",
+        "value": -0.25
+       }
+      ],
+      "residual": {
+       "df": 9,
+       "mse": 0.04
+      },
+      "factorBounds": {
+       "x": {
+        "min": -1,
+        "max": 1
+       },
+       "y": {
+        "min": -1,
+        "max": 1
+       }
+      },
+      "covariance": [
+       [
+        0.04,
+        0,
+        0,
+        0,
+        0
+       ],
+       [
+        0,
+        0.01,
+        0,
+        0,
+        0
+       ],
+       [
+        0,
+        0,
+        0.01,
+        0,
+        0
+       ],
+       [
+        0,
+        0,
+        0,
+        0.0025,
+        0
+       ],
+       [
+        0,
+        0,
+        0,
+        0,
+        0.0025
+       ]
+      ]
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "Y",
+      "goal": "target",
+      "lower": 20.0,
+      "upper": 21.0,
+      "target": 20.5
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "discrete",
+      "lower": -1,
+      "upper": 1,
+      "step": 0.2
+     },
+     {
+      "name": "y",
+      "kind": "discrete",
+      "lower": -1,
+      "upper": 1,
+      "step": 0.2
+     }
+    ],
+    "method": "enumerate",
+    "seed": 1,
+    "maxEvaluations": 40
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "limit",
+     "reference": "limit",
+     "status": "match"
+    },
+    {
+     "key": "stopped",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "budget",
+     "reference": "budget",
+     "status": "match"
+    },
+    {
+     "key": "recommended",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "exhaustive",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-25",
+   "area": "QA-W",
+   "title": "Target = Lower / Target = Upper 경계 정의",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "x=0에서 Y1=0(=Target=Lower)과 Y2=1(=Target=Upper)다. 두 경계는 곡선의 봉우리이므로 만족도 1이어야 한다. 한쪽을 0으로 두면 '목표가 한계에 닿으면 최악'이라는 다른 정의가 된다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y1",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 0.0
+       },
+       {
+        "label": "x",
+        "value": 1.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 1
+       }
+      }
+     },
+     {
+      "kind": "polynomial",
+      "response": "Y2",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "x",
+        "value": -1.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 1
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "Y1",
+      "goal": "target",
+      "lower": 0.0,
+      "upper": 1.0,
+      "target": 0.0
+     },
+     {
+      "modelId": "m2",
+      "name": "Y2",
+      "goal": "target",
+      "lower": 0.0,
+      "upper": 1.0,
+      "target": 1.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 0,
+      "upper": 0,
+      "fixed": true,
+      "fixedValue": 0
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 3
+   },
+   "fields": [
+    {
+     "key": "d:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "d:Y2",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "global-optimal",
+     "reference": "global-optimal",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-26",
+   "area": "QA-W",
+   "title": "Weight / Importance NaN 및 Infinity — 거부",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "Weight=NaN과 Importance=Infinity는 유한하지 않으므로 문제 정의 오류다(weight, importance).",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "Y",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "x",
+        "value": 2.0
+       }
+      ],
+      "residual": null,
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 5
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "Y",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 20.0,
+      "weight": "NaN",
+      "importance": "Infinity"
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 0,
+      "upper": 5
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 5
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "invalid",
+     "reference": "invalid",
+     "status": "match"
+    },
+    {
+     "key": "issues",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "opt.issue.importance,opt.issue.weight",
+     "reference": "opt.issue.importance,opt.issue.weight",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-27",
+   "area": "QA-W",
+   "title": "Hard Specification과 Desirability 충돌 — 추천 금지",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "만족도 곡선은 그릴 수 있지만 어떤 조건도 하한 100을 넘지 못한다. 상태는 feasible-not-found, recommended 0, compliant 0 — 만족도를 1로 만드는 점을 '최적 조건'으로 추천하지 않는다.",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 100.0,
+      "upper": 200.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "multistart",
+    "seed": 5,
+    "gridPoints": 21
+   },
+   "fields": [
+    {
+     "key": "status",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "feasible-not-found",
+     "reference": "feasible-not-found",
+     "status": "match"
+    },
+    {
+     "key": "recommended",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "compliant",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-28",
+   "area": "QA-W",
+   "title": "모형 순서 변경 시 결과 불변성",
+   "op": "optimize",
+   "dataset": "rsm_two",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "같은 문제를 반응 순서만 뒤집어 다시 풀어도 조건과 예측이 같아야 한다(순서 의존 결함 방지).",
+   "args": {
+    "responses": [
+     {
+      "name": "Y1",
+      "goal": "maximize",
+      "lower": 40.0,
+      "upper": 70.0
+     },
+     {
+      "name": "Y2",
+      "goal": "minimize",
+      "lower": 20.0,
+      "upper": 50.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": -1.189207115002721,
+      "upper": 1.189207115002721
+     }
+    ],
+    "method": "multistart",
+    "seed": 23,
+    "gridPoints": 21,
+    "checkOrderInvariance": true
+   },
+   "fields": [
+    {
+     "key": "composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0.7239275856707872,
+     "reference": 0.72392758635773,
+     "abs": 6.869428359479457e-10,
+     "rel": 9.489109807296275e-10,
+     "status": "match"
+    },
+    {
+     "key": "rev_composite",
+     "tol": "optimizer_objective",
+     "kind": "number",
+     "adapter": 0.7239275856707872,
+     "reference": 0.72392758635773,
+     "abs": 6.869428359479457e-10,
+     "rel": 9.489109807296275e-10,
+     "status": "match"
+    },
+    {
+     "key": "x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -0.02525903784307538,
+     "reference": -0.02532176513621545,
+     "abs": 6.272729314007325e-05,
+     "rel": 0.0024772085517198016,
+     "status": "match"
+    },
+    {
+     "key": "rev_x:x",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -0.02525903784307538,
+     "reference": -0.02532176513621545,
+     "abs": 6.272729314007325e-05,
+     "rel": 0.0024772085517198016,
+     "status": "match"
+    },
+    {
+     "key": "x:y",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -0.6895426997391264,
+     "reference": -0.6895746274756813,
+     "abs": 3.192773655491532e-05,
+     "rel": 4.630062546209517e-05,
+     "status": "match"
+    },
+    {
+     "key": "rev_x:y",
+     "tol": "optimizer_argmax",
+     "kind": "number",
+     "adapter": -0.6895426997391264,
+     "reference": -0.6895746274756813,
+     "abs": 3.192773655491532e-05,
+     "rel": 4.630062546209517e-05,
+     "status": "match"
+    },
+    {
+     "key": "pred:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 60.274817358935124,
+     "reference": 60.27451206703593,
+     "abs": 0.00030529189919548116,
+     "rel": 5.065024812742449e-06,
+     "status": "match"
+    },
+    {
+     "key": "rev_pred:Y1",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 60.274817358935124,
+     "reference": 60.27451206703593,
+     "abs": 0.00030529189919548116,
+     "rel": 5.065024812742449e-06,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.00030529189919548116,
+   "max_rel": 0.0024772085517198016
+  },
+  {
+   "id": "QA-W-29",
+   "area": "QA-W",
+   "title": "공분산 및 MSE 누락 — CI와 PI 지원 분리",
+   "op": "optimize",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "A는 공분산과 df가 있지만 mse가 없어 신뢰구간만 낸다(PI는 null). B는 공분산이 없어 SE·CI·PI 모두 null. 기준은 t·SE와 t·√(SE²+mse)를 각각의 조건에서만 계산한다.",
+   "args": {
+    "mode": "spec",
+    "models": [
+     {
+      "kind": "polynomial",
+      "response": "A",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 5.0
+       },
+       {
+        "label": "x",
+        "value": 2.0
+       }
+      ],
+      "residual": {
+       "df": 9
+      },
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 5
+       }
+      },
+      "covariance": [
+       [
+        0.04,
+        0
+       ],
+       [
+        0,
+        0.01
+       ]
+      ]
+     },
+     {
+      "kind": "polynomial",
+      "response": "B",
+      "nonEstimable": [],
+      "predictors": [
+       {
+        "id": "col-x",
+        "name": "x",
+        "kind": "numeric",
+        "coding": {
+         "mode": "coded",
+         "center": 0,
+         "halfRange": 1
+        }
+       }
+      ],
+      "terms": [
+       {
+        "label": "x",
+        "factors": []
+       }
+      ],
+      "coefficients": [
+       {
+        "label": "Constant",
+        "value": 1.0
+       },
+       {
+        "label": "x",
+        "value": -1.0
+       }
+      ],
+      "residual": {
+       "df": 9,
+       "mse": 0.04
+      },
+      "factorBounds": {
+       "x": {
+        "min": 0,
+        "max": 5
+       }
+      }
+     }
+    ],
+    "responses": [
+     {
+      "modelId": "m1",
+      "name": "A",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 30.0
+     },
+     {
+      "modelId": "m2",
+      "name": "B",
+      "goal": "maximize",
+      "lower": -10.0,
+      "upper": 10.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": 2,
+      "upper": 2,
+      "fixed": true,
+      "fixedValue": 2
+     }
+    ],
+    "method": "grid",
+    "seed": 1,
+    "gridPoints": 3
+   },
+   "fields": [
+    {
+     "key": "se:A",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.282842712474619,
+     "reference": 0.282842712474619,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "ci_low:A",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 8.36016533203114,
+     "reference": 8.360165332030267,
+     "abs": 8.739675649849232e-13,
+     "rel": 1.045395073272648e-13,
+     "status": "match"
+    },
+    {
+     "key": "ci_high:A",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 9.63983466796886,
+     "reference": 9.639834667969733,
+     "abs": 8.739675649849232e-13,
+     "rel": 9.066209069838658e-14,
+     "status": "match"
+    },
+    {
+     "key": "pi_low:A",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_high:A",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "se:B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "ci_low:B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "pi_low:B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 8.739675649849232e-13,
+   "max_rel": 1.045395073272648e-13
+  },
+  {
+   "id": "QA-W-30",
+   "area": "QA-W",
+   "title": "이산형 Profiler 좌표 검증 — 허용값만",
+   "op": "profileaxis",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "프로파일러 축은 0, 0.6, …, 4.8의 9개 값이어야 하며 모두 간격 위에 있어야 한다.",
+   "args": {
+    "factor": {
+     "kind": "discrete",
+     "lower": 0,
+     "upper": 5,
+     "step": 0.6
+    },
+    "resolution": 21
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "distinct",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "first",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "second",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.6,
+     "reference": 0.6,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "last",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4.8,
+     "reference": 4.8,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "all_on_step",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-W-31",
+   "area": "QA-W",
+   "title": "Profiler와 Optimizer 예측값 일치",
+   "op": "profilepoint",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "같은 조건에서 프로파일러와 최적화기(단일 조건 평가)가 같은 예측·SE·CI·PI를 내야 한다(direct_diff = 0).",
+   "args": {
+    "model": {
+     "kind": "polynomial",
+     "response": "Y",
+     "nonEstimable": [],
+     "predictors": [
+      {
+       "id": "col-x",
+       "name": "x",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 0,
+        "halfRange": 2
+       }
+      },
+      {
+       "id": "col-y",
+       "name": "y",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 10,
+        "halfRange": 4
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "x",
+       "factors": []
+      },
+      {
+       "label": "y",
+       "factors": []
+      },
+      {
+       "label": "x²",
+       "factors": []
+      },
+      {
+       "label": "x×y",
+       "factors": []
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 12.0
+      },
+      {
+       "label": "x",
+       "value": 3.0
+      },
+      {
+       "label": "y",
+       "value": -1.5
+      },
+      {
+       "label": "x²",
+       "value": 0.8
+      },
+      {
+       "label": "x×y",
+       "value": 0.4
+      }
+     ],
+     "residual": {
+      "df": 8,
+      "mse": 0.36
+     },
+     "factorBounds": {
+      "x": {
+       "min": -2,
+       "max": 2
+      },
+      "y": {
+       "min": 6,
+       "max": 14
+      }
+     },
+     "covariance": [
+      [
+       0.04,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0.02,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0.03,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0,
+       0.01,
+       0
+      ],
+      [
+       0,
+       0,
+       0,
+       0,
+       0.005
+      ]
+     ]
+    },
+    "responses": [
+     {
+      "name": "Y",
+      "goal": "maximize",
+      "lower": 0.0,
+      "upper": 25.0
+     }
+    ],
+    "factors": [
+     {
+      "name": "x",
+      "kind": "continuous",
+      "lower": -2,
+      "upper": 2
+     },
+     {
+      "name": "y",
+      "kind": "continuous",
+      "lower": 6,
+      "upper": 14
+     }
+    ],
+    "point": {
+     "x": 1.5,
+     "y": 7.25
+    }
+   },
+   "fields": [
+    {
+     "key": "prof_value",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 15.524999999999999,
+     "reference": 15.524999999999999,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "prof_se",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.2644297557067377,
+     "reference": 0.2644297557067377,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "prof_ci_low",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 14.915223889870802,
+     "reference": 14.915223889869234,
+     "abs": 1.5685230891904212e-12,
+     "rel": 1.0516255744949283e-13,
+     "status": "match"
+    },
+    {
+     "key": "prof_ci_high",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 16.134776110129195,
+     "reference": 16.134776110130762,
+     "abs": 1.566746732351021e-12,
+     "rel": 9.710371694388039e-14,
+     "status": "match"
+    },
+    {
+     "key": "prof_pi_low",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 14.012987192434274,
+     "reference": 14.012987192430385,
+     "abs": 3.888445121447148e-12,
+     "rel": 2.774886659104085e-13,
+     "status": "match"
+    },
+    {
+     "key": "prof_pi_high",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 17.037012807565723,
+     "reference": 17.03701280756961,
+     "abs": 3.886668764607748e-12,
+     "rel": 2.281308823622464e-13,
+     "status": "match"
+    },
+    {
+     "key": "direct_value",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 15.524999999999999,
+     "reference": 15.524999999999999,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "direct_diff",
+     "tol": "exact_zero",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 3.888445121447148e-12,
+   "max_rel": 2.774886659104085e-13
+  },
+  {
+   "id": "QA-W-32",
+   "area": "QA-W",
+   "title": "Contour / Surface / Model Manager 와 예측값 일치",
+   "op": "predictionconsistency",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "네 경로(adapter·Model Manager·3D surface의 컴파일 평가기·등고선의 modelSurface)가 같은 실제 좌표에서 같은 값을 내야 한다. 두 diff는 산술 경로만 다르므로 0과 비교한다.",
+   "args": {
+    "model": {
+     "kind": "polynomial",
+     "response": "Y",
+     "nonEstimable": [],
+     "predictors": [
+      {
+       "id": "col-x",
+       "name": "x",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 0,
+        "halfRange": 1
+       }
+      },
+      {
+       "id": "col-y",
+       "name": "y",
+       "kind": "numeric",
+       "coding": {
+        "mode": "coded",
+        "center": 0,
+        "halfRange": 1
+       }
+      }
+     ],
+     "terms": [
+      {
+       "label": "x",
+       "factors": []
+      },
+      {
+       "label": "y",
+       "factors": []
+      },
+      {
+       "label": "x×y",
+       "factors": []
+      },
+      {
+       "label": "x²",
+       "factors": []
+      },
+      {
+       "label": "y²",
+       "factors": []
+      }
+     ],
+     "coefficients": [
+      {
+       "label": "Constant",
+       "value": 20.0
+      },
+      {
+       "label": "x",
+       "value": 2.0
+      },
+      {
+       "label": "y",
+       "value": -1.0
+      },
+      {
+       "label": "x×y",
+       "value": 0.5
+      },
+      {
+       "label": "x²",
+       "value": -0.5
+      },
+      {
+       "label": "y²",
+       "value": -0.25
+      }
+     ],
+     "residual": {
+      "df": 9,
+      "mse": 0.04
+     },
+     "factorBounds": {
+      "x": {
+       "min": -1,
+       "max": 1
+      },
+      "y": {
+       "min": -1,
+       "max": 1
+      }
+     },
+     "covariance": [
+      [
+       0.04,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0.01,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0.01,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0,
+       0.0025,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0,
+       0,
+       0.0025,
+       0
+      ],
+      [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0.0025
+      ]
+     ]
+    },
+    "point": {
+     "x": 0.5,
+     "y": -0.25
+    },
+    "xName": "x",
+    "yName": "y"
+   },
+   "fields": [
+    {
+     "key": "adapter_value",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 21.046875,
+     "reference": 21.046875,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "adapter_se",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.2081587810422611,
+     "reference": 0.2081587810422611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "adapter_ci_low",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 20.575987122466547,
+     "reference": 20.575987122465907,
+     "abs": 6.394884621840902e-13,
+     "rel": 3.107935762099424e-14,
+     "status": "match"
+    },
+    {
+     "key": "adapter_ci_high",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 21.517762877533453,
+     "reference": 21.517762877534093,
+     "abs": 6.394884621840902e-13,
+     "rel": 2.971909607070522e-14,
+     "status": "match"
+    },
+    {
+     "key": "manager_value",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 21.046875,
+     "reference": 21.046875,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "manager_se",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 0.2081587810422611,
+     "reference": 0.2081587810422611,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "surface_value",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 21.046875,
+     "reference": 21.046875,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "contour_value",
+     "tol": "optimizer_prediction",
+     "kind": "number",
+     "adapter": 21.046875,
+     "reference": 21.046875,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "surface_diff",
+     "tol": "exact_zero",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "contour_diff",
+     "tol": "exact_zero",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 6.394884621840902e-13,
+   "max_rel": 3.107935762099424e-14
   },
   {
    "id": "QA-X-01",
@@ -38141,18 +41109,38 @@
   "QA-V-20b": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
   "QA-V-21a": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
   "QA-V-21b": "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature",
-  "QA-W-01": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-  "QA-W-02": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-  "QA-W-03": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-  "QA-W-04": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-  "QA-W-05": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-  "QA-W-06": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-  "QA-W-07": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-  "QA-W-08": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-  "QA-W-09": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
-  "QA-W-10": "desirability rules re-implemented · unusable limits refused",
-  "QA-W-11": "desirability rules re-implemented · unusable limits refused",
-  "QA-W-12": "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B",
+  "QA-W-01": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-02": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-03": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-04": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-05": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-06": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-07": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-08": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-09": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-10": "documented domain/compatibility rules re-implemented · invalid refused",
+  "QA-W-11": "documented domain/compatibility rules re-implemented · invalid refused",
+  "QA-W-12": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-13": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-14": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-15": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-16": "domain re-derived from the documented Lower + k × Step rule",
+  "QA-W-17": "documented domain/compatibility rules re-implemented · invalid refused",
+  "QA-W-18": "documented domain/compatibility rules re-implemented · invalid refused",
+  "QA-W-19": "documented domain/compatibility rules re-implemented · invalid refused",
+  "QA-W-20": "documented domain/compatibility rules re-implemented · invalid refused",
+  "QA-W-21": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-22": "documented domain/compatibility rules re-implemented · invalid refused",
+  "QA-W-23": "documented domain/compatibility rules re-implemented · invalid refused",
+  "QA-W-24": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-25": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-26": "documented domain/compatibility rules re-implemented · invalid refused",
+  "QA-W-27": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-28": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-29": "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search",
+  "QA-W-30": "profiler axis re-derived from the documented domain",
+  "QA-W-31": "profiler path checked against one NumPy X'β prediction",
+  "QA-W-32": "all four prediction paths compared with one NumPy X'β",
   "QA-X-04": "scipy.stats.ttest_1samp + scipy.stats.t.ppf interval",
   "QA-X-05": "scipy.stats.ttest_ind (Welch / pooled) + F test from scipy.stats.f",
   "QA-X-06": "scipy.stats.ttest_1samp on the paired differences (= ttest_rel)"

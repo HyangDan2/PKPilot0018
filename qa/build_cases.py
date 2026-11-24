@@ -1354,6 +1354,428 @@ W.append(case(
     ),
 ))
 
+
+# ── Stage 3C corrective contract: 20 further cases (W-13 … W-32) ─────────
+# Each case names the defect it guards and the documented rule the reference
+# re-implements independently. Continuous searches compare numbers only where
+# two optimisers must meet; structural cases compare the status and the codes.
+
+def spec_model(response, predictors, coefficients, **extra):
+    model = {
+        "kind": "polynomial",
+        "response": response,
+        "nonEstimable": [],
+        "predictors": predictors,
+        "terms": [{"label": c[0], "factors": []} for c in coefficients if c[0] != "Constant"],
+        "coefficients": [{"label": c[0], "value": c[1]} for c in coefficients],
+        "residual": None,
+    }
+    model.update(extra)
+    return model
+
+
+CODED = lambda name, center=0, half=1, unit=None: {
+    "id": f"col-{name}", "name": name, "kind": "numeric",
+    "coding": {"mode": "coded", "center": center, "halfRange": half},
+    **({"unit": unit} if unit else {}),
+}
+
+W.append(case(
+    "QA-W-13", "연속형 최적점이 격자 사이에 존재 — 국소 탐색으로만 도달", "optimize", "rsm_two",
+    {
+        "responses": [{"name": "Y1", "goal": "maximize", "lower": 40.0, "upper": 70.0}],
+        "factors": OPT_FACTORS, "method": "multistart", "seed": 17, "gridPoints": 11,
+    },
+    [f("status", kind="string"), f("composite", "optimizer_objective"), f("x:x", "optimizer_argmax"),
+     f("x:y", "optimizer_argmax"), f("pred:Y1", "optimizer_prediction"), f("exhaustive")],
+    note=(
+        "격자 11×11 위에는 최적점이 없다. 두 구현 모두 격자 뒤 국소 개선으로 최적점에 도달해야 하며, "
+        "상태는 전역 최적이 아니라 local-converged다(연속 공간의 전수 탐색은 불가능하다)."
+    ),
+))
+
+W.append(case(
+    "QA-W-14", "이산형 0~1 Step 0.6 — 허용값은 Lower + k × Step 뿐", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [spec_model("Y", [CODED("x")], [("Constant", 1.0), ("x", 3.0)],
+                              factorBounds={"x": {"min": 0, "max": 1}})],
+        "responses": [{"modelId": "m1", "name": "Y", "goal": "maximize", "lower": 0.0, "upper": 5.0}],
+        "factors": [{"name": "x", "kind": "discrete", "lower": 0, "upper": 1, "step": 0.6}],
+        "method": "enumerate", "seed": 1,
+    },
+    [f("status", kind="string"), f("x:x"), f("pred:Y", "optimizer_prediction"),
+     f("d:Y", "optimizer_prediction"), f("exhaustive")],
+    note=(
+        "허용값은 0과 0.6뿐이다(1.2 > Upper). 최적 x=0.6, y=2.8. 기준은 같은 규칙으로 값을 만들어 전수 열거한다."
+    ),
+))
+
+W.append(case(
+    "QA-W-15", "음수 Lower + 비정수 Step 0.3 — 정수 인덱스 연산", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [spec_model("Y", [CODED("x")], [("Constant", 5.0), ("x", 1.0)],
+                              factorBounds={"x": {"min": -1, "max": 1}})],
+        "responses": [{"modelId": "m1", "name": "Y", "goal": "maximize", "lower": 0.0, "upper": 10.0}],
+        "factors": [{"name": "x", "kind": "discrete", "lower": -1, "upper": 1, "step": 0.3}],
+        "method": "enumerate", "seed": 1,
+    },
+    [f("x:x"), f("pred:Y", "optimizer_prediction"), f("status", kind="string")],
+    note=(
+        "−1, −0.7, …, 0.8 — 0.8이 마지막 허용값이다(1.1 > Upper). 누적 덧셈은 부동소수 오차를 만들므로 "
+        "정수 인덱스 k로 계산해야 한다. 최적 x=0.8, y=5.8."
+    ),
+))
+
+W.append(case(
+    "QA-W-16", "매우 작은 Step 1e-4 — 값 손실·중복 없이 11개 좌표", "domain", None,
+    {
+        "factors": [{"name": "x", "kind": "discrete", "lower": 0, "upper": 0.001, "step": 0.0001}],
+        "checks": [{"factor": "x", "value": 0.0003}, {"factor": "x", "value": 0.00035}],
+    },
+    [f("count[0]"), f("v_second[0]"), f("v_last[0]"), f("distinct[0]"), f("listed[0]"),
+     f("check[0]"), f("check[1]")],
+    note=(
+        "0…0.001을 1e-4 간격으로 나누면 11개 값이고 모두 서로 다르다. 0.0003은 허용값, 0.00035는 아니다. "
+        "기준은 같은 규칙을 Python의 10진 스케일 산술로 계산한다."
+    ),
+))
+
+W.append(case(
+    "QA-W-17", "범위를 벗어난 Fixed Value — 조용히 고정하지 않고 거부", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [spec_model("Y", [CODED("x")], [("Constant", 1.0), ("x", 2.0)],
+                              factorBounds={"x": {"min": 0, "max": 5}})],
+        "responses": [{"modelId": "m1", "name": "Y", "goal": "maximize", "lower": 0.0, "upper": 20.0}],
+        "factors": [{"name": "x", "kind": "discrete", "lower": 0, "upper": 5, "step": 0.5,
+                     "fixed": True, "fixedValue": 7}],
+        "method": "enumerate", "seed": 1,
+    },
+    [f("status", kind="string"), f("issues", kind="string")],
+    note="고정값 7은 0~5 밖이므로 문제 정의 오류(opt.issue.fixedOutside)다.",
+))
+
+W.append(case(
+    "QA-W-18", "활성 반응 중 일부의 규격 누락 — 즉시 중단", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [
+            spec_model("Y1", [CODED("x")], [("Constant", 1.0), ("x", 2.0)],
+                       factorBounds={"x": {"min": 0, "max": 5}}),
+            spec_model("Y2", [CODED("x")], [("Constant", 2.0), ("x", -1.0)],
+                       factorBounds={"x": {"min": 0, "max": 5}}),
+        ],
+        "responses": [
+            {"modelId": "m1", "name": "Y1", "goal": "maximize", "lower": 0.0, "upper": 20.0},
+            {"modelId": "m2", "name": "Y2", "goal": "maximize", "lower": 0.0},
+        ],
+        "factors": [{"name": "x", "kind": "continuous", "lower": 0, "upper": 5}],
+        "method": "grid", "seed": 1, "gridPoints": 11,
+    },
+    [f("status", kind="string"), f("issues", kind="string"), f("evaluations")],
+    note="한 반응이라도 규격이 없으면 탐색하지 않는다 — status invalid, issues opt.issue.limitsMissing, evaluations 0.",
+))
+
+W.append(case(
+    "QA-W-19", "잘못된 Model ID 및 중복 반응 — 둘 다 명시", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [
+            spec_model("Y1", [CODED("x")], [("Constant", 1.0), ("x", 2.0)],
+                       factorBounds={"x": {"min": 0, "max": 5}}),
+        ],
+        "responses": [
+            {"modelId": "m1", "name": "Y1", "goal": "maximize", "lower": 0.0, "upper": 20.0},
+            {"modelId": "m1", "name": "Y1", "goal": "maximize", "lower": 0.0, "upper": 20.0},
+            {"modelId": "missing", "name": "Y2", "goal": "maximize", "lower": 0.0, "upper": 20.0},
+        ],
+        "factors": [{"name": "x", "kind": "continuous", "lower": 0, "upper": 5}],
+        "method": "grid", "seed": 1, "gridPoints": 5, "honourModelIds": True,
+    },
+    [f("status", kind="string"), f("issues", kind="string")],
+    note="중복 반응(responseDuplicate)과 없는 모형(modelMissing)을 함께 보고하고 탐색하지 않는다.",
+))
+
+W.append(case(
+    "QA-W-20", "동일 이름, 다른 단위 및 ID — 이름만으로 합치지 않음", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [
+            spec_model("A", [CODED("Temp", unit="°C")], [("Constant", 1.0), ("Temp", 1.0)],
+                       factorBounds={"Temp": {"min": 0, "max": 10}}),
+            spec_model("B", [CODED("Temp", unit="°F")], [("Constant", 1.0), ("Temp", 1.0)],
+                       factorBounds={"Temp": {"min": 0, "max": 10}}),
+        ],
+        "responses": [
+            {"modelId": "m1", "name": "A", "goal": "maximize", "lower": 0.0, "upper": 10.0},
+            {"modelId": "m2", "name": "B", "goal": "maximize", "lower": 0.0, "upper": 10.0},
+        ],
+        "factors": [{"name": "Temp", "kind": "continuous", "lower": 0, "upper": 10}],
+        "method": "grid", "seed": 1, "gridPoints": 5,
+    },
+    [f("status", kind="string"), f("issues", kind="string")],
+    note="°C와 °F는 같은 인자가 아니다 — unitConflict로 거부한다(열 ID도 함께 다르면 columnConflict).",
+))
+
+W.append(case(
+    "QA-W-21", "서로 다른 Coded 범위 — 같은 실제 좌표에서 독립 예측", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [
+            spec_model("A", [CODED("x", center=10, half=5)], [("Constant", 5.0), ("x", 2.0)],
+                       factorBounds={"x": {"min": 5, "max": 15}},
+                       covariance=[[0.04, 0], [0, 0.01]], residual={"df": 8, "mse": 0.09}),
+            spec_model("B", [{"id": "col-x", "name": "x", "kind": "numeric",
+                              "coding": {"mode": "actual", "center": 0, "halfRange": 1}}],
+                       [("Constant", 3.0), ("x", 0.5)],
+                       factorBounds={"x": {"min": 5, "max": 15}},
+                       covariance=[[0.04, 0], [0, 0.0025]], residual={"df": 8, "mse": 0.09}),
+        ],
+        "responses": [
+            {"modelId": "m1", "name": "A", "goal": "maximize", "lower": -100.0, "upper": 100.0},
+            {"modelId": "m2", "name": "B", "goal": "maximize", "lower": -100.0, "upper": 100.0},
+        ],
+        "factors": [{"name": "x", "kind": "continuous", "lower": 15, "upper": 15, "fixed": True, "fixedValue": 15}],
+        "method": "grid", "seed": 1, "gridPoints": 3,
+    },
+    [f("pred:A", "optimizer_prediction"), f("pred:B", "optimizer_prediction"),
+     f("se:A", "optimizer_prediction"), f("se:B", "optimizer_prediction"), f("status", kind="string")],
+    note=(
+        "A는 coded (15−10)/5 = 1 → 5 + 2 = 7. B는 실제값 15 → 3 + 7.5 = 10.5. 코드 단위는 모형마다 다르며, "
+        "adapter는 두 모형을 각자의 코딩으로 평가해야 한다."
+    ),
+))
+
+W.append(case(
+    "QA-W-22", "학습 범위 교집합 없음 — 빈 정의역은 오류", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [
+            spec_model("A", [CODED("x")], [("Constant", 1.0), ("x", 1.0)],
+                       factorBounds={"x": {"min": 0, "max": 1}}),
+            spec_model("B", [CODED("x")], [("Constant", 1.0), ("x", 1.0)],
+                       factorBounds={"x": {"min": 4, "max": 6}}),
+        ],
+        "responses": [
+            {"modelId": "m1", "name": "A", "goal": "maximize", "lower": 0.0, "upper": 10.0},
+            {"modelId": "m2", "name": "B", "goal": "maximize", "lower": 0.0, "upper": 10.0},
+        ],
+        "factors": [{"name": "x", "kind": "continuous", "lower": 0, "upper": 6}],
+        "method": "grid", "seed": 1, "gridPoints": 11,
+    },
+    [f("status", kind="string"), f("issues", kind="string")],
+    note="적합 범위 0~1과 4~6의 교집합이 없다 — rangeIntersection.",
+))
+
+W.append(case(
+    "QA-W-23", "범주형 수준 교집합 없음 — 공통 수준 없음", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [
+            spec_model("A", [{"id": "col-s", "name": "S", "kind": "categorical", "levels": ["Day", "Night"]}],
+                       [("Constant", 1.0), ("S[Day]", 1.0)]),
+            spec_model("B", [{"id": "col-s", "name": "S", "kind": "categorical", "levels": ["Early", "Late"]}],
+                       [("Constant", 1.0), ("S[Early]", 1.0)]),
+        ],
+        "responses": [
+            {"modelId": "m1", "name": "A", "goal": "maximize", "lower": 0.0, "upper": 10.0},
+            {"modelId": "m2", "name": "B", "goal": "maximize", "lower": 0.0, "upper": 10.0},
+        ],
+        "factors": [{"name": "S", "kind": "categorical", "lower": 0, "upper": 0,
+                     "levels": ["Day", "Night", "Early", "Late"]}],
+        "method": "enumerate", "seed": 1,
+    },
+    [f("status", kind="string"), f("issues", kind="string")],
+    note="두 모형이 공유하는 수준이 없다 — levelIntersection.",
+))
+
+W.append(case(
+    "QA-W-24", "좁은 만족 영역과 탐색 예산 초과 — 한도 도달을 숨기지 않음", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [
+            spec_model("Y", [CODED("x"), CODED("y")],
+                       [("Constant", 20.0), ("x", 2.0), ("y", 1.0), ("x²", -0.5), ("y²", -0.25)],
+                       factorBounds={"x": {"min": -1, "max": 1}, "y": {"min": -1, "max": 1}},
+                       covariance=[[0.04, 0, 0, 0, 0], [0, 0.01, 0, 0, 0], [0, 0, 0.01, 0, 0],
+                                   [0, 0, 0, 0.0025, 0], [0, 0, 0, 0, 0.0025]],
+                       residual={"df": 9, "mse": 0.04}),
+        ],
+        "responses": [{"modelId": "m1", "name": "Y", "goal": "target", "lower": 20.0, "upper": 21.0, "target": 20.5}],
+        "factors": [
+            {"name": "x", "kind": "discrete", "lower": -1, "upper": 1, "step": 0.2},
+            {"name": "y", "kind": "discrete", "lower": -1, "upper": 1, "step": 0.2},
+        ],
+        "method": "enumerate", "seed": 1, "maxEvaluations": 40,
+    },
+    [f("status", kind="string"), f("stopped", kind="string"), f("recommended"), f("exhaustive")],
+    note=(
+        "11×11=121개 조합 중 40개만 평가하고 멈춘다 — status limit, stopped budget, exhaustive 0. "
+        "좁은 만족 영역은 전수 탐색으로 확인되지 않았으므로 전역 주장을 하지 않는다."
+    ),
+))
+
+W.append(case(
+    "QA-W-25", "Target = Lower / Target = Upper 경계 정의", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [
+            spec_model("Y1", [CODED("x")], [("Constant", 0.0), ("x", 1.0)],
+                       factorBounds={"x": {"min": 0, "max": 1}}),
+            spec_model("Y2", [CODED("x")], [("Constant", 1.0), ("x", -1.0)],
+                       factorBounds={"x": {"min": 0, "max": 1}}),
+        ],
+        "responses": [
+            {"modelId": "m1", "name": "Y1", "goal": "target", "lower": 0.0, "upper": 1.0, "target": 0.0},
+            {"modelId": "m2", "name": "Y2", "goal": "target", "lower": 0.0, "upper": 1.0, "target": 1.0},
+        ],
+        "factors": [{"name": "x", "kind": "continuous", "lower": 0, "upper": 0, "fixed": True, "fixedValue": 0}],
+        "method": "grid", "seed": 1, "gridPoints": 3,
+    },
+    [f("d:Y1", "optimizer_prediction"), f("d:Y2", "optimizer_prediction"),
+     f("composite", "optimizer_objective"), f("status", kind="string")],
+    note=(
+        "x=0에서 Y1=0(=Target=Lower)과 Y2=1(=Target=Upper)다. 두 경계는 곡선의 봉우리이므로 만족도 1이어야 한다. "
+        "한쪽을 0으로 두면 '목표가 한계에 닿으면 최악'이라는 다른 정의가 된다."
+    ),
+))
+
+W.append(case(
+    "QA-W-26", "Weight / Importance NaN 및 Infinity — 거부", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [spec_model("Y", [CODED("x")], [("Constant", 1.0), ("x", 2.0)],
+                              factorBounds={"x": {"min": 0, "max": 5}})],
+        "responses": [{"modelId": "m1", "name": "Y", "goal": "maximize", "lower": 0.0, "upper": 20.0,
+                       "weight": "NaN", "importance": "Infinity"}],
+        "factors": [{"name": "x", "kind": "continuous", "lower": 0, "upper": 5}],
+        "method": "grid", "seed": 1, "gridPoints": 5,
+    },
+    [f("status", kind="string"), f("issues", kind="string")],
+    note="Weight=NaN과 Importance=Infinity는 유한하지 않으므로 문제 정의 오류다(weight, importance).",
+))
+
+W.append(case(
+    "QA-W-27", "Hard Specification과 Desirability 충돌 — 추천 금지", "optimize", "rsm_two",
+    {
+        "responses": [{"name": "Y1", "goal": "maximize", "lower": 100.0, "upper": 200.0}],
+        "factors": OPT_FACTORS, "method": "multistart", "seed": 5, "gridPoints": 21,
+    },
+    [f("status", kind="string"), f("recommended"), f("compliant"), f("composite", "optimizer_objective")],
+    note=(
+        "만족도 곡선은 그릴 수 있지만 어떤 조건도 하한 100을 넘지 못한다. 상태는 feasible-not-found, "
+        "recommended 0, compliant 0 — 만족도를 1로 만드는 점을 '최적 조건'으로 추천하지 않는다."
+    ),
+))
+
+W.append(case(
+    "QA-W-28", "모형 순서 변경 시 결과 불변성", "optimize", "rsm_two",
+    {
+        "responses": [
+            {"name": "Y1", "goal": "maximize", "lower": 40.0, "upper": 70.0},
+            {"name": "Y2", "goal": "minimize", "lower": 20.0, "upper": 50.0},
+        ],
+        "factors": OPT_FACTORS, "method": "multistart", "seed": 23, "gridPoints": 21,
+        "checkOrderInvariance": True,
+    },
+    [f("composite", "optimizer_objective"), f("rev_composite", "optimizer_objective"),
+     f("x:x", "optimizer_argmax"), f("rev_x:x", "optimizer_argmax"),
+     f("x:y", "optimizer_argmax"), f("rev_x:y", "optimizer_argmax"),
+     f("pred:Y1", "optimizer_prediction"), f("rev_pred:Y1", "optimizer_prediction")],
+    note="같은 문제를 반응 순서만 뒤집어 다시 풀어도 조건과 예측이 같아야 한다(순서 의존 결함 방지).",
+))
+
+W.append(case(
+    "QA-W-29", "공분산 및 MSE 누락 — CI와 PI 지원 분리", "optimize", None,
+    {
+        "mode": "spec",
+        "models": [
+            spec_model("A", [CODED("x")], [("Constant", 5.0), ("x", 2.0)],
+                       factorBounds={"x": {"min": 0, "max": 5}},
+                       covariance=[[0.04, 0], [0, 0.01]], residual={"df": 9}),
+            spec_model("B", [CODED("x")], [("Constant", 1.0), ("x", -1.0)],
+                       factorBounds={"x": {"min": 0, "max": 5}}, residual={"df": 9, "mse": 0.04}),
+        ],
+        "responses": [
+            {"modelId": "m1", "name": "A", "goal": "maximize", "lower": 0.0, "upper": 30.0},
+            {"modelId": "m2", "name": "B", "goal": "maximize", "lower": -10.0, "upper": 10.0},
+        ],
+        "factors": [{"name": "x", "kind": "continuous", "lower": 2, "upper": 2, "fixed": True, "fixedValue": 2}],
+        "method": "grid", "seed": 1, "gridPoints": 3,
+    },
+    [f("se:A", "optimizer_prediction"), f("ci_low:A", "optimizer_prediction"), f("ci_high:A", "optimizer_prediction"),
+     f("pi_low:A"), f("pi_high:A"), f("se:B"), f("ci_low:B"), f("pi_low:B")],
+    note=(
+        "A는 공분산과 df가 있지만 mse가 없어 신뢰구간만 낸다(PI는 null). B는 공분산이 없어 SE·CI·PI 모두 null. "
+        "기준은 t·SE와 t·√(SE²+mse)를 각각의 조건에서만 계산한다."
+    ),
+))
+
+W.append(case(
+    "QA-W-30", "이산형 Profiler 좌표 검증 — 허용값만", "profileaxis", None,
+    {
+        "factor": {"kind": "discrete", "lower": 0, "upper": 5, "step": 0.6},
+        "resolution": 21,
+    },
+    [f("n"), f("distinct"), f("first"), f("second"), f("last"), f("all_on_step")],
+    note="프로파일러 축은 0, 0.6, …, 4.8의 9개 값이어야 하며 모두 간격 위에 있어야 한다.",
+))
+
+W.append(case(
+    "QA-W-31", "Profiler와 Optimizer 예측값 일치", "profilepoint", None,
+    {
+        "model": spec_model(
+            "Y",
+            [CODED("x", center=0, half=2), CODED("y", center=10, half=4)],
+            [("Constant", 12.0), ("x", 3.0), ("y", -1.5), ("x²", 0.8), ("x×y", 0.4)],
+            factorBounds={"x": {"min": -2, "max": 2}, "y": {"min": 6, "max": 14}},
+            covariance=[[0.04, 0, 0, 0, 0], [0, 0.02, 0, 0, 0], [0, 0, 0.03, 0, 0],
+                        [0, 0, 0, 0.01, 0], [0, 0, 0, 0, 0.005]],
+            residual={"df": 8, "mse": 0.36},
+        ),
+        "responses": [{"name": "Y", "goal": "maximize", "lower": 0.0, "upper": 25.0}],
+        "factors": [
+            {"name": "x", "kind": "continuous", "lower": -2, "upper": 2},
+            {"name": "y", "kind": "continuous", "lower": 6, "upper": 14},
+        ],
+        "point": {"x": 1.5, "y": 7.25},
+    },
+    [f("prof_value", "optimizer_prediction"), f("prof_se", "optimizer_prediction"),
+     f("prof_ci_low", "optimizer_prediction"), f("prof_ci_high", "optimizer_prediction"),
+     f("prof_pi_low", "optimizer_prediction"), f("prof_pi_high", "optimizer_prediction"),
+     f("direct_value", "optimizer_prediction"), f("direct_diff", "exact_zero")],
+    note="같은 조건에서 프로파일러와 최적화기(단일 조건 평가)가 같은 예측·SE·CI·PI를 내야 한다(direct_diff = 0).",
+))
+
+W.append(case(
+    "QA-W-32", "Contour / Surface / Model Manager 와 예측값 일치", "predictionconsistency", None,
+    {
+        "model": spec_model(
+            "Y",
+            [CODED("x"), CODED("y")],
+            [("Constant", 20.0), ("x", 2.0), ("y", -1.0), ("x×y", 0.5), ("x²", -0.5), ("y²", -0.25)],
+            factorBounds={"x": {"min": -1, "max": 1}, "y": {"min": -1, "max": 1}},
+            covariance=[[0.04, 0, 0, 0, 0, 0], [0, 0.01, 0, 0, 0, 0], [0, 0, 0.01, 0, 0, 0],
+                        [0, 0, 0, 0.0025, 0, 0], [0, 0, 0, 0, 0.0025, 0], [0, 0, 0, 0, 0, 0.0025]],
+            residual={"df": 9, "mse": 0.04},
+        ),
+        "point": {"x": 0.5, "y": -0.25},
+        "xName": "x",
+        "yName": "y",
+    },
+    [f("adapter_value", "optimizer_prediction"), f("adapter_se", "optimizer_prediction"),
+     f("adapter_ci_low", "optimizer_prediction"), f("adapter_ci_high", "optimizer_prediction"),
+     f("manager_value", "optimizer_prediction"), f("manager_se", "optimizer_prediction"),
+     f("surface_value", "optimizer_prediction"), f("contour_value", "optimizer_prediction"),
+     f("surface_diff", "exact_zero"), f("contour_diff", "exact_zero")],
+    note=(
+        "네 경로(adapter·Model Manager·3D surface의 컴파일 평가기·등고선의 modelSurface)가 같은 실제 좌표에서 "
+        "같은 값을 내야 한다. 두 diff는 산술 경로만 다르므로 0과 비교한다."
+    ),
+))
+
 areas["QA-W-stage3c-optimizer.json"] = ("QA-W", W)
 
 # ════════════════════════════════════════════════════════════════════════

@@ -2468,9 +2468,13 @@ def _opt_desirability(value, goal, limits, weight):
     if goal == "target":
         if target is None:
             return 1.0 if lower <= value <= upper else 0.0
-        if value <= lower or value >= upper:
+        # The peak is at the target, including when the target is one of the two
+        # limits (Target = Lower / Target = Upper are documented cases).
+        if value < lower or value > upper:
             return 0.0
-        if value <= target:
+        if value == target:
+            return 1.0
+        if value < target:
             head = target - lower
             return 1.0 if head <= 0 else ((value - lower) / head) ** weight
         tail = upper - target
@@ -2507,132 +2511,438 @@ def _opt_limits(response):
     return (lo, hi, target if target is not None and math.isfinite(target) else None)
 
 
-def op_optimize(bag, ds, args, cid):
-    """Multi-response optimisation against SciPy, not against the TypeScript search.
+# ── Stage 3C corrective contract: the factor domain, in Python ───────────
 
-    The composite is maximised here with `scipy.optimize.differential_evolution`
-    over the factor bounds and then polished with L-BFGS-B, from a seeded
-    generator so the run is reproducible. A discrete or categorical axis is
-    enumerated exactly instead. The models are either the same quadratics the
-    surface cases fit with statsmodels, or an explicit coefficient spec.
+def _decimals(value):
+    if value is None or not math.isfinite(value) or value == 0:
+        return 0
+    absv = abs(value)
+    for d in range(0, 13):
+        scaled = absv * 10 ** d
+        if abs(scaled - round(scaled)) <= 1e-9 * max(1.0, scaled):
+            return d
+    return 12
+
+
+def _domain_count(lower, upper, step):
+    """Number of complete steps (k max), or −1 when the definition is unusable."""
+    if step is None or not math.isfinite(step) or step <= 0:
+        return -1
+    if not (math.isfinite(lower) and math.isfinite(upper)) or upper <= lower:
+        return -1
+    return int(math.floor((upper - lower) / step + 1e-9))
+
+
+def _domain_value(lower, step, k):
+    """The k-th allowed value: Lower + k × Step, in integer-scaled arithmetic."""
+    d = max(_decimals(step), _decimals(lower))
+    scale = 10 ** d
+    scaled_step = round(step * scale)
+    scaled_lower = round(lower * scale)
+    if abs(step * scale - scaled_step) <= 1e-6 and scaled_step > 0:
+        return (scaled_lower + k * scaled_step) / scale
+    return float(f"{lower + k * step:.15g}")
+
+
+def _domain_values(lower, upper, step, limit=20001):
+    n = _domain_count(lower, upper, step)
+    if n < 0:
+        return [], 0, False
+    count = n + 1
+    if count <= limit:
+        return [_domain_value(lower, step, k) for k in range(n + 1)], count, False
+    stride = math.ceil(n / max(1, limit - 1))
+    values = [_domain_value(lower, step, k) for k in range(0, n, stride)]
+    values.append(_domain_value(lower, step, n))
+    return values, count, True
+
+
+def _on_step(lower, upper, step, value):
+    n = _domain_count(lower, upper, step)
+    if n < 0 or value is None or not math.isfinite(value):
+        return False
+    slack = 1e-9 * max(1.0, abs(lower), abs(upper))
+    if value < lower - slack or value > upper + slack:
+        return False
+    ratio = (value - lower) / step
+    return abs(ratio - round(ratio)) <= 1e-9 * max(1.0, abs(ratio)) and 0 <= round(ratio) <= n
+
+
+def _factor_is_categorical(factor):
+    return factor.get("kind") == "categorical"
+
+
+def _opt_factor_issues(factor):
+    """The documented factor-definition problems (the adapter's codes)."""
+    issues = []
+    kind = factor.get("kind", "continuous")
+    if kind == "categorical":
+        if not factor.get("levels"):
+            issues.append("opt.issue.levelMissing")
+    else:
+        if kind == "discrete" and not (factor.get("step") or 0) > 0:
+            issues.append("opt.issue.factorStep")
+        # A fixed factor carries no range; its own value is checked below.
+        if not factor.get("fixed") and not (factor.get("upper") > factor.get("lower")):
+            issues.append("opt.issue.factorRange")
+    if factor.get("fixed"):
+        value = factor.get("fixedValue", factor.get("lower"))
+        slack = 1e-9 * max(1.0, abs(factor.get("lower") or 0), abs(factor.get("upper") or 0))
+        if kind == "categorical":
+            if str(value) not in (factor.get("levels") or []):
+                issues.append("opt.issue.fixedOffStep")
+        elif value is None or not math.isfinite(float(value)):
+            issues.append("opt.issue.fixedOffStep")
+        elif float(value) < factor["lower"] - slack or float(value) > factor["upper"] + slack:
+            issues.append("opt.issue.fixedOutside")
+        elif kind == "discrete" and not _on_step(factor["lower"], factor["upper"], factor.get("step") or 0, float(value)):
+            issues.append("opt.issue.fixedOffStep")
+    return sorted(set(issues))
+
+
+def _opt_axis(factor, grid_points):
+    """(values, count, truncated) for one factor: the documented domain."""
+    if factor.get("fixed"):
+        value = factor.get("fixedValue", factor.get("lower"))
+        return [value], 1, False
+    kind = factor.get("kind", "continuous")
+    if kind == "categorical":
+        levels = list(factor.get("levels") or [])
+        return levels, len(levels), False
+    if kind == "discrete":
+        return _domain_values(factor["lower"], factor["upper"], factor.get("step") or 0)
+    count = max(2, int(round(grid_points)))
+    lower, upper = factor["lower"], factor["upper"]
+    return [lower + (upper - lower) * i / (count - 1) for i in range(count)], count, False
+
+
+def _opt_intersection(ranges):
+    usable = [(min(a, b), max(a, b)) for a, b in ranges if a is not None and b is not None and math.isfinite(a) and math.isfinite(b)]
+    if not usable:
+        return None
+    lower = max(r[0] for r in usable)
+    upper = min(r[1] for r in usable)
+    slack = 1e-9 * max(1.0, abs(lower), abs(upper))
+    return (lower, upper) if upper >= lower - slack else None
+
+
+def _response_issues(response):
+    """The documented response-definition problems (the adapter's codes)."""
+    if response.get("goal") == "ignore":
+        return []
+    issues = []
+    lower, upper = response.get("lower"), response.get("upper")
+    if lower is not None and upper is not None and lower > upper:
+        issues.append("opt.issue.limitsReversed")
+    elif lower is None or upper is None or lower == upper:
+        issues.append("opt.issue.limitsMissing" if (lower is None or upper is None) else "opt.issue.limitsOrder")
+        return issues
+    if response.get("goal") == "target":
+        target = response.get("target")
+        if target is None or not math.isfinite(target):
+            issues.append("opt.issue.targetMissing")
+        elif target < min(lower, upper) or target > max(lower, upper):
+            issues.append("opt.issue.targetOutside")
+    weight = response.get("weight", 1)
+    importance = response.get("importance", 1)
+    if not (isinstance(weight, (int, float)) and math.isfinite(weight) and weight > 0):
+        issues.append("opt.issue.weight")
+    if not (isinstance(importance, (int, float)) and math.isfinite(importance) and importance > 0):
+        issues.append("opt.issue.importance")
+    return sorted(set(issues))
+
+
+def op_domain(bag, _ds, args, cid):
+    """The factor domain itself: allowed values, counts and value checks."""
+    factors = args["factors"]
+    for index, factor in enumerate(factors):
+        values, count, truncated = _opt_axis(factor, args.get("gridPoints", 21))
+        numeric = [float(v) for v in values if not isinstance(v, str)]
+        bag.put(f"count[{index}]", count)
+        bag.put(f"listed[{index}]", len(values))
+        bag.put(f"distinct[{index}]", len({str(v) for v in values}))
+        if numeric:
+            bag.put(f"v_first[{index}]", numeric[0])
+            bag.put(f"v_second[{index}]", numeric[1] if len(numeric) > 1 else None)
+            bag.put(f"v_last[{index}]", numeric[-1])
+        bag.put(f"issues[{index}]", ",".join(_opt_factor_issues(factor)))
+    for index, check in enumerate(args.get("checks") or []):
+        factor = next(f for f in factors if f["name"] == check["factor"])
+        value = check["value"]
+        if _factor_is_categorical(factor):
+            ok = str(value) in (factor.get("levels") or [])
+        else:
+            slack = 1e-9 * max(1.0, abs(factor["lower"]), abs(factor["upper"]))
+            ok = (factor["lower"] - slack) <= float(value) <= (factor["upper"] + slack)
+            if ok and factor.get("kind") == "discrete":
+                ok = _on_step(factor["lower"], factor["upper"], factor.get("step") or 0, float(value))
+        bag.put(f"check[{index}]", 1 if ok else 0)
+    mark(cid, "domain re-derived from the documented Lower + k × Step rule")
+
+
+def op_profileaxis(bag, _ds, args, cid):
+    """The profiler's axis over one factor: allowed values only."""
+    factor = {"name": "x", "kind": "discrete", **args["factor"]}
+    resolution = int(args.get("resolution", 21))
+    values, count, truncated = _opt_axis(factor, resolution)
+    numeric = [float(v) for v in values if not isinstance(v, str)]
+    if factor.get("kind") == "discrete" and len(values) > max(2, resolution) * 2:
+        stride = math.ceil((len(values) - 1) / (max(2, resolution) - 1))
+        values = values[0:len(values) - 1:stride] + [values[-1]]
+        numeric = [float(v) for v in values]
+    bag.put("n", len(values))
+    bag.put("distinct", len({str(v) for v in values}))
+    if numeric:
+        bag.put("first", numeric[0])
+        bag.put("second", numeric[1] if len(numeric) > 1 else None)
+        bag.put("last", numeric[-1])
+    bag.put("all_on_step", 1 if (factor.get("kind") != "discrete" or all(_on_step(factor["lower"], factor["upper"], factor.get("step") or 0, v) for v in numeric)) else 0)
+    mark(cid, "profiler axis re-derived from the documented domain")
+
+
+def _spec_prediction(spec, point, alpha=0.05):
+    """ŷ, SE, CI and PI from a model spec, in NumPy, at actual coordinates."""
+    from scipy import stats as sps
+
+    labels = [c["label"] for c in spec["coefficients"]]
+    beta = np.array([float(c["value"]) for c in spec["coefficients"]])
+    non_estimable = set(spec.get("nonEstimable") or [])
+    row = _model_design_row(spec, point, "actual")
+    leaning = [labels[i] for i in range(len(labels)) if row[i] != 0 and labels[i] in non_estimable]
+    if leaning:
+        return None, None, None, None
+    value = float(row @ beta)
+    se = None
+    ci = None
+    pi = None
+    covariance = spec.get("covariance")
+    residual = spec.get("residual") or {}
+    df = residual.get("df")
+    if covariance and df:
+        sigma = np.array(covariance, dtype=float)
+        variance = float(row @ sigma @ row)
+        if variance >= 0:
+            se = math.sqrt(variance)
+            half = float(sps.t.ppf(1 - alpha / 2, df)) * se
+            ci = (value - half, value + half)
+            mse = residual.get("mse")
+            if mse is not None and math.isfinite(float(mse)):
+                pi_half = float(sps.t.ppf(1 - alpha / 2, df)) * math.sqrt(variance + max(0.0, float(mse)))
+                pi = (value - pi_half, value + pi_half)
+    return value, se, ci, pi
+
+
+def op_profilepoint(bag, _ds, args, cid):
+    """One condition, evaluated through the profiler and the optimiser paths."""
+    spec = args["model"]
+    point = args.get("point", {})
+    value, se, ci, pi = _spec_prediction(spec, point)
+    bag.put("prof_value", value)
+    bag.put("prof_se", se)
+    bag.put("prof_ci_low", None if ci is None else ci[0])
+    bag.put("prof_ci_high", None if ci is None else ci[1])
+    bag.put("prof_pi_low", None if pi is None else pi[0])
+    bag.put("prof_pi_high", None if pi is None else pi[1])
+    bag.put("direct_value", value)
+    bag.put("direct_diff", 0.0)
+    mark(cid, "profiler path checked against one NumPy X'β prediction")
+
+
+def op_predictionconsistency(bag, _ds, args, cid):
+    """Model Manager, contour and surface share the adapter's prediction."""
+    spec = args["model"]
+    point = args["point"]
+    value, se, ci, _pi = _spec_prediction(spec, point)
+    bag.put("adapter_value", value)
+    bag.put("adapter_se", se)
+    bag.put("adapter_ci_low", None if ci is None else ci[0])
+    bag.put("adapter_ci_high", None if ci is None else ci[1])
+    bag.put("manager_value", value)
+    bag.put("manager_se", se)
+    bag.put("surface_value", value)
+    bag.put("contour_value", value)
+    bag.put("surface_diff", 0.0)
+    bag.put("contour_diff", 0.0)
+    mark(cid, "all four prediction paths compared with one NumPy X'β")
+
+
+def op_optimize(bag, ds, args, cid):
+    """Multi-response optimisation against SciPy, on the corrected contract.
+
+    The documented rules are re-implemented here rather than imported: allowed
+    values are Lower + k × Step, categorical levels are the fitted ones, the
+    fitted-range domain is the intersection across models, an empty domain or a
+    bad response definition is `invalid`, and what the search proved decides the
+    status (`global-optimal` only for a complete enumeration of a fully discrete
+    space, `local-converged` for a converged continuous search, `limit` when the
+    budget stopped it, `infeasible` / `feasible-not-found` when nothing met the
+    specifications). The composite is maximised with differential_evolution +
+    L-BFGS-B from a seeded generator; a discrete space is enumerated exactly.
     """
+    import itertools
     from scipy import optimize as spopt
 
     factors = args["factors"]
     responses = args["responses"]
     mode = args.get("mode", "dataset")
+    honour_ids = bool(args.get("honourModelIds"))
+    grid_points = int(args.get("gridPoints", 41))
+    max_evaluations = int(args.get("maxEvaluations", 60000))
+    allow_extrapolation = bool(args.get("allowExtrapolation"))
+    method = args.get("method", "multistart")
 
-    models = []
-    interval_terms = []
-    rank_issues = []
+    issues = []
+    warnings = []
+
+    # ── responses
+    if not responses:
+        issues.append("opt.issue.noResponse")
+    resolved_ids = []
+    for index, response in enumerate(responses):
+        if mode == "spec":
+            resolved_ids.append(response.get("modelId") if honour_ids else f"m{index + 1}")
+        else:
+            resolved_ids.append(response.get("name"))
+    if len(resolved_ids) != len(set(resolved_ids)):
+        issues.append("opt.issue.responseDuplicate")
+    if mode == "spec":
+        known = {f"m{i + 1}" for i in range(len(args.get("models") or []))}
+        if honour_ids and any(rid not in known for rid in resolved_ids):
+            issues.append("opt.issue.modelMissing")
+    response_issue_sets = [_response_issues(r) for r in responses]
+    for set_ in response_issue_sets:
+        issues.extend(set_)
+    active = [r for r in responses if r.get("goal") != "ignore"]
+    participating = [r for r, s in zip(responses, response_issue_sets) if r.get("goal") != "ignore" and not s]
+    if not participating and not any(response_issue_sets):
+        issues.append("opt.issue.noGoal")
+
+    # ── models
+    specs = []
     if mode == "spec":
         for spec in args["models"]:
-            if spec.get("nonEstimable"):
-                rank_issues.append("opt.issue.nonEstimable")
-            labels = [c["label"] for c in spec["coefficients"]]
-            beta = np.array([float(c["value"]) for c in spec["coefficients"]])
-            non_estimable = set(spec.get("nonEstimable") or [])
-            covariance = spec.get("covariance")
-            residual = spec.get("residual") or {}
-            df = residual.get("df")
-
-            def predict(values, spec=spec, labels=labels, beta=beta, non_estimable=non_estimable,
-                        covariance=covariance, df=df, residual=residual):
-                row = _model_design_row(spec, values, "actual")
-                leaning = [labels[i] for i in range(len(labels)) if row[i] != 0 and labels[i] in non_estimable]
-                if leaning:
-                    return None, None
-                value = float(row @ beta)
-                se = None
-                if covariance and df:
-                    sigma = np.array(covariance, dtype=float)
-                    variance = float(row @ sigma @ row)
-                    if variance >= 0:
-                        se = math.sqrt(variance)
-                return value, se
-
-            models.append(predict)
-            interval_terms.append((float(residual.get("mse") or 0.0), df))
+            aliased = set(spec.get("nonEstimable") or [])
+            if any(
+                (not c.get("estimable", True)) or (c["label"] in aliased) or (not math.isfinite(float(c["value"])))
+                for c in spec["coefficients"]
+            ):
+                issues.append("opt.issue.nonEstimable")
+            specs.append(spec)
     else:
         dataset_factors = args.get("datasetFactors", ["x", "y"])
-        for response in responses:
-            fit = _quadratic_fit(ds, response["name"], dataset_factors)
-            params = fit.params
-            cov = fit.cov_params()
-            df = fit.df_resid
+        fits = [_quadratic_fit(ds, response["name"], dataset_factors) for response in responses]
+        for fit in fits:
+            spec = {
+                "predictors": [
+                    {"id": "", "name": dataset_factors[0], "kind": "numeric", "coding": {"mode": "actual", "center": 0, "halfRange": 1}},
+                    {"id": "", "name": dataset_factors[1], "kind": "numeric", "coding": {"mode": "actual", "center": 0, "halfRange": 1}},
+                ],
+                "coefficients": [
+                    {"label": label, "value": float(params), "estimable": True}
+                    for label, params in zip(["Constant", "x", "y", "x×y", "x²", "y²"], fit.params)
+                ],
+                "covariance": [[float(v) for v in row] for row in fit.cov_params()],
+                "residual": {"df": int(fit.df_resid), "mse": float(fit.mse_resid)},
+                "factorBounds": {
+                    name: {"min": float(np.min(np.asarray(ds["columns"][name], dtype=float))),
+                           "max": float(np.max(np.asarray(ds["columns"][name], dtype=float)))}
+                    for name in dataset_factors
+                },
+            }
+            specs.append(spec)
 
-            def predict(values, params=params, cov=cov, df=df):
-                row = _quadratic_design([values[dataset_factors[0]]], [values[dataset_factors[1]]])[0]
-                value = float(row @ params)
-                variance = float(row @ cov @ row)
-                se = math.sqrt(variance) if variance >= 0 else None
-                return value, se
-
-            models.append(predict)
-            interval_terms.append((float(fit.mse_resid), df))
-
-    # Every response that takes part needs usable limits, exactly as the app
-    # requires; an unusable one is reported rather than quietly dropped.
-    issues = []
-    limits = []
-    for response in responses:
-        if response["goal"] == "ignore":
-            limits.append(None)
+    # ── factors: definition, compatibility, fitted-range intersection
+    for factor in factors:
+        issues.extend(_opt_factor_issues(factor))
+    used = {}
+    for spec in specs:
+        bounds_map = spec.get("factorBounds") or {}
+        for predictor in spec["predictors"]:
+            entry = dict(predictor)
+            if predictor["name"] in bounds_map:
+                entry["bounds"] = bounds_map[predictor["name"]]
+            used.setdefault(predictor["name"], []).append(entry)
+    for factor in factors:
+        predictors = used.get(factor["name"], [])
+        if not predictors:
+            warnings.append("opt.warn.factorUnused")
             continue
-        bound = _opt_limits(response)
-        if bound is None:
-            issues.append("opt.issue.limitsMissing")
-        limits.append(bound)
-    issues.extend(rank_issues)
+        if len({p["kind"] for p in predictors}) > 1:
+            issues.append("opt.issue.typeConflict")
+        col_ids = [p.get("id") for p in predictors if p.get("id")]
+        if len(set(col_ids)) > 1:
+            issues.append("opt.issue.columnConflict")
+        units = [str(p.get("unit") or "").strip().lower() for p in predictors if str(p.get("unit") or "").strip()]
+        if len(set(units)) > 1:
+            issues.append("opt.issue.unitConflict")
+        if factor.get("kind") == "categorical" and len({p["kind"] for p in predictors}) == 1:
+            common = None
+            for p in predictors:
+                levels = list(p.get("levels") or [])
+                common = levels if common is None else [lvl for lvl in common if lvl in levels]
+            if not common:
+                issues.append("opt.issue.levelIntersection")
+        if factor.get("kind") != "categorical":
+            ranges = []
+            for p in predictors:
+                bound = (p.get("bounds") or None)
+                if bound:
+                    ranges.append((float(bound["min"]), float(bound["max"])))
+            intersection = _opt_intersection(ranges)
+            if ranges and intersection is None:
+                issues.append("opt.issue.rangeIntersection")
+            if intersection and not factor.get("fixed"):
+                slack = 1e-9 * max(1.0, abs(intersection[0]), abs(intersection[1]))
+                outside = factor["lower"] < intersection[0] - slack or factor["upper"] > intersection[1] + slack
+                allowed = allow_extrapolation or factor.get("allowExtrapolation")
+                if outside and not allowed:
+                    issues.append("opt.issue.extrapolationNotAllowed")
+    factor_names = {f["name"] for f in factors}
+    for spec in specs:
+        if any(p["name"] not in factor_names for p in spec["predictors"]):
+            issues.append("opt.issue.factorMissing")
+
     if issues:
+        issues = sorted(set(issues))
         bag.put("status", "invalid")
-        bag.put("issues", ",".join(sorted(set(issues))))
+        bag.put("issues", ",".join(issues))
+        bag.put("recommended", 0)
+        bag.put("stopped", "complete")
+        bag.put("exhaustive", 0)
+        bag.put("space", "continuous")
         bag.put("composite", None)
+        bag.put("compliant", None)
+        bag.put("evaluations", 0)
+        bag.put("solutions", 0)
         for factor in factors:
             bag.put(f"x:{factor['name']}", None)
         for response in responses:
-            bag.put(f"pred:{response['name']}", None)
-            bag.put(f"d:{response['name']}", None)
-            bag.put(f"se:{response['name']}", None)
-            for suffix in ("pi_low", "pi_high"):
-                bag.put(f"{suffix}:{response['name']}", None)
-        bag.put("evaluations", 0)
-        bag.put("solutions", 0)
-        bag.put("compliant", None)
-        mark(cid, "desirability rules re-implemented · unusable limits refused")
+            for prefix in ("pred", "d", "se", "ci_low", "ci_high", "pi_low", "pi_high", "rev_pred"):
+                bag.put(f"{prefix}:{response['name']}", None)
+        if args.get("checkOrderInvariance"):
+            bag.put("rev_status", "invalid")
+            bag.put("rev_composite", None)
+            for factor in factors:
+                bag.put(f"rev_x:{factor['name']}", None)
+        mark(cid, "documented domain/compatibility rules re-implemented · invalid refused")
         return
 
-    free = [factor for factor in factors if not factor.get("fixed")]
-    if not free:
-        bag.put("status", "invalid")
-        bag.put("issues", "opt.issue.allFixed")
-        bag.put("composite", None)
-        for factor in factors:
-            bag.put(f"x:{factor['name']}", None)
-        for response in responses:
-            bag.put(f"pred:{response['name']}", None)
-            bag.put(f"d:{response['name']}", None)
-            bag.put(f"se:{response['name']}", None)
-            for suffix in ("pi_low", "pi_high"):
-                bag.put(f"{suffix}:{response['name']}", None)
-        bag.put("evaluations", 0)
-        bag.put("solutions", 0)
-        bag.put("compliant", None)
-        mark(cid, "desirability rules re-implemented · fully fixed problem refused")
-        return
+    # Per-response limits and predictions
+    limits = [None if r.get("goal") == "ignore" else (min(r["lower"], r["upper"]), max(r["lower"], r["upper"]), r.get("target")) for r in responses]
 
-    counts = {"n": 0}
+    def prediction(index, point):
+        value, se, ci, pi = _spec_prediction(specs[index], point)
+        return value, se, ci, pi
 
-    def evaluate(values):
-        counts["n"] += 1
+    def composite_of(point):
         entries = []
         preds = {}
         for index, response in enumerate(responses):
-            value, se = models[index](values)
-            goal = response["goal"]
+            value, se, ci, pi = prediction(index, point)
             bound = limits[index]
+            goal = response["goal"]
             d = _opt_desirability(value, goal, bound, response.get("weight", 1))
-            preds[response["name"]] = (value, se, d)
+            preds[response["name"]] = (value, se, ci, pi, d)
             if goal != "ignore" and bound is not None:
                 if goal == "maximize":
                     compliant = value is not None and value >= bound[0]
@@ -2641,101 +2951,145 @@ def op_optimize(bag, ds, args, cid):
                 else:
                     compliant = value is not None and bound[0] <= value <= bound[1]
                 entries.append({"d": d, "importance": response.get("importance", 1), "goal": goal, "compliant": compliant})
-        composite = _opt_composite(entries)
-        compliant_all = bool(entries) and all(entry["compliant"] for entry in entries)
-        return composite, preds, compliant_all
+        total = _opt_composite(entries)
+        compliant_all = bool(entries) and all(e["compliant"] for e in entries)
+        return total, preds, compliant_all
 
-    base = {}
-    for factor in factors:
-        if factor.get("fixed"):
-            base[factor["name"]] = factor.get("fixedValue", factor["lower"])
-
-    discrete_axes = {}
+    # ── the search axes
+    free = [f for f in factors if not f.get("fixed")]
+    axes = {}
     for factor in free:
-        if factor.get("kind") == "categorical":
-            discrete_axes[factor["name"]] = list(factor.get("levels") or [])
-        elif factor.get("kind") == "discrete":
-            step = factor.get("step") or 0
-            if step <= 0:
-                discrete_axes[factor["name"]] = [factor["lower"], factor["upper"]]
-            else:
-                values = np.arange(factor["lower"], factor["upper"] + step * 1e-9, step)
-                discrete_axes[factor["name"]] = [float(v) for v in values]
+        values, count, truncated = _opt_axis(factor, grid_points)
+        if factor.get("kind", "continuous") == "continuous":
+            values = [factor["lower"] + (factor["upper"] - factor["lower"]) * i / (max(2, grid_points) - 1) for i in range(max(2, grid_points))]
+        axes[factor["name"]] = values
+    all_discrete = all(f.get("kind", "continuous") != "continuous" for f in free)
+    combinations = 1
+    for values in axes.values():
+        combinations *= max(1, len(values))
+    grid_reduced = False
+    if not all_discrete and combinations > max_evaluations:
+        # Thin the continuous axes the same way the shipped planner does.
+        points = max(2, grid_points)
+        while combinations > max_evaluations and points > 2:
+            points = max(2, points // 2)
+            for factor in free:
+                if factor.get("kind", "continuous") != "continuous":
+                    continue
+                axes[factor["name"]] = [factor["lower"] + (factor["upper"] - factor["lower"]) * i / (points - 1) for i in range(points)]
+            combinations = 1
+            for values in axes.values():
+                combinations *= max(1, len(values))
+            grid_reduced = True
 
-    def complete(values):
-        point = dict(base)
-        point.update(values)
-        return point
+    base = {f["name"]: f.get("fixedValue", f["lower"]) for f in factors if f.get("fixed")}
+    counts = {"n": 0}
+
+    def evaluate(point):
+        counts["n"] += 1
+        return composite_of({**base, **point})
 
     best = None
-    if discrete_axes and len(discrete_axes) == len(free):
-        # A fully discrete space: enumerate it exactly.
-        import itertools
-        names = list(discrete_axes)
-        for combo in itertools.product(*[discrete_axes[name] for name in names]):
-            point = complete(dict(zip(names, combo)))
-            result = evaluate(point)
-            if best is None or result[0] > best[0]:
-                best = (result[0], point, result[1], result[2])
+    stopped = "complete"
+    if all_discrete:
+        names = list(axes)
+        if combinations > max_evaluations:
+            stopped = "budget"
+        for combo in itertools.product(*[axes[name] for name in names]):
+            if counts["n"] >= max_evaluations:
+                stopped = "budget"
+                break
+            point = {**base, **dict(zip(names, combo))}
+            result = evaluate(dict(zip(names, combo)))
+            if best is None or (result[2], result[0]) > (best[0][2], best[0][0]):
+                best = (result, point)
+        exhaustive = stopped == "complete" and counts["n"] >= combinations
     else:
-        continuous = [factor for factor in free if factor["name"] not in discrete_axes]
-        bounds = [(float(factor["lower"]), float(factor["upper"])) for factor in continuous]
-        fixed_levels = {factor["name"]: (discrete_axes[factor["name"]][0] if discrete_axes else None) for factor in free if factor["name"] in discrete_axes}
+        continuous = [f for f in free if f.get("kind", "continuous") == "continuous"]
+        discrete_names = [f["name"] for f in free if f.get("kind", "continuous") != "continuous"]
+        combos = [dict(zip(discrete_names, combo)) for combo in itertools.product(*[axes[name] for name in discrete_names])] if discrete_names else [{}]
+        bounds = [(float(f["lower"]), float(f["upper"])) for f in continuous]
+        for fixed_values in combos:
+            def objective(vector, fixed_values=fixed_values):
+                point = dict(fixed_values)
+                for index, factor in enumerate(continuous):
+                    point[factor["name"]] = float(vector[index])
+                return -evaluate(point)[0]
 
-        def objective(vector):
-            values = {}
-            for index, factor in enumerate(continuous):
-                values[factor["name"]] = float(vector[index])
-            values.update(fixed_levels)
-            for name, axis in discrete_axes.items():
-                values[name] = axis[0]
-            return -evaluate(complete(values))[0]
+            if bounds:
+                result = spopt.differential_evolution(
+                    objective, bounds, seed=int(args.get("seed", 1)), tol=1e-12, polish=True,
+                    maxiter=400, popsize=24, init="sobol",
+                )
+                polished = spopt.minimize(
+                    objective, result.x, method="L-BFGS-B", bounds=bounds,
+                    options={"ftol": 1e-15, "gtol": 1e-10},
+                )
+                values = {f["name"]: float(np.clip(polished.x[i], bounds[i][0], bounds[i][1])) for i, f in enumerate(continuous)}
+            else:
+                values = {}
+            point = {**fixed_values, **values}
+            result_values = evaluate(point)
+            if best is None or (result_values[2], result_values[0]) > (best[0][2], best[0][0]):
+                best = (result_values, point)
+        exhaustive = False
+        # A grid/enumeration over continuous axes that exceeds the budget is a
+        # budget stop, exactly as the shipped planner reports it.
+        if combinations > max_evaluations:
+            stopped = "budget"
 
-        result = spopt.differential_evolution(
-            objective, bounds, seed=int(args.get("seed", 1)), tol=1e-12, polish=True,
-            maxiter=400, popsize=24, init="sobol",
-        )
-        values = {factor["name"]: float(result.x[index]) for index, factor in enumerate(continuous)}
-        values.update(fixed_levels)
-        for name, axis in discrete_axes.items():
-            values[name] = axis[0]
-        point = complete(values)
-        # Polish inside the bounds so a boundary optimum sits exactly on it.
-        lo = np.array([b[0] for b in bounds])
-        hi = np.array([b[1] for b in bounds])
-        polished = spopt.minimize(
-            lambda vector: -evaluate(complete({**{factor["name"]: float(np.clip(vector[i], lo[i], hi[i])) for i, factor in enumerate(continuous)}, **{name: axis[0] for name, axis in discrete_axes.items()}}))[0],
-            result.x, method="L-BFGS-B", bounds=bounds, options={"ftol": 1e-15, "gtol": 1e-10},
-        )
-        final = {factor["name"]: float(np.clip(polished.x[index], lo[index], hi[index])) for index, factor in enumerate(continuous)}
-        final.update({name: axis[0] for name, axis in discrete_axes.items()})
-        point = complete(final)
-        result_values = evaluate(point)
-        best = (result_values[0], point, result_values[1], result_values[2])
+    composite, preds, compliant_all = best[0]
+    point = best[1]
+    recommended = 1 if compliant_all else 0
+    if stopped == "budget":
+        # A budget stop comes first: an unfinished search cannot claim that no
+        # feasible condition exists, and an exhausted discrete space means the
+        # budget was not used up in the first place.
+        status = "limit"
+    elif all_discrete and exhaustive:
+        status = "global-optimal" if compliant_all else "infeasible"
+    elif not compliant_all:
+        status = "feasible-not-found"
+    elif method in ("multistart", "bounded", "auto"):
+        status = "local-converged"
+    else:
+        status = "best-found"
 
-    composite, point, preds, compliant_all = best
-    status = "optimal" if composite > 0 else "no-feasible"
     bag.put("status", status)
     bag.put("issues", "")
+    bag.put("recommended", recommended)
+    bag.put("stopped", stopped)
+    bag.put("exhaustive", 1 if (all_discrete and exhaustive) else 0)
+    bag.put("space", "discrete" if all_discrete else ("mixed" if any(f.get("kind", "continuous") != "continuous" for f in free) else "continuous"))
     bag.put("composite", composite)
     bag.put("compliant", 1 if compliant_all else 0)
     for factor in factors:
-        bag.put(f"x:{factor['name']}", point.get(factor["name"]))
-    for index, response in enumerate(responses):
-        value, se, d = preds[response["name"]]
+        value = point.get(factor["name"])
+        bag.put(f"x:{factor['name']}", value if not isinstance(value, str) else value)
+    for response in responses:
+        value, se, ci, pi, d = preds[response["name"]]
         bag.put(f"pred:{response['name']}", value)
         bag.put(f"d:{response['name']}", d)
         bag.put(f"se:{response['name']}", se)
-        half = None
-        mse, df = interval_terms[index]
-        if se is not None and df:
-            from scipy import stats as _stats
-            half = float(_stats.t.ppf(1 - 0.05 / 2, df)) * math.sqrt(se ** 2 + max(0.0, mse))
-        bag.put(f"pi_low:{response['name']}", None if value is None or half is None else value - half)
-        bag.put(f"pi_high:{response['name']}", None if value is None or half is None else value + half)
+        bag.put(f"ci_low:{response['name']}", None if ci is None else ci[0])
+        bag.put(f"ci_high:{response['name']}", None if ci is None else ci[1])
+        bag.put(f"pi_low:{response['name']}", None if pi is None else pi[0])
+        bag.put(f"pi_high:{response['name']}", None if pi is None else pi[1])
+    if args.get("checkOrderInvariance"):
+        # The same problem with the responses reversed: the composite and the
+        # per-response predictions must be identical, and the condition too.
+        reverse = list(reversed(range(len(responses))))
+        entries = [{"d": preds[responses[i]["name"]][4], "importance": responses[i].get("importance", 1), "goal": responses[i]["goal"]}
+                   for i in reverse if responses[i]["goal"] != "ignore"]
+        bag.put("rev_status", status)
+        bag.put("rev_composite", _opt_composite(entries))
+        for factor in factors:
+            bag.put(f"rev_x:{factor['name']}", point.get(factor["name"]))
+        for response in responses:
+            bag.put(f"rev_pred:{response['name']}", preds[response["name"]][0])
     bag.put("evaluations", counts["n"])
     bag.put("solutions", 1)
-    mark(cid, "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B")
+    mark(cid, "statsmodels/numpy models · documented domain and status rules re-implemented · SciPy global + local search")
 
 
 
@@ -3029,6 +3383,10 @@ OPS = {
     "modelpredict": op_modelpredict,
     "surface3d": op_surface3d,
     "optimize": op_optimize,
+    "domain": op_domain,
+    "profileaxis": op_profileaxis,
+    "profilepoint": op_profilepoint,
+    "predictionconsistency": op_predictionconsistency,
     "feasible": op_feasible,
     "overlay": op_overlay,
     "overlay_order": op_overlay_order,

@@ -45,8 +45,11 @@ import { axisActualValue, compileSurfaceEvaluator, designFromActual, modelSurfac
 import { buildRsmModel } from '../../../src/lib/doe';
 import { buildModelSurface } from '../../../src/lib/chartConfigOps';
 import { buildOverlaid, type ResponseSpec } from '../../../src/lib/feasible';
-import { optimize, defaultFactorSettings } from '../../../src/lib/optimizer';
+import { optimize, defaultFactorSettings, evaluateCondition } from '../../../src/lib/optimizer';
 import { errorBarFor } from '../../../src/lib/seriesStats';
+import { createPredictionAdapter } from '../../../src/lib/predictionAdapter';
+import { curveAxis, normaliseValue, profileCurves } from '../../../src/lib/profiler';
+import { factorAxisValues, factorIssues, validateFactorValue, discreteValueAt } from '../../../src/lib/factorDomain';
 import type { FactorSettings, ResponseSettings } from '../../../src/lib/optimizationTypes';
 import type { Block, ChartSpec, Worksheet } from '../../../src/types';
 import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, ccdDesign, factorialDesign } from '../../../src/lib/doe';
@@ -1346,6 +1349,7 @@ const ops: Record<string, Op> = {
     const factorSpecs: FactorSettings[] = (args.factors as {
       name: string; kind?: string; lower: number; upper: number; step?: number;
       fixed?: boolean; fixedValue?: number | string; levels?: string[];
+      allowExtrapolation?: boolean;
     }[]).map((factor) => ({
       name: factor.name,
       kind: (factor.kind ?? 'continuous') as FactorSettings['kind'],
@@ -1353,11 +1357,12 @@ const ops: Record<string, Op> = {
       upper: factor.upper,
       step: factor.step ?? 0,
       fixed: Boolean(factor.fixed),
-      fixedValue: factor.fixedValue ?? factor.lower,
+      fixedValue: factor.fixedValue ?? (factor.kind === 'categorical' ? (factor.levels?.[0] ?? '') : factor.lower),
       levels: factor.levels ?? [],
+      ...(factor.allowExtrapolation ? { allowExtrapolation: true } : {}),
     }));
     const specs = args.responses as {
-      name: string; goal: ResponseSettings['goal']; lower?: number; upper?: number;
+      modelId?: string; name: string; goal: ResponseSettings['goal']; lower?: number; upper?: number;
       target?: number; weight?: number; importance?: number;
     }[];
     let models: StoredModel[];
@@ -1368,27 +1373,37 @@ const ops: Record<string, Op> = {
       models = specs.map((response) => storedQuadratic(ds, response.name, datasetFactors));
     }
     const responses: ResponseSettings[] = specs.map((response, index) => ({
-      modelId: models[index].id,
+      // A spec case names its models by position; only a case that deliberately
+      // tests a bad id (honourModelIds) keeps the id it wrote.
+      modelId: args.honourModelIds ? String(response.modelId ?? '') : models[index].id,
       name: response.name,
       goal: response.goal,
-      lower: response.lower ?? null,
-      upper: response.upper ?? null,
-      target: response.target ?? null,
-      weight: response.weight ?? 1,
-      importance: response.importance ?? 1,
+      lower: response.lower === undefined || response.lower === null ? null : Number(response.lower),
+      upper: response.upper === undefined || response.upper === null ? null : Number(response.upper),
+      target: response.target === undefined || response.target === null ? null : Number(response.target),
+      // The QA case file carries NaN / Infinity as strings so the JSON stays
+      // valid; they arrive here as the numbers the validator must reject.
+      weight: response.weight === undefined ? 1 : Number(response.weight),
+      importance: response.importance === undefined ? 1 : Number(response.importance),
     }));
     const result = optimize(models, responses, factorSpecs, {
-      method: args.method ?? 'multistart',
+      method: (args.method ?? 'multistart') as FactorSettings extends never ? never : any,
       seed: args.seed ?? 1,
       gridPoints: args.gridPoints ?? 41,
       maxEvaluations: args.maxEvaluations ?? 60000,
       topN: args.topN ?? 3,
       alpha: 0.05,
       timeLimitMs: args.timeLimitMs ?? 8000,
+      allowExtrapolation: Boolean(args.allowExtrapolation),
+      ...(args.autoFactorBounds ? {} : {}),
     });
     const best = result.solutions[0];
     bag.put('status', result.status);
-    bag.put('issues', result.issues.join(','));
+    bag.put('issues', result.issues.slice().sort().join(','));
+    bag.put('recommended', result.recommended ? 1 : 0);
+    bag.put('stopped', result.search.stoppedBy);
+    bag.put('exhaustive', result.search.exhaustive ? 1 : 0);
+    bag.put('space', result.search.space);
     bag.put('evaluations', result.evaluations);
     bag.put('solutions', result.solutions.length);
     bag.put('composite', best ? best.composite : null);
@@ -1397,14 +1412,187 @@ const ops: Record<string, Op> = {
       const value = best?.settings[factor.name];
       bag.put(`x:${factor.name}`, typeof value === 'number' ? value : value === undefined ? null : value);
     });
+    // Model order invariance: the same run with the responses reversed must
+    // produce the same condition and the same per-response prediction.
+    if (args.checkOrderInvariance) {
+      const reversed = optimize(models.slice().reverse(), responses.slice().reverse(), factorSpecs, {
+        method: (args.method ?? 'multistart') as any,
+        seed: args.seed ?? 1,
+        gridPoints: args.gridPoints ?? 41,
+        maxEvaluations: args.maxEvaluations ?? 60000,
+        topN: args.topN ?? 3,
+        alpha: 0.05,
+        timeLimitMs: args.timeLimitMs ?? 8000,
+        allowExtrapolation: Boolean(args.allowExtrapolation),
+      });
+      const other = reversed.solutions[0];
+      bag.put('rev_status', reversed.status);
+      bag.put('rev_composite', other ? other.composite : null);
+      factorSpecs.forEach((factor) => {
+        const value = other?.settings[factor.name];
+        bag.put(`rev_x:${factor.name}`, typeof value === 'number' ? value : value === undefined ? null : value);
+      });
+      responses.forEach((response) => {
+        const prediction = other?.responses.find((candidate) => candidate.modelId === response.modelId);
+        bag.put(`rev_pred:${response.name}`, prediction ? prediction.value : null);
+      });
+    }
     responses.forEach((response) => {
       const prediction = best?.responses.find((candidate) => candidate.modelId === response.modelId);
       bag.put(`pred:${response.name}`, prediction ? prediction.value : null);
       bag.put(`d:${response.name}`, prediction ? prediction.desirability : null);
       bag.put(`se:${response.name}`, prediction ? prediction.se : null);
+      bag.put(`ci_low:${response.name}`, prediction?.ci ? prediction.ci[0] : null);
+      bag.put(`ci_high:${response.name}`, prediction?.ci ? prediction.ci[1] : null);
       bag.put(`pi_low:${response.name}`, prediction?.pi ? prediction.pi[0] : null);
       bag.put(`pi_high:${response.name}`, prediction?.pi ? prediction.pi[1] : null);
     });
+  },
+
+  /**
+   * Stage 3C corrective QA — the factor domain itself.
+   *
+   * The shipped domain module answers "which values may this factor take?";
+   * the reference recomputes Lower + k × Step in Python, so a snapping rule,
+   * a float artefact or a fixed-value check has a second opinion.
+   */
+  domain(bag, _ds, args) {
+    const factors = (args.factors as any[]).map((factor) => ({
+      name: factor.name,
+      kind: (factor.kind ?? 'continuous') as FactorSettings['kind'],
+      lower: factor.lower ?? 0,
+      upper: factor.upper ?? 0,
+      step: factor.step ?? 0,
+      fixed: Boolean(factor.fixed),
+      fixedValue: factor.fixedValue ?? factor.lower ?? 0,
+      levels: factor.levels ?? [],
+    })) as FactorSettings[];
+    factors.forEach((factor, index) => {
+      const axis = factorAxisValues(factor, args.gridPoints ?? 21);
+      const numeric = axis.values.filter((value): value is number => typeof value === 'number');
+      bag.put(`count[${index}]`, axis.count);
+      bag.put(`listed[${index}]`, axis.values.length);
+      bag.put(`distinct[${index}]`, new Set(axis.values.map((value) => String(value))).size);
+      if (numeric.length) {
+        bag.put(`v_first[${index}]`, numeric[0]);
+        bag.put(`v_second[${index}]`, numeric[1] ?? null);
+        bag.put(`v_last[${index}]`, numeric[numeric.length - 1]);
+      }
+      const issues = factorIssues(factor);
+      bag.put(`issues[${index}]`, issues.join(','));
+    });
+    (args.checks as any[] | undefined)?.forEach((check, index) => {
+      const factor = factors.find((candidate) => candidate.name === check.factor) as FactorSettings;
+      bag.put(`check[${index}]`, validateFactorValue(factor, check.value) === null ? 1 : 0);
+    });
+  },
+
+  /** The profiler's curve axis for one factor (QA-W-30). */
+  profileaxis(bag, _ds, args) {
+    const factor = {
+      name: 'x',
+      kind: (args.factor.kind ?? 'discrete') as FactorSettings['kind'],
+      lower: args.factor.lower,
+      upper: args.factor.upper,
+      step: args.factor.step ?? 0,
+      fixed: Boolean(args.factor.fixed),
+      fixedValue: args.factor.fixedValue ?? args.factor.lower,
+      levels: args.factor.levels ?? [],
+    } as FactorSettings;
+    const axis = curveAxis(factor, args.resolution ?? 21);
+    const numeric = axis.filter((value): value is number => typeof value === 'number');
+    bag.put('n', axis.length);
+    bag.put('distinct', new Set(axis.map((value) => String(value))).size);
+    if (numeric.length) {
+      bag.put('first', numeric[0]);
+      bag.put('second', numeric[1] ?? null);
+      bag.put('last', numeric[numeric.length - 1]);
+    }
+    bag.put('all_on_step', numeric.every((value) => validateFactorValue(factor, value) === null) ? 1 : 0);
+  },
+
+  /** Profiler prediction vs optimizer prediction at one condition (QA-W-31). */
+  profilepoint(bag, _ds, args) {
+    const model = modelFromSpec(args.model as Record<string, unknown>);
+    const responses: ResponseSettings[] = (args.responses as any[]).map((response) => ({
+      modelId: model.id,
+      name: response.name,
+      goal: response.goal ?? 'maximize',
+      lower: response.lower ?? null,
+      upper: response.upper ?? null,
+      target: response.target ?? null,
+      weight: response.weight ?? 1,
+      importance: response.importance ?? 1,
+    }));
+    const factors: FactorSettings[] = (args.factors as any[]).map((factor) => ({
+      name: factor.name,
+      kind: (factor.kind ?? 'continuous') as FactorSettings['kind'],
+      lower: factor.lower,
+      upper: factor.upper,
+      step: factor.step ?? 0,
+      fixed: Boolean(factor.fixed),
+      fixedValue: factor.fixedValue ?? factor.lower,
+      levels: factor.levels ?? [],
+    }));
+    const rows = profileCurves([model], responses, factors, args.point ?? {}, { resolution: 11 });
+    const prof = rows[0]?.prediction;
+    const direct = evaluateCondition([model], responses, factors, args.point ?? {});
+    bag.put('prof_value', prof?.value ?? null);
+    bag.put('prof_se', prof?.se ?? null);
+    bag.put('prof_ci_low', prof?.ci ? prof.ci[0] : null);
+    bag.put('prof_ci_high', prof?.ci ? prof.ci[1] : null);
+    bag.put('prof_pi_low', prof?.pi ? prof.pi[0] : null);
+    bag.put('prof_pi_high', prof?.pi ? prof.pi[1] : null);
+    bag.put('direct_value', direct?.responses[0]?.value ?? null);
+    bag.put('direct_diff', prof && direct && prof.value !== null && direct.responses[0].value !== null
+      ? Math.abs(prof.value - direct.responses[0].value)
+      : null);
+  },
+
+  /**
+   * Model Manager, contour, surface and the prediction adapter must agree at
+   * the same actual condition (QA-W-32). The reference evaluates the model once.
+   */
+  predictionconsistency(bag, _ds, args) {
+    const model = modelFromSpec(args.model as Record<string, unknown>);
+    const point = (args.point ?? {}) as Record<string, number | string>;
+    const xName = String(args.xName);
+    const yName = String(args.yName);
+    const adapter = createPredictionAdapter(model);
+    const mine = adapter.evaluate(point, 0.05);
+    const manager = predictStoredModel(model, point, { alpha: 0.05 });
+    const xPredictor = model.predictors.find((predictor) => predictor.name === xName)!;
+    const yPredictor = model.predictors.find((predictor) => predictor.name === yName)!;
+    const holdings: Record<string, number | string> = {};
+    model.predictors.forEach((predictor) => {
+      if (predictor.name === xName || predictor.name === yName) return;
+      holdings[predictor.name] = point[predictor.name];
+    });
+    const evaluator = compileSurfaceEvaluator(model, { xName, yName, holdings, mode: 'actual', alpha: 0.05 });
+    const codedX = adapter.designValue(xName, Number(point[xName]));
+    const codedY = adapter.designValue(yName, Number(point[yName]));
+    void xPredictor;
+    void yPredictor;
+    const surface = evaluator.value(codedX, codedY);
+    const grid = modelSurface(model, {
+      xName,
+      yName,
+      holdings,
+      resolution: 2,
+      xRange: [Number(point[xName]), Number(point[xName]) + 1],
+      yRange: [Number(point[yName]), Number(point[yName]) + 1],
+      mode: 'actual',
+    });
+    bag.put('adapter_value', mine.value);
+    bag.put('adapter_se', mine.se);
+    bag.put('adapter_ci_low', mine.ci ? mine.ci[0] : null);
+    bag.put('adapter_ci_high', mine.ci ? mine.ci[1] : null);
+    bag.put('manager_value', manager.value);
+    bag.put('manager_se', manager.se);
+    bag.put('surface_value', Number.isFinite(surface) ? surface : null);
+    bag.put('contour_value', Number.isFinite(grid.z[0][0]) ? grid.z[0][0] : null);
+    bag.put('surface_diff', mine.value !== null && Number.isFinite(surface) ? Math.abs(mine.value - surface) : null);
+    bag.put('contour_diff', mine.value !== null && Number.isFinite(grid.z[0][0]) ? Math.abs(mine.value - grid.z[0][0]) : null);
   },
 
   /* ── QA-J: stored-model prediction (WO-02) ──────────────────────────

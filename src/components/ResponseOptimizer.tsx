@@ -18,7 +18,7 @@ import {
 import {
   defaultFactorSettings,
   defaultResponseSettings,
-  optimize,
+  optimizeAsync,
   responseProblems,
   sharedFactorNames,
   suggestResponseLimits,
@@ -78,9 +78,10 @@ function numberInput(value: number | null, onChange: (next: number | null) => vo
 }
 
 function statusTone(status: OptimizerResult['status']): 'ok' | 'warn' | 'bad' | 'muted' {
-  if (status === 'optimal') return 'ok';
+  if (status === 'global-optimal') return 'ok';
+  if (status === 'local-converged') return 'ok';
   if (status === 'best-found' || status === 'limit') return 'warn';
-  if (status === 'no-feasible') return 'bad';
+  if (status === 'feasible-not-found' || status === 'infeasible') return 'bad';
   return 'muted';
 }
 
@@ -97,6 +98,7 @@ export function ResponseOptimizer({ lang, models, onClose, onInsert, onProfiler 
   const [result, setResult] = useState<OptimizerResult | null>(null);
   const [running, setRunning] = useState(false);
   const runToken = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const problems = useMemo(() => responseProblems(responses), [responses]);
   const canRun = models.length > 0 && factorNames.length > 0 && !running;
@@ -111,19 +113,21 @@ export function ResponseOptimizer({ lang, models, onClose, onInsert, onProfiler 
     setResult(null);
   };
 
+  /** Run the search in chunks so the window keeps painting and Stop works. */
   const run = () => {
     const token = runToken.current + 1;
     runToken.current = token;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setRunning(true);
     setResult(null);
-    // A short delay lets the button paint its running state before the search
-    // takes the main thread; the searches themselves stay well under a second.
-    window.setTimeout(() => {
-      if (runToken.current !== token) return;
+    const options = { ...settings, signal: controller.signal };
+    void (async () => {
       try {
-        const next = optimize(models, responses, factors, settings);
-        setResult(next);
+        const next = await optimizeAsync(models, responses, factors, options);
+        if (runToken.current === token) setResult(next);
       } catch (error) {
+        if (runToken.current !== token) return;
         setResult({
           status: 'invalid',
           method: settings.method,
@@ -133,13 +137,20 @@ export function ResponseOptimizer({ lang, models, onClose, onInsert, onProfiler 
           evaluations: 0,
           iterations: 0,
           elapsedMs: 0,
+          recommended: false,
+          search: { space: 'continuous', axes: [], combinations: 0, exhaustive: false, evaluated: 0, rejected: 0, stoppedBy: 'complete', gridReduced: false, basins: [] },
           warnings: [],
           issues: [error instanceof Error ? error.message : 'opt.issue.noResponse'],
+          responseIssues: {},
         });
       } finally {
         if (runToken.current === token) setRunning(false);
       }
-    }, 30);
+    })();
+  };
+
+  const stop = () => {
+    abortRef.current?.abort();
   };
 
   const resetAll = () => {
@@ -339,18 +350,35 @@ export function ResponseOptimizer({ lang, models, onClose, onInsert, onProfiler 
                 data-testid="opt-topn"
               />
             </label>
+            <label className="opt-field">
+              <span>{t(lang, 'opt.search.allowExtrapolation')}</span>
+              <input
+                type="checkbox"
+                checked={settings.allowExtrapolation}
+                onChange={(event) => { setSettings({ ...settings, allowExtrapolation: event.target.checked }); setResult(null); }}
+                data-testid="opt-allow-extrapolation"
+              />
+            </label>
             <button type="button" className="btn primary" onClick={run} disabled={!canRun} data-testid="opt-run">
               {running ? t(lang, 'opt.running') : t(lang, 'opt.run')}
             </button>
+            {running && (
+              <button type="button" className="btn ghost" onClick={stop} data-testid="opt-stop">{t(lang, 'opt.search.stop')}</button>
+            )}
             <button type="button" className="btn ghost" onClick={resetAll} data-testid="opt-reset">{t(lang, 'opt.reset')}</button>
           </section>
 
           {result && (
             <section className="opt-result" data-testid="opt-result" data-status={result.status}>
               <div className="opt-result-head">
-                <span className={`opt-badge ${statusTone(result.status)}`} data-testid="opt-status">{t(lang, `opt.status.${result.status}`)}</span>
+                <span className={`opt-badge ${statusTone(result.status)}`} data-testid="opt-status" data-status={result.status}>{t(lang, `opt.status.${result.status}`)}</span>
                 <span className="mono-note" data-testid="opt-method-used">
                   {t(lang, `opt.method.${result.resolvedMethod}`)} · {t(lang, 'opt.result.evaluations', { n: result.evaluations })} · {t(lang, 'opt.result.elapsed', { ms: Math.round(result.elapsedMs) })}
+                </span>
+                <span className="mono-note" data-testid="opt-search-space">
+                  {result.search.exhaustive ? t(lang, 'opt.result.space.exhaustive') : t(lang, 'opt.result.space.partial')}
+                  {result.search.basins.length > 0 && ` · ${t(lang, 'opt.result.basins', { n: result.search.basins.length, converged: result.search.basins.filter((basin) => basin.converged).length })}`}
+                  {result.search.rejected > 0 && ` · ${t(lang, 'opt.result.rejected', { n: result.search.rejected })}`}
                 </span>
                 <span className="spacer" />
                 {best && (
@@ -382,6 +410,9 @@ export function ResponseOptimizer({ lang, models, onClose, onInsert, onProfiler 
                     </span>
                     {best.extrapolated && <span className="opt-badge warn" data-testid="opt-extrapolated">{t(lang, 'opt.warn.extrapolated')}</span>}
                   </div>
+                  {!result.recommended && (
+                    <div className="opt-warn" data-testid="opt-not-recommended">{t(lang, 'opt.result.notRecommended')}</div>
+                  )}
 
                   <h6>{t(lang, 'opt.result.conditions')}</h6>
                   <table className="stat-table" data-testid="opt-conditions">

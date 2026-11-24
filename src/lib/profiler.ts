@@ -1,25 +1,41 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — the prediction profiler's curves (WO-06)
+   Sigrún — the prediction profiler's curves (WO-06), Stage 3C corrected
 
    A profiler answers "what happens to every response if I move this one
    factor?" — one small conditional curve per (response, factor) pair. The
-   curves are computed from the same evaluators the optimiser uses, so the
-   profiler and the optimiser can never disagree about a prediction.
+   curves are computed from the same prediction adapter the optimiser uses, so
+   the profiler and the optimiser can never disagree about a prediction.
 
-   Two properties matter and are the reason this lives in a module instead of
+   Four properties matter and are the reason this lives in a module instead of
    inside the component:
 
+   · Domain. A discrete factor is evaluated only at Lower + k × Step and a
+     categorical one only at its fitted levels, so a curve is a curve over the
+     conditions the model may be asked about — not over a continuous sweep that
+     includes values nobody can set.
    · Holding. When one factor moves, every other factor stays exactly where the
      reader left it. A curve is therefore the model sliced along one axis at the
      current condition, not a marginal or an average.
-   · Cost. The curves are recomputed on every slider move, so each model is
-     compiled once (its coefficient labels parsed once) and each curve is one
-     pass over the axis. No network, no worker, no cached stale numbers.
+   · One input policy. The current condition, the curve axes, the opening value
+     and Reset all pass through `resolvePoint` / `normaliseFactorValue`, so the
+     vertical line and the curve it crosses cannot sit at different values.
+     A value that cannot be used (NaN, an unknown level) blocks the prediction
+     instead of being quietly replaced by a valid one.
+   · Honest blocks. A response whose model needs a factor that is not on the
+     screen cannot be drawn: the row says so and shows nothing, rather than
+     holding that factor at a centre the reader never chose.
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { StoredModel } from './modelStore';
-import type { FactorSettings, ResponseSettings, Solution } from './optimizationTypes';
-import { compilePointEvaluator, evaluateCondition, type PointEvaluator } from './optimizer';
+import type { FactorSettings, ResponsePrediction, ResponseSettings, Solution } from './optimizationTypes';
+import { createPredictionAdapter, type PredictionAdapter } from './predictionAdapter';
+import { evaluateCondition, resolvePoint, scorePoint } from './optimizer';
+import {
+  discreteAxis,
+  holdingValue,
+  normaliseFactorValue,
+  validateFactorValue,
+} from './factorDomain';
 
 export interface ProfileCurve {
   /** Axis positions in the factor's input units. */
@@ -28,7 +44,7 @@ export interface ProfileCurve {
   mean: number[];
   /** Confidence band for the mean, when the model carries covariance and df. */
   ci: { lo: number[]; hi: number[] } | null;
-  /** Prediction band for one future observation. */
+  /** Prediction band for one future observation (also needs a residual mse). */
   pi: { lo: number[]; hi: number[] } | null;
   /** The current value of this factor, for the vertical line. */
   current: number | null;
@@ -42,55 +58,99 @@ export interface ProfileRow {
   responseName: string;
   /** One entry per factor, in the order the caller passed them. */
   curves: ProfileCurve[];
-  prediction: Solution['responses'][number] | null;
+  prediction: ResponsePrediction | null;
+  /** The row cannot be evaluated (a needed factor is missing or unusable). */
+  blocked: boolean;
+  /** Why it is blocked, or what was clamped (i18n keys). */
+  issues: string[];
+  /** Which bands this model can actually answer. */
+  interval: { ci: boolean; pi: boolean };
+  /** The current condition is outside the region this model was fitted on. */
+  extrapolated: boolean;
 }
 
-const evaluatorCache = new WeakMap<StoredModel, PointEvaluator>();
-
-export function evaluatorFor(model: StoredModel): PointEvaluator {
-  const cached = evaluatorCache.get(model);
-  if (cached) return cached;
-  const compiled = compilePointEvaluator(model);
-  evaluatorCache.set(model, compiled);
-  return compiled;
+/** The compiled adapter for a model (one per model object). */
+export function evaluatorFor(model: StoredModel): PredictionAdapter {
+  return createPredictionAdapter(model);
 }
 
-/** A factor's axis points: continuous factors are sampled, categorical ones are listed. */
+/**
+ * A factor's axis points: discrete values on the step, categorical levels, and
+ * an even sample for a continuous factor.
+ *
+ * A discrete axis longer than the drawing resolution is sampled at even integer
+ * indices — every position handed out is still an allowed value, and the curve
+ * says how many points it skipped through `ProfileCurve.sampled`.
+ */
 export function curveAxis(factor: FactorSettings, resolution: number): (number | string)[] {
   if (factor.kind === 'categorical') return [...factor.levels];
   const count = Math.max(2, Math.round(resolution));
+  if (factor.kind === 'discrete') {
+    const axis = discreteAxis(factor.lower, factor.upper, factor.step, Math.max(2, count) * 4);
+    if (axis.values.length <= Math.max(2, count) * 2) return axis.values;
+    const stride = Math.ceil((axis.values.length - 1) / (count - 1));
+    const values: number[] = [];
+    for (let index = 0; index < axis.values.length - 1; index += stride) values.push(axis.values[index]);
+    values.push(axis.values[axis.values.length - 1]);
+    return values;
+  }
   return Array.from({ length: count }, (_, index) => factor.lower + ((factor.upper - factor.lower) * index) / (count - 1));
+}
+
+function emptyCurve(current: number | null): ProfileCurve {
+  return { xs: [], mean: [], ci: null, pi: null, current, yMin: Number.NaN, yMax: Number.NaN };
 }
 
 /**
  * Conditional curves for every (response, factor) pair at one condition.
  *
  * `point` supplies the current value of every factor; a factor missing from it
- * is read at the middle of its range (categorical: its first level), which is
- * what "no condition yet" means on first open.
+ * is read at the middle of its own domain (categorical: its first level), which
+ * is what "no condition yet" means on first open. That is a documented default
+ * for a factor on the screen — never a way to invent a value for one that is
+ * not.
  */
 export function profileCurves(
   models: StoredModel[],
   responses: ResponseSettings[],
   factors: FactorSettings[],
   point: Record<string, number | string>,
-  options: { resolution?: number; alpha?: number } = {},
+  options: { resolution?: number; alpha?: number; requireAllFactors?: boolean } = {},
 ): ProfileRow[] {
   const resolution = Math.max(3, Math.min(41, options.resolution ?? 21));
   const alpha = options.alpha ?? 0.05;
+  const resolved = resolvePoint(factors, point);
   const rows: ProfileRow[] = [];
   models.forEach((model) => {
     const settings = responses.find((response) => response.modelId === model.id);
     if (!settings) return;
-    const evaluator = evaluatorFor(model);
-    const current = evaluateCondition([model], [settings], factors, point, { alpha });
+    const adapter = evaluatorFor(model);
+    const missing = adapter.predictors.filter((name) => !factors.some((factor) => factor.name === name));
+    const badFactor = factors.find((factor) => adapter.predictors.includes(factor.name) && resolved.issues[factor.name]);
+    if (missing.length || badFactor) {
+      const issues = missing.length ? ['opt.issue.factorMissing'] : [resolved.issues[badFactor!.name]];
+      rows.push({
+        modelId: model.id,
+        responseName: model.response.name,
+        curves: factors.map(() => emptyCurve(null)),
+        prediction: null,
+        blocked: true,
+        issues: [...new Set(issues)],
+        interval: { ci: false, pi: false },
+        extrapolated: false,
+      });
+      return;
+    }
+    const scored = scorePoint([adapter], factors as never, [settings], resolved.point, { alpha, origin: 'start' });
+    const prediction = scored.solution.responses[0] ?? null;
     const curves: ProfileCurve[] = factors.map((factor) => {
-      if (!evaluator.predictors.includes(factor.name)) {
+      if (!adapter.predictors.includes(factor.name)) {
         // A factor this model does not use has no curve: the response cannot
         // move with it, and drawing a flat line would suggest that it might.
-        return { xs: [], mean: [], ci: null, pi: null, current: null, yMin: Number.NaN, yMax: Number.NaN };
+        return emptyCurve(null);
       }
       const axis = curveAxis(factor, resolution);
+      const numericAxis = axis.map((value, index) => (typeof value === 'number' ? value : index));
       const xs: number[] = [];
       const mean: number[] = [];
       const ciLo: number[] = [];
@@ -99,18 +159,34 @@ export function profileCurves(
       const piHi: number[] = [];
       let hasCi = false;
       let hasPi = false;
-      axis.forEach((value) => {
-        const candidate = { ...point, [factor.name]: value };
-        const evaluation = evaluator.evaluate(candidate, alpha);
-        if (typeof value === 'number') xs.push(value);
-        else xs.push(xs.length);
+      axis.forEach((value, index) => {
+        // Every axis value is resolved through the same policy as the current
+        // condition, so an illegal lattice point cannot slip into a curve.
+        const resolvedValue = resolvePoint([factor], { [factor.name]: value }).point[factor.name];
+        const candidate = { ...resolved.point, [factor.name]: resolvedValue };
+        const evaluation = adapter.evaluate(candidate, alpha);
+        xs.push(typeof value === 'number' ? value : numericAxis[index]);
         mean.push(evaluation.value === null ? Number.NaN : evaluation.value);
-        if (evaluation.ci) { hasCi = true; ciLo.push(evaluation.ci[0]); ciHi.push(evaluation.ci[1]); } else { ciLo.push(Number.NaN); ciHi.push(Number.NaN); }
-        if (evaluation.pi) { hasPi = true; piLo.push(evaluation.pi[0]); piHi.push(evaluation.pi[1]); } else { piLo.push(Number.NaN); piHi.push(Number.NaN); }
+        if (evaluation.ci) {
+          hasCi = true;
+          ciLo.push(evaluation.ci[0]);
+          ciHi.push(evaluation.ci[1]);
+        } else {
+          ciLo.push(Number.NaN);
+          ciHi.push(Number.NaN);
+        }
+        if (evaluation.pi) {
+          hasPi = true;
+          piLo.push(evaluation.pi[0]);
+          piHi.push(evaluation.pi[1]);
+        } else {
+          piLo.push(Number.NaN);
+          piHi.push(Number.NaN);
+        }
       });
       const band = [...(hasCi ? [...ciLo, ...ciHi] : []), ...(hasPi ? [...piLo, ...piHi] : [])];
       const finite = [...mean, ...band].filter((value) => Number.isFinite(value));
-      const raw = point[factor.name];
+      const raw = resolved.point[factor.name];
       return {
         xs,
         mean,
@@ -121,11 +197,24 @@ export function profileCurves(
         yMax: finite.length ? Math.max(...finite) : Number.NaN,
       };
     });
+    let extrapolated = false;
+    factors.forEach((factor) => {
+      const value = resolved.point[factor.name];
+      if (typeof value !== 'number') return;
+      const range = adapter.fittedRange(factor.name);
+      if (range && (value < range[0] - 1e-9 * Math.max(1, Math.abs(range[0])) || value > range[1] + 1e-9 * Math.max(1, Math.abs(range[1])))) extrapolated = true;
+    });
+    const anyCi = curves.some((curve) => curve.ci !== null);
+    const anyPi = curves.some((curve) => curve.pi !== null);
     rows.push({
       modelId: model.id,
       responseName: model.response.name,
       curves,
-      prediction: current ? current.responses[0] ?? null : null,
+      prediction,
+      blocked: false,
+      issues: [],
+      interval: { ci: anyCi, pi: anyPi },
+      extrapolated,
     });
   });
   return rows;
@@ -139,35 +228,25 @@ export function profilePoint(
   point: Record<string, number | string>,
   alpha = 0.05,
 ): Solution | null {
-  return evaluateCondition(models, responses, factors, point, { alpha });
+  return evaluateCondition(models, responses, factors, point, { alpha, requireAllFactors: false, allowExtrapolation: true });
 }
 
-/** The starting condition: middle of every range, first level of a categorical. */
+/** Is one factor's current value usable? (i18n key or null) */
+export function factorValueIssue(factor: FactorSettings, value: number | string | undefined): string | null {
+  if (value === undefined) return null;
+  return validateFactorValue(factor, value);
+}
+
+/** The starting condition: the middle of every domain, the first level of a categorical. */
 export function centrePoint(factors: FactorSettings[]): Record<string, number | string> {
   const point: Record<string, number | string> = {};
   factors.forEach((factor) => {
-    if (factor.fixed) {
-      point[factor.name] = factor.kind === 'categorical' ? String(factor.fixedValue) : Number(factor.fixedValue);
-      return;
-    }
-    point[factor.name] = factor.kind === 'categorical' ? (factor.levels[0] ?? '') : (factor.lower + factor.upper) / 2;
+    point[factor.name] = holdingValue(factor);
   });
   return point;
 }
 
-/** Clamp a typed value into the factor's own space and snap it to its step. */
+/** Clamp a typed value into the factor's domain and snap it to its step. */
 export function normaliseValue(factor: FactorSettings, value: number | string): number | string {
-  if (factor.kind === 'categorical') {
-    const levels = factor.levels;
-    return levels.includes(String(value)) ? String(value) : (levels[0] ?? '');
-  }
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numeric)) return factor.lower;
-  const clamped = Math.min(factor.upper, Math.max(factor.lower, numeric));
-  if (factor.kind === 'discrete' && factor.step > 0) {
-    const snapped = factor.lower + Math.round((clamped - factor.lower) / factor.step) * factor.step;
-    const decimals = Math.max(0, Math.min(12, -Math.floor(Math.log10(factor.step)) + 2));
-    return Number(snapped.toFixed(decimals));
-  }
-  return clamped;
+  return normaliseFactorValue(factor, value);
 }

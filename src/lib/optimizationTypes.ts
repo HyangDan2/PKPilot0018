@@ -10,6 +10,11 @@
    Nothing here is derived from a particular model: a response is identified by
    the id of a stored model, and a factor by the predictor name that model uses,
    which is how several models with shared factors become one problem.
+
+   Stage 3C correction: the status vocabulary separates what a search actually
+   proved (a complete enumeration, a converged local basin, a budget stop, or
+   nothing) from what it merely found, and a condition that breaks a hard
+   specification is never reported as a recommendation.
    ───────────────────────────────────────────────────────────────────────── */
 
 /** What the reader wants a response to do. */
@@ -51,9 +56,10 @@ export const FACTOR_KINDS: FactorKind[] = ['continuous', 'discrete', 'categorica
  * One factor's search space, in the model's own input units.
  *
  * A `fixed` factor is not searched: it is held at `fixedValue` and reported in
- * every solution. A categorical factor is enumerated over its fitted levels; a
- * discrete one steps from `lower` by `step`; a continuous one is gridded and
- * then refined locally.
+ * every solution — and that value must sit inside the range and on the step.
+ * A categorical factor is enumerated over its fitted levels; a discrete one
+ * takes exactly Lower + k × Step; a continuous one is gridded and then refined
+ * locally.
  */
 export interface FactorSettings {
   name: string;
@@ -67,6 +73,13 @@ export interface FactorSettings {
   fixedValue: number | string;
   /** Fitted levels of a categorical factor; the search never invents a new one. */
   levels: string[];
+  /**
+   * The reader explicitly allowed searching outside the fitted region for this
+   * factor. Absent/false keeps the domain inside what the models were fitted on.
+   */
+  allowExtrapolation?: boolean;
+  /** Where the limits came from (the UI states it; the search does not guess). */
+  domainSource?: 'intersection' | 'stated' | 'levels' | 'fitted';
 }
 
 /** How the engine is allowed to look. */
@@ -90,6 +103,14 @@ export interface OptimizerSettings {
   alpha: number;
   /** Local-search stop: the step size, as a fraction of the factor range. */
   tolerance: number;
+  /** Allow a search outside the fitted region when a factor says so. */
+  allowExtrapolation: boolean;
+  /** Evaluations between host yields in the asynchronous runner. */
+  chunkSize: number;
+  /** Cooperative cancellation; the search stops and reports what it had. */
+  signal?: AbortSignal;
+  /** Called after every evaluated candidate (tests, progress, cancellation). */
+  onEvaluated?: (evaluations: number, composite: number) => void;
 }
 
 export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
@@ -101,15 +122,43 @@ export const DEFAULT_OPTIMIZER_SETTINGS: OptimizerSettings = {
   topN: 5,
   alpha: 0.05,
   tolerance: 1e-4,
+  allowExtrapolation: false,
+  chunkSize: 512,
 };
 
-/** A search that found nothing usable says why. */
+/**
+ * What a finished search established.
+ *
+ * · `global-optimal`  — every condition of a fully discrete space was evaluated
+ *                       and the reported one is the best of them.
+ * · `local-converged` — a continuous local search reached its tolerance in every
+ *                       basin it started; a local, not a global, claim.
+ * · `best-found`      — a condition was found, but optimality is not claimed.
+ * · `limit`           — the evaluation/time budget (or a cancel) stopped it.
+ * · `feasible-not-found` — nothing satisfied every hard specification, and the
+ *                       space was not searched exhaustively.
+ * · `infeasible`      — nothing satisfied every hard specification, and that is
+ *                       established (the space was exhausted).
+ * · `invalid`         — the problem itself is not well posed; nothing was run.
+ */
 export type OptimizerStatus =
-  | 'optimal'        // a compliant point was found and the search converged
-  | 'best-found'     // a compliant point was found but optimality is not claimed
-  | 'no-feasible'    // no point satisfied every goal
-  | 'invalid'        // the problem itself is not well posed
-  | 'limit';         // the evaluation / time budget ran out (best so far reported)
+  | 'global-optimal'
+  | 'local-converged'
+  | 'best-found'
+  | 'limit'
+  | 'feasible-not-found'
+  | 'infeasible'
+  | 'invalid';
+
+export const OPTIMIZER_STATUSES: OptimizerStatus[] = [
+  'global-optimal',
+  'local-converged',
+  'best-found',
+  'limit',
+  'feasible-not-found',
+  'infeasible',
+  'invalid',
+];
 
 /** One response's prediction at one candidate condition. */
 export interface ResponsePrediction {
@@ -121,11 +170,11 @@ export interface ResponsePrediction {
   se: number | null;
   /** Confidence interval for the mean. */
   ci: [number, number] | null;
-  /** Prediction interval for one future observation. */
+  /** Prediction interval for one future observation (absent without an mse). */
   pi: [number, number] | null;
   /** Individual (Derringer–Suich) desirability, 0 … 1. */
   desirability: number;
-  /** Inside the stated limits. */
+  /** Inside the stated hard limits. */
   compliant: boolean;
   nonEstimable: string[];
   issues: string[];
@@ -144,8 +193,50 @@ export interface Solution {
   compliantAll: boolean;
   /** At least one factor sits outside the region the models were fitted on. */
   extrapolated: boolean;
+  /** The condition may be offered as an answer (it meets every hard spec). */
+  recommended: boolean;
   /** How the search reached this point. */
   origin: 'grid' | 'local' | 'enumerated' | 'start';
+}
+
+/** One axis of the search space, as it was actually searched. */
+export interface SearchAxis {
+  name: string;
+  kind: FactorKind;
+  /** Values the search could choose from on this axis. */
+  count: number;
+  /** The full domain is longer than the axis (a thinned / sampled axis). */
+  reduced: boolean;
+  /** Where the limits came from. */
+  source: FactorSettings['domainSource'];
+}
+
+/** One local-search basin and whether it converged. */
+export interface BasinReport {
+  /** 0 for the lattice best, then each seeded start. */
+  start: number;
+  converged: boolean;
+  iterations: number;
+  evaluations: number;
+  composite: number;
+}
+
+/** What the search did, independent of what it found. */
+export interface SearchReport {
+  /** `discrete` when every free factor is discrete/categorical, else `mixed`/`continuous`. */
+  space: 'discrete' | 'mixed' | 'continuous';
+  axes: SearchAxis[];
+  /** Product of the axis sizes (may exceed Number.MAX_SAFE_INTEGER). */
+  combinations: number;
+  /** Every combination was evaluated (only possible on a fully discrete space). */
+  exhaustive: boolean;
+  evaluated: number;
+  /** Candidates refused by domain/input validation before evaluation. */
+  rejected: number;
+  stoppedBy: 'complete' | 'budget' | 'time' | 'cancel';
+  /** A continuous lattice was thinned to fit the budget. */
+  gridReduced: boolean;
+  basins: BasinReport[];
 }
 
 export interface OptimizerResult {
@@ -158,10 +249,15 @@ export interface OptimizerResult {
   evaluations: number;
   iterations: number;
   elapsedMs: number;
+  /** The first solution may be offered as the answer. */
+  recommended: boolean;
+  search: SearchReport;
   /** Problems that stopped or narrowed the search (i18n keys). */
   warnings: string[];
   /** Why the problem is not well posed, when `status` is `invalid`. */
   issues: string[];
+  /** Per-response definition problems, by model id (i18n keys). */
+  responseIssues: Record<string, string[]>;
 }
 
 /** A point handed to the profiler: the current condition. */

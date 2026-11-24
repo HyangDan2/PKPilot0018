@@ -6,9 +6,9 @@ import {
   responseIssues,
   withinLimits,
 } from '../src/lib/desirability';
+import { createPredictionAdapter } from '../src/lib/predictionAdapter';
 import {
   buildProblem,
-  compilePointEvaluator,
   defaultFactorSettings,
   defaultResponseSettings,
   evaluateCondition,
@@ -133,22 +133,25 @@ describe('Derringer–Suich desirability', () => {
     expect(responseIssues(goal({ ...base, lower: null, upper: 5 }))).toContain('opt.issue.limitsMissing');
     expect(responseIssues(goal({ ...base, lower: 5, upper: 5 }))).toContain('opt.issue.limitsOrder');
     expect(responseIssues(goal({ ...base, goal: 'target', lower: 0, upper: 5, target: 9 }))).toContain('opt.issue.targetOutside');
+    // A reversed pair is refused, not swapped (Stage 3C): nothing is judged
+    // acceptable against limits that cannot be read.
     const reversed = goal({ ...base, lower: 10, upper: 0 });
-    expect(withinLimits(5, reversed)).toBe(true);
+    expect(responseIssues(reversed)).toContain('opt.issue.limitsReversed');
+    expect(withinLimits(5, reversed)).toBe(false);
     expect(individualDesirability(0, reversed)).toBe(0);
-    expect(individualDesirability(3, reversed)).toBeCloseTo(0.3, 12);
+    expect(individualDesirability(3, reversed)).toBe(0);
   });
 });
 
-/* ── the compiled evaluator matches the shipped predictor ──────────────── */
+/* ── the prediction adapter matches the shipped predictor ──────────────── */
 
-describe('compiled point evaluator', () => {
+describe('prediction adapter', () => {
   it('reproduces the stored-model prediction, its standard error and intervals', () => {
     const model = oneFactor('x', 'Y', [['Constant', 5], ['x', 2], ['x²', -0.5]], {
       min: 0, max: 10, df: 8, se: 1,
       covariance: [[0.25, 0, 0], [0, 0.04, 0], [0, 0, 0.001]],
     });
-    const evaluator = compilePointEvaluator(model);
+    const evaluator = createPredictionAdapter(model);
     const at2 = evaluator.evaluate({ x: 2 }, 0.05);
     expect(at2.value).toBeCloseTo(5 + 4 - 2, 10);
     // var = 1²·0.25 + 2²·0.04 + 4²·0.001 = 0.25 + 0.16 + 0.016
@@ -163,7 +166,7 @@ describe('compiled point evaluator', () => {
       ...model,
       coefficients: model.coefficients.map((coefficient) => (coefficient.label === 'x' ? { ...coefficient, estimable: false } : coefficient)),
     };
-    const evaluator = compilePointEvaluator(aliased);
+    const evaluator = createPredictionAdapter(aliased);
     const result = evaluator.evaluate({ x: 3 }, 0.05);
     expect(result.value).toBeNull();
     expect(result.nonEstimable).toEqual(['x']);
@@ -171,7 +174,7 @@ describe('compiled point evaluator', () => {
 
   it('without a covariance there is no interval, and it says so', () => {
     const model = oneFactor('x', 'Y', [['Constant', 5], ['x', 2]], { min: 0, max: 10 });
-    const result = compilePointEvaluator(model).evaluate({ x: 3 }, 0.05);
+    const result = createPredictionAdapter(model).evaluate({ x: 3 }, 0.05);
     expect(result.value).toBeCloseTo(11, 12);
     expect(result.se).toBeNull();
     expect(result.ci).toBeNull();
@@ -190,7 +193,8 @@ describe('multi-response optimisation', () => {
     // scale itself points at x = 1.5 instead of saturating below it.
     const responses = [goal({ modelId: hump.id, name: 'Yield', goal: 'maximize', lower: 0, upper: 15 })];
     const result = optimize([hump], responses, [factor('x', 0, 5)], { method: 'bounded', seed: 7 });
-    expect(result.status).toBe('optimal');
+    // A converged continuous local search is a local statement (Stage 3C).
+    expect(result.status).toBe('local-converged');
     const best = result.solutions[0];
     expect(best.settings.x as number).toBeCloseTo(1.5, 2);
     expect(best.responses[0].value as number).toBeCloseTo(14.5, 2);
@@ -245,9 +249,11 @@ describe('multi-response optimisation', () => {
       goal({ modelId: hump.id, name: 'Yield', goal: 'range', lower: 100, upper: 200 }),
     ];
     const result = optimize([hump], responses, [factor('x', 0, 5)], { method: 'grid' });
-    expect(result.status).toBe('no-feasible');
+    // A continuous lattice cannot prove infeasibility, only fail to find a point.
+    expect(result.status).toBe('feasible-not-found');
+    expect(result.recommended).toBe(false);
     expect(result.solutions[0].composite).toBe(0);
-    expect(result.warnings).toContain('opt.warn.noCompliantPoint');
+    expect(result.warnings).toContain('opt.warn.noCompliantFound');
   });
 
   it('a grid search reports the best lattice point and does not claim optimality', () => {
@@ -260,7 +266,8 @@ describe('multi-response optimisation', () => {
   it('enumerates a fully discrete space and calls it optimal', () => {
     const responses = [goal({ modelId: hump.id, name: 'Yield', lower: 0, upper: 15 })];
     const result = optimize([hump], responses, [factor('x', 0, 5, { kind: 'discrete', step: 0.5 })], { method: 'enumerate' });
-    expect(result.status).toBe('optimal');
+    expect(result.status).toBe('global-optimal');
+    expect(result.search.exhaustive).toBe(true);
     expect(result.solutions[0].settings.x as number).toBe(1.5);
   });
 
@@ -281,7 +288,7 @@ describe('multi-response optimisation', () => {
       { name: 'Shift', kind: 'categorical', lower: 0, upper: 0, step: 0, fixed: false, fixedValue: 'Day', levels: ['Day', 'Night'] },
     ];
     const result = optimize([model], responses, factors, { method: 'enumerate' });
-    expect(result.status).toBe('optimal');
+    expect(result.status).toBe('global-optimal');
     // Scrap = 4 − contrast(Shift): 3 on Day, 5 on Night, so Day is minimised.
     expect(result.solutions[0].settings.Shift).toBe('Day');
     expect(result.solutions[0].responses[0].value as number).toBeCloseTo(3, 10);
@@ -324,7 +331,11 @@ describe('multi-response optimisation', () => {
     // search that settles above 5 must be marked as extrapolation.
     const narrow = oneFactor('x', 'Yield', [['Constant', 10], ['x', 6], ['x²', -2]], { min: 0, max: 1, df: 10, se: 0.5 });
     const responses = [goal({ modelId: narrow.id, name: 'Yield', lower: 0, upper: 15 })];
-    const result = optimize([narrow], responses, [factor('x', 0, 5)], { method: 'grid', gridPoints: 21 });
+    // A range beyond the fitted data is refused unless the reader allows it.
+    const refused = optimize([narrow], responses, [factor('x', 0, 5)], { method: 'grid', gridPoints: 21 });
+    expect(refused.status).toBe('invalid');
+    expect(refused.issues).toContain('opt.issue.extrapolationNotAllowed');
+    const result = optimize([narrow], responses, [factor('x', 0, 5, { allowExtrapolation: true })], { method: 'grid', gridPoints: 21 });
     expect(result.solutions[0].settings.x as number).toBeCloseTo(1.5, 2);
     expect(result.solutions[0].extrapolated).toBe(true);
   });
@@ -334,17 +345,20 @@ describe('multi-response optimisation', () => {
     // A discrete axis keeps its step, so a 51-point enumeration cannot be thinned.
     const result = optimize([hump], responses, [factor('x', 0, 5, { kind: 'discrete', step: 0.1 })], { method: 'enumerate', maxEvaluations: 20 });
     expect(result.status).toBe('limit');
+    expect(result.search.stoppedBy).toBe('budget');
     expect(result.evaluations).toBeLessThanOrEqual(21);
     expect(result.solutions.length).toBeGreaterThan(0);
-    expect(result.warnings).toContain('opt.warn.gridReduced');
+    expect(result.warnings).toContain('opt.warn.budgetReached');
   });
 
   it('thins an oversized lattice instead of exhausting the budget', () => {
     const responses = [goal({ modelId: hump.id, name: 'Yield', lower: 0, upper: 15 })];
     const result = optimize([hump], responses, [factor('x', 0, 5)], { method: 'grid', gridPoints: 201, maxEvaluations: 25 });
-    expect(result.status).toBe('best-found');
+    // The lattice was thinned to the budget and the budget was then used up.
+    expect(result.status).toBe('limit');
     expect(result.evaluations).toBeLessThanOrEqual(25);
     expect(result.warnings).toContain('opt.warn.gridReduced');
+    expect(result.warnings).toContain('opt.warn.budgetReached');
   });
 
   it('refuses an invalid problem with a reason instead of searching', () => {
@@ -353,8 +367,11 @@ describe('multi-response optimisation', () => {
     expect(noGoal.status).toBe('invalid');
     expect(noGoal.issues).toContain('opt.issue.noGoal');
 
+    // A fully fixed space is one condition, not an error: it is evaluated and
+    // reported as the single point the domain has.
     const allFixed = optimize([hump], [goal({ modelId: hump.id, name: 'Yield', lower: 0, upper: 9 })], [factor('x', 0, 5, { fixed: true })]);
-    expect(allFixed.issues).toContain('opt.issue.allFixed');
+    expect(allFixed.status).toBe('global-optimal');
+    expect(allFixed.solutions[0].settings.x).toBe(2.5);
 
     const noResponse = optimize([hump], [], [factor('x', 0, 5)]);
     expect(noResponse.issues).toContain('opt.issue.noResponse');
@@ -376,12 +393,25 @@ describe('multi-response optimisation', () => {
         { label: 'x', value: 2, estimable: true },
         { label: 'z', value: 3, estimable: true },
       ],
+      // Both factors were fitted on the ranges the search will use, so the only
+      // thing this test is about is the factor that nobody put in the space.
+      factorBounds: { x: { min: 0, max: 5 }, z: { min: -1, max: 1 } },
     };
     const responses = [goal({ modelId: model.id, name: 'Y2', lower: -10, upper: 10 })];
     const problem = buildProblem([model], responses, [factor('x', 0, 5)]);
-    expect(problem.warnings).toContain('opt.warn.heldFactors');
+    // A variable nobody put in the search space is never held at a value the
+    // reader did not choose (Stage 3C); the model must be added as a factor.
+    expect(problem.issues).toContain('opt.issue.factorMissing');
     const result = optimize([model], responses, [factor('x', 0, 5)], { method: 'grid', gridPoints: 5 });
-    expect(result.solutions[0].responses[0].value).toBeCloseTo(1 + 2 * 5 + 3 * 0, 6);
+    expect(result.status).toBe('invalid');
+    expect(result.issues).toContain('opt.issue.factorMissing');
+    const withBoth = optimize([model], responses, [factor('x', 0, 5), factor('z', -1, 1)], { method: 'grid', gridPoints: 5 });
+    expect(withBoth.status).not.toBe('invalid');
+    // y = 1 + 2x + 3z saturates the desirability at its upper limit (10), so any
+    // condition above 10 is an equally good answer; the point is that z is a
+    // searched factor now, not a value somebody invented.
+    expect(withBoth.solutions[0].responses[0].value as number).toBeGreaterThanOrEqual(10);
+    expect(withBoth.solutions[0].settings.z).toBeDefined();
   });
 });
 
