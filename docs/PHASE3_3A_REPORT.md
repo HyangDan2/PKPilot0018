@@ -15,8 +15,8 @@
 | `npm test` | **749 / 749 PASS** (24 → 31 테스트 파일, 661 → 749건) |
 | `npm run qa:stats` | **162 / 162 PASS, 0 FAIL** (156 → 162, 저장 모형 6건 추가) |
 | `npm run build` | 성공, 외부 CDN 없음 |
-| Stage 3A E2E `tools/e2e_phase3_3a.cjs` | **27 / 27 PASS** (데스크톱 1440×900 + 모바일 390×844) |
-| 회귀 E2E | `e2e_chart_axes.cjs` 6/6 · `e2e_chart_upgrade.cjs` 34/34 · `e2e_stage3.cjs` 176/176 |
+| Stage 3A E2E `tools/e2e_phase3_3a.cjs` | **29 / 29 PASS** (데스크톱 1440×900 + 모바일 390×844) |
+| 회귀 E2E | `e2e_chart_axes.cjs` 6/6 · `e2e_chart_upgrade.cjs` 34/34 · `e2e_stage3.cjs` 176/176 · `e2e_stage2.cjs` 37/37 |
 | 콘투어 벤치마크 | 41: 15.8 ms · 101: 17.9 ms · 201: 39.2 ms · 401: 109.2 ms (5회 중앙값, 출력 바이트 동일) |
 
 ---
@@ -60,7 +60,7 @@
 
 ### 2.5 UI E2E 재실행·보강 (`WO-01/5`)
 
-`tools/e2e_phase3_3a.cjs`(27 검사)를 추가하고 기존 3종을 재실행했다. E2E는 자체 정적 서버를 같은 프로세스에서 띄운다(별도 셸 서버는 셸이 끝나면 죽어 `ERR_CONNECTION_REFUSED`가 났다 — `tools/serve_inline.cjs`).
+`tools/e2e_phase3_3a.cjs`(29 검사)를 추가하고 기존 3종을 재실행했다. E2E는 자체 정적 서버를 같은 프로세스에서 띄운다(별도 셸 서버는 셸이 끝나면 죽어 `ERR_CONNECTION_REFUSED`가 났다 — `tools/serve_inline.cjs`).
 
 ### 2.6 차트 설정 저장·복원 (`WO-01/6`)
 
@@ -140,7 +140,7 @@
 
 - 단위: `tests/model-store.test.ts` 30건 — 저장 필드, 예측=적합값, SE=s/√n(중심), Coded↔Actual 동등성, 랭크 부족 거부, Stale/재적합, 프로젝트 왕복, 비교표.
 - 통계 QA: `qa/cases/QA-J-models.json` 6건 — NumPy·SciPy로 독립 재계산(X'β, x'Σx, t 예측구간)한 값과 최대 상대오차 **1.3e-12**, 랭크 부족은 양쪽 모두 `model.nonEstimable`로 거부.
-- E2E: 카드 → 저장 → 관리자 → 예측 → 단위 전환 → 이름 변경 → 복제 → 비교 → 등고선 생성 → 삭제 → 데이터 변경(stale) → 재적합 27/27.
+- E2E: 카드 → 저장 → 관리자 → 예측 → 단위 전환 → 이름 변경 → 복제 → 비교 → 등고선 생성 → 삭제 → 데이터 변경(stale) → 재적합 → 다항 회귀 저장 29/29.
 
 ---
 
@@ -162,7 +162,7 @@
 | Pages | https://hyangdan2.github.io/PKPilot0018/ |
 | 브랜치 | `feat/chart-engine-phase3-3a` → `main` 스쿼시 머지 후 원격 브랜치 삭제 |
 | 워크플로 | `Deploy`, `qa-stats` — 머지 커밋에서 success 확인 |
-| 라이브 스모크 | 라이브 URL에서 `tools/e2e_phase3_3a.cjs` 재실행 + 스크린샷 `work/pkpilot0018/phase3-3a-pc.png` |
+| 라이브 스모크 | 라이브 URL에서 `tools/e2e_phase3_3a.cjs` 재실행 **29 / 29 PASS** + 스크린샷 `work/pkpilot0018/phase3-3a-pc.png` |
 
 재현:
 
