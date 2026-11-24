@@ -9,7 +9,7 @@ import { capability } from './capability';
 import { evaluateFormula } from './calc';
 import { histogramBins } from './charts';
 import { fCdf, normalInv, normalPdf, tInv } from './dist';
-import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, ccdDesign, contourGrid, designWorksheet, factorialDesign } from './doe';
+import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, buildRsmModel, ccdDesign, designWorksheet, factorialDesign, rsmPredictSurface } from './doe';
 import { fmt, fmtInt, fmtP } from './format';
 import { gageRR, type GrrRow } from './gagerr';
 import { cellMeans, fitGlm, type ModelFactor, type ModelTerm } from './glm';
@@ -2574,7 +2574,11 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
     Number.isFinite(glm.t[i]) ? fmt(glm.t[i], 3) : '—',
     Number.isFinite(glm.p[i]) ? fmtP(glm.p[i]) : '—',
   ]);
-  const grid = contourGrid(glm, factors, 0, 1, 41);
+  // The contour view carries the fitted model so the Phase 2 drawer can change
+  // the factor pair, holdings and units without refitting, and it starts at the
+  // measured default resolution (101 × 101) with filled bands plus iso-lines.
+  const model = buildRsmModel(glm, factors, analysis.stationary);
+  const surface = rsmPredictSurface(model, { resolution: 101, unitMode: 'coded', includeDesignPoints: true });
   const blocks: Block[] = [
     {
       type: 'text',
@@ -2615,12 +2619,26 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
       type: 'chart',
       chart: {
         kind: 'contour',
-        xs: grid.xs,
-        ys: grid.ys,
-        z: grid.z,
+        xs: surface.grid.xs,
+        ys: surface.grid.ys,
+        z: surface.grid.z,
         xLabel: factors[0].name,
         yLabel: factors[1].name,
-        points: grid.points,
+        points: surface.points,
+        xRange: surface.xRange,
+        yRange: surface.yRange,
+        rsmModel: model,
+        config: {
+          contour: {
+            resolution: 'standard',
+            renderMode: 'filled-lines',
+            colormap: 'sigrun-classic',
+            levelCount: 10,
+            showPoints: true,
+            colorbarMode: 'discrete',
+            colorbarPosition: 'right',
+          },
+        },
         height: 300,
       },
       caption: t(lang, 'res.contourNote'),

@@ -619,3 +619,94 @@ export function normalScores(n: number): number[] {
   for (let i = 1; i <= n; i += 1) out.push(normalInv((i - 0.375) / (n + 0.25)));
   return out;
 }
+
+/* ── regression confidence / prediction bands ─────────────────────────── */
+
+export interface RegressionBandPoint {
+  x: number;
+  lo: number;
+  hi: number;
+}
+
+export interface RegressionBands {
+  n: number;
+  df: number;
+  intercept: number;
+  slope: number;
+  /** residual standard deviation */
+  s: number;
+  sxx: number;
+  xbar: number;
+  r2: number;
+  /** two-sided t critical value used for the bands */
+  tCrit: number;
+  mean: RegressionBandPoint[];
+  individual: RegressionBandPoint[];
+}
+
+/**
+ * Exact OLS mean-response confidence band and individual prediction band:
+ *
+ *   ŷ(x0) ± t(1−α/2, n−2) · s · √(1/n + (x0 − x̄)² / Sxx)      (mean)
+ *   ŷ(x0) ± t(1−α/2, n−2) · s · √(1 + 1/n + (x0 − x̄)² / Sxx)  (individual)
+ *
+ * The bands are evaluated on a grid from the smallest to the largest observed
+ * x (inclusive), which is what a scatterplot draws.
+ */
+export function regressionBands(
+  xRaw: (number | null)[],
+  yRaw: (number | null)[],
+  confidence = 0.95,
+  steps = 60,
+): RegressionBands {
+  const rows: { x: number; y: number }[] = [];
+  const length = Math.min(xRaw.length, yRaw.length);
+  for (let i = 0; i < length; i += 1) {
+    const x = xRaw[i];
+    const y = yRaw[i];
+    if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) rows.push({ x, y });
+  }
+  const empty: RegressionBands = {
+    n: 0, df: 0, intercept: NaN, slope: NaN, s: NaN, sxx: NaN, xbar: NaN, r2: NaN, tCrit: NaN, mean: [], individual: [],
+  };
+  const n = rows.length;
+  if (n < 3) return { ...empty, n };
+  const xbar = mean(rows.map((r) => r.x));
+  const ybar = mean(rows.map((r) => r.y));
+  const sxx = rows.reduce((a, r) => a + (r.x - xbar) ** 2, 0);
+  if (!(sxx > 0)) return { ...empty, n, xbar };
+  const sxy = rows.reduce((a, r) => a + (r.x - xbar) * (r.y - ybar), 0);
+  const slope = sxy / sxx;
+  const intercept = ybar - slope * xbar;
+  const df = n - 2;
+  const sse = rows.reduce((a, r) => a + (r.y - (intercept + slope * r.x)) ** 2, 0);
+  const sst = rows.reduce((a, r) => a + (r.y - ybar) ** 2, 0);
+  const s = Math.sqrt(sse / df);
+  const r2 = sst > 0 ? 1 - sse / sst : 0;
+  const alpha = Math.max(1e-6, Math.min(0.999999, 1 - confidence));
+  const tCrit = tInv(1 - alpha / 2, df);
+  const count = Math.max(2, Math.round(steps));
+  const xs = rows.map((r) => r.x);
+  const min = Math.min(...xs);
+  const max = Math.max(...xs);
+  const pointAt = (x0: number, mode: 'mean' | 'individual'): RegressionBandPoint => {
+    const fit = intercept + slope * x0;
+    const leverage = 1 / n + ((x0 - xbar) ** 2) / sxx;
+    const se = s * Math.sqrt((mode === 'individual' ? 1 : 0) + leverage);
+    return { x: x0, lo: fit - tCrit * se, hi: fit + tCrit * se };
+  };
+  const grid = min === max ? [min - 0.5, max + 0.5] : Array.from({ length: count }, (_, i) => min + ((max - min) * i) / (count - 1));
+  return {
+    n,
+    df,
+    intercept,
+    slope,
+    s,
+    sxx,
+    xbar,
+    r2,
+    tCrit,
+    mean: grid.map((x0) => pointAt(x0, 'mean')),
+    individual: grid.map((x0) => pointAt(x0, 'individual')),
+  };
+}

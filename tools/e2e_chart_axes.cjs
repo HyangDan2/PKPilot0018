@@ -84,11 +84,12 @@ function check(name, ok, detail = '') {
         x1: Number(el.getAttribute('x1')), y1: Number(el.getAttribute('y1')),
         x2: Number(el.getAttribute('x2')), y2: Number(el.getAttribute('y2')),
         stroke: el.getAttribute('stroke'),
+        cls: el.getAttribute('class') || '',
       }));
-      const whiskers = lines.filter((l) => Math.abs(l.x1 - l.x2) < 0.01 && l.x1 > 60 && l.x1 < 520 && l.stroke === 'var(--chart-axis)');
-      const boxes = [...node.querySelectorAll('rect')].map((el) => ({
+      const whiskers = lines.filter((l) => Math.abs(l.x1 - l.x2) < 0.01 && l.x1 > 60 && l.x1 < 520 && l.cls === 'chart-whisker');
+      const boxes = [...node.querySelectorAll('rect.chart-box')].map((el) => ({
         y: Number(el.getAttribute('y')), h: Number(el.getAttribute('height')), fill: el.getAttribute('fill'),
-      })).filter((r) => r.fill === 'var(--chart-1)');
+      }));
       return {
         viewBox: node.getAttribute('viewBox'),
         ticks,

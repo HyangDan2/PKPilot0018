@@ -458,3 +458,258 @@ function logGammaLocal(x: number): number {
   for (let i = 1; i < 9; i += 1) a += c[i] / (z + i);
   return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(a);
 }
+
+/* ── RSM model payload: re-slice one fitted surface without refitting ──── */
+
+/** Coded ↔ actual transform for one factor. */
+export interface RsmFactorTransform {
+  center: number;
+  halfRange: number;
+  low: number;
+  high: number;
+}
+
+export interface RsmDesignPoint {
+  /** Factor levels exactly as fitted (coded for a standard Sigrún design). */
+  levels: number[];
+  /** Observed response, or null for a row that did not enter the fit. */
+  y: number | null;
+  predicted?: number;
+}
+
+/**
+ * Everything a contour view needs to re-slice the fitted surface: the
+ * coefficients, the term labels, the design points and the coded region. It is
+ * carried on the `contour` ChartSpec so the Phase 2 drawer can change factor
+ * pair, holdings and units without re-running the analysis.
+ */
+export interface RsmModelPayload {
+  beta: number[];
+  labels: string[];
+  factorNames: string[];
+  designPoints: RsmDesignPoint[];
+  stationary?: {
+    point: number[];
+    response: number;
+    eigenvalues: number[];
+    kind: 'maximum' | 'minimum' | 'saddle';
+    maxAbs: number;
+    outsideRegion: boolean;
+  };
+  /** Optional best operating point chosen by an optimiser. */
+  optimal?: { point: number[]; response: number };
+  /** Coded extent of each factor in the fitted design (e.g. ±1.682 for a CCD). */
+  codedBounds: { min: number; max: number }[];
+  /** Coded→actual transform; identity when a factor spans -1…1. */
+  actualTransform: RsmFactorTransform[];
+  s?: number;
+  r2?: number;
+  n?: number;
+}
+
+/** Build the payload from a fitted quadratic and its analysis. */
+export function buildRsmModel(
+  glm: GlmResult,
+  factors: Factor[],
+  stationary?: RsmAnalysis['stationary'],
+): RsmModelPayload {
+  const factorNames = factors.map((f) => f.name);
+  const designPoints: RsmDesignPoint[] = glm.design.rows.map((row, i) => {
+    const levels = factorNames.map((_, fi) => Number(factors[fi].values[row]));
+    const y = Number(glm.design.y[i]);
+    return {
+      levels: levels.map((v) => (Number.isFinite(v) ? v : 0)),
+      y: Number.isFinite(y) ? y : null,
+      predicted: predictQuadratic(glm.beta, glm.design.labels, factorNames, levels.map((v) => (Number.isFinite(v) ? v : 0))),
+    };
+  });
+  const codedBounds = factors.map((f) => {
+    const values = f.values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+    const min = values.length ? Math.min(...values) : -1;
+    const max = values.length ? Math.max(...values) : 1;
+    return { min, max };
+  });
+  const actualTransform = codedBounds.map(({ min, max }) => {
+    const center = (min + max) / 2;
+    const halfRange = (max - min) / 2 || 1;
+    return { center, halfRange, low: center - halfRange, high: center + halfRange };
+  });
+  return {
+    beta: [...glm.beta],
+    labels: [...glm.design.labels],
+    factorNames,
+    designPoints,
+    stationary,
+    codedBounds,
+    actualTransform,
+    s: glm.s,
+    r2: glm.r2,
+    n: glm.n,
+  };
+}
+
+/** Predicted response at a point given in the model's own (coded) levels. */
+export function predictRsmAt(model: RsmModelPayload, point: number[]): number {
+  return predictQuadratic(model.beta, model.labels, model.factorNames, point);
+}
+
+export function codedToActual(model: RsmModelPayload, factor: number, coded: number): number {
+  const t = model.actualTransform[factor];
+  return t ? t.center + t.halfRange * coded : coded;
+}
+
+export function actualToCoded(model: RsmModelPayload, factor: number, actual: number): number {
+  const t = model.actualTransform[factor];
+  return t && t.halfRange ? (actual - t.center) / t.halfRange : actual;
+}
+
+export interface RsmSurfaceOptions {
+  xFactorIndex?: number;
+  yFactorIndex?: number;
+  /** Holding values for the factors not on either axis, in the requested unit mode. */
+  holdingValues?: Record<number, number>;
+  /** Display range in the chosen unit mode. */
+  xRange?: [number, number];
+  yRange?: [number, number];
+  unitMode?: 'coded' | 'actual';
+  resolution?: number;
+  includeDesignPoints?: boolean;
+}
+
+export interface RsmSurface {
+  grid: ContourGrid;
+  xFactorIndex: number;
+  yFactorIndex: number;
+  xName: string;
+  yName: string;
+  xRange: [number, number];
+  yRange: [number, number];
+  unitMode: 'coded' | 'actual';
+  /** Display points: design runs plus the stationary / optimal marker. */
+  points: { x: number; y: number; z?: number; label?: string; kind: 'design' | 'stationary' | 'optimal' }[];
+  zMin: number;
+  zMax: number;
+  /** True when the displayed range reaches beyond the experimental region. */
+  extrapolated: boolean;
+}
+
+/**
+ * Predict the fitted surface over any factor pair with the remaining factors
+ * held at chosen values — the operation behind the RSM view drawer.
+ */
+export function rsmPredictSurface(model: RsmModelPayload, options: RsmSurfaceOptions = {}): RsmSurface {
+  const k = model.factorNames.length;
+  const xi = clampIndex(options.xFactorIndex ?? 0, k);
+  const yi = clampIndex(options.yFactorIndex ?? (k > 1 ? 1 : 0), k);
+  const resolution = Math.max(2, Math.min(601, Math.round(options.resolution ?? 101)));
+  const unitMode = options.unitMode ?? 'coded';
+  const boundsOf = (f: number) => model.codedBounds[f] ?? { min: -1, max: 1 };
+  const toDisplay = (f: number, coded: number) => (unitMode === 'actual' ? codedToActual(model, f, coded) : coded);
+  const toCoded = (f: number, display: number) => (unitMode === 'actual' ? actualToCoded(model, f, display) : display);
+  const fallbackRange = (f: number): [number, number] => {
+    const b = boundsOf(f);
+    return [toDisplay(f, b.min), toDisplay(f, b.max)];
+  };
+  const xRange = options.xRange ?? fallbackRange(xi);
+  const yRange = options.yRange ?? fallbackRange(yi);
+  const xs = Array.from({ length: resolution }, (_, i) => xRange[0] + ((xRange[1] - xRange[0]) * i) / (resolution - 1));
+  const ys = Array.from({ length: resolution }, (_, i) => yRange[0] + ((yRange[1] - yRange[0]) * i) / (resolution - 1));
+  const holding = options.holdingValues ?? {};
+  const basePoint = (): number[] => {
+    const point = new Array(k).fill(0);
+    Object.entries(holding).forEach(([index, value]) => {
+      const f = Number(index);
+      if (Number.isInteger(f) && f >= 0 && f < k && Number.isFinite(value)) point[f] = toCoded(f, value);
+    });
+    return point;
+  };
+  const z: number[][] = ys.map((yv) => {
+    const yCoded = toCoded(yi, yv);
+    return xs.map((xv) => {
+      const point = basePoint();
+      point[xi] = toCoded(xi, xv);
+      point[yi] = yCoded;
+      return predictRsmAt(model, point);
+    });
+  });
+  const flat = z.flat().filter((v) => Number.isFinite(v));
+  const points: RsmSurface['points'] = [];
+  if (options.includeDesignPoints !== false) {
+    model.designPoints.forEach((dp) => {
+      const xv = toDisplay(xi, dp.levels[xi] ?? 0);
+      const yv = toDisplay(yi, dp.levels[yi] ?? 0);
+      const response = dp.y ?? dp.predicted;
+      points.push({ x: xv, y: yv, z: response, kind: 'design' });
+    });
+  }
+  if (model.stationary) {
+    points.push({
+      x: toDisplay(xi, model.stationary.point[xi] ?? 0),
+      y: toDisplay(yi, model.stationary.point[yi] ?? 0),
+      z: model.stationary.response,
+      kind: 'stationary',
+      label: 'Stationary',
+    });
+  }
+  if (model.optimal) {
+    points.push({
+      x: toDisplay(xi, model.optimal.point[xi] ?? 0),
+      y: toDisplay(yi, model.optimal.point[yi] ?? 0),
+      z: model.optimal.response,
+      kind: 'optimal',
+      label: 'Optimal',
+    });
+  }
+  const xb = boundsOf(xi);
+  const yb = boundsOf(yi);
+  const codedXRange: [number, number] = [toCoded(xi, xRange[0]), toCoded(xi, xRange[1])];
+  const codedYRange: [number, number] = [toCoded(yi, yRange[0]), toCoded(yi, yRange[1])];
+  const outside = (range: [number, number], b: { min: number; max: number }) =>
+    Math.min(range[0], range[1]) < b.min - 1e-9 || Math.max(range[0], range[1]) > b.max + 1e-9;
+  const extrapolated = outside(codedXRange, xb) || outside(codedYRange, yb) || Boolean(model.stationary?.outsideRegion);
+  const gridZMin = flat.length ? Math.min(...flat) : 0;
+  const gridZMax = flat.length ? Math.max(...flat) : 1;
+  return {
+    grid: {
+      xs,
+      ys,
+      z,
+      xName: model.factorNames[xi] ?? `X${xi + 1}`,
+      yName: model.factorNames[yi] ?? `Y${yi + 1}`,
+      points: points.map((point) => ({ x: point.x, y: point.y, z: point.z ?? 0 })),
+      zMin: gridZMin,
+      zMax: gridZMax,
+    },
+    xFactorIndex: xi,
+    yFactorIndex: yi,
+    xName: model.factorNames[xi] ?? `X${xi + 1}`,
+    yName: model.factorNames[yi] ?? `Y${yi + 1}`,
+    xRange,
+    yRange,
+    unitMode,
+    points,
+    zMin: flat.length ? Math.min(...flat) : 0,
+    zMax: flat.length ? Math.max(...flat) : 1,
+    extrapolated,
+  };
+}
+
+function clampIndex(value: number, k: number): number {
+  if (!Number.isInteger(value) || k <= 0) return 0;
+  return Math.max(0, Math.min(k - 1, value));
+}
+
+/** Every factor pair of the model, each as a ready-to-render surface. */
+export function buildAllPairContours(
+  model: RsmModelPayload,
+  resolution = 101,
+  unitMode: 'coded' | 'actual' = 'coded',
+): RsmSurface[] {
+  const out: RsmSurface[] = [];
+  for (let i = 0; i < model.factorNames.length; i += 1) {
+    for (let j = i + 1; j < model.factorNames.length; j += 1) {
+      out.push(rsmPredictSurface(model, { xFactorIndex: i, yFactorIndex: j, resolution, unitMode }));
+    }
+  }
+  return out;
+}

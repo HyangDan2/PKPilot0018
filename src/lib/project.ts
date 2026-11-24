@@ -5,6 +5,7 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { Column, ColType, ProjectFile, Settings, OutputDoc, Worksheet } from '../types';
+import type { CustomChartStyle } from './chartStyles';
 import { makeWorksheet, uid } from './datasets';
 
 export interface ProjectState {
@@ -12,6 +13,8 @@ export interface ProjectState {
   activeSheetId: string;
   settings: Settings;
   outputs: OutputDoc[];
+  /** Optional: user chart styles saved with the project. */
+  customChartStyles?: CustomChartStyle[];
 }
 
 export function buildProject(state: ProjectState): ProjectFile {
@@ -24,6 +27,7 @@ export function buildProject(state: ProjectState): ProjectFile {
     activeSheetId: state.activeSheetId,
     settings: state.settings,
     outputs: state.outputs,
+    ...(state.customChartStyles?.length ? { customChartStyles: state.customChartStyles } : {}),
   };
 }
 
@@ -77,7 +81,13 @@ export function parseProject(text: string): ProjectState {
     theme: file.settings?.theme === 'dark' ? 'dark' : 'light',
     lang: file.settings?.lang === 'ko' ? 'ko' : 'en',
   };
-  return { worksheets, activeSheetId, settings, outputs: Array.isArray(file.outputs) ? file.outputs : [] };
+  return {
+    worksheets,
+    activeSheetId,
+    settings,
+    outputs: Array.isArray(file.outputs) ? file.outputs : [],
+    ...(Array.isArray(file.customChartStyles) ? { customChartStyles: file.customChartStyles } : {}),
+  };
 }
 
 export function worksheetToCsv(ws: Worksheet): string {

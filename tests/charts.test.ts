@@ -35,7 +35,7 @@ function specLines(svg: string): { x1: number; y1: number; x2: number; y2: numbe
 
 /** Bar rectangles of a histogram/capability chart. */
 function bars(svg: string): { x: number; y: number; w: number }[] {
-  return [...svg.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="[\d.]+" fill="var\(--chart-1\)"/g)].map((m) => ({
+  return [...svg.matchAll(/<rect class="chart-bar" data-chart-role="chart-bar" x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="[\d.]+"/g)].map((m) => ({
     x: Number(m[1]),
     y: Number(m[2]),
     w: Number(m[3]),
@@ -88,7 +88,7 @@ describe('SVG chart renderers', () => {
   it('marks out-of-control points with the rule number', () => {
     const unstable = imrChart([10, 10.1, 9.9, 10, 10.2, 9.8, 10.1, 10, 9.9, 11.8]);
     const svg = renderChart({ kind: 'control', panel: unstable.panels[0] });
-    expect(svg).toContain('var(--chart-alarm)');
+    expect(svg).toContain('chart-point-alarm');
     expect(/<text[^>]*>1<\/text>/.test(svg) || /<text[^>]*>1,2<\/text>/.test(svg)).toBe(true);
   });
 });
@@ -146,7 +146,7 @@ describe('histogram geometry', () => {
     const rects = bars(svg);
     expect(rects.length).toBeGreaterThan(5);
     const barTop = Math.min(...rects.map((r) => r.y));
-    const curve = /<polyline points="([^"]+)" fill="none" stroke="var\(--chart-1\)"[^>]*\/>/.exec(svg);
+    const curve = /<polyline class="chart-curve" data-chart-role="chart-curve" points="([^"]+)"/.exec(svg);
     expect(curve).not.toBeNull();
     const ys = (curve?.[1] ?? '').split(' ').map((p) => Number(p.split(',')[1]));
     const curveTop = Math.min(...ys);
@@ -198,14 +198,14 @@ describe('axis ticks match the plotted scale', () => {
     const yAt = (value: number) => first.pixel + (value - first.value) * slope;
 
     // The box top/bottom and the median line are drawn at q3/q1/median.
-    const box = /<rect x="[-\d.]+" y="([-\d.]+)" width="[-\d.]+" height="([-\d.]+)" fill="var\(--chart-1\)" opacity="0.18"/.exec(svg);
+    const box = /<rect class="chart-box" data-chart-role="chart-box" x="[-\d.]+" y="([-\d.]+)" width="[-\d.]+" height="([-\d.]+)"/.exec(svg);
     expect(box).not.toBeNull();
     const top = Number(box![1]);
     const height = Number(box![2]);
     const stats = boxplotStats([...hardness].sort((a, b) => a - b));
     expect(Math.abs(top - yAt(stats.q3))).toBeLessThan(0.5);
     expect(Math.abs(top + height - yAt(stats.q1))).toBeLessThan(0.5);
-    const median = /<line x1="[-\d.]+" y1="([-\d.]+)" x2="[-\d.]+" y2="[-\d.]+" stroke="var\(--chart-1\)" stroke-width="2.2"/.exec(svg);
+    const median = /<line class="chart-median" data-chart-role="chart-median" x1="[-\d.]+" y1="([-\d.]+)"/.exec(svg);
     expect(median).not.toBeNull();
     expect(Math.abs(Number(median![1]) - yAt(stats.median))).toBeLessThan(0.5);
 

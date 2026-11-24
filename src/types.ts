@@ -2,6 +2,10 @@
 
 import type { SpcPanel } from './lib/spc';
 import type { CapabilityResult } from './lib/capability';
+import type { ChartConfig } from './lib/chartConfig';
+import type { RsmModelPayload } from './lib/doe';
+import type { MarkerShape } from './lib/chartConfig';
+import type { CustomChartStyle } from './lib/chartStyles';
 
 export type ColType = 'numeric' | 'text' | 'date';
 
@@ -24,9 +28,19 @@ export interface Worksheet {
 
 export interface ChartMargins { top?: number; right?: number; bottom?: number; left?: number }
 
+/** A fitted mean-CI / prediction band, one point per x. */
+export interface ChartBand {
+  x: number;
+  lo: number;
+  hi: number;
+}
+
 interface ChartBase {
   height?: number;
   title?: string;
+  subtitle?: string;
+  /** Optional professional appearance / options; absent means legacy defaults. */
+  config?: ChartConfig;
 }
 
 export type ChartSpec =
@@ -34,6 +48,9 @@ export type ChartSpec =
       kind: 'histogram';
       values: number[];
       bins?: number;
+      /** Optional explicit bin origin and width (histogram options). */
+      binStart?: number;
+      binWidth?: number;
       normal?: boolean;
       lsl?: number | null;
       usl?: number | null;
@@ -45,20 +62,27 @@ export type ChartSpec =
     })
   | (ChartBase & {
       kind: 'line';
-      series: { label: string; points: { x: number; y: number }[]; color?: number; dash?: string }[];
+      series: { label: string; points: { x: number; y: number }[]; color?: number; dash?: string; markerShape?: MarkerShape; axis?: 'primary' | 'secondary'; showMarkers?: boolean; showLine?: boolean }[];
       xLabels?: string[];
       xLabel?: string;
       yLabel?: string;
+      /** Secondary Y-axis title for series marked `axis: 'secondary'`. */
+      y2Label?: string;
       refLines?: { y: number; label?: string }[];
       markers?: { x: number; y: number; label?: string }[];
     })
   | (ChartBase & {
       kind: 'bar';
-      items: { label: string; value: number; color?: number }[];
+      items: { label: string; value: number; color?: number; group?: string }[];
       yLabel?: string;
       xLabel?: string;
       refLine?: { y: number; label?: string };
       decimals?: number;
+      /** Grouped series: each group draws its own bar inside every category. */
+      groups?: { label: string; values: number[]; color?: number }[];
+      /** Secondary Y-axis series (line overlay on a bar chart). */
+      lines?: { label: string; points: { x: number; y: number }[]; color?: number }[];
+      y2Label?: string;
     })
   | (ChartBase & {
       kind: 'contour';
@@ -67,8 +91,13 @@ export type ChartSpec =
       z: number[][];
       xLabel?: string;
       yLabel?: string;
-      points?: { x: number; y: number }[];
+      points?: { x: number; y: number; z?: number; label?: string; kind?: 'design' | 'stationary' | 'optimal' }[];
       levels?: number;
+      /** Fitted RSM model carried with the plot so the UI can re-slice it. */
+      rsmModel?: RsmModelPayload;
+      /** Display range actually used, for the axis and the extrapolation badge. */
+      xRange?: [number, number];
+      yRange?: [number, number];
     })
   | (ChartBase & {
       kind: 'probplot';
@@ -83,7 +112,12 @@ export type ChartSpec =
       ci?: { x: number; lo: number; hi: number }[];
       note?: string;
     })
-  | (ChartBase & { kind: 'boxplot'; groups: { label: string; values: number[] }[]; yLabel?: string })
+  | (ChartBase & {
+      kind: 'boxplot';
+      groups: { label: string; values: number[]; color?: number }[];
+      yLabel?: string;
+      xLabel?: string;
+    })
   | (ChartBase & {
       kind: 'scatter';
       points: { x: number; y: number; g?: string }[];
@@ -92,7 +126,13 @@ export type ChartSpec =
       xLabel?: string;
       yLabel?: string;
       /** Several X-Y combinations drawn in one frame (overlaid layout). */
-      series?: { label: string; points: { x: number; y: number }[]; fit?: { intercept: number; slope: number } | null }[];
+      series?: {
+        label: string;
+        points: { x: number; y: number }[];
+        fit?: { intercept: number; slope: number } | null;
+        markerShape?: MarkerShape;
+        labels?: string[];
+      }[];
       /** Fixed axis range so every panel of a grid can share one scale. */
       xDomain?: [number, number];
       yDomain?: [number, number];
@@ -100,6 +140,10 @@ export type ChartSpec =
       notes?: string[];
       /** Draw a legend for the series or the By groups. */
       legend?: boolean;
+      /** Mean confidence and individual prediction bands for the fitted line. */
+      bands?: { mean?: ChartBand[]; individual?: ChartBand[] };
+      /** Labels printed beside each point when the option is on. */
+      pointLabels?: string[];
     })
   | (ChartBase & {
       kind: 'timeseries';
@@ -120,7 +164,14 @@ export type ChartSpec =
       ad?: number;
       p?: number;
     })
-  | (ChartBase & { kind: 'control'; panel: SpcPanel; yLabel?: string; xLabel?: string })
+  | (ChartBase & {
+      kind: 'control';
+      panel: SpcPanel;
+      yLabel?: string;
+      xLabel?: string;
+      /** Specification limits overlaid on a control chart when the option is on. */
+      specLines?: { value: number; label?: string }[];
+    })
   | (ChartBase & { kind: 'pareto'; items: { label: string; count: number }[]; threshold?: number })
   | (ChartBase & { kind: 'capability'; result: CapabilityResult; xLabel?: string })
   | (ChartBase & {
@@ -197,6 +248,8 @@ export interface ProjectFile {
   activeSheetId: string;
   settings: Settings;
   outputs: OutputDoc[];
+  /** User chart styles travel with the project when one was saved. */
+  customChartStyles?: CustomChartStyle[];
 }
 
 export interface ColumnPayload {
