@@ -100,6 +100,15 @@ function chartElementAt(event: React.MouseEvent | MouseEvent, holder: HTMLElemen
   return null;
 }
 
+/**
+ * Rows as the worksheet numbers them. A plotted element carries its 0-based
+ * array index; the grid shows row 1 for index 0, so the readout follows the
+ * grid instead of quietly disagreeing with it by one.
+ */
+function worksheetRows(rows: number[]): string {
+  return rows.slice(0, 8).map((row) => row + 1).join(', ');
+}
+
 /** Nearest plotted element under the pointer, if it carries its own values. */
 function pointUnder(event: React.MouseEvent | MouseEvent, holder?: HTMLElement | null): { x: number; y: number; z?: number; label?: string; rows: number[] } | null {
   const element = chartElementAt(event, holder ?? null, '[data-x][data-y]');
@@ -302,7 +311,7 @@ export function ChartFrame({
       const lines = [`x ${fmt(point.x, 4)}`, `y ${fmt(point.y, 4)}`];
       if (point.z != null && Number.isFinite(point.z)) lines.push(`z ${fmt(point.z, 4)}`);
       if (point.label) lines.push(point.label);
-      if (point.rows.length) lines.push(t(lang, 'ct.rows', { rows: point.rows.slice(0, 8).join(', ') }));
+      if (point.rows.length) lines.push(t(lang, 'ct.rows', { rows: worksheetRows(point.rows) }));
       setTip({ ...position, lines });
       return;
     }
@@ -437,7 +446,7 @@ export function ChartFrame({
     const lines = [`x ${element.getAttribute('data-x') ?? ''}`, `y ${element.getAttribute('data-y') ?? ''}`];
     const z = element.getAttribute('data-z');
     if (z) lines.push(`z ${z}`);
-    if (rows.length) lines.push(t(lang, 'ct.rows', { rows: rows.slice(0, 8).join(', ') }));
+    if (rows.length) lines.push(t(lang, 'ct.rows', { rows: worksheetRows(rows) }));
     const tipAt = { x: box.left - holderBox.left, y: box.top - holderBox.top, lines };
     setTip(tipAt);
     if (rows.length) {
@@ -462,7 +471,7 @@ export function ChartFrame({
     const lines = [`x ${fmt(point.x, 4)}`, `y ${fmt(point.y, 4)}`];
     if (point.z != null) lines.push(`z ${fmt(point.z, 4)}`);
     if (point.label) lines.push(point.label);
-    if (point.rows.length) lines.push(t(lang, 'ct.rows', { rows: point.rows.slice(0, 8).join(', ') }));
+    if (point.rows.length) lines.push(t(lang, 'ct.rows', { rows: worksheetRows(point.rows) }));
     setPinned({ x: event.clientX - rect.left, y: event.clientY - rect.top, lines });
   };
 
