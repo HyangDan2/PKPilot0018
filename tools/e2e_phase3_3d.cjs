@@ -349,6 +349,7 @@ async function axisMin(card) {
     check('a chart of the same columns joins the selection', (await partner.locator('.chart-point.chart-selected').count()) > 0, String(await partner.locator('.chart-point.chart-selected').count()));
     check('a chart of other columns never joins it', (await stranger.locator('.chart-point.chart-selected').count()) === 0, String(await stranger.locator('.chart-point.chart-selected').count()));
     await page.screenshot({ path: path.join(OUT, 'phase3-3d-selection.png') });
+    await page.screenshot({ path: path.join(OUT, 'phase3-3d-interaction.png') });
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
