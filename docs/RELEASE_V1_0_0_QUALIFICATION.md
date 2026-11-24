@@ -8,7 +8,7 @@
 
 ## 1. 한 문장 결론
 
-릴리스 산출물 11개 파일은 `release/v1.0.0-rc.1/`에 있고, 모든 해시가 재계산과 일치하며, 기록된 epoch로 portable HTML을 다시 빌드하면 **바이트 단위로 동일**하다. WO-FINAL-002 교정(복원 영구 저장 보장, 스타일 복원, 범위 역전 금지, 태그 연동 릴리스 ID, 라이선스 전문, CI 게이트 확장)이 반영됐다. 다만 이 판정은 로컬 실행 기준이며, 확장된 CI 게이트의 원격 실행 결과는 PR 푸시 후 기록된다(§7).
+릴리스 산출물 11개 파일은 `release/v1.0.0-rc.1/`에 있고, 모든 해시가 재계산과 일치하며, 기록된 epoch로 portable HTML을 다시 빌드하면 **바이트 단위로 동일**하다. WO-FINAL-002 교정(복원 영구 저장 보장, 스타일 복원, 범위 역전 금지, 태그 연동 릴리스 ID, 라이선스 전문, CI 게이트 확장)이 반영됐다. 확장된 CI 게이트는 PR run `45500479639`에서 배포 없이 전 단계 통과했고, 브라우저 회귀 스위트는 Linux에서 77/77·176/176으로 통과했다(§6·§7).
 
 ## 2. 산출물
 
@@ -89,17 +89,20 @@ portable HTML is byte-identical on rebuild
 | Phase 3D | **49 / 49** | — | PASS |
 | 합계 | **505 / 524 실행**, 19 FAIL(전부 클립보드 계열), 25 미도달 | — | 아래 |
 
-stage1·stage3의 실패는 모두 클립보드 경로다. 앱이 선택 영역을
-`navigator.clipboard`로 쓰고 하네스가 읽어오는데, 이 호스트(단일 프로세스
-헤드리스 Chromium on macOS)에서는 앱의 쓰기가 하네스 쪽으로 전달되지 않아
-이전 값(`10.069`, `Line 3/Line 1` 등)이 그대로 읽히고, 이후 붙여넣기 의존
-검사가 연쇄 실패한다. 같은 15건·4건이 기준선 `52e8a79`, Phase 3E `2695b65`,
-라이브 Pages 사이트(`LIVE=1`)에서도 동일하게 재현된다. PASS로 세지 않았다.
+위 표는 macOS 로컬 호스트의 기록이다. 같은 스위트를 Linux CI(`browser-regression`)에서 실행한 결과는 stage1 **77 / 77**, stage3 **176 / 176**(WO-FINAL-002)로, 클립보드 실패와 미도달이 모두 해소됐다(§6 본문).
 
-이 스위트들은 워크플로에 연결되어 있지 않다 — CI는 portable 오프라인 E2E와
-portable 튜토리얼 E2E만 실행한다. 따라서 이 19건은 **미해결**로 남는다
-(시스템 Chrome으로 바꿔 실행해도 동일하게 재현됨). CI에 넣을지는 별도
-작업지시 대상이다.
+stage1·stage3의 실패는 모두 클립보드 경로였다. 앱이 선택 영역을
+`navigator.clipboard`로 쓰고 하네스가 읽어오는데, macOS 단일 프로세스
+헤드리스 Chromium에서는 앱의 쓰기가 하네스 쪽으로 전달되지 않아 이전 값
+(`10.069`, `Line 3/Line 1` 등)이 그대로 읽히고 이후 붙여넣기 검사가 연쇄
+실패한다. 같은 15건·4건이 기준선 `52e8a79`, Phase 3E `2695b65`, 라이브
+Pages 사이트(`LIVE=1`)에서도 재현됐다. PASS로 세지 않았다.
+
+**WO-FINAL-002에서 이 스위트를 Linux `browser-regression` 잡으로 CI에
+연결했고, 실행 결과 전건 통과했다** — stage1 **77 / 77**, stage3
+**176 / 176**(run `45499225672`, `45500479639`). 19 FAIL은 이 브랜치의
+결함이 아니라 macOS 샌드박스 한계였음이 별도 환경에서 확정됐고, 미도달
+25건까지 전부 실행·통과했다. 상세: `docs/WO_FINAL_002_CORRECTIVE_REVIEW.md` §7.3.
 
 ui_compact는 한 브라우저 프로세스에서 모든 파트를 이어 돌리면 컨텍스트 전환
 중 브라우저가 닫힌다(샌드박스 단일 프로세스 한계 — 하네스 안내대로 파트를
@@ -115,7 +118,7 @@ ui_compact는 한 브라우저 프로세스에서 모든 파트를 이어 돌리
 | `.github/workflows/release.yml` | `v*` 태그 | 같은 게이트 + `release:check`(태그 identity)를 태그 커밋에 실행, `sigrun-release` artifact 90일 보관. 권한은 `contents: read` — 태그·릴리스 생성은 하지 않는다 |
 | `.github/workflows/qa-stats.yml` | (기존) | Python 고정 환경 통계 QA + node 캐시 (deploy와 중복 실행 허용) |
 
-**정직한 경계**: 워크플로는 저장소에 커밋됐지만, 이번 작업 세션에서는 원격 실행 권한이 없어 GitHub Actions에서 돌려보지 못했다. PR #35를 갱신하면 `deploy.yml`이 **배포 없이** 전체 게이트를 실행하고, `browser-regression` 잡이 클립보드 스위트를 Linux에서 재검증한다. 그 전까지 클립보드 19건은 미해결이며, 로컬에서 같은 명령 시퀀스는 전부 통과했다(`docs/WO_FINAL_002_CORRECTIVE_REVIEW.md`).
+**실행 기록**: PR #35의 run `45500479639`에서 `deploy.yml`이 **배포 없이** 전체 게이트를 통과했다 — tsc · unit 1,240 · 통계 QA 225/225 · release build/verify(portable HTML 바이트 동일) · portable 63/63 · portable 튜토리얼 8/8 · 가드 10/10 · 네트워크 13/13, `browser-regression` stage1 77/77 · stage3 176/176, 배포 job skipped. 첫 실행(run `45499225672`)에서는 `qa:portable`이 Linux에서 macOS 전용 브라우저 플래그 때문에 런치 단계에서 실패했고, 플래그를 플랫폼별로 나눈 수정(`fc67f7e`, 검사 불변) 후 재실행에서 통과했다 — 그 실패도 숨기지 않고 기록한다(`docs/WO_FINAL_002_CORRECTIVE_REVIEW.md` §7.4).
 
 ## 8. 남은 제약 (릴리스 노트와 동일)
 

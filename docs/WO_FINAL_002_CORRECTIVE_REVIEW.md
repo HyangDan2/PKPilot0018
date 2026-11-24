@@ -21,7 +21,7 @@
 | Q-03 Range Intersection | **교정 완료** | `rangeIntersection`이 역전 구간을 반환하지 않음. 근접 경계 정책 명시. `tests/release-numerical.test.ts` |
 | Q-04 Release ID | **교정 완료** | 태그·버전·ID 삼자 일치 강제. 정식/RC 채널 구분. `tests/release-identity.test.ts` 7건 |
 | Q-05 License Qualification | **교정 완료** | 라이선스 전문·NOTICE·1자 콘텐츠 고지. 미확인 라이선스는 빌드 중단. `tests/release-license-report.test.ts` 5건 |
-| Q-06 Release CI | **교정 완료(원격 실행 대기)** | `deploy.yml`·`release.yml`에 통계 QA·portable 튜토리얼·가드·네트워크 감사 추가. PR은 배포 없이 동일 게이트. 클립보드 스위트는 Linux 잡으로 CI에 연결(§7.3) |
+| Q-06 Release CI | **교정 완료 · CI 검증됨** | `deploy.yml`·`release.yml`에 통계 QA·portable 튜토리얼·가드·네트워크 감사 추가. PR run `45500479639`에서 배포 없이 전체 게이트 **통과**. 클립보드 스위트는 Linux 잡에서 77/77·176/176(§7.3) |
 
 수치 검증(이 호스트, HEAD 실측): `tsc` 0 errors · unit **1,240/1,240** · 통계 QA **225/225** · portable offline **63/63** · portable 튜토리얼 **8/8** · 가드 **10/10** · 네트워크 감사 **13/13** · `release:verify --repro` PASS · 11 파일.
 
@@ -154,13 +154,22 @@ return null;
 
 같은 명령을 이 호스트에서 순서대로 실행해 전부 통과했다(§8). 단, `qa:stats`의 **golden dataset 재생성 검사**는 Python 3.12.16에서만 파일이 일치한다. 이 호스트는 3.12.15이므로 그 단계만 재현되지 않는다 — 고정 스택 venv(3.12.15 + numpy 2.5.4/scipy 1.18.1/statsmodels 0.15.0/pandas 3.1.1/patsy 1.0.3)로 엔진·어댑터·비교기를 직접 실행해 **225/225 PASS**를 확인했고, 재생성 검사는 CI(3.12.16)가 담당한다.
 
-### 7.3 클립보드 E2E — 별도 환경 재검증
+### 7.3 클립보드 E2E — 별도 환경에서 해결됨
 
-WO-FINAL-001에서 미해결로 남긴 stage1 15건·stage3 4건(합 19 FAIL, 25 미도달)은 macOS 샌드박스의 단일 프로세스 클립보드 한계로, 기준선·Phase 3E·라이브 사이트·시스템 Chrome에서 동일하게 재현됐다. WO-FINAL-002는 이 스위트를 **Linux 러너의 `browser-regression` 잡**으로 CI에 연결했다(`ubuntu-latest` + 러너 내장 Chrome, stage1 → stage3 순차).
+WO-FINAL-001에서 미해결로 남긴 stage1 15건·stage3 4건(합 19 FAIL)과 하네스 중단으로 미도달이던 25건은 macOS 샌드박스의 단일 프로세스 클립보드 한계였다. WO-FINAL-002는 이 스위트를 **Linux 러너의 `browser-regression` 잡**으로 CI에 연결했고(`ubuntu-latest` + 러너 내장 Chrome, stage1 → stage3), 실제 실행에서 전건 통과했다.
 
-- 결과가 통과면: 별도 환경에서 해소되었음이 CI 로그로 증명된다.
-- 결과가 실패면: 같은 이름·같은 단언으로 실패가 CI에 그대로 드러나며 **미해결로 남긴다**. 로컬에서 PASS로 세지 않는다.
-- 이 호스트에서는 재실행하지 않았다(같은 한계가 반복될 뿐이다). CI 실행 결과가 판정 근거다.
+| 실행 | 결과 |
+| --- | --- |
+| run `45499225672` · `browser-regression` | stage1 **77 / 77**, stage3 **176 / 176** — 19 FAIL 해소, 미도달 25건까지 전부 실행·통과 |
+| run `45500479639` · `browser-regression` | stage1 **77 / 77**, stage3 **176 / 176** — 동일 |
+
+즉 클립보드 실패는 이 브랜치의 결함이 아니라 **macOS 단일 프로세스 샌드박스의 한계**였음이 Linux 실행으로 확정됐다. 테스트를 지우거나 완화하지 않았고, 같은 단언이 그대로 돌았다.
+
+### 7.4 CI 첫 실행에서 드러난 하네스 결함 (수정)
+
+첫 PR 게이트(run `45499225672`)의 build 잡은 `qa:portable`에서 실패했다. 제품 결함이 아니라 **하네스의 Linux 실행 방식** 문제였다: `e2e_portable_offline.cjs`가 macOS 샌드박스용 `--single-process --no-zygote --use-angle=swiftshader` 플래그를 플랫폼 구분 없이 넘겼고, Linux 러너에서 Chrome이 ANGLE/Vulkan 초기화 실패 후 SIGTRAP으로 종료됐다. 같은 실행의 stage1·stage3는 `--disable-gpu` 조합이라 통과했다.
+
+수정(`fc67f7e`): 플래그를 darwin에서만 쓰고, 그 외 플랫폼은 다른 스위트와 같은 headless 실행(`--no-sandbox --disable-dev-shm-usage --disable-gpu`)을 쓴다. **검사는 하나도 바뀌지 않았다.** 재실행(run `45500479639`)에서 `qa:portable` 63/63을 포함한 전체 게이트가 통과했다. 이 실패와 수정은 로컬에서 PASS로 덮지 않고 그대로 기록한다.
 
 ## 8. 추가 검증 (HEAD 실측)
 
@@ -174,8 +183,11 @@ WO-FINAL-001에서 미해결로 남긴 stage1 15건·stage3 4건(합 19 FAIL, 25
 | `qa:guard` | **10 / 10** | 실행 로그 |
 | `qa:network` | **13 / 13** (공개·portable·엔터프라이즈) | 실행 로그 |
 | `release:check` | PASS — 115 패키지, 미확인 0, identity rc/no tag | 실행 로그 |
-| `release:build` + `verify --repro` | PASS · 11 파일 · portable HTML 재빌드 바이트 동일 | 실행 로그 |
+| `release:build` + `verify --repro` | PASS · 11 파일 · portable HTML 재빌드 바이트 동일 | 로컬 + CI(run `45500479639`) |
 | SHA-256 재검산 | `release/v1.0.0-rc.1/SHA256SUMS.txt` 전 항목 재계산 일치 | §9 |
+| **CI 품질 게이트**(PR, 배포 없이) | run `45500479639` **성공** — tsc · unit 1,240 · 통계 QA 225/225 · release build/verify · portable 63/63 · portable 튜토리얼 8/8 · 가드 10/10 · 네트워크 13/13 | GitHub Actions |
+| **브라우저 회귀**(Linux) | stage1 77/77 · stage3 176/176 (`browser-regression`) | GitHub Actions |
+| 배포 job | PR에서 **skipped** (의도) — Pages 업로드·배포 없음 | GitHub Actions |
 
 ## 9. 최종 산출물 (SHA-256)
 
@@ -192,6 +204,7 @@ cd release/v1.0.0-rc.1 && sha256sum -c SHA256SUMS.txt
 ## 10. 수행하지 않은 것 / 주장하지 않는 것
 
 - **Minitab을 실행하지 않았다.** 수치 동등성은 주장하지 않는다.
-- GitHub Actions는 이 세션에서 **원격 트리거 권한이 없어** 워크플로를 실행하지 못했다. Q-06의 “PR #35에서 배포 없이 전체 게이트” 검증은 PR 푸시 후 CI가 수행하며, 그 전까지는 로컬 동등 실행 결과만 사실로 기록한다.
-- 브라우저 stage1·stage3는 이 호스트에서 **미실행**이다(§7.3). CI 결과가 나오기 전까지 19건은 미해결 상태다.
+- Q-06의 “PR #35에서 배포 없이 전체 게이트”는 run `45500479639`로 **실행·통과**했다. 이 워크플로는 PR에서 Pages 업로드·배포를 하지 않는다(배포 job skipped).
+- GitHub Actions는 이 세션에서 직접 트리거만 했고, 결과는 위 run ID의 로그가 단일 출처다. 로컬 실행과 CI 실행의 수치는 일치한다.
+- 브라우저 stage1·stage3는 이 호스트에서 재실행하지 않았다 — Linux CI 실행이 판정 근거이며 §7.3에 수치를 기록했다.
 - 정식 Release 발행, 태그 생성, `PKPilot0018E0001` 생성은 하지 않았다.
