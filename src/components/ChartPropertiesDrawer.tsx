@@ -13,8 +13,13 @@ import type {
   LegendPosition,
   MarkerShape,
   ReferenceLineConfig,
+  SurfaceRenderMode,
+  SurfaceProjection,
+  SurfaceViewConfig,
+  FeasibleConfig,
+  FeasibleBasis,
 } from '../lib/chartConfig';
-import { defaultChartConfig } from '../lib/chartConfig';
+import { defaultChartConfig, defaultSurfaceViewConfig, defaultFeasibleConfig } from '../lib/chartConfig';
 import {
   ChartConfigHistory,
   factorPairCount,
@@ -33,12 +38,15 @@ import {
 } from '../lib/chartStyles';
 import { EXPORT_DPI_PRESETS, physicalToPixels, pixelsToPhysical, resolveExportSize } from '../lib/chartExport';
 import { codedToActual } from '../lib/doe';
+import { commonNumericFactors } from '../lib/feasible';
+import { SURFACE_VIEW_PRESETS, surfaceResolutionPoints } from '../lib/surface3d';
+import { factorDisplayRange } from '../lib/modelPredictor';
 import { getChartWarnings } from '../lib/charts';
 import { t } from '../lib/i18n';
 
-export type ChartDrawerTab = 'general' | 'scale' | 'series' | 'style' | 'reference' | 'legend' | 'export';
+export type ChartDrawerTab = 'general' | 'scale' | 'series' | 'style' | 'reference' | 'legend' | 'export' | 'surface' | 'feasible';
 
-const TABS: { id: ChartDrawerTab; key: string }[] = [
+const BASE_TABS: { id: ChartDrawerTab; key: string }[] = [
   { id: 'general', key: 'cd.tab.general' },
   { id: 'scale', key: 'cd.tab.scale' },
   { id: 'series', key: 'cd.tab.series' },
@@ -47,6 +55,14 @@ const TABS: { id: ChartDrawerTab; key: string }[] = [
   { id: 'legend', key: 'cd.tab.legend' },
   { id: 'export', key: 'cd.tab.export' },
 ];
+
+/** The 3D tab belongs to a 3D chart; the overlaid tab to an overlaid one. */
+function tabsFor(chart: ChartSpec): { id: ChartDrawerTab; key: string }[] {
+  const extra: { id: ChartDrawerTab; key: string }[] = [];
+  if (chart.kind === 'surface3d') extra.push({ id: 'surface', key: 'cd.tab.surface' });
+  if (chart.kind === 'overlaid') extra.push({ id: 'feasible', key: 'cd.tab.feasible' });
+  return [...BASE_TABS.slice(0, 4), ...extra, ...BASE_TABS.slice(4)];
+}
 
 const COLORMAPS: ContourColormap[] = ['sigrun-classic', 'viridis', 'cividis', 'plasma', 'inferno', 'turbo', 'coolwarm', 'rdbu', 'grayscale'];
 const MARKERS: MarkerShape[] = ['circle', 'square', 'triangle', 'diamond', 'cross', 'none'];
@@ -108,8 +124,8 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 }
 
 function NumberField({
-  label, value, onChange, min, max, step, placeholder,
-}: { label: string; value: number | null | undefined; onChange: (value: number | null) => void; min?: number; max?: number; step?: number; placeholder?: string }) {
+  label, value, onChange, min, max, step, placeholder, testId,
+}: { label: string; value: number | null | undefined; onChange: (value: number | null) => void; min?: number; max?: number; step?: number; placeholder?: string; testId?: string }) {
   return (
     <Row label={label}>
       <input
@@ -121,6 +137,7 @@ function NumberField({
         step={step}
         placeholder={placeholder}
         onChange={(event) => onChange(num(event.target.value))}
+        {...(testId ? { 'data-testid': testId } : {})}
       />
     </Row>
   );
@@ -135,11 +152,11 @@ function TextField({ label, value, onChange, placeholder }: { label: string; val
 }
 
 function SelectField<T extends string>({
-  label, value, options, onChange,
-}: { label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void }) {
+  label, value, options, onChange, testId,
+}: { label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void; testId?: string }) {
   return (
     <Row label={label}>
-      <select className="cd-input" value={value} onChange={(event) => onChange(event.target.value as T)}>
+      <select className="cd-input" value={value} onChange={(event) => onChange(event.target.value as T)} {...(testId ? { 'data-testid': testId } : {})}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
@@ -148,10 +165,10 @@ function SelectField<T extends string>({
   );
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
+function Toggle({ label, checked, onChange, testId }: { label: string; checked: boolean; onChange: (value: boolean) => void; testId?: string }) {
   return (
     <label className="cd-toggle">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} {...(testId ? { 'data-testid': testId } : {})} />
       <span>{label}</span>
     </label>
   );
@@ -199,6 +216,15 @@ export function ChartPropertiesDrawer({
 
   const contourReady = chart.kind === 'contour';
   const model = chart.kind === 'contour' ? chart.rsmModel : undefined;
+  const surfaceChart = chart.kind === 'surface3d' ? chart : null;
+  const surfaceModel = surfaceChart?.model;
+  const surfaceNumeric = surfaceModel ? surfaceModel.predictors.filter((predictor) => predictor.kind === 'numeric') : [];
+  const overlaidChart = chart.kind === 'overlaid' ? chart : null;
+  const overlaidModels = overlaidChart?.models ?? [];
+  const overlaidFactors = useMemo(() => commonNumericFactors(overlaidModels), [overlaidModels]);
+  const surfaceCfg: SurfaceViewConfig = { ...defaultSurfaceViewConfig(), ...(draft.surface ?? {}) };
+  const feasibleCfg: FeasibleConfig = { ...defaultFeasibleConfig(), ...(draft.feasible ?? {}) };
+  const intervalBlocked = overlaidChart?.feasible?.intervalBlocked ?? [];
   const tLabel = (key: string) => t(lang, key);
 
   useEffect(() => {
@@ -240,8 +266,21 @@ export function ChartPropertiesDrawer({
     { value: 'x' as const, label: tLabel('cd.axis.x') },
     { value: 'y' as const, label: tLabel('cd.axis.y') },
   ];
-  if (contourReady) axisOptions.push({ value: 'z' as const, label: tLabel('cd.axis.z') });
+  if (contourReady || chart.kind === 'surface3d') axisOptions.push({ value: 'z' as const, label: tLabel('cd.axis.z') });
   if (hasSecondaryY(chart)) axisOptions.push({ value: 'y2' as const, label: tLabel('cd.axis.y2') });
+
+  /** Upsert one response's specification inside the feasible block. */
+  const setSpec = (name: string, field: 'lsl' | 'usl' | 'target', value: number | null) => {
+    patch((config) => {
+      const specs = [...(config.feasible?.specs ?? [])];
+      const index = specs.findIndex((entry) => entry.name === name);
+      const current = index >= 0 ? specs[index] : { name, lsl: null, usl: null, target: null };
+      const next = { ...current, [field]: value };
+      if (index >= 0) specs[index] = next;
+      else specs.push(next);
+      config.feasible = { ...(config.feasible ?? {}), specs };
+    });
+  };
 
   const patchAxis = (mutate: (axisConfig: AxisConfig) => void) => {
     patch((config) => {
@@ -313,7 +352,7 @@ export function ChartPropertiesDrawer({
         </header>
 
         <nav className="cd-tabs" role="tablist">
-          {TABS.map((entry) => (
+          {tabsFor(chart).map((entry) => (
             <button
               key={entry.id}
               type="button"
@@ -1063,6 +1102,366 @@ export function ChartPropertiesDrawer({
               <NumberField label={tLabel('cd.legendFontSize')} value={draft.legend?.fontSize} step={0.2} min={6} max={16} onChange={(value) => patch((config) => { config.legend = { ...(config.legend ?? {}), fontSize: value ?? 8.6 }; })} />
               <Toggle label={tLabel('cd.legendBackground')} checked={draft.legend?.showBackground !== false} onChange={(value) => patch((config) => { config.legend = { ...(config.legend ?? {}), showBackground: value }; })} />
             </Group>
+          )}
+
+          {tab === 'surface' && surfaceChart && (
+            <>
+              {surfaceModel && surfaceNumeric.length >= 2 ? (
+                <Group title={tLabel('cd.section.surfaceModel')}>
+                  <SelectField
+                    label={tLabel('cd.xFactor')}
+                    value={String(rsm.xFactorIndex ?? 0)}
+                    options={surfaceNumeric.map((predictor, index) => ({ value: String(index), label: predictor.name }))}
+                    onChange={(value) => patch((config) => { config.rsm = { ...(config.rsm ?? {}), xFactorIndex: Number(value) }; })}
+                  />
+                  <SelectField
+                    label={tLabel('cd.yFactor')}
+                    value={String(rsm.yFactorIndex ?? 1)}
+                    options={surfaceNumeric.map((predictor, index) => ({ value: String(index), label: predictor.name }))}
+                    onChange={(value) => patch((config) => { config.rsm = { ...(config.rsm ?? {}), yFactorIndex: Number(value) }; })}
+                  />
+                  <SelectField
+                    label={tLabel('cd.unitMode')}
+                    value={(rsm.unitMode ?? 'actual') as 'coded' | 'actual'}
+                    options={[
+                      { value: 'coded', label: tLabel('cd.unit.coded') },
+                      { value: 'actual', label: tLabel('cd.unit.actual') },
+                    ]}
+                    onChange={(value) => patch((config) => {
+                      config.rsm = { ...(config.rsm ?? {}), unitMode: value as 'coded' | 'actual', factorRanges: {}, holdingValues: {} };
+                    })}
+                  />
+                  <div className="cd-sublabel">{tLabel('cd.holding')}</div>
+                  {surfaceNumeric.map((predictor, index) => {
+                    if (index === (rsm.xFactorIndex ?? 0) || index === (rsm.yFactorIndex ?? 1)) return null;
+                    return (
+                      <NumberField
+                        key={predictor.name}
+                        label={predictor.name}
+                        value={rsm.holdingValues?.[index]}
+                        step={0.1}
+                        onChange={(value) => patch((config) => {
+                          config.rsm = { ...(config.rsm ?? {}), holdingValues: { ...(config.rsm?.holdingValues ?? {}), [index]: value ?? 0 } };
+                        })}
+                      />
+                    );
+                  })}
+                  <div className="cd-sublabel">{tLabel('cd.displayRange')}</div>
+                  {[rsm.xFactorIndex ?? 0, rsm.yFactorIndex ?? 1].filter((value, index, list) => list.indexOf(value) === index).map((index) => {
+                    const predictor = surfaceNumeric[index];
+                    if (!predictor || !surfaceModel) return null;
+                    const fallback = factorDisplayRange(surfaceModel, predictor, (rsm.unitMode ?? 'actual') as 'coded' | 'actual');
+                    const range = rsm.factorRanges?.[index];
+                    return (
+                      <div key={`surface-range-${index}`} className="cd-pair">
+                        <span className="cd-pair-label">{predictor.name}</span>
+                        <input
+                          className="cd-input"
+                          type="number"
+                          aria-label={`${predictor.name} ${tLabel('cd.rangeMin')}`}
+                          value={show(range?.min ?? fallback[0])}
+                          onChange={(event) => patch((config) => {
+                            const current = config.rsm?.factorRanges?.[index] ?? { min: fallback[0], max: fallback[1] };
+                            config.rsm = {
+                              ...(config.rsm ?? {}),
+                              factorRanges: { ...(config.rsm?.factorRanges ?? {}), [index]: { ...current, min: num(event.target.value) ?? fallback[0] } },
+                            };
+                          })}
+                        />
+                        <input
+                          className="cd-input"
+                          type="number"
+                          aria-label={`${predictor.name} ${tLabel('cd.rangeMax')}`}
+                          value={show(range?.max ?? fallback[1])}
+                          onChange={(event) => patch((config) => {
+                            const current = config.rsm?.factorRanges?.[index] ?? { min: fallback[0], max: fallback[1] };
+                            config.rsm = {
+                              ...(config.rsm ?? {}),
+                              factorRanges: { ...(config.rsm?.factorRanges ?? {}), [index]: { ...current, max: num(event.target.value) ?? fallback[1] } },
+                            };
+                          })}
+                        />
+                      </div>
+                    );
+                  })}
+                  <div className="cd-inline">
+                    <Toggle label={tLabel('cd.showExperimental')} checked={rsm.showExperimentalPoints !== false} onChange={(value) => patch((config) => { config.rsm = { ...(config.rsm ?? {}), showExperimentalPoints: value }; })} />
+                    <Toggle label={tLabel('cd.showStationary')} checked={rsm.showStationaryPoint !== false} onChange={(value) => patch((config) => { config.rsm = { ...(config.rsm ?? {}), showStationaryPoint: value }; })} />
+                    <Toggle label={tLabel('cd.showOptimal')} checked={rsm.showOptimalPoint === true} onChange={(value) => patch((config) => { config.rsm = { ...(config.rsm ?? {}), showOptimalPoint: value }; })} />
+                  </div>
+                  {surfaceChart.extrapolated && (
+                    <div className="cd-warn" data-testid="cd-surface-extrapolation" role="status">
+                      <b>{tLabel('cd.extrapolation')}</b>
+                      <span>{tLabel('cd.extrapolationBody')}</span>
+                    </div>
+                  )}
+                  {surfaceModel.design?.points?.length ? (
+                    <small className="cd-hint" data-testid="cd-surface-runs">{t(lang, 'cd.surface.runs', { n: surfaceModel.design.points.length })}</small>
+                  ) : null}
+                </Group>
+              ) : (
+                <div className="cd-warn" data-testid="cd-surface-no-model">
+                  <b>{tLabel('cd.surface.noModel')}</b>
+                  <span>{tLabel('cd.surface.noModelBody')}</span>
+                </div>
+              )}
+
+              <Group title={tLabel('cd.section.surfaceGeometry')}>
+                <SelectField<ContourResolution>
+                  label={tLabel('cd.resolution')}
+                  testId="cd-surface-resolution"
+                  value={surfaceCfg.resolution}
+                  options={[
+                    { value: 'draft', label: tLabel('cd.res.draft') },
+                    { value: 'standard', label: tLabel('cd.res.standard') },
+                    { value: 'high', label: tLabel('cd.res.high') },
+                    { value: 'ultra', label: tLabel('cd.res.ultra') },
+                  ]}
+                  onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), resolution: value }; })}
+                />
+                <SelectField<SurfaceRenderMode>
+                  label={tLabel('cd.surface.renderMode')}
+                  testId="cd-surface-render-mode"
+                  value={surfaceCfg.renderMode}
+                  options={[
+                    { value: 'surface', label: tLabel('cd.surface.mode.surface') },
+                    { value: 'wireframe', label: tLabel('cd.surface.mode.wireframe') },
+                    { value: 'both', label: tLabel('cd.surface.mode.both') },
+                  ]}
+                  onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), renderMode: value }; })}
+                />
+                <SelectField<ContourColormap>
+                  label={tLabel('cd.surface.colormap')}
+                  value={surfaceCfg.colormap}
+                  options={COLORMAPS.map((id) => ({ value: id, label: id }))}
+                  onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), colormap: value }; })}
+                />
+                <NumberField label={tLabel('cd.surface.opacity')} value={surfaceCfg.opacity} min={0.1} max={1} step={0.05} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), opacity: value ?? 1 }; })} />
+                <NumberField label={tLabel('cd.surface.meshDensity')} value={surfaceCfg.meshDensity} min={1} max={40} step={1} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), meshDensity: value ?? 8 }; })} />
+                <NumberField label={tLabel('cd.surface.meshWidth')} value={surfaceCfg.meshLineWidth} min={0} max={6} step={0.1} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), meshLineWidth: value ?? 0.6 }; })} />
+                <NumberField label={tLabel('cd.surface.zScale')} value={surfaceCfg.zScale} min={0.2} max={4} step={0.1} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), zScale: value ?? 1 }; })} />
+                <SelectField<SurfaceProjection>
+                  label={tLabel('cd.surface.projection')}
+                  testId="cd-surface-projection"
+                  value={surfaceCfg.projection}
+                  options={[
+                    { value: 'perspective', label: tLabel('cd.surface.perspective') },
+                    { value: 'orthographic', label: tLabel('cd.surface.orthographic') },
+                  ]}
+                  onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), projection: value }; })}
+                />
+                <SelectField<'surface' | 'white' | 'dark'>
+                  label={tLabel('cd.surface.background')}
+                  value={surfaceCfg.background}
+                  options={[
+                    { value: 'surface', label: tLabel('cd.surface.bg.surface') },
+                    { value: 'white', label: tLabel('cd.surface.bg.white') },
+                    { value: 'dark', label: tLabel('cd.surface.bg.dark') },
+                  ]}
+                  onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), background: value }; })}
+                />
+                <div className="cd-inline">
+                  <Toggle label={tLabel('cd.surface.colorbar')} checked={surfaceCfg.colorbar} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), colorbar: value }; })} />
+                  <Toggle label={tLabel('cd.surface.axes')} checked={surfaceCfg.showAxes} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), showAxes: value }; })} />
+                  <Toggle label={tLabel('cd.surface.points')} checked={surfaceCfg.showPoints} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), showPoints: value }; })} />
+                  <Toggle label={tLabel('cd.surface.floor')} checked={surfaceCfg.showFloorContours} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), showFloorContours: value }; })} />
+                </div>
+                {surfaceCfg.showFloorContours && (
+                  <NumberField label={tLabel('cd.surface.floorLevels')} value={surfaceCfg.floorLevelCount} min={2} max={20} step={1} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), floorLevelCount: value ?? 8 }; })} />
+                )}
+              </Group>
+
+              <Group title={tLabel('cd.section.surfaceLight')}>
+                <Toggle label={tLabel('cd.surface.lighting')} checked={surfaceCfg.lighting} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), lighting: value }; })} />
+                <NumberField label={tLabel('cd.surface.lightAzimuth')} value={surfaceCfg.lightAzimuth} min={-360} max={360} step={5} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), lightAzimuth: value ?? 135 }; })} />
+                <NumberField label={tLabel('cd.surface.lightElevation')} value={surfaceCfg.lightElevation} min={-90} max={90} step={5} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), lightElevation: value ?? 55 }; })} />
+                <NumberField label={tLabel('cd.surface.ambient')} value={surfaceCfg.ambient} min={0} max={1} step={0.05} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), ambient: value ?? 0.45 }; })} />
+                <NumberField label={tLabel('cd.surface.diffuse')} value={surfaceCfg.diffuse} min={0} max={2} step={0.05} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), diffuse: value ?? 0.6 }; })} />
+              </Group>
+
+              <Group title={tLabel('cd.section.surfaceCamera')}>
+                <NumberField label={tLabel('cd.surface.azimuth')} value={surfaceCfg.camera.azimuth} min={0} max={360} step={5} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), camera: { ...(config.surface?.camera ?? defaultSurfaceViewConfig().camera), azimuth: value ?? 0 } }; })} />
+                <NumberField label={tLabel('cd.surface.elevation')} value={surfaceCfg.camera.elevation} min={2} max={89} step={2} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), camera: { ...(config.surface?.camera ?? defaultSurfaceViewConfig().camera), elevation: value ?? 28 } }; })} />
+                <NumberField label={tLabel('cd.surface.zoom')} value={surfaceCfg.camera.zoom} min={0.4} max={3} step={0.1} onChange={(value) => patch((config) => { config.surface = { ...(config.surface ?? {}), camera: { ...(config.surface?.camera ?? defaultSurfaceViewConfig().camera), zoom: value ?? 1 } }; })} />
+                <div className="cd-inline">
+                  {(['isometric', 'top', 'front', 'side'] as const).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className="btn ghost"
+                      data-testid={`cd-surface-view-${preset}`}
+                      onClick={() => patch((config) => {
+                        const base = config.surface?.camera ?? defaultSurfaceViewConfig().camera;
+                        config.surface = { ...(config.surface ?? {}), camera: { ...base, ...SURFACE_VIEW_PRESETS[preset], panX: 0, panY: 0 } };
+                      })}
+                    >
+                      {tLabel(`cd.surface.view.${preset}`)}
+                    </button>
+                  ))}
+                  <button type="button" className="btn ghost" data-testid="cd-surface-reset-camera" onClick={() => patch((config) => { config.surface = { ...(config.surface ?? {}), camera: { ...defaultSurfaceViewConfig().camera } }; })}>
+                    {tLabel('cd.surface.resetCamera')}
+                  </button>
+                </div>
+                <small className="cd-hint">{t(lang, 'cd.surface.gridPoints', { n: surfaceResolutionPoints(surfaceCfg.resolution) })}</small>
+              </Group>
+            </>
+          )}
+
+          {tab === 'feasible' && overlaidChart && (
+            <>
+              <Group title={tLabel('cd.section.feasibleModel')}>
+                {overlaidFactors.factors.length >= 2 ? (
+                  <>
+                    <SelectField
+                      label={tLabel('cd.xFactor')}
+                      value={String(rsm.xFactorIndex ?? 0)}
+                      options={overlaidFactors.factors.map((factor, index) => ({ value: String(index), label: factor.unit ? `${factor.name} (${factor.unit})` : factor.name }))}
+                      onChange={(value) => patch((config) => { config.rsm = { ...(config.rsm ?? {}), xFactorIndex: Number(value) }; })}
+                    />
+                    <SelectField
+                      label={tLabel('cd.yFactor')}
+                      value={String(rsm.yFactorIndex ?? 1)}
+                      options={overlaidFactors.factors.map((factor, index) => ({ value: String(index), label: factor.unit ? `${factor.name} (${factor.unit})` : factor.name }))}
+                      onChange={(value) => patch((config) => { config.rsm = { ...(config.rsm ?? {}), yFactorIndex: Number(value) }; })}
+                    />
+                    <SelectField
+                      label={tLabel('cd.unitMode')}
+                      value={(rsm.unitMode ?? 'actual') as 'coded' | 'actual'}
+                      options={[
+                        { value: 'coded', label: tLabel('cd.unit.coded') },
+                        { value: 'actual', label: tLabel('cd.unit.actual') },
+                      ]}
+                      onChange={(value) => patch((config) => { config.rsm = { ...(config.rsm ?? {}), unitMode: value as 'coded' | 'actual', factorRanges: {}, holdingValues: {} }; })}
+                    />
+                    <div className="cd-sublabel">{tLabel('cd.holding')}</div>
+                    {overlaidFactors.factors.map((factor, index) => {
+                      const xIndex = rsm.xFactorIndex ?? 0;
+                      const yIndex = rsm.yFactorIndex ?? 1;
+                      if (index === xIndex || index === yIndex) return null;
+                      const predictor = factor.variables[0]?.predictor;
+                      const fallback = predictor && overlaidModels[0] ? factorDisplayRange(overlaidModels[0], predictor, (rsm.unitMode ?? 'actual') as 'coded' | 'actual') : [0, 0];
+                      return (
+                        <NumberField
+                          key={factor.name}
+                          label={factor.name}
+                          value={rsm.holdingValues?.[index] ?? (fallback[0] + fallback[1]) / 2}
+                          step={0.1}
+                          onChange={(value) => patch((config) => {
+                            config.rsm = { ...(config.rsm ?? {}), holdingValues: { ...(config.rsm?.holdingValues ?? {}), [index]: value ?? 0 } };
+                          })}
+                        />
+                      );
+                    })}
+                  </>
+                ) : (
+                  <div className="cd-warn">{tLabel('cd.feasible.noCommon')}</div>
+                )}
+                {overlaidFactors.problems.length > 0 && (
+                  <div className="cd-warn" data-testid="cd-feasible-problems">
+                    {overlaidFactors.problems.map((problem) => <span key={problem}>{t(lang, 'cd.feasible.conflict', { detail: problem })}</span>)}
+                  </div>
+                )}
+              </Group>
+
+              <Group title={tLabel('cd.section.feasibleSpecs')}>
+                {overlaidChart.responses.map((response) => {
+                  const spec = feasibleCfg.specs.find((entry) => entry.name === response.name) ?? { name: response.name, lsl: response.lsl, usl: response.usl, target: response.target };
+                  return (
+                    <div key={response.name} className="cd-spec" data-testid={`cd-spec-${response.name}`}>
+                      <div className="cd-sublabel" style={{ color: response.color }}>{response.name}</div>
+                      <div className="cd-pair">
+                        <input
+                          className="cd-input"
+                          type="number"
+                          placeholder="LSL"
+                          aria-label={`${response.name} LSL`}
+                          value={show(spec.lsl)}
+                          onChange={(event) => setSpec(response.name, 'lsl', num(event.target.value))}
+                        />
+                        <input
+                          className="cd-input"
+                          type="number"
+                          placeholder="USL"
+                          aria-label={`${response.name} USL`}
+                          value={show(spec.usl)}
+                          onChange={(event) => setSpec(response.name, 'usl', num(event.target.value))}
+                        />
+                        <input
+                          className="cd-input"
+                          type="number"
+                          placeholder="Target"
+                          aria-label={`${response.name} Target`}
+                          value={show(spec.target)}
+                          onChange={(event) => setSpec(response.name, 'target', num(event.target.value))}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                <small className="cd-hint">{tLabel('cd.feasible.specHint')}</small>
+              </Group>
+
+              <Group title={tLabel('cd.section.feasibleBasis')}>
+                <SelectField<FeasibleBasis>
+                  label={tLabel('cd.feasible.basis')}
+                  testId="cd-feasible-basis"
+                  value={feasibleCfg.basis}
+                  options={[
+                    { value: 'mean', label: tLabel('cd.feasible.basis.mean') },
+                    ...(intervalBlocked.length === 0 ? [
+                      { value: 'confidence' as FeasibleBasis, label: tLabel('cd.feasible.basis.confidence') },
+                      { value: 'prediction' as FeasibleBasis, label: tLabel('cd.feasible.basis.prediction') },
+                    ] : []),
+                  ]}
+                  onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), basis: value }; })}
+                />
+                {intervalBlocked.length > 0 && (
+                  <div className="cd-warn" data-testid="cd-feasible-interval-blocked">
+                    <b>{tLabel('cd.feasible.intervalDisabled')}</b>
+                    <span>{intervalBlocked.join(', ')}</span>
+                  </div>
+                )}
+                <NumberField label={tLabel('cd.feasible.alpha')} value={feasibleCfg.alpha} min={0.001} max={0.5} step={0.005} onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), alpha: value ?? 0.05 }; })} />
+                <SelectField<ContourResolution>
+                  label={tLabel('cd.resolution')}
+                  testId="cd-feasible-resolution"
+                  value={feasibleCfg.resolution}
+                  options={[
+                    { value: 'draft', label: tLabel('cd.res.draft') },
+                    { value: 'standard', label: tLabel('cd.res.standard') },
+                    { value: 'high', label: tLabel('cd.res.high') },
+                    { value: 'ultra', label: tLabel('cd.res.ultra') },
+                  ]}
+                  onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), resolution: value }; })}
+                />
+                <div className="cd-inline">
+                  <Toggle label={tLabel('cd.feasible.showRegions')} checked={feasibleCfg.showResponseRegions} onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), showResponseRegions: value }; })} />
+                  <Toggle label={tLabel('cd.feasible.showSpecLines')} checked={feasibleCfg.showSpecLines} onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), showSpecLines: value }; })} />
+                  <Toggle label={tLabel('cd.feasible.showFeasible')} checked={feasibleCfg.showFeasible} onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), showFeasible: value }; })} />
+                  <Toggle label={tLabel('cd.feasible.hatch')} checked={feasibleCfg.hatchUnfeasible} onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), hatchUnfeasible: value }; })} />
+                  <Toggle label={tLabel('cd.surface.points')} checked={feasibleCfg.showPoints} onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), showPoints: value }; })} />
+                  <Toggle label={tLabel('cd.feasible.showRatio')} checked={feasibleCfg.showRatio} onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), showRatio: value }; })} />
+                </div>
+              </Group>
+
+              <Group title={tLabel('cd.section.feasibleResult')}>
+                <div className="cd-facts" data-testid="cd-feasible-facts">
+                  <div><span>{tLabel('cd.feasible.areaRatio')}</span><b>{((overlaidChart.feasible?.areaRatio ?? 0) * 100).toFixed(1)}%</b></div>
+                  <div><span>{tLabel('cd.feasible.nodeRatio')}</span><b>{((overlaidChart.feasible?.nodeRatio ?? 0) * 100).toFixed(1)}%</b></div>
+                  <div><span>{tLabel('cd.feasible.nodes')}</span><b>{overlaidChart.feasible?.feasibleNodes ?? 0} / {overlaidChart.feasible?.totalNodes ?? 0}</b></div>
+                  <div><span>{tLabel('cd.feasible.convergence')}</span><b>{((overlaidChart.feasible?.convergenceDelta ?? 0) * 100).toFixed(2)}%</b></div>
+                </div>
+                <small className="cd-hint">{tLabel('cd.feasible.gridNote')}</small>
+                {(overlaidChart.feasible?.feasibleNodes ?? 0) === 0 && (
+                  <div className="cd-warn" data-testid="cd-feasible-narrow">{tLabel('cd.feasible.narrow')}</div>
+                )}
+                {overlaidChart.responses.map((response) => (
+                  <small key={response.name} className="cd-hint">
+                    {response.name}: {(response.areaRatio * 100).toFixed(1)}%
+                  </small>
+                ))}
+              </Group>
+            </>
           )}
 
           {tab === 'export' && (

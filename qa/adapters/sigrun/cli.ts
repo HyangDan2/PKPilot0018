@@ -40,8 +40,11 @@ import { evaluateFormula } from '../../../src/lib/calc';
 import { makeWorksheet } from '../../../src/lib/datasets';
 import { defaultValues, findAnalysis, type RunContext } from '../../../src/lib/analyses';
 import { boxplotStats, histogramBins, histogramCurve } from '../../../src/lib/charts';
-import { createStoredModel, type ModelVariable, type StoredModel, type StoredModelDraft } from '../../../src/lib/modelStore';
-import { predictStoredModel } from '../../../src/lib/modelPredictor';
+import { createStoredModel, draftFromRsmPayload, type ModelVariable, type StoredModel, type StoredModelDraft } from '../../../src/lib/modelStore';
+import { modelSurface, predictStoredModel } from '../../../src/lib/modelPredictor';
+import { buildRsmModel } from '../../../src/lib/doe';
+import { buildModelSurface } from '../../../src/lib/chartConfigOps';
+import { buildOverlaid, type ResponseSpec } from '../../../src/lib/feasible';
 import type { Block, ChartSpec, Worksheet } from '../../../src/types';
 import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, ccdDesign, factorialDesign } from '../../../src/lib/doe';
 import { fitLognormalReliability, fitWeibull, type WeibullInput } from '../../../src/lib/reliability';
@@ -162,6 +165,34 @@ function groupValues(values: (number | null)[], keys: (string | null)[]): { labe
 /* ── ops ─────────────────────────────────────────────────────────────── */
 
 type Op = (bag: Bag, ds: Dataset, args: Record<string, any>) => void;
+
+/** A quadratic response fit stored exactly the way the Model Manager stores it. */
+function storedQuadratic(ds: Dataset, response: string, factors: string[]): StoredModel {
+  const sheet = sheetFromDataset(ds);
+  const modelFactors: ModelFactor[] = factors.map((name) => ({ name, kind: 'numeric' as const, values: rawNums(ds, name) }));
+  const analysis = analyzeRsm(rawNums(ds, response), modelFactors);
+  const payload = buildRsmModel(analysis.glm, modelFactors as never, analysis.stationary);
+  return createStoredModel(
+    draftFromRsmPayload(payload, {
+      response: { id: response, name: response },
+      sheet,
+      analysisId: 'rsmanalyze',
+    }),
+    response,
+  );
+}
+
+/** The coded centre of a stored quadratic (design values 0 for every factor). */
+function centrePoint(model: StoredModel): Record<string, number> {
+  const point: Record<string, number> = {};
+  model.predictors.forEach((predictor) => {
+    if (predictor.kind !== 'numeric') return;
+    point[predictor.name] = predictor.coding?.mode === 'coded'
+      ? predictor.coding.center
+      : 0;
+  });
+  return point;
+}
 
 const alt = (v: unknown): Alt => (v === 'less' || v === 'greater' ? v : 'two-sided');
 
@@ -700,6 +731,126 @@ const ops: Record<string, Op> = {
       bag.put('stationary:max_abs', r.stationary.maxAbs);
       bag.put('stationary:outside', r.stationary.outsideRegion ? 1 : 0);
     }
+  },
+
+  /**
+   * Stage 3B — the 3D surface and the 2D contour must state the same number.
+   *
+   * The adapter fits the quadratic through the shipped engine, stores it the
+   * way the Model Manager does, and then evaluates the SAME grid twice: once
+   * through the compiled surface evaluator and once through `modelSurface`
+   * (row-by-row design construction). `surface_contour_max_diff` is therefore
+   * a measurement of the engine against itself, and the reference puts 0 there
+   * to assert the two paths agree.
+   */
+  surface3d(bag, ds, args) {
+    const model = storedQuadratic(ds, args.response, args.factors);
+    const resolution = args.resolution ?? 21;
+    const mode = (args.mode ?? 'actual') as 'actual' | 'coded';
+    // The grid interval is part of the case: both engines must evaluate the
+    // identical rectangle, not two "default" interpretations of it.
+    const xIndex = args.xIndex ?? 0;
+    const yIndex = args.yIndex ?? 1;
+    const factorRanges = args.factorRanges ?? (args.xRange && args.yRange
+      ? { [xIndex]: { min: args.xRange[0], max: args.xRange[1] }, [yIndex]: { min: args.yRange[0], max: args.yRange[1] } }
+      : {});
+    const surface = buildModelSurface(model, {
+      xIndex,
+      yIndex,
+      unitMode: mode,
+      resolution,
+      holdings: args.holdings ?? {},
+      factorRanges,
+    });
+    const contour = modelSurface(model, {
+      xName: surface.xName,
+      yName: surface.yName,
+      mode,
+      resolution,
+      xRange: surface.xRange,
+      yRange: surface.yRange,
+      ...(args.holdings ? { holdings: args.holdings } : {}),
+    });
+    let maxDiff = 0;
+    for (let j = 0; j < surface.z.length; j += 1) {
+      for (let i = 0; i < surface.z[j].length; i += 1) {
+        const a = surface.z[j][i];
+        const b = contour.z[j][i];
+        if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+        maxDiff = Math.max(maxDiff, Math.abs(a - b));
+      }
+    }
+    const flat = surface.z.flat().filter((value) => Number.isFinite(value));
+    bag.put('surface_contour_max_diff', maxDiff);
+    bag.put('grid_points', surface.xs.length);
+    bag.put('z_min', flat.length ? Math.min(...flat) : Number.NaN);
+    bag.put('z_max', flat.length ? Math.max(...flat) : Number.NaN);
+    bag.put('x_min', surface.xRange[0]);
+    bag.put('x_max', surface.xRange[1]);
+    bag.put('y_min', surface.yRange[0]);
+    bag.put('y_max', surface.yRange[1]);
+    (args.probes ?? []).forEach((probe: [number, number], index: number) => {
+      const [i, j] = probe;
+      bag.put(`z[${index}]`, surface.z[j]?.[i]);
+      bag.put(`z_contour[${index}]`, contour.z[j]?.[i]);
+    });
+    bag.put('coefficient_count', model.coefficients.length);
+    const centre = predictStoredModel(model, centrePoint(model), { mode });
+    bag.put('centre_value', centre.value);
+    bag.put('centre_se', centre.se);
+  },
+
+  /**
+   * Stage 3B — several responses judged on one grid.
+   *
+   * Every response is fitted independently, evaluated at the same (x, y), and
+   * the joint mask is the AND of the per-response masks. `feasible_nodes` and
+   * the probe flags are exact integers: the reference recomputes the same grid
+   * from its own fit.
+   */
+  feasible(bag, ds, args) {
+    const specsInput = args.responses as { name: string; lsl: number | null; usl: number | null; target: number | null }[];
+    const models = specsInput.map((entry) => storedQuadratic(ds, entry.name, args.factors));
+    const specs: ResponseSpec[] = specsInput.map((entry, index) => ({
+      model: models[index],
+      lsl: entry.lsl ?? null,
+      usl: entry.usl ?? null,
+      target: entry.target ?? null,
+    }));
+    const resolution = args.resolution ?? 21;
+    const basis = (args.basis ?? 'mean') as 'mean' | 'confidence' | 'prediction';
+    const result = buildOverlaid(models, specs, {
+      xName: args.x,
+      yName: args.y,
+      xRange: args.xRange,
+      yRange: args.yRange,
+      resolution,
+      mode: (args.mode ?? 'actual') as 'actual' | 'coded',
+      basis,
+      alpha: args.alpha ?? 0.05,
+    });
+    bag.put('feasible_nodes', result.feasibleNodes);
+    bag.put('total_nodes', result.totalNodes);
+    bag.put('node_ratio', result.nodeRatio);
+    bag.put('area_ratio', result.areaRatio);
+    bag.put('interval_blocked', result.intervalBlocked.join('|'));
+    bag.put('convergence_delta', result.convergenceDelta);
+    bag.put('narrow', result.narrowWarning ? 1 : 0);
+    result.responses.forEach((response, index) => {
+      bag.put(`response_${index}_node_ratio`, response.nodeRatio);
+      bag.put(`response_${index}_area_ratio`, response.areaRatio);
+    });
+    const probes = (args.probes ?? []) as [number, number][];
+    bag.put('probe_feasible', probes.map(([i, j]) => (result.feasible[j]?.[i] === 1 ? 1 : 0)).join(','));
+    probes.forEach(([i, j], index) => {
+      result.responses.forEach((response, r) => {
+        bag.put(`z_${r}[${index}]`, response.z[j]?.[i]);
+      });
+    });
+    bag.put('x_min', result.xs[0]);
+    bag.put('x_max', result.xs[result.xs.length - 1]);
+    bag.put('y_min', result.ys[0]);
+    bag.put('y_max', result.ys[result.ys.length - 1]);
   },
 
   power(bag, ds, args) {

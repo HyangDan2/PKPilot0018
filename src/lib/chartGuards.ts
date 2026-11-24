@@ -39,6 +39,13 @@ import type {
   ReferenceLineConfig,
   SeriesOverride,
   SeriesStyle,
+  SurfaceCameraConfig,
+  SurfaceViewConfig,
+  SurfaceRenderMode,
+  SurfaceProjection,
+  SurfaceBackground,
+  FeasibleConfig,
+  FeasibleBasis,
   TickDirection,
 } from './chartConfig';
 import {
@@ -48,6 +55,8 @@ import {
   defaultContourConfig,
   defaultExportConfig,
   defaultGridConfig,
+  defaultFeasibleConfig,
+  defaultSurfaceViewConfig,
   defaultLegendConfig,
   defaultSeriesStyle,
   mergeChartConfig,
@@ -359,6 +368,80 @@ export function sanitizeContourConfig(patch?: Partial<ContourConfig>): ContourCo
   };
 }
 
+/* ── 3D surface / overlaid contour (Stage 3B) ───────────────────────── */
+
+const SURFACE_RENDER_MODES: SurfaceRenderMode[] = ['surface', 'wireframe', 'both'];
+const SURFACE_PROJECTIONS: SurfaceProjection[] = ['perspective', 'orthographic'];
+const SURFACE_BACKGROUNDS: SurfaceBackground[] = ['surface', 'white', 'dark'];
+const FEASIBLE_BASES: FeasibleBasis[] = ['mean', 'confidence', 'prediction'];
+
+/**
+ * A camera can be dragged past any sane angle while a pointer is down; the
+ * stored view still has to describe a place in the room. Elevation stops just
+ * short of the poles so the up vector never becomes degenerate.
+ */
+export function sanitizeSurfaceConfig(patch?: Partial<SurfaceViewConfig>): SurfaceViewConfig {
+  const base = defaultSurfaceViewConfig();
+  const source = patch ?? {};
+  const camera: Partial<SurfaceCameraConfig> = source.camera ?? {};
+  return {
+    renderMode: oneOf(source.renderMode, SURFACE_RENDER_MODES, base.renderMode),
+    colormap: oneOf(source.colormap, COLORMAP_IDS, base.colormap),
+    resolution: oneOf(source.resolution, CONTOUR_RESOLUTION_IDS, base.resolution),
+    opacity: boundedOr(source.opacity, [0.1, 1], base.opacity),
+    meshDensity: Math.round(boundedOr(source.meshDensity, [1, 40], base.meshDensity)),
+    meshLineWidth: boundedOr(source.meshLineWidth, [0, 6], base.meshLineWidth),
+    lighting: boolOr(source.lighting, base.lighting),
+    lightAzimuth: ((boundedOr(source.lightAzimuth, [-360, 360], base.lightAzimuth) % 360) + 360) % 360,
+    lightElevation: boundedOr(source.lightElevation, [-90, 90], base.lightElevation),
+    ambient: boundedOr(source.ambient, [0, 1], base.ambient),
+    diffuse: boundedOr(source.diffuse, [0, 2], base.diffuse),
+    showFloorContours: boolOr(source.showFloorContours, base.showFloorContours),
+    floorLevelCount: Math.round(boundedOr(source.floorLevelCount, [2, 20], base.floorLevelCount)),
+    zScale: boundedOr(source.zScale, [0.2, 4], base.zScale),
+    colorbar: boolOr(source.colorbar, base.colorbar),
+    background: oneOf(source.background, SURFACE_BACKGROUNDS, base.background),
+    showPoints: boolOr(source.showPoints, base.showPoints),
+    showAxes: boolOr(source.showAxes, base.showAxes),
+    projection: oneOf(source.projection, SURFACE_PROJECTIONS, base.projection),
+    camera: {
+      azimuth: ((boundedOr(camera.azimuth, [-3600, 3600], base.camera.azimuth) % 360) + 360) % 360,
+      elevation: boundedOr(camera.elevation, [2, 89], base.camera.elevation),
+      zoom: boundedOr(camera.zoom, [0.4, 3], base.camera.zoom),
+      panX: boundedOr(camera.panX, [-1, 1], base.camera.panX),
+      panY: boundedOr(camera.panY, [-1, 1], base.camera.panY),
+    },
+  };
+}
+
+export function sanitizeFeasibleConfig(patch?: Partial<FeasibleConfig>): FeasibleConfig {
+  const base = defaultFeasibleConfig();
+  const source = patch ?? {};
+  return {
+    basis: oneOf(source.basis, FEASIBLE_BASES, base.basis),
+    specs: Array.isArray(source.specs)
+      ? source.specs
+        .filter((entry): entry is { name: string; lsl: number | null; usl: number | null; target: number | null } => Boolean(entry) && typeof entry.name === 'string')
+        .map((entry) => ({
+          name: entry.name.slice(0, 80),
+          lsl: finiteOrNull(entry.lsl),
+          usl: finiteOrNull(entry.usl),
+          target: finiteOrNull(entry.target),
+        }))
+        .slice(0, 12)
+      : [],
+    alpha: boundedOr(source.alpha, [0.001, 0.5], base.alpha),
+    showResponseRegions: boolOr(source.showResponseRegions, base.showResponseRegions),
+    showSpecLines: boolOr(source.showSpecLines, base.showSpecLines),
+    showFeasible: boolOr(source.showFeasible, base.showFeasible),
+    hatchUnfeasible: boolOr(source.hatchUnfeasible, base.hatchUnfeasible),
+    showPoints: boolOr(source.showPoints, base.showPoints),
+    resolution: oneOf(source.resolution, CONTOUR_RESOLUTION_IDS, base.resolution),
+    colorbar: boolOr(source.colorbar, base.colorbar),
+    showRatio: boolOr(source.showRatio, base.showRatio),
+  };
+}
+
 /* ── export ───────────────────────────────────────────────────────────── */
 
 export function sanitizeExportConfig(patch?: Partial<ExportConfig>): ExportConfig {
@@ -416,6 +499,8 @@ export function sanitizeChartConfig(config?: ChartConfig): ChartConfig {
     export: sanitizeExportConfig(merged.export),
     contour: sanitizeContourConfig(merged.contour),
     rsm: { ...(defaults.rsm ?? {}), ...(merged.rsm ?? {}) },
+    surface: sanitizeSurfaceConfig(merged.surface),
+    feasible: sanitizeFeasibleConfig(merged.feasible),
     scatter: { ...(defaults.scatter ?? {}), ...(merged.scatter ?? {}) },
     histogram: { ...(defaults.histogram ?? {}), ...(merged.histogram ?? {}) },
     boxplot: { ...(defaults.boxplot ?? {}), ...(merged.boxplot ?? {}) },

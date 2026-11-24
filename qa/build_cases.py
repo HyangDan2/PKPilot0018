@@ -698,6 +698,118 @@ U.append(case("QA-U-09", "난수 생성 (시드 결정성·길이·모멘트)", 
                   "동일 시드 재실행 차이(repeat_max_diff)와 유한성은 정확 일치로 검증하고, 결정성 회귀테스트와 E2E도 함께 둔다.")))
 areas["QA-U-charts-transforms.json"] = ("QA-U", U)
 
-for name, (area, cases) in [("QA-I-calc.json", areas["QA-I-calc.json"]), ("QA-U-charts-transforms.json", areas["QA-U-charts-transforms.json"])]:
+# ════════════════════════════════════════════════════════════════════════
+# QA-V — Stage 3B: 3D 표면과 중첩 등고선
+# ════════════════════════════════════════════════════════════════════════
+ALPHA_CCD = 2 ** 0.25
+RANGE_CCD = [-ALPHA_CCD, ALPHA_CCD]
+
+V = []
+SURFACE_PROBES = [[0, 0], [10, 10], [20, 20], [40, 40], [25, 40]]
+V.append(case(
+    "QA-V-01", "3D 표면 = 2D 등고선 (41×41, coded, 실험점 5개 지점)", "surface3d", "rsm_ccd",
+    {
+        "response": "Y", "factors": ["x", "y"], "resolution": 41, "mode": "coded",
+        "xRange": RANGE_CCD, "yRange": RANGE_CCD, "probes": SURFACE_PROBES,
+    },
+    [f("surface_contour_max_diff", "exact_zero"), f("grid_points"),
+     f("z_min"), f("z_max"), f("x_min"), f("x_max"), f("y_min"), f("y_max"),
+     f("coefficient_count"), f("centre_value"), f("centre_se")]
+    + [f(f"z[{i}]") for i in range(len(SURFACE_PROBES))]
+    + [f(f"z_contour[{i}]") for i in range(len(SURFACE_PROBES))],
+    note=(
+        "독립 기준은 statsmodels 2차 적합의 격자 예측값이다. 어댑터의 두 경로(컴파일 평가기와 modelSurface의 행별 설계행렬)는 "
+        "같은 산술을 쓰므로 그 차이(surface_contour_max_diff)는 정확히 0이어야 한다 — exact_zero 클래스가 이를 강제한다."
+    ),
+))
+V.append(case(
+    "QA-V-02", "3D 표면 21×21 격자 + 중심 SE (정지점 부근)", "surface3d", "rsm_outside",
+    {
+        "response": "Y", "factors": ["x", "y"], "resolution": 21, "mode": "coded",
+        "xRange": RANGE_CCD, "yRange": RANGE_CCD, "probes": [[0, 20], [20, 20], [20, 0], [10, 10]],
+    },
+    [f("surface_contour_max_diff", "exact_zero"), f("grid_points"), f("z_min"), f("z_max"),
+     f("centre_value"), f("centre_se")]
+    + [f(f"z[{i}]") for i in range(4)] + [f(f"z_contour[{i}]") for i in range(4)],
+    note="영역 밖 정지점을 가진 표면에서도 격자 예측과 2D 경로가 일치하는지 확인한다.",
+))
+V.append(case(
+    "QA-V-03", "중첩 등고선 — 두 반응 동시 만족 영역 (예측 평균 기준)", "feasible", "rsm_two",
+    {
+        "factors": ["x", "y"], "x": "x", "y": "y", "resolution": 21, "mode": "coded", "basis": "mean",
+        "alpha": 0.05, "xRange": RANGE_CCD, "yRange": RANGE_CCD,
+        "responses": [
+            {"name": "Y1", "lsl": 50.0, "usl": 62.0, "target": 58.0},
+            {"name": "Y2", "lsl": 28.0, "usl": 46.0, "target": 36.0},
+        ],
+        "probes": [[0, 0], [10, 10], [20, 20], [5, 15], [15, 5]],
+    },
+    [f("node_ratio", "feasible_area"), f("area_ratio", "feasible_area"),
+     f("feasible_nodes", "grid_count"), f("total_nodes"), f("narrow"),
+     f("probe_feasible", kind="string"),
+     f("response_0_node_ratio", "feasible_area"), f("response_1_node_ratio", "feasible_area")]
+    + [f(f"z_{r}[{i}]") for r in (0, 1) for i in range(5)],
+    note=(
+        "독립 기준은 statsmodels로 두 반응을 따로 적합해 같은 격자에서 규격을 판정한 것이다. 만족 비율은 격자 근사이므로 "
+        "feasible_area 클래스(4배 격자 구적과 폴리곤 면적의 반 셀 편향)를 쓴다. probe_feasible은 정확 일치."
+    ),
+))
+V.append(case(
+    "QA-V-04", "중첩 등고선 — 신뢰구간 기준 (구간이 규격 안에)", "feasible", "rsm_two",
+    {
+        "factors": ["x", "y"], "x": "x", "y": "y", "resolution": 21, "mode": "coded", "basis": "confidence",
+        "alpha": 0.05, "xRange": RANGE_CCD, "yRange": RANGE_CCD,
+        "responses": [
+            {"name": "Y1", "lsl": 50.0, "usl": 62.0, "target": 58.0},
+            {"name": "Y2", "lsl": 28.0, "usl": 46.0, "target": 36.0},
+        ],
+        "probes": [[20, 20], [10, 10], [18, 18]],
+    },
+    [f("node_ratio", "feasible_area"), f("area_ratio", "feasible_area"),
+     f("probe_feasible", kind="string"), f("interval_blocked", kind="string"),
+     f("response_0_node_ratio", "feasible_area"), f("response_1_node_ratio", "feasible_area")],
+    note=(
+        "구간 기준은 ŷ±t·SE 전체가 규격 안에 들어야 만족이다. 어댑터가 공분산을 저장하므로(RsmModelPayload) "
+        "비활성 목록(interval_blocked)은 비어 있어야 한다. 기준 엔진은 statsmodels cov_params로 같은 t를 계산한다."
+    ),
+))
+V.append(case(
+    "QA-V-05", "중첩 등고선 — 예측구간 기준", "feasible", "rsm_two",
+    {
+        "factors": ["x", "y"], "x": "x", "y": "y", "resolution": 21, "mode": "coded", "basis": "prediction",
+        "alpha": 0.05, "xRange": RANGE_CCD, "yRange": RANGE_CCD,
+        "responses": [
+            {"name": "Y1", "lsl": 50.0, "usl": 62.0, "target": 58.0},
+            {"name": "Y2", "lsl": 28.0, "usl": 46.0, "target": 36.0},
+        ],
+        "probes": [[20, 20], [10, 10], [18, 18]],
+    },
+    [f("node_ratio", "feasible_area"), f("area_ratio", "feasible_area"),
+     f("probe_feasible", kind="string"),
+     f("response_0_node_ratio", "feasible_area"), f("response_1_node_ratio", "feasible_area")],
+    note="예측구간은 ŷ±t·√(SE²+mse) 전체가 규격 안에 들어야 하므로 신뢰구간보다 항상 좁거나 같다(QA-V-04와 대조).",
+))
+V.append(case(
+    "QA-V-06", "중첩 등고선 — 만족 영역이 없는 규격", "feasible", "rsm_two",
+    {
+        "factors": ["x", "y"], "x": "x", "y": "y", "resolution": 11, "mode": "coded", "basis": "mean",
+        "alpha": 0.05, "xRange": RANGE_CCD, "yRange": RANGE_CCD,
+        "responses": [
+            {"name": "Y1", "lsl": 1000.0, "usl": 2000.0, "target": 1500.0},
+            {"name": "Y2", "lsl": 28.0, "usl": 46.0, "target": 36.0},
+        ],
+        "probes": [[0, 0], [10, 10]],
+    },
+    [f("feasible_nodes"), f("node_ratio"), f("narrow", kind="number"),
+     f("probe_feasible", kind="string"), f("area_ratio")],
+    note="만족 격자점 0 → narrow=1 경고. 면적비 0.",
+))
+areas["QA-V-stage3b-surface.json"] = ("QA-V", V)
+
+for name, (area, cases) in [
+    ("QA-I-calc.json", areas["QA-I-calc.json"]),
+    ("QA-U-charts-transforms.json", areas["QA-U-charts-transforms.json"]),
+    ("QA-V-stage3b-surface.json", areas["QA-V-stage3b-surface.json"]),
+]:
     write(name, area, cases)
 print("total:", sum(len(v[1]) for v in areas.values()))

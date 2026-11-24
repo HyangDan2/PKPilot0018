@@ -1811,6 +1811,163 @@ def op_modelpredict(bag, ds, args, cid):
     mark(cid, "numpy X'β · X'ΣX · scipy t prediction interval")
 
 
+# ── Stage 3B: 3D surface and overlaid contour ───────────────────────────
+
+def _quadratic_design(a, b):
+    """Columns of the fitted quadratic, in the order const, a, b, ab, a², b²."""
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    return np.column_stack([np.ones_like(a), a, b, a * b, a * a, b * b])
+
+
+def _quadratic_fit(ds, response, factors):
+    a = np.asarray(ds["columns"][factors[0]], dtype=float)
+    b = np.asarray(ds["columns"][factors[1]], dtype=float)
+    y = np.asarray(ds["columns"][response], dtype=float)
+    X = _quadratic_design(a, b)
+    model = sm.OLS(y, X).fit()
+    return model
+
+
+def _grid(model, x_range, y_range, resolution):
+    xs = np.linspace(x_range[0], x_range[1], resolution)
+    ys = np.linspace(y_range[0], y_range[1], resolution)
+    aa, bb = np.meshgrid(xs, ys, indexing="xy")
+    X = _quadratic_design(aa.ravel(), bb.ravel())
+    z = (X @ model.params).reshape(len(ys), len(xs))
+    return xs, ys, z
+
+
+def op_surface3d(bag, ds, args, cid):
+    """A 3D surface is a quadratic evaluated on a factor grid.
+
+    Independent of the TypeScript surface module: the design matrix, the grid
+    and every prediction are rebuilt here from statsmodels' fit. The adapter's
+    own 3D-vs-2D difference is compared with the literal 0 this function
+    reports, i.e. the two internal paths must agree.
+    """
+    factors = args["factors"]
+    model = _quadratic_fit(ds, args["response"], factors)
+    resolution = int(args.get("resolution", 21))
+    # Ranges are explicit in the case so both sides grid the identical interval.
+    x_range = args["xRange"]
+    y_range = args["yRange"]
+    xs, ys, z = _grid(model, x_range, y_range, resolution)
+    bag.put("surface_contour_max_diff", 0.0)
+    bag.put("grid_points", len(xs))
+    bag.put("z_min", float(np.min(z)))
+    bag.put("z_max", float(np.max(z)))
+    bag.put("x_min", float(xs[0]))
+    bag.put("x_max", float(xs[-1]))
+    bag.put("y_min", float(ys[0]))
+    bag.put("y_max", float(ys[-1]))
+    for index, (i, j) in enumerate(args.get("probes", [])):
+        bag.put(f"z[{index}]", float(z[j, i]))
+        # The contour path must land on the same number.
+        bag.put(f"z_contour[{index}]", float(z[j, i]))
+    bag.put("coefficient_count", len(model.params))
+    centre_row = _quadratic_design([0.0], [0.0])
+    centre = float((centre_row @ model.params)[0])
+    centre_se = float(np.sqrt(model.cov_params()[0, 0]))
+    bag.put("centre_value", centre)
+    bag.put("centre_se", centre_se)
+    mark(cid, "statsmodels OLS quadratic · numpy grid evaluation")
+
+
+def op_feasible(bag, ds, args, cid):
+    """Overlaid contour: every response judged on the same factor grid.
+
+    The masks, the joint region and the area estimate are computed here with
+    numpy from statsmodels fits. The area is also measured on a grid four times
+    finer (a midpoint rule) so the adapter's polygon area has an independent
+    number to be compared with.
+    """
+    factors = args["factors"]
+    specs = args["responses"]
+    x_range = args["xRange"]
+    y_range = args["yRange"]
+    resolution = int(args.get("resolution", 21))
+    basis = args.get("basis", "mean")
+    alpha = float(args.get("alpha", 0.05))
+    models = [_quadratic_fit(ds, spec["name"], factors) for spec in specs]
+    xs, ys, zs = zip(*[_grid(model, x_range, y_range, resolution) for model in models])
+    xs, ys = xs[0], ys[0]
+    masks = []
+    for model, spec, z in zip(models, specs, zs):
+        tq = float(stats.t.ppf(1 - alpha / 2, model.df_resid))
+        half = None
+        if basis != "mean":
+            aa, bb = np.meshgrid(xs, ys, indexing="xy")
+            rows = _quadratic_design(aa.ravel(), bb.ravel())
+            variance = np.einsum("ij,jk,ik->i", rows, model.cov_params(), rows)
+            scale = np.sqrt(np.maximum(variance, 0.0))
+            if basis == "prediction":
+                scale = np.sqrt(np.maximum(variance, 0.0) + model.mse_resid)
+            half = (tq * scale).reshape(z.shape)
+        lo = z if half is None else z - half
+        hi = z if half is None else z + half
+        mask = np.ones_like(z, dtype=int)
+        if spec.get("lsl") is not None:
+            mask &= (lo >= float(spec["lsl"])).astype(int)
+        if spec.get("usl") is not None:
+            mask &= (hi <= float(spec["usl"])).astype(int)
+        masks.append(mask)
+    def joint_ratio(resolution_n: int) -> float:
+        """Share of nodes where every response satisfies its spec on an N×N grid."""
+        acc = None
+        for model, spec in zip(models, specs):
+            _, _, z = _grid(model, x_range, y_range, resolution_n)
+            tq = float(stats.t.ppf(1 - alpha / 2, model.df_resid))
+            half = None
+            if basis != "mean":
+                fx = np.linspace(x_range[0], x_range[1], resolution_n)
+                fy = np.linspace(y_range[0], y_range[1], resolution_n)
+                aa, bb = np.meshgrid(fx, fy, indexing="xy")
+                rows = _quadratic_design(aa.ravel(), bb.ravel())
+                variance = np.einsum("ij,jk,ik->i", rows, model.cov_params(), rows)
+                scale = np.sqrt(np.maximum(variance, 0.0))
+                if basis == "prediction":
+                    scale = np.sqrt(np.maximum(variance, 0.0) + model.mse_resid)
+                half = (tq * scale).reshape(z.shape)
+            lo = z if half is None else z - half
+            hi = z if half is None else z + half
+            mask = np.ones_like(z, dtype=int)
+            if spec.get("lsl") is not None:
+                mask &= (lo >= float(spec["lsl"])).astype(int)
+            if spec.get("usl") is not None:
+                mask &= (hi <= float(spec["usl"])).astype(int)
+            acc = mask if acc is None else (acc & mask)
+        return float(acc.sum() / acc.size)
+
+    joint = np.ones_like(zs[0], dtype=int)
+    for mask in masks:
+        joint &= mask
+    total = joint.size
+    feasible_nodes = int(joint.sum())
+    bag.put("feasible_nodes", feasible_nodes)
+    bag.put("total_nodes", int(total))
+    bag.put("node_ratio", feasible_nodes / total)
+    # Independent area estimate: the same judgement on a grid four times finer.
+    bag.put("area_ratio", joint_ratio(min(801, resolution * 4)))
+    bag.put("interval_blocked", "")
+    # The adapter states convergence as |ratio(2× grid) − ratio(grid)|.
+    bag.put("convergence_delta", abs(joint_ratio(resolution * 2) - feasible_nodes / total))
+    bag.put("narrow", 1 if feasible_nodes == 0 else 0)
+    for index, mask in enumerate(masks):
+        bag.put(f"response_{index}_node_ratio", float(mask.sum() / total))
+        bag.put(f"response_{index}_area_ratio", float(mask.sum() / total))
+    probes = args.get("probes", [])
+    bag.put("probe_feasible", ",".join(str(int(joint[j, i])) for i, j in probes))
+    for index, (i, j) in enumerate(probes):
+        for r, z in enumerate(zs):
+            bag.put(f"z_{r}[{index}]", float(z[j, i]))
+    bag.put("x_min", float(xs[0]))
+    bag.put("x_max", float(xs[-1]))
+    bag.put("y_min", float(ys[0]))
+    bag.put("y_max", float(ys[-1]))
+    mark(cid, "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature")
+
+
 def op_sheet(bag, ds, args, cid):
     """QA-U — the documented chart / worksheet-transform rules, independently.
 
@@ -2055,6 +2212,8 @@ OPS = {
     "calc": op_calc,
     "sheet": op_sheet,
     "modelpredict": op_modelpredict,
+    "surface3d": op_surface3d,
+    "feasible": op_feasible,
     "nelson": op_nelson,
 }
 

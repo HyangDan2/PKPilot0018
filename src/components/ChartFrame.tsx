@@ -6,6 +6,9 @@ import { fmt } from '../lib/format';
 import { probeContour } from '../lib/chartProbe';
 import { t } from '../lib/i18n';
 import type { ChartDrawerTab } from './ChartPropertiesDrawer';
+import { Surface3DView } from './Surface3DView';
+import { defaultSurfaceViewConfig } from '../lib/chartConfig';
+import type { SurfaceCameraConfig, SurfaceProjection } from '../lib/chartConfig';
 
 const CHART_MIN_WIDTH = 280;
 const CHART_MAX_WIDTH = 820;
@@ -26,6 +29,8 @@ interface Props {
   onCopyPng: () => void;
   onExport: () => void;
   testId?: string;
+  /** Persist a change the chart makes itself (the 3D camera). */
+  onChartChange?: (chart: ChartSpec) => void;
 }
 
 interface Tip {
@@ -92,7 +97,7 @@ function dataUnder(svg: SVGSVGElement, event: React.MouseEvent): { x: number; y:
   };
 }
 
-export function ChartCanvas({ chart, config, maxWidth = CHART_MAX_WIDTH }: { chart: ChartSpec; config?: ChartConfig; maxWidth?: number }) {
+export function ChartCanvas({ chart, config, maxWidth = CHART_MAX_WIDTH, onChartChange, lang = 'en' }: { chart: ChartSpec; config?: ChartConfig; maxWidth?: number; onChartChange?: (chart: ChartSpec) => void; lang?: Lang }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [measured, setMeasured] = useState(560);
 
@@ -120,11 +125,39 @@ export function ChartCanvas({ chart, config, maxWidth = CHART_MAX_WIDTH }: { cha
   }, []);
 
   const width = Math.max(CHART_MIN_WIDTH, Math.min(measured, maxWidth));
+  if (chart.kind === 'surface3d') {
+    const surface = { ...defaultSurfaceViewConfig(), ...((config ?? chart.config)?.surface ?? {}) };
+    const wanted = (config ?? chart.config)?.appearance?.height ?? 0;
+    const height = wanted > 140 ? Math.round(wanted) : 340;
+    const commit = (camera: SurfaceCameraConfig, projection?: SurfaceProjection) => {
+      if (!onChartChange) return;
+      const base = config ?? chart.config ?? {};
+      onChartChange({
+        ...chart,
+        config: {
+          ...base,
+          surface: { ...(base.surface ?? {}), camera, ...(projection ? { projection } : {}) },
+        },
+      });
+    };
+    return (
+      <div ref={hostRef} className="chart-canvas surface3d-canvas-wrap" data-testid="chart-canvas">
+        <Surface3DView
+          lang={lang}
+          chart={chart}
+          config={surface}
+          width={width}
+          height={height}
+          onViewChange={commit}
+        />
+      </div>
+    );
+  }
   const svg = renderChart(chart, { width, config });
   return <div ref={hostRef} className="chart-canvas" data-testid="chart-canvas" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
-export function ChartFrame({ lang, chart, caption, config, onEdit, onMenu, onView, onCopyPng, onExport, testId }: Props) {
+export function ChartFrame({ lang, chart, caption, config, onEdit, onMenu, onView, onCopyPng, onExport, testId, onChartChange }: Props) {
   const holderRef = useRef<HTMLDivElement | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
 
@@ -185,7 +218,7 @@ export function ChartFrame({ lang, chart, caption, config, onEdit, onMenu, onVie
         }}
         title={t(lang, 'ct.tipHint')}
       >
-        <ChartCanvas chart={chart} config={config} />
+        <ChartCanvas chart={chart} config={config} onChartChange={onChartChange} lang={lang} />
         <div className="chart-toolbar" onClick={(event) => event.stopPropagation()}>
           <button type="button" onClick={() => onEdit({ tab: 'general' })} title={t(lang, 'ct.edit')} aria-label={t(lang, 'ct.edit')} data-testid="chart-edit">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z" /></svg>
@@ -215,7 +248,7 @@ export function ChartFrame({ lang, chart, caption, config, onEdit, onMenu, onVie
 }
 
 /** Large single-chart view used by Zoom and Fullscreen. */
-export function ChartViewer({ lang, chart, config, caption, mode, onClose, onEdit, onCopyPng }: {
+export function ChartViewer({ lang, chart, config, caption, mode, onClose, onEdit, onCopyPng, onChartChange }: {
   lang: Lang;
   chart: ChartSpec;
   config?: ChartConfig;
@@ -224,6 +257,7 @@ export function ChartViewer({ lang, chart, config, caption, mode, onClose, onEdi
   onClose: () => void;
   onEdit: () => void;
   onCopyPng: () => void;
+  onChartChange?: (chart: ChartSpec) => void;
 }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -243,7 +277,7 @@ export function ChartViewer({ lang, chart, config, caption, mode, onClose, onEdi
           <button type="button" className="icon-btn" onClick={onClose} title={t(lang, mode === 'full' ? 'ct.exitFullscreen' : 'ct.close')} aria-label={t(lang, 'ct.close')} data-testid="chart-viewer-close">✕</button>
         </header>
         <div className="chart-viewer-body">
-          <ChartCanvas chart={chart} config={config} maxWidth={mode === 'full' ? 1600 : 1100} />
+          <ChartCanvas chart={chart} config={config} maxWidth={mode === 'full' ? 1600 : 1100} lang={lang} onChartChange={onChartChange} />
         </div>
       </div>
     </div>
