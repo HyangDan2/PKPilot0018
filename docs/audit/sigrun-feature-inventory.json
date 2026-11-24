@@ -1,0 +1,2866 @@
+{
+ "schemaVersion": 1,
+ "kind": "sigrun-feature-inventory",
+ "meta": {
+  "product": "HD2Lab Sigrún",
+  "repository": "HyangDan2/PKPilot0018",
+  "commit": "43b0b071cf010352d8add7600dfa29d158a2b3e3",
+  "auditDate": "2026-11-24",
+  "method": "src/lib/analyses.ts 레지스트리 41개 분석 전부와 src/lib·src/components 모듈을 소스에서 읽어 열거하고, 각 기능의 근거(파일·심볼·테스트·QA·튜토리얼·샘플)를 저장소에서 직접 확인했다.",
+  "analysisCount": 41,
+  "moduleCount": 20,
+  "qaCaseTotal": 225
+ },
+ "features": [
+  {
+   "featureId": "S-AN-desc",
+   "kind": "analysis",
+   "analysisId": "desc",
+   "title": "기술통계량",
+   "titleEn": "Descriptive Statistics",
+   "uiEntryPoint": "Stat > 기초 통계량 > 기술통계량",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runDescriptive",
+   "supportedParameters": [],
+   "outputFields": [
+    "coefVar",
+    "iqr",
+    "kurt",
+    "max",
+    "mean",
+    "median",
+    "min",
+    "n",
+    "nstar",
+    "q1",
+    "q3",
+    "seMean",
+    "skew",
+    "stdev",
+    "variable",
+    "variance"
+   ],
+   "resultBlocks": [
+    "table"
+   ],
+   "implementation": "수치 열 1개 이상 + By 열, Minitab 16개 통계량 전부",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "chart-memory.test.ts",
+    "input-audit.test.ts",
+    "worksheet-ux.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "chart-memory.test.ts": 11,
+    "input-audit.test.ts": 11,
+    "worksheet-ux.test.ts": 24
+   },
+   "independentQaCaseIds": [
+    "QA-A-01",
+    "QA-A-02",
+    "QA-A-03",
+    "QA-A-04",
+    "QA-A-05",
+    "QA-A-06"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process",
+    "comparison"
+   ],
+   "helpDocumentIds": [
+    "descriptive-statistics"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "통계량 선택·가중치·결과 저장이 없다. 통계량 집합이 코드에 고정되어 있다."
+  },
+  {
+   "featureId": "S-AN-normality",
+   "kind": "analysis",
+   "analysisId": "normality",
+   "title": "정규성 검정",
+   "titleEn": "Normality Test",
+   "uiEntryPoint": "Stat > 기초 통계량 > 정규성 검정",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runNormality",
+   "supportedParameters": [],
+   "outputFields": [
+    "ad",
+    "mean",
+    "n",
+    "p",
+    "stdev"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "Anderson–Darling + 정규 확률도(95% 밴드)",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [
+    "QA-A-07",
+    "QA-A-08",
+    "QA-A-09",
+    "QA-A-10"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "normality-test"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "Ryan–Joiner·Kolmogorov–Smirnov 검정이 없고 검정 방법을 고를 수 없다."
+  },
+  {
+   "featureId": "S-AN-t1",
+   "kind": "analysis",
+   "analysisId": "t1",
+   "title": "1표본 t",
+   "titleEn": "1-Sample t",
+   "uiEntryPoint": "Stat > 기초 통계량 > 1표본 t",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runT1",
+   "supportedParameters": [],
+   "outputFields": [
+    "diff",
+    "mean",
+    "n",
+    "p",
+    "seMean",
+    "stdev",
+    "t"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "μ₀·신뢰수준·대립가설, t·p·CI, 정규곡선",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [
+    "QA-A-11",
+    "QA-A-12",
+    "QA-A-13",
+    "QA-A-14",
+    "QA-X-04"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "comparison"
+   ],
+   "helpDocumentIds": [
+    "t-tests"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "요약 통계량(평균·n·s) 입력이 없고 결과 저장이 없다."
+  },
+  {
+   "featureId": "S-AN-t2",
+   "kind": "analysis",
+   "analysisId": "t2",
+   "title": "2표본 t",
+   "titleEn": "2-Sample t",
+   "uiEntryPoint": "Stat > 기초 통계량 > 2표본 t",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runT2",
+   "supportedParameters": [],
+   "outputFields": [
+    "df",
+    "diff",
+    "mean",
+    "n",
+    "p",
+    "ratio",
+    "seCoef",
+    "seMean",
+    "stdev",
+    "t",
+    "variable"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "Welch/pooled 선택, 등분산 F 검정, 두 그룹 상자그림",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [
+    "QA-A-15",
+    "QA-A-16",
+    "QA-A-17",
+    "QA-X-05"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "comparison"
+   ],
+   "helpDocumentIds": [
+    "t-tests"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "요약 통계량 입력과 신뢰구간 저장이 없다."
+  },
+  {
+   "featureId": "S-AN-paired",
+   "kind": "analysis",
+   "analysisId": "paired",
+   "title": "대응 t",
+   "titleEn": "Paired t",
+   "uiEntryPoint": "Stat > 기초 통계량 > 대응표본 t",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPaired",
+   "supportedParameters": [],
+   "outputFields": [
+    "mean",
+    "n",
+    "p",
+    "seMean",
+    "stdev",
+    "t",
+    "variable"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "차이 평균·μ₀·CI·대립가설, 차이 히스토그램",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [
+    "QA-A-18",
+    "QA-A-19",
+    "QA-A-20",
+    "QA-X-06"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "comparison"
+   ],
+   "helpDocumentIds": [
+    "t-tests"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "요약 통계량 입력·차이 저장이 없다."
+  },
+  {
+   "featureId": "S-AN-anova",
+   "kind": "analysis",
+   "analysisId": "anova",
+   "title": "일원배치 분산분석",
+   "titleEn": "One-Way ANOVA",
+   "uiEntryPoint": "Stat > 분산분석 > 일원배치",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runAnova",
+   "supportedParameters": [],
+   "outputFields": [
+    "df",
+    "diff",
+    "error",
+    "f",
+    "group",
+    "level",
+    "mean",
+    "ms",
+    "n",
+    "p",
+    "seCoef",
+    "source",
+    "ss",
+    "stdev",
+    "total",
+    "value",
+    "variable"
+   ],
+   "resultBlocks": [
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "F 검정, Tukey HSD, 컴팩트 문자, 평균 CI 그림, 상자그림",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "benchmark.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "benchmark.test.ts": 29,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [
+    "QA-A-21",
+    "QA-A-22",
+    "QA-B-01"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "anova-glm"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "Dunnett·Fisher 등 비교 방법 선택과 요인 2개 이상(이원) 분석이 없다."
+  },
+  {
+   "featureId": "S-AN-regression",
+   "kind": "analysis",
+   "analysisId": "regression",
+   "title": "회귀분석",
+   "titleEn": "Regression Analysis",
+   "uiEntryPoint": "Stat > 회귀분석 > 회귀분석",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runRegression",
+   "supportedParameters": [],
+   "outputFields": [
+    "coef",
+    "df",
+    "error",
+    "f",
+    "ms",
+    "p",
+    "regression",
+    "seCoef",
+    "source",
+    "ss",
+    "statistic",
+    "t",
+    "term",
+    "total",
+    "value",
+    "vif"
+   ],
+   "resultBlocks": [
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "다중 OLS, VIF, R²·R²adj·R²pred, 4-in-1 잔차, 모형 저장",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "chart-memory.test.ts",
+    "input-audit.test.ts",
+    "model-store.test.ts",
+    "stats.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "chart-memory.test.ts": 11,
+    "input-audit.test.ts": 11,
+    "model-store.test.ts": 30,
+    "stats.test.ts": 24
+   },
+   "independentQaCaseIds": [
+    "QA-A-23",
+    "QA-A-24",
+    "QA-X-02",
+    "QA-X-03"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_stage2.cjs",
+    "tools/e2e_phase3_3a.cjs",
+    "tools/e2e_phase3_3b.cjs",
+    "tools/e2e_phase3_3c.cjs",
+    "tools/e2e_phase3_3d.cjs",
+    "tools/e2e_portable_offline.cjs"
+   ],
+   "sampleDatasetIds": [
+    "regression",
+    "comparison"
+   ],
+   "helpDocumentIds": [
+    "regression-fitting"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "범주 예측변수·교호작용·다항·단계적·최적부분집합·가중치가 없다. 적합값/잔차 저장이 없다."
+  },
+  {
+   "featureId": "S-AN-polyreg",
+   "kind": "analysis",
+   "analysisId": "polyreg",
+   "title": "다항 회귀분석",
+   "titleEn": "Polynomial Regression",
+   "uiEntryPoint": "Stat > 회귀분석 > 다항 회귀",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPolyRegression",
+   "supportedParameters": [],
+   "outputFields": [
+    "coef",
+    "df",
+    "error",
+    "f",
+    "ms",
+    "p",
+    "seCoef",
+    "source",
+    "ssTypeI",
+    "ssTypeIII",
+    "statistic",
+    "t",
+    "term",
+    "total",
+    "value"
+   ],
+   "resultBlocks": [
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "2·3차 다항 회귀, 모형 저장, 예측·구간 프로파일러 연결",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "polyreg-model.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "polyreg-model.test.ts": 5
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "rsm"
+   ],
+   "helpDocumentIds": [
+    "regression-fitting"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "Minitab에 1:1 대응 메뉴가 없는 독립 확장(2차 모형을 요인설계 없이 적합)."
+  },
+  {
+   "featureId": "S-AN-imr",
+   "kind": "analysis",
+   "analysisId": "imr",
+   "title": "I-MR 관리도",
+   "titleEn": "I-MR Chart",
+   "uiEntryPoint": "Stat > 관리도 > 개별값 > I-MR",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runImr",
+   "supportedParameters": [],
+   "outputFields": [
+    "level"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "I·MR 관리도, MR̄/d₂ σ, Nelson 규칙 1–8 전부",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts",
+    "qa-review.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11,
+    "qa-review.test.ts": 44
+   },
+   "independentQaCaseIds": [
+    "QA-C-01",
+    "QA-C-02",
+    "QA-C-14"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "control-charts"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "단계(Stages)·한계 고정·규칙 선택·Box-Cox가 없다."
+  },
+  {
+   "featureId": "S-AN-xbarr",
+   "kind": "analysis",
+   "analysisId": "xbarr",
+   "title": "Xbar-R 관리도",
+   "titleEn": "Xbar-R Chart",
+   "uiEntryPoint": "Stat > 관리도 > 부분군 > Xbar-R",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runXbarR",
+   "supportedParameters": [],
+   "outputFields": [
+    "level"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "부분군 크기 2–10 상수표, 결측 부분군 자체 nᵢ",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [
+    "QA-C-03",
+    "QA-C-04",
+    "QA-C-05",
+    "QA-C-16"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "control-charts"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "부분군 ID 열이 없고(크기만) 단계·한계 고정이 없다."
+  },
+  {
+   "featureId": "S-AN-pchart",
+   "kind": "analysis",
+   "analysisId": "pchart",
+   "title": "P 관리도",
+   "titleEn": "P Chart",
+   "uiEntryPoint": "Stat > 관리도 > 속성 > P",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPChart",
+   "supportedParameters": [],
+   "outputFields": [
+    "level"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "가변 표본 크기(열 또는 상수), 점별 한계",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [
+    "QA-C-08",
+    "QA-C-09",
+    "QA-C-15"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "control-charts"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "Laney 보정·단계가 없다."
+  },
+  {
+   "featureId": "S-AN-capability",
+   "kind": "analysis",
+   "analysisId": "capability",
+   "title": "공정능력 보고서",
+   "titleEn": "Process Capability Report",
+   "uiEntryPoint": "Stat > 품질 도구 > 공정 능력 분석",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runCapability",
+   "supportedParameters": [],
+   "outputFields": [
+    "statistic",
+    "variable"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "Cp/Cpk/CPL/CPU·Pp/Ppk·Cpm·관측/기대 PPM·시그마 수준, σ 3방식",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "chart-config.test.ts",
+    "chart-memory.test.ts",
+    "charts.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "chart-config.test.ts": 27,
+    "chart-memory.test.ts": 11,
+    "charts.test.ts": 17,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [
+    "QA-D-01",
+    "QA-D-02",
+    "QA-D-03",
+    "QA-D-04",
+    "QA-D-05",
+    "QA-D-06",
+    "QA-D-07"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "capability-analysis"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "경계 규격·과거 평균/표준편차·부분군 기반 within σ 세부 옵션이 없고 비정규 분포 선택이 별도 분석이다."
+  },
+  {
+   "featureId": "S-AN-pareto",
+   "kind": "analysis",
+   "analysisId": "pareto",
+   "title": "파레토 차트",
+   "titleEn": "Pareto Chart",
+   "uiEntryPoint": "Stat > 품질 도구 > 파레토 차트",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPareto",
+   "supportedParameters": [],
+   "outputFields": [
+    "count",
+    "cumulative",
+    "defect",
+    "percent"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table"
+   ],
+   "implementation": "빈도·누적%·80% 기준선",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "chart-config.test.ts",
+    "charts.test.ts",
+    "followup-qa.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "chart-config.test.ts": 27,
+    "charts.test.ts": 17,
+    "followup-qa.test.ts": 17,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "pareto-analysis"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "가중치 열과 By 그룹이 없다."
+  },
+  {
+   "featureId": "S-AN-histogram",
+   "kind": "analysis",
+   "analysisId": "histogram",
+   "title": "히스토그램",
+   "titleEn": "Histogram",
+   "uiEntryPoint": "그래프 > 히스토그램",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runHistogram",
+   "supportedParameters": [],
+   "outputFields": [
+    "max",
+    "mean",
+    "median",
+    "min",
+    "n",
+    "stdev"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table"
+   ],
+   "implementation": "빈 수·정규곡선·규격선, 고급 축·오차막대·내보내기",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "chart-config.test.ts",
+    "chart-export.test.ts",
+    "chart-guards.test.ts",
+    "chart-memory.test.ts",
+    "charts.test.ts",
+    "input-audit.test.ts",
+    "p2.test.ts",
+    "tutorial-system.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "chart-config.test.ts": 27,
+    "chart-export.test.ts": 9,
+    "chart-guards.test.ts": 12,
+    "chart-memory.test.ts": 11,
+    "charts.test.ts": 17,
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28,
+    "tutorial-system.test.ts": 21
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_followup.cjs",
+    "tools/e2e_phase3_3d.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "graph-basics"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "By 패널 분리·백분율/밀도 축 선택이 없다."
+  },
+  {
+   "featureId": "S-AN-boxplot",
+   "kind": "analysis",
+   "analysisId": "boxplot",
+   "title": "상자그림",
+   "titleEn": "Boxplot",
+   "uiEntryPoint": "그래프 > 상자그림",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runBoxplot",
+   "supportedParameters": [],
+   "outputFields": [
+    "iqr",
+    "max",
+    "median",
+    "min",
+    "n",
+    "q1",
+    "q3",
+    "variable"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table"
+   ],
+   "implementation": "다변량·By 그룹·이상치(1.5 IQR)",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "chart-config.test.ts",
+    "chart-guards.test.ts",
+    "charts.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "chart-config.test.ts": 27,
+    "chart-guards.test.ts": 12,
+    "charts.test.ts": 17,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_followup.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "graph-basics"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "개별값 중첩·구간그림·바이올린 변형이 없다."
+  },
+  {
+   "featureId": "S-AN-scatter",
+   "kind": "analysis",
+   "analysisId": "scatter",
+   "title": "산점도",
+   "titleEn": "Scatterplot",
+   "uiEntryPoint": "그래프 > 산점도",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runScatter",
+   "supportedParameters": [],
+   "outputFields": [
+    "coef",
+    "equation",
+    "n",
+    "p",
+    "r",
+    "r2",
+    "x",
+    "y"
+   ],
+   "resultBlocks": [
+    "chart",
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "Y·X 복수, Each/XY Pairs, 개별/패널/중첩, By 색, 공통눈금, 회귀선·r·R², 로그·깨진 축, 오차막대",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "axis-advanced.test.ts",
+    "chart-config.test.ts",
+    "chart-drawer.test.ts",
+    "chart-export.test.ts",
+    "chart-guards.test.ts",
+    "chart-memory.test.ts",
+    "charts.test.ts",
+    "followup-qa.test.ts",
+    "graph-layout.test.ts",
+    "input-audit.test.ts",
+    "model-store.test.ts",
+    "regression-bands.test.ts",
+    "scatter-stage2.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "axis-advanced.test.ts": 19,
+    "chart-config.test.ts": 27,
+    "chart-drawer.test.ts": 17,
+    "chart-export.test.ts": 9,
+    "chart-guards.test.ts": 12,
+    "chart-memory.test.ts": 11,
+    "charts.test.ts": 17,
+    "followup-qa.test.ts": 17,
+    "graph-layout.test.ts": 24,
+    "input-audit.test.ts": 11,
+    "model-store.test.ts": 30,
+    "regression-bands.test.ts": 6,
+    "scatter-stage2.test.ts": 23
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_stage2.cjs",
+    "tools/e2e_phase3_3d.cjs",
+    "tools/e2e_portable_offline.cjs"
+   ],
+   "sampleDatasetIds": [
+    "regression",
+    "process"
+   ],
+   "helpDocumentIds": [
+    "graph-basics"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "By 변수의 별도 그래프 분리, 연결선, 버블, 지터가 없다."
+  },
+  {
+   "featureId": "S-AN-timeseries",
+   "kind": "analysis",
+   "analysisId": "timeseries",
+   "title": "시계열 그림",
+   "titleEn": "Time Series Plot",
+   "uiEntryPoint": "그래프 > 시계열 그림",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runTimeseries",
+   "supportedParameters": [],
+   "outputFields": [
+    "max",
+    "mean",
+    "min",
+    "n",
+    "stdev"
+   ],
+   "resultBlocks": [
+    "chart",
+    "numeric",
+    "table"
+   ],
+   "implementation": "단일 열 시계열 + 규격선",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "chart-config.test.ts",
+    "chart-drawer.test.ts",
+    "charts.test.ts",
+    "followup-qa.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "chart-config.test.ts": 27,
+    "chart-drawer.test.ts": 17,
+    "charts.test.ts": 17,
+    "followup-qa.test.ts": 17,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_followup.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "graph-basics"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "다중 열 패널/중첩, 날짜 축 자동 인식, Y축 로그/백분율 선택이 없다."
+  },
+  {
+   "featureId": "S-AN-calculator",
+   "kind": "analysis",
+   "analysisId": "calculator",
+   "title": "계산기",
+   "titleEn": "Calculator",
+   "uiEntryPoint": "계산 > 계산기",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runCalculator",
+   "supportedParameters": [],
+   "outputFields": [
+    "column"
+   ],
+   "resultBlocks": [
+    "table",
+    "text"
+   ],
+   "implementation": "열 참조 수식 1개 → 새 열, MEAN/SQRT/LN/LOG/ROUND 등",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [
+    "QA-I-01",
+    "QA-I-02",
+    "QA-I-03",
+    "QA-I-04"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "data-management"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "함수 집합이 작고 자동 재계산·IF/날짜 함수가 없다."
+  },
+  {
+   "featureId": "S-AN-random",
+   "kind": "analysis",
+   "analysisId": "random",
+   "title": "난수 생성",
+   "titleEn": "Random Data",
+   "uiEntryPoint": "계산 > 난수 생성",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runRandom",
+   "supportedParameters": [],
+   "outputFields": [
+    "column",
+    "max",
+    "mean",
+    "min",
+    "stdev"
+   ],
+   "resultBlocks": [
+    "table",
+    "text"
+   ],
+   "implementation": "정규·균등·정수 3종, 시드 재현",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_followup.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "data-management"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "이항·포아송·베타·감마·Weibull 등이 없다."
+  },
+  {
+   "featureId": "S-AN-sort",
+   "kind": "analysis",
+   "analysisId": "sort",
+   "title": "정렬",
+   "titleEn": "Sort",
+   "uiEntryPoint": "데이터 > 정렬",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runSort",
+   "supportedParameters": [],
+   "outputFields": [],
+   "resultBlocks": [
+    "text"
+   ],
+   "implementation": "열 1개 기준 행 전체 정렬, 결측 뒤로",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "followup-qa.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "followup-qa.test.ts": 17,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_followup.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "data-management"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "다중 정렬 키가 없다."
+  },
+  {
+   "featureId": "S-AN-standardize",
+   "kind": "analysis",
+   "analysisId": "standardize",
+   "title": "표준화",
+   "titleEn": "Standardize",
+   "uiEntryPoint": "데이터 > 표준화",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runStandardize",
+   "supportedParameters": [],
+   "outputFields": [
+    "column",
+    "mean",
+    "stdev"
+   ],
+   "resultBlocks": [
+    "table",
+    "text"
+   ],
+   "implementation": "평균 0·표준편차 1 새 열",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "followup-qa.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "followup-qa.test.ts": 17,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_followup.cjs"
+   ],
+   "sampleDatasetIds": [
+    "comparison"
+   ],
+   "helpDocumentIds": [
+    "data-management"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "열 이름 지정만 가능하고 평균/표준편차 직접 지정이 없다."
+  },
+  {
+   "featureId": "S-AN-recode",
+   "kind": "analysis",
+   "analysisId": "recode",
+   "title": "코드 변환",
+   "titleEn": "Recode",
+   "uiEntryPoint": "데이터 > 재코드",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runRecode",
+   "supportedParameters": [],
+   "outputFields": [
+    "value"
+   ],
+   "resultBlocks": [
+    "table",
+    "text"
+   ],
+   "implementation": "숫자 짝 매핑(1=10), 미매핑 값 처리",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "followup-qa.test.ts",
+    "input-audit.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "followup-qa.test.ts": 17,
+    "input-audit.test.ts": 11
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_followup.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "data-management"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "문자 재코드·범위 규칙이 없다(문자 열은 명시 거부)."
+  },
+  {
+   "featureId": "S-AN-gagerr",
+   "kind": "analysis",
+   "analysisId": "gagerr",
+   "title": "Gage R&R 연구",
+   "titleEn": "Gage R&R Study",
+   "uiEntryPoint": "Stat > 품질 도구 > Gage R&R",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runGageRR",
+   "supportedParameters": [],
+   "outputFields": [
+    "contribution",
+    "df",
+    "f",
+    "ms",
+    "p",
+    "pctStudyVar",
+    "pctTolerance",
+    "source",
+    "ss",
+    "stdev",
+    "studyVar",
+    "varComp"
+   ],
+   "resultBlocks": [
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "Crossed/Nested, ANOVA 방법, 교호작용 풀링, %GRR·ndc, 5개 그림",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-E-01",
+    "QA-E-02",
+    "QA-E-03",
+    "QA-E-04",
+    "QA-E-05",
+    "QA-E-06",
+    "QA-E-07"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "gagerr"
+   ],
+   "helpDocumentIds": [
+    "gage-rr"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "Xbar-R 방법·확장 Gage·Type 1·직선성/편의·속성 일치도가 없다."
+  },
+  {
+   "featureId": "S-AN-sixpack",
+   "kind": "analysis",
+   "analysisId": "sixpack",
+   "title": "공정능력 Sixpack",
+   "titleEn": "Capability Sixpack",
+   "uiEntryPoint": "Stat > 품질 도구 > 능력 Sixpack",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runSixpack",
+   "supportedParameters": [],
+   "outputFields": [
+    "basis",
+    "estimate",
+    "statistic",
+    "value"
+   ],
+   "resultBlocks": [
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "6개 연동 패널, 부분군 1이면 I-MR·11 이상이면 Xbar-S 자동, 마지막 25군",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-D-08",
+    "QA-D-09",
+    "QA-D-10",
+    "QA-D-11",
+    "QA-D-17"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "capability-analysis"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "Minitab의 비정규·군간/군내 식스팩 변형이 없고 단계가 없다."
+  },
+  {
+   "featureId": "S-AN-capnonnormal",
+   "kind": "analysis",
+   "analysisId": "capnonnormal",
+   "title": "비정규 공정능력 분석",
+   "titleEn": "Nonnormal Capability Analysis",
+   "uiEntryPoint": "Stat > 품질 도구 > 비정규 공정 능력",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runNonnormal",
+   "supportedParameters": [],
+   "outputFields": [
+    "estimate",
+    "parameter",
+    "statistic"
+   ],
+   "resultBlocks": [
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "Weibull·로그정규·감마 3종 적합 후 PPM",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-D-12",
+    "QA-D-13",
+    "QA-D-14",
+    "QA-D-15",
+    "QA-D-16"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "capability-analysis"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "지수·최대극치·베타·Johnson 및 비모수 능력이 없다."
+  },
+  {
+   "featureId": "S-AN-xbars",
+   "kind": "analysis",
+   "analysisId": "xbars",
+   "title": "Xbar-S 관리도",
+   "titleEn": "Xbar-S Chart",
+   "uiEntryPoint": "Stat > 관리도 > 부분군 > Xbar-S",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runXbarS",
+   "supportedParameters": [],
+   "outputFields": [
+    "level"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "c₄ 상수, 부분군 ID 열 또는 크기",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-C-06",
+    "QA-C-07"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "control-charts"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "단계·한계 고정이 없다."
+  },
+  {
+   "featureId": "S-AN-npchart",
+   "kind": "analysis",
+   "analysisId": "npchart",
+   "title": "NP 관리도",
+   "titleEn": "NP Chart",
+   "uiEntryPoint": "Stat > 관리도 > 속성 > NP",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runNpChart",
+   "supportedParameters": [],
+   "outputFields": [
+    "level"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "고정 표본 NP 관리도",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-C-10"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "control-charts"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "표본 크기 변화·단계가 없다."
+  },
+  {
+   "featureId": "S-AN-cchart",
+   "kind": "analysis",
+   "analysisId": "cchart",
+   "title": "C 관리도",
+   "titleEn": "C Chart",
+   "uiEntryPoint": "Stat > 관리도 > 속성 > C",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runCChart",
+   "supportedParameters": [],
+   "outputFields": [
+    "level"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "결함수 C 관리도",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-C-11"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "control-charts"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "단계가 없다."
+  },
+  {
+   "featureId": "S-AN-uchart",
+   "kind": "analysis",
+   "analysisId": "uchart",
+   "title": "U 관리도",
+   "titleEn": "U Chart",
+   "uiEntryPoint": "Stat > 관리도 > 속성 > U",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runUChart",
+   "supportedParameters": [],
+   "outputFields": [
+    "level"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "단위 크기 열·상수 가변 U 관리도",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-C-12",
+    "QA-C-13"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "control-charts"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "Laney 보정·단계가 없다."
+  },
+  {
+   "featureId": "S-AN-glm",
+   "kind": "analysis",
+   "analysisId": "glm",
+   "title": "일반선형모형",
+   "titleEn": "General Linear Model",
+   "uiEntryPoint": "Stat > 분산분석 > 일반선형모형",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runGlm",
+   "supportedParameters": [],
+   "outputFields": [
+    "coef",
+    "df",
+    "error",
+    "f",
+    "ms",
+    "p",
+    "seCoef",
+    "source",
+    "ssTypeI",
+    "ssTypeIII",
+    "statistic",
+    "t",
+    "term",
+    "total",
+    "value"
+   ],
+   "resultBlocks": [
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "요인 1개 이상, 2원 교호작용, Type I·III SS, 적합값·잔차",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "model-store.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "model-store.test.ts": 30,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-B-02",
+    "QA-B-03",
+    "QA-B-04",
+    "QA-B-05",
+    "QA-B-06"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "comparison"
+   ],
+   "helpDocumentIds": [
+    "anova-glm"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "공변량·랜덤 요인·모형 축소·적합결여·별칭 표시가 없다."
+  },
+  {
+   "featureId": "S-AN-doecreate",
+   "kind": "analysis",
+   "analysisId": "doecreate",
+   "title": "요인설계 생성",
+   "titleEn": "Create Factorial Design",
+   "uiEntryPoint": "Stat > DOE > 요인 설계 생성",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runDoeCreate",
+   "supportedParameters": [],
+   "outputFields": [],
+   "resultBlocks": [
+    "text"
+   ],
+   "implementation": "2–6요인 완전요인, 반복·중심점·랜덤화(시드)",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-H-01",
+    "QA-H-02",
+    "QA-H-03",
+    "QA-H-10"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "doe"
+   ],
+   "helpDocumentIds": [
+    "doe-factorial"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "부분요인·Plackett–Burman·블록·7요인 이상이 없다."
+  },
+  {
+   "featureId": "S-AN-doeanalyze",
+   "kind": "analysis",
+   "analysisId": "doeanalyze",
+   "title": "요인설계 분석",
+   "titleEn": "Analyze Factorial Design",
+   "uiEntryPoint": "Stat > DOE > 요인 설계 분석",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runDoeAnalyze",
+   "supportedParameters": [],
+   "outputFields": [
+    "coef",
+    "df",
+    "effect",
+    "error",
+    "f",
+    "ms",
+    "p",
+    "seCoef",
+    "source",
+    "ssTypeI",
+    "ssTypeIII",
+    "statistic",
+    "t",
+    "term",
+    "total",
+    "value"
+   ],
+   "resultBlocks": [
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "1–3차 모형, 별칭, 적합결여·순수오차, 잔차 그림",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-H-06",
+    "QA-H-07"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "doe",
+    "display-optical-doe"
+   ],
+   "helpDocumentIds": [
+    "factorial-analysis"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "단계적 선택·모형 축소·이진 반응·변동 분석이 없다."
+  },
+  {
+   "featureId": "S-AN-rsmcreate",
+   "kind": "analysis",
+   "analysisId": "rsmcreate",
+   "title": "반응표면 설계 생성",
+   "titleEn": "Create Response Surface Design",
+   "uiEntryPoint": "Stat > DOE > 반응표면 설계 생성",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runRsmCreate",
+   "supportedParameters": [],
+   "outputFields": [],
+   "resultBlocks": [
+    "text"
+   ],
+   "implementation": "CCD(회전성 α)·Box–Behnken, 중심점·랜덤화",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-H-04",
+    "QA-H-05"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "rsm"
+   ],
+   "helpDocumentIds": [],
+   "tutorialIds": [],
+   "knownCaveat": "블록·면중심 CCD·α 직접 지정·사용자 정의 설계가 없다."
+  },
+  {
+   "featureId": "S-AN-rsmanalyze",
+   "kind": "analysis",
+   "analysisId": "rsmanalyze",
+   "title": "반응표면 분석",
+   "titleEn": "Analyze Response Surface",
+   "uiEntryPoint": "Stat > DOE > 반응표면 분석",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runRsmAnalyze",
+   "supportedParameters": [],
+   "outputFields": [
+    "coef",
+    "df",
+    "error",
+    "f",
+    "ms",
+    "p",
+    "parameter",
+    "seCoef",
+    "source",
+    "ssTypeI",
+    "ssTypeIII",
+    "statistic",
+    "t",
+    "term",
+    "value"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "2차 모형, 적합결여, 정상점 유형, 등고선·표면 연결, 모형 저장",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "chart-memory.test.ts",
+    "input-audit.test.ts",
+    "model-store.test.ts",
+    "p2.test.ts",
+    "rsm-model.test.ts",
+    "stage3b-linkage.test.ts",
+    "surface3d.test.ts",
+    "tutorial-system.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "chart-memory.test.ts": 11,
+    "input-audit.test.ts": 11,
+    "model-store.test.ts": 30,
+    "p2.test.ts": 28,
+    "rsm-model.test.ts": 5,
+    "stage3b-linkage.test.ts": 9,
+    "surface3d.test.ts": 22,
+    "tutorial-system.test.ts": 21
+   },
+   "independentQaCaseIds": [
+    "QA-H-08",
+    "QA-H-09"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3b.cjs",
+    "tools/e2e_phase3_3c.cjs",
+    "tools/e2e_phase3_3d.cjs"
+   ],
+   "sampleDatasetIds": [
+    "rsm"
+   ],
+   "helpDocumentIds": [
+    "rsm-fitting"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "모형 축소·다중 반응 동시 적합·이진 반응이 없다."
+  },
+  {
+   "featureId": "S-AN-weibull",
+   "kind": "analysis",
+   "analysisId": "weibull",
+   "title": "Weibull 분포 분석",
+   "titleEn": "Weibull Distribution Analysis",
+   "uiEntryPoint": "Stat > 신뢰성 > Weibull 분포 분석",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runWeibull",
+   "supportedParameters": [],
+   "outputFields": [
+    "estimate",
+    "parameter",
+    "seCoef",
+    "statistic",
+    "value"
+   ],
+   "resultBlocks": [
+    "chart",
+    "chartgrid",
+    "table",
+    "text"
+   ],
+   "implementation": "2모수 MLE, 우측 중도절단, 프로파일 우도 CI, 생존·위험·확률도, 로그정규 병기",
+   "unitTestFiles": [
+    "analyses.test.ts",
+    "benchmark.test.ts",
+    "input-audit.test.ts",
+    "p2.test.ts",
+    "qa-review.test.ts"
+   ],
+   "unitTestCounts": {
+    "analyses.test.ts": 45,
+    "benchmark.test.ts": 29,
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28,
+    "qa-review.test.ts": 44
+   },
+   "independentQaCaseIds": [
+    "QA-F-01",
+    "QA-F-02",
+    "QA-F-03",
+    "QA-F-04",
+    "QA-F-05",
+    "QA-F-06",
+    "QA-F-07",
+    "QA-F-08",
+    "QA-F-09",
+    "QA-F-12",
+    "QA-F-10",
+    "QA-F-11",
+    "QA-X-01"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [
+    "weibull"
+   ],
+   "helpDocumentIds": [
+    "reliability-weibull"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "3모수·좌측/구간 중도절단·11개 분포 선택·분포 ID가 없다."
+  },
+  {
+   "featureId": "S-AN-power1t",
+   "kind": "analysis",
+   "analysisId": "power1t",
+   "title": "검정력과 표본 크기 — 1표본 t",
+   "titleEn": "Power and Sample Size — 1-Sample t",
+   "uiEntryPoint": "Stat > 검정력·표본크기 > 1표본 t",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPowerAnalysis",
+   "supportedParameters": [],
+   "outputFields": [
+    "alpha",
+    "difference",
+    "n",
+    "power"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "n·검정력·차이 중 하나를 풀고 검정력 곡선 표시",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-G-01",
+    "QA-G-02",
+    "QA-G-03",
+    "QA-G-16",
+    "QA-G-18",
+    "QA-G-20"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "power-sample-size"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "정확 방법이 아닌 비중심 t 근사다."
+  },
+  {
+   "featureId": "S-AN-power2t",
+   "kind": "analysis",
+   "analysisId": "power2t",
+   "title": "검정력과 표본 크기 — 2표본 t",
+   "titleEn": "Power and Sample Size — 2-Sample t",
+   "uiEntryPoint": "Stat > 검정력·표본크기 > 2표본 t",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPowerAnalysis",
+   "supportedParameters": [],
+   "outputFields": [
+    "alpha",
+    "difference",
+    "n",
+    "power"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "n·검정력·차이 풀이",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-G-04",
+    "QA-G-05",
+    "QA-G-06"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "power-sample-size"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "정확 방법 선택이 없다."
+  },
+  {
+   "featureId": "S-AN-powerpaired",
+   "kind": "analysis",
+   "analysisId": "powerpaired",
+   "title": "검정력과 표본 크기 — 대응표본 t",
+   "titleEn": "Power and Sample Size — Paired t",
+   "uiEntryPoint": "Stat > 검정력·표본크기 > 대응 t",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPowerAnalysis",
+   "supportedParameters": [],
+   "outputFields": [
+    "alpha",
+    "difference",
+    "n",
+    "power"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "n·검정력·차이 풀이",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-G-07"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "power-sample-size"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "정확 방법 선택이 없다."
+  },
+  {
+   "featureId": "S-AN-poweranova",
+   "kind": "analysis",
+   "analysisId": "poweranova",
+   "title": "검정력과 표본 크기 — 일원배치 ANOVA",
+   "titleEn": "Power and Sample Size — One-Way ANOVA",
+   "uiEntryPoint": "Stat > 검정력·표본크기 > 일원 ANOVA",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPowerAnalysis",
+   "supportedParameters": [],
+   "outputFields": [
+    "alpha",
+    "difference",
+    "n",
+    "power"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "n·검정력·차이 풀이",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-G-08",
+    "QA-G-09"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "power-sample-size"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "비중심 F 근사만 있다."
+  },
+  {
+   "featureId": "S-AN-powerprop1",
+   "kind": "analysis",
+   "analysisId": "powerprop1",
+   "title": "검정력과 표본 크기 — 1 비율",
+   "titleEn": "Power and Sample Size — 1 Proportion",
+   "uiEntryPoint": "Stat > 검정력·표본크기 > 1비율",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPowerAnalysis",
+   "supportedParameters": [],
+   "outputFields": [
+    "alpha",
+    "difference",
+    "n",
+    "power"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "n·검정력·차이 풀이",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-G-10",
+    "QA-G-11",
+    "QA-G-12",
+    "QA-G-17",
+    "QA-G-21",
+    "QA-G-19"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "power-sample-size"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "정규근사만 있고 정확 이항 검정력이 없다."
+  },
+  {
+   "featureId": "S-AN-powerprop2",
+   "kind": "analysis",
+   "analysisId": "powerprop2",
+   "title": "검정력과 표본 크기 — 2 비율",
+   "titleEn": "Power and Sample Size — 2 Proportions",
+   "uiEntryPoint": "Stat > 검정력·표본크기 > 2비율",
+   "sourceFile": "src/lib/analyses.ts",
+   "engineFunction": "runPowerAnalysis",
+   "supportedParameters": [],
+   "outputFields": [
+    "alpha",
+    "difference",
+    "n",
+    "power"
+   ],
+   "resultBlocks": [
+    "chart",
+    "table",
+    "text"
+   ],
+   "implementation": "n·검정력·차이 풀이",
+   "unitTestFiles": [
+    "input-audit.test.ts",
+    "p2.test.ts"
+   ],
+   "unitTestCounts": {
+    "input-audit.test.ts": 11,
+    "p2.test.ts": 28
+   },
+   "independentQaCaseIds": [
+    "QA-G-13",
+    "QA-G-14",
+    "QA-G-15"
+   ],
+   "e2eTestIds": [],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "power-sample-size"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "정규근사만 있고 정확 방법이 없다."
+  },
+  {
+   "featureId": "S-MOD-01",
+   "kind": "module",
+   "analysisId": null,
+   "title": "워크시트 그리드·다중 시트",
+   "titleEn": "워크시트 그리드·다중 시트",
+   "uiEntryPoint": "워크시트 패널 · 시트 탭 · 셀 우클릭",
+   "sourceFile": "src/components/WorksheetGrid.tsx, src/lib/sheetOps.ts, src/lib/selection.ts",
+   "engineFunction": "insertRows, deleteRows, insertColumn, deleteColumn, duplicateColumn, insertCellsShiftDown, deleteCellsShiftUp, setColumnType, setColumnName, setColumnDescription, sortByColumn, findMatches, replaceOne, replaceAll",
+   "supportedParameters": [
+    "다중 셀 범위 선택, Excel/CSV 다중 셀 붙여넣기, 행·열 삽입/삭제, 열 이름·설명, 유형 변경, 찾기/바꾸기, 시트 추가·이름 변경·삭제, 실행 취소/재실행"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "워크시트 그리드·다중 시트",
+   "unitTestFiles": [
+    "worksheet-ux.test.ts",
+    "selection.test.ts"
+   ],
+   "unitTestCounts": {
+    "worksheet-ux.test.ts": 24,
+    "selection.test.ts": 26
+   },
+   "independentQaCaseIds": [
+    "QA-U-01",
+    "QA-U-02",
+    "QA-U-03",
+    "QA-U-04",
+    "QA-U-05",
+    "QA-U-06",
+    "QA-U-07",
+    "QA-U-08",
+    "QA-U-09"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_stage1.cjs",
+    "tools/e2e_followup.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process",
+    "comparison",
+    "regression",
+    "gagerr",
+    "doe",
+    "rsm",
+    "weibull",
+    "display-optical-doe"
+   ],
+   "helpDocumentIds": [
+    "worksheet-import",
+    "data-management"
+   ],
+   "tutorialIds": [
+    "tutorial-start-001",
+    "tutorial-data-001"
+   ],
+   "knownCaveat": "계산 열 자동 재계산, 열 서식, 수식 기반 시트가 없다."
+  },
+  {
+   "featureId": "S-MOD-02",
+   "kind": "module",
+   "analysisId": null,
+   "title": "가져오기·내보내기",
+   "titleEn": "가져오기·내보내기",
+   "uiEntryPoint": "File > 가져오기/내보내기",
+   "sourceFile": "src/lib/xlsx.ts, src/components/ImportDialog.tsx, src/lib/project.ts",
+   "engineFunction": "rowsToWorksheet, workbookToWorksheets, parseCsv, csvToWorksheet",
+   "supportedParameters": [
+    "CSV·TXT 구분자/머리글, 다중 시트 XLSX 읽기·쓰기, 현재 시트 내보내기, 클립보드"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "가져오기·내보내기",
+   "unitTestFiles": [
+    "worksheet-ux.test.ts"
+   ],
+   "unitTestCounts": {
+    "worksheet-ux.test.ts": 24
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_stage1.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "worksheet-import"
+   ],
+   "tutorialIds": [
+    "tutorial-data-001"
+   ],
+   "knownCaveat": "ODBC·HTML·XML·Minitab 파일 가져오기가 없다."
+  },
+  {
+   "featureId": "S-MOD-03",
+   "kind": "module",
+   "analysisId": null,
+   "title": "프로젝트 파일(.sigrun.json)과 자동 저장",
+   "titleEn": "프로젝트 파일(.sigrun.json)과 자동 저장",
+   "uiEntryPoint": "File > 저장/열기 · 자동 저장",
+   "sourceFile": "src/lib/project.ts, src/lib/db.ts",
+   "engineFunction": "ProjectFile, serializeProject, parseProject, saveAutosave, loadAutosave",
+   "supportedParameters": [
+    "워크시트·출력 카드·차트 설정·저장 모형·레이아웃·튜토리얼 진행을 한 JSON으로 직렬화, IndexedDB 자동 저장(localStorage 폴백)"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "프로젝트 파일(.sigrun.json)과 자동 저장",
+   "unitTestFiles": [
+    "project.test.ts"
+   ],
+   "unitTestCounts": {
+    "project.test.ts": 23
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3b.cjs",
+    "tools/e2e_phase3_3c.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "worksheet-import",
+    "model-store"
+   ],
+   "tutorialIds": [
+    "tutorial-regression-001"
+   ],
+   "knownCaveat": "Minitab .mpx 바이너리와 호환되지 않는다(의도된 다른 형식)."
+  },
+  {
+   "featureId": "S-MOD-04",
+   "kind": "module",
+   "analysisId": null,
+   "title": "차트 속성 드로워(축·계열·등고·표시)",
+   "titleEn": "차트 속성 드로워(축·계열·등고·표시)",
+   "uiEntryPoint": "차트 카드 > 속성",
+   "sourceFile": "src/components/ChartPropertiesDrawer.tsx, src/lib/chartConfig.ts, src/lib/chartConfigOps.ts, src/lib/axisAdvanced.ts, src/lib/chartStyles.ts",
+   "engineFunction": "defaultAxisConfig, mapScaleValue, unmapScaleValue, normalizeAxisBreak, defaultErrorBarConfig",
+   "supportedParameters": [
+    "축 스케일(linear·log10·ln·symlog·power)·깨진 축·날짜 축·보조 축, 눈금/라벨, 계열 스타일·오차막대(SD·SE·t CI)·드롭라인·순서, 등고 색상맵·수준별 스타일·마스크, 범례·제목"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "차트 속성 드로워(축·계열·등고·표시)",
+   "unitTestFiles": [
+    "chart-config.test.ts",
+    "chart-drawer.test.ts",
+    "axis-advanced.test.ts",
+    "error-bars.test.ts",
+    "contour-styles.test.ts"
+   ],
+   "unitTestCounts": {
+    "chart-config.test.ts": 27,
+    "chart-drawer.test.ts": 17,
+    "axis-advanced.test.ts": 19,
+    "error-bars.test.ts": 11,
+    "contour-styles.test.ts": 13
+   },
+   "independentQaCaseIds": [
+    "QA-Y-01",
+    "QA-Y-02",
+    "QA-Y-03",
+    "QA-Y-04",
+    "QA-Y-05",
+    "QA-Y-06"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_chart_axes.cjs",
+    "tools/e2e_chart_upgrade.cjs",
+    "tools/e2e_phase3_3d.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process",
+    "rsm"
+   ],
+   "helpDocumentIds": [
+    "graph-basics",
+    "contour-surface"
+   ],
+   "tutorialIds": [
+    "tutorial-rsm-001"
+   ],
+   "knownCaveat": "축 눈금 직접 편집(개별 눈금 값), 3D 축 회전 편집은 없다."
+  },
+  {
+   "featureId": "S-MOD-05",
+   "kind": "module",
+   "analysisId": null,
+   "title": "차트 상호작용(확대·커서·선택·연동)",
+   "titleEn": "차트 상호작용(확대·커서·선택·연동)",
+   "uiEntryPoint": "차트 위 마우스/키보드",
+   "sourceFile": "src/components/ChartFrame.tsx, src/lib/chartInteraction.ts, src/lib/chartProbe.ts",
+   "engineFunction": "boxZoom, panViewport, zoomViewport, nearestElement, selectedRowsCsv",
+   "supportedParameters": [
+    "상자 확대·이동·십자선·데이터 커서(←/→)·툴팁 고정·점 선택·원본 행 강조·선택 데이터 CSV 내보내기·연동 선택"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "차트 상호작용(확대·커서·선택·연동)",
+   "unitTestFiles": [
+    "chart-interaction.test.ts"
+   ],
+   "unitTestCounts": {
+    "chart-interaction.test.ts": 12
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3d.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process"
+   ],
+   "helpDocumentIds": [
+    "graph-basics"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "브러시 선택으로 여러 점을 워크시트에 동시 강조하는 기능은 없다."
+  },
+  {
+   "featureId": "S-MOD-06",
+   "kind": "module",
+   "analysisId": null,
+   "title": "그래프 레이아웃 편집기",
+   "titleEn": "그래프 레이아웃 편집기",
+   "uiEntryPoint": "차트 > 레이아웃 편집기",
+   "sourceFile": "src/components/GraphLayoutEditor.tsx, src/lib/graphLayout.ts",
+   "engineFunction": "createLayout, movePanels, resizePanel, alignPanels, distributePanels, matchSize, addPanel, relabelFigures",
+   "supportedParameters": [
+    "패널 추가·드래그·리사이즈·격자 스냅·정렬·균등 배분·같은 크기·복제·레이어·실행취소, 주석 9종, 페이지 프리셋 7종, SVG/PNG(150·300·600 DPI)·클립보드·레이아웃 저장"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "그래프 레이아웃 편집기",
+   "unitTestFiles": [
+    "graph-layout.test.ts",
+    "png-dpi.test.ts"
+   ],
+   "unitTestCounts": {
+    "graph-layout.test.ts": 24,
+    "png-dpi.test.ts": 8
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3d.cjs"
+   ],
+   "sampleDatasetIds": [
+    "rsm"
+   ],
+   "helpDocumentIds": [
+    "graph-layout"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "Minitab Graph Editing의 개별 객체 편집(데이터 레이블 드래그 등)은 없다."
+  },
+  {
+   "featureId": "S-MOD-07",
+   "kind": "module",
+   "analysisId": null,
+   "title": "저장 모형 관리자(Model Manager)",
+   "titleEn": "저장 모형 관리자(Model Manager)",
+   "uiEntryPoint": "모형 > 모형 관리자",
+   "sourceFile": "src/components/ModelManager.tsx, src/lib/modelStore.ts",
+   "engineFunction": "createStoredModel, renameStoredModel, duplicateStoredModel, deleteStoredModel, compareStoredModels, modelStaleness, refitStoredModel",
+   "supportedParameters": [
+    "모형 이름 변경·복제·재적합·삭제, 모형 비교표, 데이터 변경 감지(fresh/stale/missing-data/untracked), 예측"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "저장 모형 관리자(Model Manager)",
+   "unitTestFiles": [
+    "model-store.test.ts",
+    "stage3b-linkage.test.ts"
+   ],
+   "unitTestCounts": {
+    "model-store.test.ts": 30,
+    "stage3b-linkage.test.ts": 9
+   },
+   "independentQaCaseIds": [
+    "QA-J-01",
+    "QA-J-02",
+    "QA-J-03",
+    "QA-J-04",
+    "QA-J-05",
+    "QA-J-06"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3a.cjs",
+    "tools/e2e_phase3_3b.cjs",
+    "tools/e2e_phase3_3c.cjs"
+   ],
+   "sampleDatasetIds": [
+    "regression",
+    "rsm"
+   ],
+   "helpDocumentIds": [
+    "model-store"
+   ],
+   "tutorialIds": [
+    "tutorial-regression-001"
+   ],
+   "knownCaveat": "Minitab에는 없는 계층(브라우저 세션 내 모형 보관)이다."
+  },
+  {
+   "featureId": "S-MOD-08",
+   "kind": "module",
+   "analysisId": null,
+   "title": "다중 반응 최적화(Response Optimizer)",
+   "titleEn": "다중 반응 최적화(Response Optimizer)",
+   "uiEntryPoint": "모형 > 반응 최적화",
+   "sourceFile": "src/components/ResponseOptimizer.tsx, src/lib/optimizer.ts, src/lib/desirability.ts, src/lib/factorDomain.ts",
+   "engineFunction": "buildProblem, resolvePoint, scorePoint, localSteps, evaluateCondition, compositeDesirability, individualDesirability",
+   "supportedParameters": [
+    "반응별 목표(min/max/target)·한계·가중치·중요도, 격자+다중 시작 국소 탐색, 경계·이산/범주 전수 열거, 평가 예산, 조건 저장"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "다중 반응 최적화(Response Optimizer)",
+   "unitTestFiles": [
+    "optimizer.test.ts",
+    "perf-optimizer.test.ts"
+   ],
+   "unitTestCounts": {
+    "optimizer.test.ts": 28,
+    "perf-optimizer.test.ts": 7
+   },
+   "independentQaCaseIds": [
+    "QA-W-01",
+    "QA-W-02",
+    "QA-W-03",
+    "QA-W-04",
+    "QA-W-05",
+    "QA-W-06",
+    "QA-W-07",
+    "QA-W-08",
+    "QA-W-09",
+    "QA-W-10",
+    "QA-W-11",
+    "QA-W-12",
+    "QA-W-13",
+    "QA-W-14",
+    "QA-W-15",
+    "QA-W-16",
+    "QA-W-17",
+    "QA-W-18",
+    "QA-W-19",
+    "QA-W-20",
+    "QA-W-21",
+    "QA-W-22",
+    "QA-W-23",
+    "QA-W-24",
+    "QA-W-25",
+    "QA-W-26",
+    "QA-W-27",
+    "QA-W-28",
+    "QA-W-29"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3c.cjs"
+   ],
+   "sampleDatasetIds": [
+    "rsm"
+   ],
+   "helpDocumentIds": [
+    "multi-response-optimization"
+   ],
+   "tutorialIds": [
+    "tutorial-rsm-001"
+   ],
+   "knownCaveat": "Minitab의 반응별 목표 가중 표시·과거 계산 재현은 없고, 정의역 밖 외삽은 경고가 아니라 거부다."
+  },
+  {
+   "featureId": "S-MOD-09",
+   "kind": "module",
+   "analysisId": null,
+   "title": "예측 프로파일러",
+   "titleEn": "예측 프로파일러",
+   "uiEntryPoint": "모형 > 예측 프로파일러",
+   "sourceFile": "src/components/PredictionProfiler.tsx, src/lib/profiler.ts, src/lib/predictionAdapter.ts",
+   "engineFunction": "profileCurves, profilePoint, evaluatorFor, crossCheck",
+   "supportedParameters": [
+    "(반응 × 인자) 행렬, 슬라이더·직접 입력, 현재값 수직선, 규격·목표선, 조건부 곡선, 신뢰/예측구간 밴드, 개별·종합 만족도, 두 예측 경로 교차검증"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "예측 프로파일러",
+   "unitTestFiles": [
+    "profiler.test.ts",
+    "model-store.test.ts"
+   ],
+   "unitTestCounts": {
+    "profiler.test.ts": 11,
+    "model-store.test.ts": 30
+   },
+   "independentQaCaseIds": [
+    "QA-W-30",
+    "QA-W-31",
+    "QA-W-32"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3c.cjs"
+   ],
+   "sampleDatasetIds": [
+    "regression",
+    "rsm"
+   ],
+   "helpDocumentIds": [
+    "prediction-profiler"
+   ],
+   "tutorialIds": [
+    "tutorial-rsm-001"
+   ],
+   "knownCaveat": "3개 이상 인자 동시 슬라이스 애니메이션은 없다."
+  },
+  {
+   "featureId": "S-MOD-10",
+   "kind": "module",
+   "analysisId": null,
+   "title": "3D 표면(WebGL)",
+   "titleEn": "3D 표면(WebGL)",
+   "uiEntryPoint": "모형 > 3D 표면",
+   "sourceFile": "src/components/Surface3DView.tsx, src/lib/surface3d.ts, src/lib/surfaceGl.ts",
+   "engineFunction": "buildSurfaceGeometry, projectPoint, surfaceSvgBody, createSurfaceGl",
+   "supportedParameters": [
+    "2요인 표면 격자, 회전·확대, 색상 맵, WebGL 실패 시 정적 SVG 폴백"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "3D 표면(WebGL)",
+   "unitTestFiles": [
+    "surface3d.test.ts"
+   ],
+   "unitTestCounts": {
+    "surface3d.test.ts": 22
+   },
+   "independentQaCaseIds": [
+    "QA-V-01",
+    "QA-V-02"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3c.cjs",
+    "tools/e2e_phase3_3d.cjs"
+   ],
+   "sampleDatasetIds": [
+    "rsm"
+   ],
+   "helpDocumentIds": [
+    "contour-surface"
+   ],
+   "tutorialIds": [
+    "tutorial-rsm-001"
+   ],
+   "knownCaveat": "래스터 합성 패널이라 벡터 확대 시 해상도 한계가 있다(문서에 명시)."
+  },
+  {
+   "featureId": "S-MOD-11",
+   "kind": "module",
+   "analysisId": null,
+   "title": "등고선·실행가능영역",
+   "titleEn": "등고선·실행가능영역",
+   "uiEntryPoint": "모형 > 등고선 / 중첩 등고선",
+   "sourceFile": "src/lib/contour.ts, src/lib/feasible.ts, src/components/ChartFrame.tsx",
+   "engineFunction": "computeContourLevels, marchingSquares, contourPolylines, bandPolygons, buildOverlaid, maskAreaRatio",
+   "supportedParameters": [
+    "2요인 등고선, 수준·스타일·색상맵, 여러 반응 중첩, 실행가능영역 음영, 나머지 요인 고정"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "등고선·실행가능영역",
+   "unitTestFiles": [
+    "contour-geometry.test.ts",
+    "contour-bands.test.ts",
+    "feasible.test.ts"
+   ],
+   "unitTestCounts": {
+    "contour-geometry.test.ts": 14,
+    "contour-bands.test.ts": 7,
+    "feasible.test.ts": 15
+   },
+   "independentQaCaseIds": [
+    "QA-V-03",
+    "QA-V-04",
+    "QA-V-05",
+    "QA-V-06",
+    "QA-V-07",
+    "QA-V-08",
+    "QA-V-09",
+    "QA-V-10",
+    "QA-V-11",
+    "QA-V-12",
+    "QA-V-13a",
+    "QA-V-13b",
+    "QA-V-14a",
+    "QA-V-14b",
+    "QA-V-15",
+    "QA-V-16",
+    "QA-V-17",
+    "QA-V-18",
+    "QA-V-19",
+    "QA-V-20a",
+    "QA-V-20b",
+    "QA-V-21a",
+    "QA-V-21b"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3b.cjs",
+    "tools/e2e_phase3_3d.cjs"
+   ],
+   "sampleDatasetIds": [
+    "rsm"
+   ],
+   "helpDocumentIds": [
+    "contour-surface"
+   ],
+   "tutorialIds": [
+    "tutorial-rsm-001"
+   ],
+   "knownCaveat": "3요인 이상 동시 슬라이스 애니메이션은 없다."
+  },
+  {
+   "featureId": "S-MOD-12",
+   "kind": "module",
+   "analysisId": null,
+   "title": "차트 내보내기·복사",
+   "titleEn": "차트 내보내기·복사",
+   "uiEntryPoint": "차트 > 내보내기",
+   "sourceFile": "src/lib/chartExport.ts, src/lib/pngDpi.ts",
+   "engineFunction": "buildChartFile, chartSvgDocument, batchSvgDocument, resolveExportSize",
+   "supportedParameters": [
+    "SVG·PNG(150/300/600 DPI), mm/in 실제 크기, 배경(투명/흰색/현재), 파일명, 여러 차트 일괄 SVG, 클립보드"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "차트 내보내기·복사",
+   "unitTestFiles": [
+    "chart-export.test.ts",
+    "png-dpi.test.ts"
+   ],
+   "unitTestCounts": {
+    "chart-export.test.ts": 9,
+    "png-dpi.test.ts": 8
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_phase3_3d.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "graph-basics"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "EMF·TIFF·JPEG, Word/PowerPoint 직접 전송이 없다."
+  },
+  {
+   "featureId": "S-MOD-13",
+   "kind": "module",
+   "analysisId": null,
+   "title": "워크스페이스 레이아웃·패널",
+   "titleEn": "워크스페이스 레이아웃·패널",
+   "uiEntryPoint": "View > 레이아웃",
+   "sourceFile": "src/App.tsx, src/lib/layout.ts, src/lib/workspace.ts",
+   "engineFunction": "LAYOUT_PRESETS, WORKSPACE_LAYOUTS, clampNav, clampOutput",
+   "supportedParameters": [
+    "4개 프리셋(balanced/sheet/results/focus) + 3개 워크스페이스(classic/tri/focus), 패널 폭·높이 조절, 떠 있는 패널, 모바일 접힘"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "워크스페이스 레이아웃·패널",
+   "unitTestFiles": [
+    "layout.test.ts",
+    "workspace-stage3.test.ts"
+   ],
+   "unitTestCounts": {
+    "layout.test.ts": 13,
+    "workspace-stage3.test.ts": 15
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_ui_compact.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "graph-basics"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "사용자 정의 도구 모음/메뉴 편집은 없다."
+  },
+  {
+   "featureId": "S-MOD-14",
+   "kind": "module",
+   "analysisId": null,
+   "title": "튜토리얼 시스템(12개 코스)",
+   "titleEn": "튜토리얼 시스템(12개 코스)",
+   "uiEntryPoint": "학습 > 튜토리얼",
+   "sourceFile": "src/tutorials/registry.ts, src/tutorials/tutorialEngine.ts, src/tutorials/validationRegistry.ts, src/tutorials/actionRegistry.ts",
+   "engineFunction": "findTutorial, restartSession, markManualStep, validateStep",
+   "supportedParameters": [
+    "13개 허용 액션, 수동/자동 검증 단계, 진행 저장·복원, 건너뛰기, 프로젝트 보호"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "튜토리얼 시스템(12개 코스)",
+   "unitTestFiles": [
+    "tutorial-system.test.ts"
+   ],
+   "unitTestCounts": {
+    "tutorial-system.test.ts": 21
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_tutorials.cjs",
+    "tools/e2e_portable_tutorials.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process",
+    "comparison",
+    "regression",
+    "gagerr",
+    "doe",
+    "rsm",
+    "weibull",
+    "display-optical-doe"
+   ],
+   "helpDocumentIds": [
+    "worksheet-import"
+   ],
+   "tutorialIds": [
+    "tutorial-start-001"
+   ],
+   "knownCaveat": "Minitab에 대응 기능이 없는 독립 계층이다."
+  },
+  {
+   "featureId": "S-MOD-15",
+   "kind": "module",
+   "analysisId": null,
+   "title": "샘플 라이브러리(8종)",
+   "titleEn": "샘플 라이브러리(8종)",
+   "uiEntryPoint": "File > 샘플 라이브러리",
+   "sourceFile": "src/samples/registry.ts, src/samples/datasets/builtin.ts, src/samples/datasets/displayOptical.ts",
+   "engineFunction": "SAMPLES, buildProcessData, buildComparisonData, buildRegressionData, buildGageData, buildDoeData, buildRsmData, buildWeibullData, buildDisplayOpticalDoE",
+   "supportedParameters": [
+    "8개 합성 데이터셋, 열 역할·단위·출처 표기, 튜토리얼·도움말 연결"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "샘플 라이브러리(8종)",
+   "unitTestFiles": [
+    "tutorial-system.test.ts"
+   ],
+   "unitTestCounts": {
+    "tutorial-system.test.ts": 21
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_tutorials.cjs"
+   ],
+   "sampleDatasetIds": [
+    "process",
+    "comparison",
+    "regression",
+    "gagerr",
+    "doe",
+    "rsm",
+    "weibull",
+    "display-optical-doe"
+   ],
+   "helpDocumentIds": [
+    "worksheet-import"
+   ],
+   "tutorialIds": [
+    "tutorial-start-001"
+   ],
+   "knownCaveat": "모두 합성 데이터이며 실제 측정값이 아니다(각 항목에 명시)."
+  },
+  {
+   "featureId": "S-MOD-16",
+   "kind": "module",
+   "analysisId": null,
+   "title": "도움말 센터(23개 문서)",
+   "titleEn": "도움말 센터(23개 문서)",
+   "uiEntryPoint": "도움말 > 도움말 센터",
+   "sourceFile": "src/help/registry.ts, src/help/content/basics.ts, src/help/content/quality.ts, src/help/content/doe.ts, src/help/content/models.ts",
+   "engineFunction": "HELP_ENTRIES, findHelp, helpForAnalysis, helpByCategory",
+   "supportedParameters": [
+    "11개 범주, 이론·수식·파라미터 의미·해석·가정·샘플·튜토리얼 연결, 한/영"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "도움말 센터(23개 문서)",
+   "unitTestFiles": [
+    "tutorial-system.test.ts"
+   ],
+   "unitTestCounts": {
+    "tutorial-system.test.ts": 21
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_tutorials.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [
+    "worksheet-import"
+   ],
+   "tutorialIds": [],
+   "knownCaveat": "Minitab 도움말의 Methods and Formulas를 번역하지 않고 독립 작성했다."
+  },
+  {
+   "featureId": "S-MOD-17",
+   "kind": "module",
+   "analysisId": null,
+   "title": "Portable 단일 HTML 빌드",
+   "titleEn": "Portable 단일 HTML 빌드",
+   "uiEntryPoint": "(빌드 산출물) dist-portable/sigrun-portable.html",
+   "sourceFile": "tools/build_portable.mjs, vite.portable.config.ts",
+   "engineFunction": "RELEASE_DIR",
+   "supportedParameters": [
+    "모든 자산 인라인, file:// 오프라인 실행, 외부 요청 0건"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "Portable 단일 HTML 빌드",
+   "unitTestFiles": [
+    "benchmark.test.ts"
+   ],
+   "unitTestCounts": {
+    "benchmark.test.ts": 29
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_portable_offline.cjs",
+    "tools/e2e_portable_tutorials.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [],
+   "tutorialIds": [
+    "tutorial-start-001"
+   ],
+   "knownCaveat": "파일 하나라 크롬 계열 외 브라우저의 file:// 제약은 별도 문서에 정리되어 있다."
+  },
+  {
+   "featureId": "S-MOD-18",
+   "kind": "module",
+   "analysisId": null,
+   "title": "한/영 이중 언어",
+   "titleEn": "한/영 이중 언어",
+   "uiEntryPoint": "상단 언어 토글",
+   "sourceFile": "src/lib/i18n.ts",
+   "engineFunction": "t, LANGS",
+   "supportedParameters": [
+    "모든 UI 문자열·분석 제목·슬롯 라벨·결과 블록·오류 메시지 한/영"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "한/영 이중 언어",
+   "unitTestFiles": [
+    "i18n.test.ts"
+   ],
+   "unitTestCounts": {
+    "i18n.test.ts": 4
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_stage1.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [],
+   "tutorialIds": [],
+   "knownCaveat": "제3 언어는 없다."
+  },
+  {
+   "featureId": "S-MOD-19",
+   "kind": "module",
+   "analysisId": null,
+   "title": "테마(라이트/다크)",
+   "titleEn": "테마(라이트/다크)",
+   "uiEntryPoint": "상단 테마 토글",
+   "sourceFile": "src/App.tsx, src/styles",
+   "engineFunction": "theme",
+   "supportedParameters": [
+    "라이트·다크, 시스템 설정 추종, 차트 색상 팔레트 연동"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "테마(라이트/다크)",
+   "unitTestFiles": [
+    "layout.test.ts"
+   ],
+   "unitTestCounts": {
+    "layout.test.ts": 13
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/e2e_ui_compact.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [],
+   "tutorialIds": [],
+   "knownCaveat": "사용자 정의 색 테마 편집은 없다."
+  },
+  {
+   "featureId": "S-MOD-20",
+   "kind": "module",
+   "analysisId": null,
+   "title": "성능 상한·대용량 처리",
+   "titleEn": "성능 상한·대용량 처리",
+   "uiEntryPoint": "(내부)",
+   "sourceFile": "src/lib/analyses.ts, tools/perf_qa_3e.cjs, tests/benchmark.test.ts",
+   "engineFunction": "scatterTooMany",
+   "supportedParameters": [
+    "산점도 조합 36개 상한, 5만 행 파싱·계산 벤치마크, 최적화 평가 예산"
+   ],
+   "outputFields": [],
+   "resultBlocks": [],
+   "implementation": "성능 상한·대용량 처리",
+   "unitTestFiles": [
+    "benchmark.test.ts",
+    "perf-optimizer.test.ts"
+   ],
+   "unitTestCounts": {
+    "benchmark.test.ts": 29,
+    "perf-optimizer.test.ts": 7
+   },
+   "independentQaCaseIds": [],
+   "e2eTestIds": [
+    "tools/perf_qa_3e.cjs"
+   ],
+   "sampleDatasetIds": [],
+   "helpDocumentIds": [],
+   "tutorialIds": [],
+   "knownCaveat": "브라우저 메모리 한계는 기기별로 다르다."
+  }
+ ]
+}

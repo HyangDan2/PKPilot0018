@@ -1,0 +1,2911 @@
+{
+ "schemaVersion": 1,
+ "kind": "qa-coverage",
+ "meta": {
+  "harness": "qa/cases → qa/adapters/sigrun/cli.ts(출하 엔진 직접 호출) → qa/reference(engine.py, SciPy 1.18.1·statsmodels 0.15.0) → qa/compare.py",
+  "caseCount": 225,
+  "verdictRule": "PASS/(PASS+FAIL)만 통과율로 계산하고 REVIEW·UNVERIFIED·ERROR는 별도로 보고한다.",
+  "lastRun": "npm run qa:stats — Phase 3E 기준 225/225 PASS(FAIL 0·REVIEW 0·UNVERIFIED 0·ERROR 0). 이 감사는 케이스를 다시 실행해 확인했다(§ 검증 스냅샷)."
+ },
+ "perFeature": [
+  {
+   "featureId": "S-AN-desc",
+   "title": "기술통계량",
+   "caseIds": [
+    "QA-A-01",
+    "QA-A-02",
+    "QA-A-03",
+    "QA-A-04",
+    "QA-A-05",
+    "QA-A-06"
+   ],
+   "caseCount": 6
+  },
+  {
+   "featureId": "S-AN-normality",
+   "title": "정규성 검정",
+   "caseIds": [
+    "QA-A-07",
+    "QA-A-08",
+    "QA-A-09",
+    "QA-A-10"
+   ],
+   "caseCount": 4
+  },
+  {
+   "featureId": "S-AN-t1",
+   "title": "1표본 t",
+   "caseIds": [
+    "QA-A-11",
+    "QA-A-12",
+    "QA-A-13",
+    "QA-A-14",
+    "QA-X-04"
+   ],
+   "caseCount": 5
+  },
+  {
+   "featureId": "S-AN-t2",
+   "title": "2표본 t",
+   "caseIds": [
+    "QA-A-15",
+    "QA-A-16",
+    "QA-A-17",
+    "QA-X-05"
+   ],
+   "caseCount": 4
+  },
+  {
+   "featureId": "S-AN-paired",
+   "title": "대응 t",
+   "caseIds": [
+    "QA-A-18",
+    "QA-A-19",
+    "QA-A-20",
+    "QA-X-06"
+   ],
+   "caseCount": 4
+  },
+  {
+   "featureId": "S-AN-anova",
+   "title": "일원배치 분산분석",
+   "caseIds": [
+    "QA-A-21",
+    "QA-A-22",
+    "QA-B-01"
+   ],
+   "caseCount": 3
+  },
+  {
+   "featureId": "S-AN-regression",
+   "title": "회귀분석",
+   "caseIds": [
+    "QA-A-23",
+    "QA-A-24",
+    "QA-X-02",
+    "QA-X-03"
+   ],
+   "caseCount": 4
+  },
+  {
+   "featureId": "S-AN-polyreg",
+   "title": "다항 회귀분석",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-imr",
+   "title": "I-MR 관리도",
+   "caseIds": [
+    "QA-C-01",
+    "QA-C-02",
+    "QA-C-14"
+   ],
+   "caseCount": 3
+  },
+  {
+   "featureId": "S-AN-xbarr",
+   "title": "Xbar-R 관리도",
+   "caseIds": [
+    "QA-C-03",
+    "QA-C-04",
+    "QA-C-05",
+    "QA-C-16"
+   ],
+   "caseCount": 4
+  },
+  {
+   "featureId": "S-AN-pchart",
+   "title": "P 관리도",
+   "caseIds": [
+    "QA-C-08",
+    "QA-C-09",
+    "QA-C-15"
+   ],
+   "caseCount": 3
+  },
+  {
+   "featureId": "S-AN-capability",
+   "title": "공정능력 보고서",
+   "caseIds": [
+    "QA-D-01",
+    "QA-D-02",
+    "QA-D-03",
+    "QA-D-04",
+    "QA-D-05",
+    "QA-D-06",
+    "QA-D-07"
+   ],
+   "caseCount": 7
+  },
+  {
+   "featureId": "S-AN-pareto",
+   "title": "파레토 차트",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-histogram",
+   "title": "히스토그램",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-boxplot",
+   "title": "상자그림",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-scatter",
+   "title": "산점도",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-timeseries",
+   "title": "시계열 그림",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-calculator",
+   "title": "계산기",
+   "caseIds": [
+    "QA-I-01",
+    "QA-I-02",
+    "QA-I-03",
+    "QA-I-04"
+   ],
+   "caseCount": 4
+  },
+  {
+   "featureId": "S-AN-random",
+   "title": "난수 생성",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-sort",
+   "title": "정렬",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-standardize",
+   "title": "표준화",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-recode",
+   "title": "코드 변환",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-AN-gagerr",
+   "title": "Gage R&R 연구",
+   "caseIds": [
+    "QA-E-01",
+    "QA-E-02",
+    "QA-E-03",
+    "QA-E-04",
+    "QA-E-05",
+    "QA-E-06",
+    "QA-E-07"
+   ],
+   "caseCount": 7
+  },
+  {
+   "featureId": "S-AN-sixpack",
+   "title": "공정능력 Sixpack",
+   "caseIds": [
+    "QA-D-08",
+    "QA-D-09",
+    "QA-D-10",
+    "QA-D-11",
+    "QA-D-17"
+   ],
+   "caseCount": 5
+  },
+  {
+   "featureId": "S-AN-capnonnormal",
+   "title": "비정규 공정능력 분석",
+   "caseIds": [
+    "QA-D-12",
+    "QA-D-13",
+    "QA-D-14",
+    "QA-D-15",
+    "QA-D-16"
+   ],
+   "caseCount": 5
+  },
+  {
+   "featureId": "S-AN-xbars",
+   "title": "Xbar-S 관리도",
+   "caseIds": [
+    "QA-C-06",
+    "QA-C-07"
+   ],
+   "caseCount": 2
+  },
+  {
+   "featureId": "S-AN-npchart",
+   "title": "NP 관리도",
+   "caseIds": [
+    "QA-C-10"
+   ],
+   "caseCount": 1
+  },
+  {
+   "featureId": "S-AN-cchart",
+   "title": "C 관리도",
+   "caseIds": [
+    "QA-C-11"
+   ],
+   "caseCount": 1
+  },
+  {
+   "featureId": "S-AN-uchart",
+   "title": "U 관리도",
+   "caseIds": [
+    "QA-C-12",
+    "QA-C-13"
+   ],
+   "caseCount": 2
+  },
+  {
+   "featureId": "S-AN-glm",
+   "title": "일반선형모형",
+   "caseIds": [
+    "QA-B-02",
+    "QA-B-03",
+    "QA-B-04",
+    "QA-B-05",
+    "QA-B-06"
+   ],
+   "caseCount": 5
+  },
+  {
+   "featureId": "S-AN-doecreate",
+   "title": "요인설계 생성",
+   "caseIds": [
+    "QA-H-01",
+    "QA-H-02",
+    "QA-H-03",
+    "QA-H-10"
+   ],
+   "caseCount": 4
+  },
+  {
+   "featureId": "S-AN-doeanalyze",
+   "title": "요인설계 분석",
+   "caseIds": [
+    "QA-H-06",
+    "QA-H-07"
+   ],
+   "caseCount": 2
+  },
+  {
+   "featureId": "S-AN-rsmcreate",
+   "title": "반응표면 설계 생성",
+   "caseIds": [
+    "QA-H-04",
+    "QA-H-05"
+   ],
+   "caseCount": 2
+  },
+  {
+   "featureId": "S-AN-rsmanalyze",
+   "title": "반응표면 분석",
+   "caseIds": [
+    "QA-H-08",
+    "QA-H-09"
+   ],
+   "caseCount": 2
+  },
+  {
+   "featureId": "S-AN-weibull",
+   "title": "Weibull 분포 분석",
+   "caseIds": [
+    "QA-F-01",
+    "QA-F-02",
+    "QA-F-03",
+    "QA-F-04",
+    "QA-F-05",
+    "QA-F-06",
+    "QA-F-07",
+    "QA-F-08",
+    "QA-F-09",
+    "QA-F-12",
+    "QA-F-10",
+    "QA-F-11",
+    "QA-X-01"
+   ],
+   "caseCount": 13
+  },
+  {
+   "featureId": "S-AN-power1t",
+   "title": "검정력과 표본 크기 — 1표본 t",
+   "caseIds": [
+    "QA-G-01",
+    "QA-G-02",
+    "QA-G-03",
+    "QA-G-16",
+    "QA-G-18",
+    "QA-G-20"
+   ],
+   "caseCount": 6
+  },
+  {
+   "featureId": "S-AN-power2t",
+   "title": "검정력과 표본 크기 — 2표본 t",
+   "caseIds": [
+    "QA-G-04",
+    "QA-G-05",
+    "QA-G-06"
+   ],
+   "caseCount": 3
+  },
+  {
+   "featureId": "S-AN-powerpaired",
+   "title": "검정력과 표본 크기 — 대응표본 t",
+   "caseIds": [
+    "QA-G-07"
+   ],
+   "caseCount": 1
+  },
+  {
+   "featureId": "S-AN-poweranova",
+   "title": "검정력과 표본 크기 — 일원배치 ANOVA",
+   "caseIds": [
+    "QA-G-08",
+    "QA-G-09"
+   ],
+   "caseCount": 2
+  },
+  {
+   "featureId": "S-AN-powerprop1",
+   "title": "검정력과 표본 크기 — 1 비율",
+   "caseIds": [
+    "QA-G-10",
+    "QA-G-11",
+    "QA-G-12",
+    "QA-G-17",
+    "QA-G-21",
+    "QA-G-19"
+   ],
+   "caseCount": 6
+  },
+  {
+   "featureId": "S-AN-powerprop2",
+   "title": "검정력과 표본 크기 — 2 비율",
+   "caseIds": [
+    "QA-G-13",
+    "QA-G-14",
+    "QA-G-15"
+   ],
+   "caseCount": 3
+  },
+  {
+   "featureId": "S-MOD-01",
+   "title": "워크시트 그리드·다중 시트",
+   "caseIds": [
+    "QA-U-01",
+    "QA-U-02",
+    "QA-U-03",
+    "QA-U-04",
+    "QA-U-05",
+    "QA-U-06",
+    "QA-U-07",
+    "QA-U-08",
+    "QA-U-09"
+   ],
+   "caseCount": 9
+  },
+  {
+   "featureId": "S-MOD-02",
+   "title": "가져오기·내보내기",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-03",
+   "title": "프로젝트 파일(.sigrun.json)과 자동 저장",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-04",
+   "title": "차트 속성 드로워(축·계열·등고·표시)",
+   "caseIds": [
+    "QA-Y-01",
+    "QA-Y-02",
+    "QA-Y-03",
+    "QA-Y-04",
+    "QA-Y-05",
+    "QA-Y-06"
+   ],
+   "caseCount": 6
+  },
+  {
+   "featureId": "S-MOD-05",
+   "title": "차트 상호작용(확대·커서·선택·연동)",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-06",
+   "title": "그래프 레이아웃 편집기",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-07",
+   "title": "저장 모형 관리자(Model Manager)",
+   "caseIds": [
+    "QA-J-01",
+    "QA-J-02",
+    "QA-J-03",
+    "QA-J-04",
+    "QA-J-05",
+    "QA-J-06"
+   ],
+   "caseCount": 6
+  },
+  {
+   "featureId": "S-MOD-08",
+   "title": "다중 반응 최적화(Response Optimizer)",
+   "caseIds": [
+    "QA-W-01",
+    "QA-W-02",
+    "QA-W-03",
+    "QA-W-04",
+    "QA-W-05",
+    "QA-W-06",
+    "QA-W-07",
+    "QA-W-08",
+    "QA-W-09",
+    "QA-W-10",
+    "QA-W-11",
+    "QA-W-12",
+    "QA-W-13",
+    "QA-W-14",
+    "QA-W-15",
+    "QA-W-16",
+    "QA-W-17",
+    "QA-W-18",
+    "QA-W-19",
+    "QA-W-20",
+    "QA-W-21",
+    "QA-W-22",
+    "QA-W-23",
+    "QA-W-24",
+    "QA-W-25",
+    "QA-W-26",
+    "QA-W-27",
+    "QA-W-28",
+    "QA-W-29"
+   ],
+   "caseCount": 29
+  },
+  {
+   "featureId": "S-MOD-09",
+   "title": "예측 프로파일러",
+   "caseIds": [
+    "QA-W-30",
+    "QA-W-31",
+    "QA-W-32"
+   ],
+   "caseCount": 3
+  },
+  {
+   "featureId": "S-MOD-10",
+   "title": "3D 표면(WebGL)",
+   "caseIds": [
+    "QA-V-01",
+    "QA-V-02"
+   ],
+   "caseCount": 2
+  },
+  {
+   "featureId": "S-MOD-11",
+   "title": "등고선·실행가능영역",
+   "caseIds": [
+    "QA-V-03",
+    "QA-V-04",
+    "QA-V-05",
+    "QA-V-06",
+    "QA-V-07",
+    "QA-V-08",
+    "QA-V-09",
+    "QA-V-10",
+    "QA-V-11",
+    "QA-V-12",
+    "QA-V-13a",
+    "QA-V-13b",
+    "QA-V-14a",
+    "QA-V-14b",
+    "QA-V-15",
+    "QA-V-16",
+    "QA-V-17",
+    "QA-V-18",
+    "QA-V-19",
+    "QA-V-20a",
+    "QA-V-20b",
+    "QA-V-21a",
+    "QA-V-21b"
+   ],
+   "caseCount": 23
+  },
+  {
+   "featureId": "S-MOD-12",
+   "title": "차트 내보내기·복사",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-13",
+   "title": "워크스페이스 레이아웃·패널",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-14",
+   "title": "튜토리얼 시스템(12개 코스)",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-15",
+   "title": "샘플 라이브러리(8종)",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-16",
+   "title": "도움말 센터(23개 문서)",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-17",
+   "title": "Portable 단일 HTML 빌드",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-18",
+   "title": "한/영 이중 언어",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-19",
+   "title": "테마(라이트/다크)",
+   "caseIds": [],
+   "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-20",
+   "title": "성능 상한·대용량 처리",
+   "caseIds": [],
+   "caseCount": 0
+  }
+ ],
+ "perCase": [
+  {
+   "id": "QA-A-01",
+   "op": "desc",
+   "title": "기술통계 전체 항목 (n=60 정규)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "desc"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-A-02",
+   "op": "desc",
+   "title": "기술통계 결측 포함 (N* 7건)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "desc"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-A-03",
+   "op": "desc",
+   "title": "소표본 n=6 사분위수·왜도 (type-6 quantile)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "desc"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-A-04",
+   "op": "desc",
+   "title": "상수열 s=0, 왜도/변동계수 정의",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "desc"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-A-05",
+   "op": "desc",
+   "title": "이상치 2건 포함 분포 모양",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "desc"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-A-06",
+   "op": "desc",
+   "title": "대규모 8 000행 수치 안정성",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "desc"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-A-07",
+   "op": "normality",
+   "title": "정규성 AD (정규 데이터)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "normality"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-A-08",
+   "op": "normality",
+   "title": "정규성 AD (이상치 → p 극소)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "normality"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-A-09",
+   "op": "normality",
+   "title": "정규성 AD 소표본 n=6",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "normality"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-A-10",
+   "op": "normality",
+   "title": "정규성 AD 상수열 → 정의 불가(NaN)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "normality"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-A-11",
+   "op": "t1",
+   "title": "1표본 t (양측, μ0=100)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "t1"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-A-12",
+   "op": "t1",
+   "title": "1표본 t 단측 less, 90% CI",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "t1"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-A-13",
+   "op": "t1",
+   "title": "1표본 t 단측 greater, 99% CI",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "t1"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-A-14",
+   "op": "t1",
+   "title": "1표본 t 결측 포함",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "t1"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-A-15",
+   "op": "t2",
+   "title": "2표본 t Welch",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "t2"
+   ],
+   "fields": 15
+  },
+  {
+   "id": "QA-A-16",
+   "op": "t2",
+   "title": "2표본 t 등분산(pooled)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "t2"
+   ],
+   "fields": 15
+  },
+  {
+   "id": "QA-A-17",
+   "op": "t2",
+   "title": "2표본 t 단측 greater 90%",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "t2"
+   ],
+   "fields": 15
+  },
+  {
+   "id": "QA-A-18",
+   "op": "paired",
+   "title": "대응표본 t (차이 μ0=0)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "paired"
+   ],
+   "fields": 12
+  },
+  {
+   "id": "QA-A-19",
+   "op": "paired",
+   "title": "대응표본 t 차이 검정 μ0=0.5, 단측",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "paired"
+   ],
+   "fields": 12
+  },
+  {
+   "id": "QA-A-20",
+   "op": "paired",
+   "title": "대응표본 t 결측쌍 제외 (n=34)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "paired"
+   ],
+   "fields": 12
+  },
+  {
+   "id": "QA-A-21",
+   "op": "anova",
+   "title": "일원 ANOVA + Tukey HSD (3집단)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "anova"
+   ],
+   "fields": 28
+  },
+  {
+   "id": "QA-A-22",
+   "op": "anova",
+   "title": "일원 ANOVA 불균형 3집단 (12/9/6)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "anova"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-A-23",
+   "op": "regression",
+   "title": "회귀 y ~ x (VIF·R²pred 포함)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "regression"
+   ],
+   "fields": 20
+  },
+  {
+   "id": "QA-A-24",
+   "op": "regression",
+   "title": "회귀 2예측변수 (DOE 설계, VIF=1)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "regression"
+   ],
+   "fields": 20
+  },
+  {
+   "id": "QA-A-25",
+   "op": "dist",
+   "title": "normalCdf(1.96)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-26",
+   "op": "dist",
+   "title": "normalCdf(-2.5, 10, 2)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-27",
+   "op": "dist",
+   "title": "normalInv(0.975)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-28",
+   "op": "dist",
+   "title": "normalPdf(0.3)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-47",
+   "op": "dist",
+   "title": "normalInv(0.001) 꼬리",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-48",
+   "op": "dist",
+   "title": "normalInv(0.9999) 꼬리",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-29",
+   "op": "dist",
+   "title": "tCdf(2.1, 9)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-30",
+   "op": "dist",
+   "title": "tInv(0.95, 12)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-31",
+   "op": "dist",
+   "title": "fCdf(2.5, 3, 20)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-32",
+   "op": "dist",
+   "title": "fInv(0.95, 4, 12)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-33",
+   "op": "dist",
+   "title": "chi2Cdf(7.8, 5)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-34",
+   "op": "dist",
+   "title": "gammaP(3.5, 2.2)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-35",
+   "op": "dist",
+   "title": "gammaInv(0.9, 2.5, 3)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-36",
+   "op": "dist",
+   "title": "weibullCdf(120, 1.7, 200)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-37",
+   "op": "dist",
+   "title": "weibullInv(0.9, 1.7, 200)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-38",
+   "op": "dist",
+   "title": "lognormalCdf(150, 4.8, 0.4)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-39",
+   "op": "dist",
+   "title": "lognormalInv(0.05, 4.8, 0.4)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-40",
+   "op": "dist",
+   "title": "nctCdf(1.5, 10, 2)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-41",
+   "op": "dist",
+   "title": "ncfCdf(2.0, 3, 20, 4)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-42",
+   "op": "dist",
+   "title": "studentized range CDF (q=3.5, k=4, df=18)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-43",
+   "op": "dist",
+   "title": "studentized range 분위수 (0.95, k=3, df=9)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-44",
+   "op": "dist",
+   "title": "logGamma(7.5)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-45",
+   "op": "dist",
+   "title": "c4(5) 관리도 상수",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-A-46",
+   "op": "dist",
+   "title": "nctCdf 대자유도 (df=254, ncp=4)",
+   "file": "qa/cases/QA-A-basic.json",
+   "targets": [
+    "dist"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-B-01",
+   "op": "anova",
+   "title": "일원 ANOVA 4집단 n=2000씩 (대규모)",
+   "file": "qa/cases/QA-B-anova-glm.json",
+   "targets": [
+    "anova"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-B-02",
+   "op": "glm",
+   "title": "GLM 2요인 + 교호작용, 불균형 Type I/III",
+   "file": "qa/cases/QA-B-anova-glm.json",
+   "targets": [
+    "glm"
+   ],
+   "fields": 28
+  },
+  {
+   "id": "QA-B-03",
+   "op": "glm",
+   "title": "GLM 주효과만 (교호작용 제외) 불균형",
+   "file": "qa/cases/QA-B-anova-glm.json",
+   "targets": [
+    "glm"
+   ],
+   "fields": 22
+  },
+  {
+   "id": "QA-B-04",
+   "op": "glm",
+   "title": "GLM 숫자형 요인 3개 (2^3 DOE) Type I/III",
+   "file": "qa/cases/QA-B-anova-glm.json",
+   "targets": [
+    "glm"
+   ],
+   "fields": 34
+  },
+  {
+   "id": "QA-B-05",
+   "op": "glm",
+   "title": "GLM 결측 행 제외 후 적합",
+   "file": "qa/cases/QA-B-anova-glm.json",
+   "targets": [
+    "glm"
+   ],
+   "fields": 16
+  },
+  {
+   "id": "QA-B-06",
+   "op": "glm",
+   "title": "GLM 숫자형+범주형 혼합, 중심점에서 rank-deficient (모형 불변량 검증)",
+   "file": "qa/cases/QA-B-anova-glm.json",
+   "targets": [
+    "glm"
+   ],
+   "fields": 31
+  },
+  {
+   "id": "QA-C-01",
+   "op": "imr",
+   "title": "I-MR (24개 개별값)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "imr"
+   ],
+   "fields": 29
+  },
+  {
+   "id": "QA-C-02",
+   "op": "imr",
+   "title": "I-MR 이상치 포함 (규칙 1 검출)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "imr"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-C-03",
+   "op": "xbarr",
+   "title": "Xbar-R n=5, 결측 1개 부분군 (n_i 변화)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "xbarr"
+   ],
+   "fields": 73
+  },
+  {
+   "id": "QA-C-04",
+   "op": "xbarr",
+   "title": "Xbar-R n=2 (Montgomery d2(2) 경계)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "xbarr"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-C-05",
+   "op": "xbarr",
+   "title": "Xbar-R n=10 (표 상한)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "xbarr"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-C-06",
+   "op": "xbars",
+   "title": "Xbar-S n=12 (c4 기반, R표 범위 밖)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "xbars"
+   ],
+   "fields": 22
+  },
+  {
+   "id": "QA-C-07",
+   "op": "xbars",
+   "title": "Xbar-S 그룹ID 방식 (n_i 2~6 가변)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "xbars"
+   ],
+   "fields": 29
+  },
+  {
+   "id": "QA-C-08",
+   "op": "pchart",
+   "title": "P chart 부분군 크기 열 (50/100 혼합)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "pchart"
+   ],
+   "fields": 51
+  },
+  {
+   "id": "QA-C-09",
+   "op": "pchart",
+   "title": "P chart 고정 부분군 크기 100",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "pchart"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-C-10",
+   "op": "npchart",
+   "title": "NP chart (n=100)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "npchart"
+   ],
+   "fields": 13
+  },
+  {
+   "id": "QA-C-11",
+   "op": "cchart",
+   "title": "C chart 결함수",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "cchart"
+   ],
+   "fields": 13
+  },
+  {
+   "id": "QA-C-12",
+   "op": "uchart",
+   "title": "U chart 단위 크기 열 (1~4)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "uchart"
+   ],
+   "fields": 43
+  },
+  {
+   "id": "QA-C-13",
+   "op": "uchart",
+   "title": "U chart 고정 단위 크기 2",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "uchart"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-C-14",
+   "op": "nelson",
+   "title": "Nelson 규칙 1~8 전수 (중심 10, σ 1)",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "imr"
+   ],
+   "fields": 57
+  },
+  {
+   "id": "QA-C-15",
+   "op": "pchart",
+   "title": "P chart 결측 크기(0) → 엔진 검증 오류",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "pchart"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-C-16",
+   "op": "xbarr",
+   "title": "Xbar-R 부분군 부족 → noGroups 오류",
+   "file": "qa/cases/QA-C-spc.json",
+   "targets": [
+    "xbarr"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-D-01",
+   "op": "capability",
+   "title": "Cp/Cpk/Pp/Ppk 양측 규격 (이동범위 σ)",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capability"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-D-02",
+   "op": "capability",
+   "title": "Cpm 목표값 지정",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capability"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-D-03",
+   "op": "capability",
+   "title": "단측 규격 LSL만",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capability"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-D-04",
+   "op": "capability",
+   "title": "단측 규격 USL만",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capability"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-D-05",
+   "op": "capability",
+   "title": "부분군 5의 풀링 within σ",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capability"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-D-06",
+   "op": "capability",
+   "title": "시그마 수준 방식 z_bench",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capability"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-D-07",
+   "op": "capability",
+   "title": "시그마 수준 방식 cpk_shift",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capability"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-D-08",
+   "op": "sixpack",
+   "title": "Sixpack n=1 (I-MR 기반)",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "sixpack"
+   ],
+   "fields": 16
+  },
+  {
+   "id": "QA-D-09",
+   "op": "sixpack",
+   "title": "Sixpack n=5 (Xbar-R 기반, R̄/d2 공유)",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "sixpack"
+   ],
+   "fields": 11
+  },
+  {
+   "id": "QA-D-10",
+   "op": "sixpack",
+   "title": "Sixpack n=12 (Xbar-S 기반, S̄/c4 공유)",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "sixpack"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-D-11",
+   "op": "sixpack",
+   "title": "Sixpack n=5 결측 부분군 포함",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "sixpack"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-D-12",
+   "op": "capnonnormal",
+   "title": "비정규 능력 Weibull MLE",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capnonnormal"
+   ],
+   "fields": 16
+  },
+  {
+   "id": "QA-D-13",
+   "op": "capnonnormal",
+   "title": "비정규 능력 Lognormal",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capnonnormal"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-D-14",
+   "op": "capnonnormal",
+   "title": "비정규 능력 Gamma",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capnonnormal"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-D-15",
+   "op": "capnonnormal",
+   "title": "비정규 적합: 0·음수 제외 보고 (excluded=3)",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capnonnormal"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-D-16",
+   "op": "capnonnormal",
+   "title": "비정규 적합 n<5 → res.insufficient (엔진 정의)",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "capnonnormal"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-D-17",
+   "op": "sixpack",
+   "title": "Sixpack 상수열 → AD 정의 불가(NaN)",
+   "file": "qa/cases/QA-D-capability.json",
+   "targets": [
+    "sixpack"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-E-01",
+   "op": "gagerr",
+   "title": "Crossed 균형 10×3×2 분산성분",
+   "file": "qa/cases/QA-E-gagerr.json",
+   "targets": [
+    "gagerr"
+   ],
+   "fields": 56
+  },
+  {
+   "id": "QA-E-02",
+   "op": "gagerr",
+   "title": "Crossed 공차 %Tolerance 포함",
+   "file": "qa/cases/QA-E-gagerr.json",
+   "targets": [
+    "gagerr"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-E-03",
+   "op": "gagerr",
+   "title": "Crossed 교호작용 풀링 (poolInteraction)",
+   "file": "qa/cases/QA-E-gagerr.json",
+   "targets": [
+    "gagerr"
+   ],
+   "fields": 42
+  },
+  {
+   "id": "QA-E-04",
+   "op": "gagerr",
+   "title": "Nested 3교대×4부품×3반복",
+   "file": "qa/cases/QA-E-gagerr.json",
+   "targets": [
+    "gagerr"
+   ],
+   "fields": 45
+  },
+  {
+   "id": "QA-E-05",
+   "op": "gagerr",
+   "title": "음수 분산성분 보고 (operator)",
+   "file": "qa/cases/QA-E-gagerr.json",
+   "targets": [
+    "gagerr"
+   ],
+   "fields": 56
+  },
+  {
+   "id": "QA-E-06",
+   "op": "gagerr",
+   "title": "불균형 Crossed → grr.unbalanced 거부",
+   "file": "qa/cases/QA-E-gagerr.json",
+   "targets": [
+    "gagerr"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-E-07",
+   "op": "gagerr",
+   "title": "공유 부품을 Nested로 선언 → grr.nestedPartShared 거부",
+   "file": "qa/cases/QA-E-gagerr.json",
+   "targets": [
+    "gagerr"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-F-01",
+   "op": "weibull",
+   "title": "Weibull 완전데이터 MLE + AD + 신뢰구간",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 25
+  },
+  {
+   "id": "QA-F-02",
+   "op": "weibull",
+   "title": "Weibull 우측 중도절단 25/40",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 25
+  },
+  {
+   "id": "QA-F-03",
+   "op": "weibull",
+   "title": "Weibull 중도절단 6/25 (80% 생존)",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 25
+  },
+  {
+   "id": "QA-F-04",
+   "op": "weibull",
+   "title": "Weibull 고장 3/30 극한 (소수 고장)",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 25
+  },
+  {
+   "id": "QA-F-05",
+   "op": "weibull",
+   "title": "Weibull 고장 2/20 최소 (추정 가능 경계)",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 25
+  },
+  {
+   "id": "QA-F-06",
+   "op": "weibull",
+   "title": "Weibull 90% 신뢰수준",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-F-07",
+   "op": "weibull",
+   "title": "Weibull 99% 신뢰수준",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-F-08",
+   "op": "lognorm_rel",
+   "title": "Lognormal 완전데이터 (폐형 MLE)",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-F-09",
+   "op": "lognorm_rel",
+   "title": "Lognormal 중도절단 MLE",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-F-12",
+   "op": "weibull",
+   "title": "강한 비-Weibull(혼합) → 기각력 유지",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 25
+  },
+  {
+   "id": "QA-F-10",
+   "op": "weibull",
+   "title": "고장 1건 → rel.needFailures",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-F-11",
+   "op": "lognorm_rel",
+   "title": "고장 1건 로그노말 → rel.needFailures",
+   "file": "qa/cases/QA-F-reliability.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-G-01",
+   "op": "power",
+   "title": "1표본 t 표본크기 (δ=0.5, 90%)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "power1t"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-02",
+   "op": "power",
+   "title": "1표본 t 검정력 (n=30, δ=0.4)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "power1t"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-03",
+   "op": "power",
+   "title": "1표본 t 효과크기 역산 (n=25, 80%)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "power1t"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-04",
+   "op": "power",
+   "title": "2표본 t 표본크기 (δ=0.5, 90%)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "power2t"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-05",
+   "op": "power",
+   "title": "2표본 t 검정력 (n=128, δ=0.5)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "power2t"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-06",
+   "op": "power",
+   "title": "2표본 t 단측 greater 80%",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "power2t"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-07",
+   "op": "power",
+   "title": "대응 t 표본크기 (δ=0.3, 95%)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerpaired"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-08",
+   "op": "power",
+   "title": "ANOVA 표본크기 (3집단, δ=1.0)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "poweranova"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-09",
+   "op": "power",
+   "title": "ANOVA 검정력 (4집단, n=20, δ=0.8)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "poweranova"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-10",
+   "op": "power",
+   "title": "1비율 표본크기 (0.5→0.6, 90%)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerprop1"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-11",
+   "op": "power",
+   "title": "1비율 검정력 (n=200, 0.3→0.36)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerprop1"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-12",
+   "op": "power",
+   "title": "1비율 양측 비대칭 효과 역산 (p0=0.2, n=100)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerprop1"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-G-13",
+   "op": "power",
+   "title": "2비율 표본크기 (0.4→0.6, 90%)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerprop2"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-14",
+   "op": "power",
+   "title": "2비율 검정력 (n=150, 0.5→0.58) 단측",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerprop2"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-15",
+   "op": "power",
+   "title": "2비율 효과크기 역산 (n=120)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerprop2"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-16",
+   "op": "power",
+   "title": "단측 대립가설에 반대방향 효과 → α 미만 검정력",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "power1t"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-G-17",
+   "op": "power",
+   "title": "단측 대립가설에 반대효과 → power.unreachable",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerprop1"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-G-21",
+   "op": "power",
+   "title": "실질적으로 달성 불가한 미세효과 (n 상한 1e7)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerprop1"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-G-18",
+   "op": "power",
+   "title": "효과 0 → power.unreachable",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "power1t"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-G-19",
+   "op": "power",
+   "title": "비율 범위 밖 (p2=0.05에서 −0.1)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "powerprop1"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-G-20",
+   "op": "power",
+   "title": "목표 검정력 0.5 (α 이하 요구)",
+   "file": "qa/cases/QA-G-power.json",
+   "targets": [
+    "power1t"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-H-01",
+   "op": "doecreate",
+   "title": "2^3 요인설계 표준·실행순서 (랜덤화)",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "doecreate"
+   ],
+   "fields": 53
+  },
+  {
+   "id": "QA-H-02",
+   "op": "doecreate",
+   "title": "2^2 반복 2회, 랜덤화 없음",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "doecreate"
+   ],
+   "fields": 34
+  },
+  {
+   "id": "QA-H-03",
+   "op": "doecreate",
+   "title": "2^4 설계 (16런 + 중심 3점)",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "doecreate"
+   ],
+   "fields": 117
+  },
+  {
+   "id": "QA-H-04",
+   "op": "rsmcreate",
+   "title": "CCD k=2 (α=2^0.75, 중심 5점)",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "rsmcreate"
+   ],
+   "fields": 56
+  },
+  {
+   "id": "QA-H-05",
+   "op": "rsmcreate",
+   "title": "Box-Behnken 3요인 (12 edge + 중심 3)",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "rsmcreate"
+   ],
+   "fields": 78
+  },
+  {
+   "id": "QA-H-06",
+   "op": "doeanalyze",
+   "title": "요인분석 2^3 효과·계수·p",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "doeanalyze"
+   ],
+   "fields": 35
+  },
+  {
+   "id": "QA-H-07",
+   "op": "doeanalyze",
+   "title": "요인분석 주효과만 (order 1)",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "doeanalyze"
+   ],
+   "fields": 18
+  },
+  {
+   "id": "QA-H-08",
+   "op": "rsmanalyze",
+   "title": "RSM 2차 적합 + 정지점 (영역 내)",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "rsmanalyze"
+   ],
+   "fields": 28
+  },
+  {
+   "id": "QA-H-09",
+   "op": "rsmanalyze",
+   "title": "RSM 정지점 실험영역 밖 판별",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "rsmanalyze"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-H-10",
+   "op": "doecreate",
+   "title": "요인 수 범위 밖 (k=7) → 오류",
+   "file": "qa/cases/QA-H-doe-rsm.json",
+   "targets": [
+    "doecreate"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-I-01",
+   "op": "calc",
+   "title": "수식 C1 * 2 + 1",
+   "file": "qa/cases/QA-I-calc.json",
+   "targets": [
+    "calculator"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-I-02",
+   "op": "calc",
+   "title": "수식 (C1 - MEAN(C1)) / STDEV(C1)",
+   "file": "qa/cases/QA-I-calc.json",
+   "targets": [
+    "calculator"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-I-03",
+   "op": "calc",
+   "title": "수식 ROUND(C1 / 3, 2) — 결측 행은 오류 카운트",
+   "file": "qa/cases/QA-I-calc.json",
+   "targets": [
+    "calculator"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-I-04",
+   "op": "calc",
+   "title": "두 열 합 C1 + C2",
+   "file": "qa/cases/QA-I-calc.json",
+   "targets": [
+    "calculator"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-J-01",
+   "op": "modelpredict",
+   "title": "저장 모형 예측 — 다중 회귀 (실제 단위 입력, SE·예측구간)",
+   "file": "qa/cases/QA-J-models.json",
+   "targets": [
+    "S-MOD-07"
+   ],
+   "fields": 14
+  },
+  {
+   "id": "QA-J-02",
+   "op": "modelpredict",
+   "title": "저장 모형 예측 — 같은 회귀 모형을 코딩 단위로 입력",
+   "file": "qa/cases/QA-J-models.json",
+   "targets": [
+    "S-MOD-07"
+   ],
+   "fields": 14
+  },
+  {
+   "id": "QA-J-03",
+   "op": "modelpredict",
+   "title": "저장 모형 예측 — RSM 2차 모형 (코딩 단위, 공분산 없음)",
+   "file": "qa/cases/QA-J-models.json",
+   "targets": [
+    "S-MOD-07"
+   ],
+   "fields": 14
+  },
+  {
+   "id": "QA-J-04",
+   "op": "modelpredict",
+   "title": "저장 모형 예측 — RSM 모형을 실제 단위로 입력 (Coded/Actual 변환)",
+   "file": "qa/cases/QA-J-models.json",
+   "targets": [
+    "S-MOD-07"
+   ],
+   "fields": 14
+  },
+  {
+   "id": "QA-J-05",
+   "op": "modelpredict",
+   "title": "저장 모형 예측 — 범주형 요인 (sum-to-zero 대비)",
+   "file": "qa/cases/QA-J-models.json",
+   "targets": [
+    "S-MOD-07"
+   ],
+   "fields": 14
+  },
+  {
+   "id": "QA-J-06",
+   "op": "modelpredict",
+   "title": "저장 모형 예측 — 랭크 부족 모형은 값을 만들지 않고 거부한다",
+   "file": "qa/cases/QA-J-models.json",
+   "targets": [
+    "S-MOD-07"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-U-01",
+   "op": "sheet",
+   "title": "파레토 차트 (정렬·빈도·누적%)",
+   "file": "qa/cases/QA-U-charts-transforms.json",
+   "targets": [
+    "S-MOD-01"
+   ],
+   "fields": 38
+  },
+  {
+   "id": "QA-U-02",
+   "op": "sheet",
+   "title": "히스토그램 (빈 경계·도수 합·정규곡선)",
+   "file": "qa/cases/QA-U-charts-transforms.json",
+   "targets": [
+    "S-MOD-01"
+   ],
+   "fields": 19
+  },
+  {
+   "id": "QA-U-03",
+   "op": "sheet",
+   "title": "상자그림 (사분위·수염·이상치)",
+   "file": "qa/cases/QA-U-charts-transforms.json",
+   "targets": [
+    "S-MOD-01"
+   ],
+   "fields": 15
+  },
+  {
+   "id": "QA-U-04",
+   "op": "sheet",
+   "title": "산점도 (적합선 기울기·절편·군별 매핑)",
+   "file": "qa/cases/QA-U-charts-transforms.json",
+   "targets": [
+    "S-MOD-01"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-U-05",
+   "op": "sheet",
+   "title": "시계열 plot (규격선·시퀀스 값)",
+   "file": "qa/cases/QA-U-charts-transforms.json",
+   "targets": [
+    "S-MOD-01"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-U-06",
+   "op": "sheet",
+   "title": "정렬 (열 전체 행 이동·결측 마지막)",
+   "file": "qa/cases/QA-U-charts-transforms.json",
+   "targets": [
+    "S-MOD-01"
+   ],
+   "fields": 121
+  },
+  {
+   "id": "QA-U-07",
+   "op": "sheet",
+   "title": "표준화 (Z 점수 저장·결측 보존)",
+   "file": "qa/cases/QA-U-charts-transforms.json",
+   "targets": [
+    "S-MOD-01"
+   ],
+   "fields": 63
+  },
+  {
+   "id": "QA-U-08",
+   "op": "sheet",
+   "title": "코드 변환 (1=10, 2=20, 3=30·미매핑 보존)",
+   "file": "qa/cases/QA-U-charts-transforms.json",
+   "targets": [
+    "S-MOD-01"
+   ],
+   "fields": 65
+  },
+  {
+   "id": "QA-U-09",
+   "op": "sheet",
+   "title": "난수 생성 (시드 결정성·길이·모멘트)",
+   "file": "qa/cases/QA-U-charts-transforms.json",
+   "targets": [
+    "S-MOD-01"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-V-01",
+   "op": "surface3d",
+   "title": "3D 표면 = 2D 등고선 (41×41, coded, 실험점 5개 지점)",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-10"
+   ],
+   "fields": 21
+  },
+  {
+   "id": "QA-V-02",
+   "op": "surface3d",
+   "title": "3D 표면 21×21 격자 + 중심 SE (정지점 부근)",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-10"
+   ],
+   "fields": 14
+  },
+  {
+   "id": "QA-V-03",
+   "op": "feasible",
+   "title": "중첩 등고선 — 두 반응 동시 만족 영역 (예측 평균 기준)",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 18
+  },
+  {
+   "id": "QA-V-04",
+   "op": "feasible",
+   "title": "중첩 등고선 — 신뢰구간 기준 (구간이 규격 안에)",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-V-05",
+   "op": "feasible",
+   "title": "중첩 등고선 — 예측구간 기준",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-V-06",
+   "op": "feasible",
+   "title": "중첩 등고선 — 만족 영역이 없는 규격",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-V-07",
+   "op": "overlay",
+   "title": "두 모형의 중심·Half Range가 다름 — 같은 실제 좌표에서 각자 코딩",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 17
+  },
+  {
+   "id": "QA-V-08",
+   "op": "overlay",
+   "title": "Actual 코딩 모형과 Coded 코딩 모형 혼합",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 13
+  },
+  {
+   "id": "QA-V-09",
+   "op": "overlay",
+   "title": "같은 이름·다른 열 ID 인자",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-V-10",
+   "op": "overlay",
+   "title": "모형별 실험 범위 불일치 — 모형2만 범위를 벗어남",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-V-11",
+   "op": "overlay",
+   "title": "Holding Value 외삽 — C를 2로 고정",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 15
+  },
+  {
+   "id": "QA-V-12",
+   "op": "overlay",
+   "title": "공분산 누락 + 신뢰구간 기준 → 구조화 오류",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-V-13a",
+   "op": "overlay",
+   "title": "mse 누락 + 신뢰구간 기준 — 신뢰구간은 계산된다",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-V-13b",
+   "op": "overlay",
+   "title": "mse 누락 + 예측구간 기준 → 구조화 오류",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-V-14a",
+   "op": "overlay",
+   "title": "비정상 공분산 4종 + 평균 기준 — 예측값은 영향받지 않음",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 15
+  },
+  {
+   "id": "QA-V-14b",
+   "op": "overlay",
+   "title": "비정상 공분산 + 신뢰구간 기준 → 구조화 오류",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-V-15",
+   "op": "overlay",
+   "title": "Rank-deficient 모형 — 별칭 항을 타는 점만 NaN",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 11
+  },
+  {
+   "id": "QA-V-16",
+   "op": "overlay_order",
+   "title": "예측 순서 변경 — 같은 평가기에서 역순 후 정방향",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 11
+  },
+  {
+   "id": "QA-V-17",
+   "op": "overlay",
+   "title": "NaN/Infinity 입력과 다항식 오버플로 — 0으로 대체하지 않음",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 9
+  },
+  {
+   "id": "QA-V-18",
+   "op": "overlay",
+   "title": "잘못된 규격 범위(LSL > USL) → 구조화 오류",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-V-19",
+   "op": "overlay",
+   "title": "Ultra(401) 해상도 수렴성 — 201과 비교",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 12
+  },
+  {
+   "id": "QA-V-20a",
+   "op": "overlay",
+   "title": "격자점 사이의 좁은 만족 영역 — 11×11에서 0점",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-V-20b",
+   "op": "overlay",
+   "title": "같은 좁은 만족 영역 — 101×101에서는 검출",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-V-21a",
+   "op": "overlay",
+   "title": "모형 배열 순서 [Y1, Y2] — 응답 이름 기준 예측",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 13
+  },
+  {
+   "id": "QA-V-21b",
+   "op": "overlay",
+   "title": "모형 배열 순서 [Y2, Y1] — 같은 값이어야 함",
+   "file": "qa/cases/QA-V-stage3b-surface.json",
+   "targets": [
+    "S-MOD-11"
+   ],
+   "fields": 13
+  },
+  {
+   "id": "QA-W-01",
+   "op": "optimize",
+   "title": "단일 반응 최대화 — SciPy와 같은 최적점",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-W-02",
+   "op": "optimize",
+   "title": "두 반응 — Y1 최대화 · Y2 최소화 (중요도 동일)",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-W-03",
+   "op": "optimize",
+   "title": "중요도 가중 — Y2를 4배 중요하게",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-W-04",
+   "op": "optimize",
+   "title": "목표값 목표 (Target, 가중 2) — 곡선 모양",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-W-05",
+   "op": "optimize",
+   "title": "알려진 해석적 최적점 — y = 22 − 2(x−1.25)² (최적 x=1.25, y=22)",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-W-06",
+   "op": "optimize",
+   "title": "만족 해가 없는 규격 — 종합 만족도 0",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-W-07",
+   "op": "optimize",
+   "title": "다중 국소 최적점 — 사차 곡선의 두 봉우리",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-W-08",
+   "op": "optimize",
+   "title": "이산형 인자 + 고정 인자 — 간격 위의 최적점",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-W-09",
+   "op": "optimize",
+   "title": "범주형 인자 — 수준 중 최선",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-W-10",
+   "op": "optimize",
+   "title": "랭크 부족 모형 — 값을 지어내지 않고 거부",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-W-11",
+   "op": "optimize",
+   "title": "잘못된 입력 — 한계가 없는 반응은 문제정의 오류",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-W-12",
+   "op": "optimize",
+   "title": "평가 예산 초과 — 한도 도달을 숨기지 않음",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 1
+  },
+  {
+   "id": "QA-W-13",
+   "op": "optimize",
+   "title": "연속형 최적점이 격자 사이에 존재 — 국소 탐색으로만 도달",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-W-14",
+   "op": "optimize",
+   "title": "이산형 0~1 Step 0.6 — 허용값은 Lower + k × Step 뿐",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-W-15",
+   "op": "optimize",
+   "title": "음수 Lower + 비정수 Step 0.3 — 정수 인덱스 연산",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-W-16",
+   "op": "domain",
+   "title": "매우 작은 Step 1e-4 — 값 손실·중복 없이 11개 좌표",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-W-17",
+   "op": "optimize",
+   "title": "범위를 벗어난 Fixed Value — 조용히 고정하지 않고 거부",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-W-18",
+   "op": "optimize",
+   "title": "활성 반응 중 일부의 규격 누락 — 즉시 중단",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 3
+  },
+  {
+   "id": "QA-W-19",
+   "op": "optimize",
+   "title": "잘못된 Model ID 및 중복 반응 — 둘 다 명시",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-W-20",
+   "op": "optimize",
+   "title": "동일 이름, 다른 단위 및 ID — 이름만으로 합치지 않음",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-W-21",
+   "op": "optimize",
+   "title": "서로 다른 Coded 범위 — 같은 실제 좌표에서 독립 예측",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-W-22",
+   "op": "optimize",
+   "title": "학습 범위 교집합 없음 — 빈 정의역은 오류",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-W-23",
+   "op": "optimize",
+   "title": "범주형 수준 교집합 없음 — 공통 수준 없음",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-W-24",
+   "op": "optimize",
+   "title": "좁은 만족 영역과 탐색 예산 초과 — 한도 도달을 숨기지 않음",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-W-25",
+   "op": "optimize",
+   "title": "Target = Lower / Target = Upper 경계 정의",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-W-26",
+   "op": "optimize",
+   "title": "Weight / Importance NaN 및 Infinity — 거부",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-W-27",
+   "op": "optimize",
+   "title": "Hard Specification과 Desirability 충돌 — 추천 금지",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 4
+  },
+  {
+   "id": "QA-W-28",
+   "op": "optimize",
+   "title": "모형 순서 변경 시 결과 불변성",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-W-29",
+   "op": "optimize",
+   "title": "공분산 및 MSE 누락 — CI와 PI 지원 분리",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-08"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-W-30",
+   "op": "profileaxis",
+   "title": "이산형 Profiler 좌표 검증 — 허용값만",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-09"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-W-31",
+   "op": "profilepoint",
+   "title": "Profiler와 Optimizer 예측값 일치",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-09"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-W-32",
+   "op": "predictionconsistency",
+   "title": "Contour / Surface / Model Manager 와 예측값 일치",
+   "file": "qa/cases/QA-W-stage3c-optimizer.json",
+   "targets": [
+    "S-MOD-09"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-X-01",
+   "op": "weibull",
+   "title": "Weibull n=2 → res.insufficient",
+   "file": "qa/cases/QA-X-edge.json",
+   "targets": [
+    "weibull"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-X-02",
+   "op": "regression",
+   "title": "상수 예측변수 → res.constantPredictor",
+   "file": "qa/cases/QA-X-edge.json",
+   "targets": [
+    "regression"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-X-03",
+   "op": "regression",
+   "title": "회귀 데이터 부족 → not-enough-data",
+   "file": "qa/cases/QA-X-edge.json",
+   "targets": [
+    "regression"
+   ],
+   "fields": 0
+  },
+  {
+   "id": "QA-X-04",
+   "op": "t1",
+   "title": "t검정 상수열 s=0 (t 정의 경계)",
+   "file": "qa/cases/QA-X-edge.json",
+   "targets": [
+    "t1"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-X-05",
+   "op": "t2",
+   "title": "2표본 상수열 → t NaN",
+   "file": "qa/cases/QA-X-edge.json",
+   "targets": [
+    "t2"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-X-06",
+   "op": "paired",
+   "title": "대응표본 상수 차이 → t NaN (0/±∞ 규약 폐지)",
+   "file": "qa/cases/QA-X-edge.json",
+   "targets": [
+    "paired"
+   ],
+   "fields": 9
+  },
+  {
+   "id": "QA-Y-01",
+   "op": "errorbars",
+   "title": "표본 표준편차 (n−1) — ddof=1",
+   "file": "qa/cases/QA-Y-stage3d-errorbars.json",
+   "targets": [
+    "S-MOD-04"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-Y-02",
+   "op": "errorbars",
+   "title": "표준오차 — sd/√n",
+   "file": "qa/cases/QA-Y-stage3d-errorbars.json",
+   "targets": [
+    "S-MOD-04"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-Y-03",
+   "op": "errorbars",
+   "title": "95% 신뢰구간 — t(0.975, n−1)",
+   "file": "qa/cases/QA-Y-stage3d-errorbars.json",
+   "targets": [
+    "S-MOD-04"
+   ],
+   "fields": 9
+  },
+  {
+   "id": "QA-Y-04",
+   "op": "errorbars",
+   "title": "99% 신뢰구간 — 같은 표본에서 더 넓은 구간",
+   "file": "qa/cases/QA-Y-stage3d-errorbars.json",
+   "targets": [
+    "S-MOD-04"
+   ],
+   "fields": 9
+  },
+  {
+   "id": "QA-Y-05",
+   "op": "errorbars",
+   "title": "반복값 1개 — 막대를 그리지 않음(available=0)",
+   "file": "qa/cases/QA-Y-stage3d-errorbars.json",
+   "targets": [
+    "S-MOD-04"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-Y-06",
+   "op": "errorbars",
+   "title": "결측·비유한 값 제외 — 유효 n으로 계산",
+   "file": "qa/cases/QA-Y-stage3d-errorbars.json",
+   "targets": [
+    "S-MOD-04"
+   ],
+   "fields": 9
+  }
+ ],
+ "methodologyDifferences": [
+  {
+   "topic": "Default method",
+   "note": "Minitab은 대화상자 기본값(예: 2표본 t의 Welch 여부, 정규성 검정 3종)을 제품 설정에 따라 적용한다. Sigrún은 슬롯 기본값을 코드에 고정하고 화면에 표시한다(예: t2의 Welch 기본 켜짐)."
+  },
+  {
+   "topic": "Quantile definition",
+   "note": "Sigrún은 type-6(h=(n+1)p) 사분위를 쓴다. QA는 NumPy quantile(method=\"weibull\")로 대조한다."
+  },
+  {
+   "topic": "Degrees of freedom",
+   "note": "Welch–Satterthwaite df, pooled df=n₁+n₂−2, Tukey df=MSW df. Minitab 문서와 같은 정의를 택했으나 표 반올림 차이는 남는다."
+  },
+  {
+   "topic": "Missing value policy",
+   "note": "행 단위 제외(열별 유효값). Minitab의 \"*\" 결측과 같은 결과를 노리지만 셀 표시는 공백이다."
+  },
+  {
+   "topic": "Confidence interval method",
+   "note": "t 분위수 기반 정확 구간(비율은 정규근사). Minitab의 정확 이항 구간과 다르다."
+  },
+  {
+   "topic": "Hypothesis direction",
+   "note": "two-sided/less/greater 3종. 단측에서 반대 방향 효과는 검정력 α로 떨어지는 것을 QA-G-16·17이 고정한다."
+  },
+  {
+   "topic": "P-value approximation",
+   "note": "AD 정규성 p는 근사식, 검정력은 비중심 분포 근사, Weibull CI는 프로파일 우도. Minitab의 표·정확 방법과 수치 동등성을 주장하지 않는다."
+  },
+  {
+   "topic": "Numerical stability",
+   "note": "ULP 격자 허용오차, s=0·n<3 등 퇴화 입력은 NaN/명시 오류로 처리하고 0으로 위장하지 않는다."
+  },
+  {
+   "topic": "Distribution fitting",
+   "note": "Weibull·로그정규·감마 3종 MLE. Minitab 11종과 범위가 다르다."
+  },
+  {
+   "topic": "Optimization criteria",
+   "note": "Derringer–Suich 만족도 + 중요도 가중 기하평균, 격자+다국소 탐색. Minitab의 최적화 알고리즘과 동일하다고 주장하지 않는다(QA-W가 SciPy differential_evolution+L-BFGS-B로 독립 확인)."
+  }
+ ]
+}

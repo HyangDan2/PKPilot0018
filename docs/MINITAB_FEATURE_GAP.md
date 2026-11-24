@@ -1,5 +1,7 @@
 # Sigrún ↔ Minitab 기능 격차 감사 (Stage 2)
 
+> **이 문서는 Stage 2 시점의 기록이다.** 84항목 기준이며 이후 Stage 3에서 차트·모형 계층이 늘었다. 현재의 전체 감사(289항목·8대영역·Phase 4~6 계획)는 [`docs/MINITAB_MASTER_FEATURE_GAP.md`](MINITAB_MASTER_FEATURE_GAP.md)와 `docs/audit/` 산출물이 대체한다. 두 문서의 분모 차이는 마스터 문서 §4에 정리했다.
+
 > **대상**: `HD2Lab Sigrún` — 브라우저에서만 도는 통계·품질 워크스페이스
 > **기준 커밋**: `928afee` (Stage 1 머지) 이후, Stage 2 작업 브랜치
 > **감사 방법**: ① `src/lib/analyses.ts` 레지스트리의 40개 분석 전부에 대해 입력 슬롯 ↔ 실행 함수 ↔ 출력 블록을 대조, ② `tests/input-audit.test.ts` 로 자동화한 입력 감사(필수 누락·문자/날짜 열·중복 선택·구 프로젝트 문자열·짧은 열), ③ Minitab 공식 문서(`support.minitab.com`)의 각 대화상자 항목과 1:1 비교.
