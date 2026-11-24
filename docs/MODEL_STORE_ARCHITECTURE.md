@@ -25,6 +25,7 @@ Stage 3B(표면)·3C(최적화)는 "어떤 모형으로 그릴 것인가"를 먼
 format/version      'sigrun-model' / 1        파일 호환 식별자
 id, name            mdl-<base36>-<n>          사람이 붙인 이름
 kind                linear | multiple | polynomial | glm | doe | rsm
+                    (polynomial: 2·3차 항은 파생 항 — predictors[]에는 x만 들어간다)
 createdAt/updatedAt ISO 8601
 response            ModelVariable             반응 변수
 predictors[]        ModelVariable             예측 변수
@@ -74,6 +75,7 @@ Stage 3A에서 `RegressionResult`에 `covariance`, `GlmResult`에 `xtxInv`를 �
 | `Constant` | 절편 | 1 |
 | `A` | 수치 주효과 | 변환된 값 |
 | `A²` | 제곱항 | 변환된 값² |
+| `A³` | 세제곱항 | 변환된 값³ |
 | `A×B` | 상호작용 | 두 값의 곱 |
 | `Machine[Line A]` | 범주 대비(sum-to-zero) | 해당 수준 1, 마지막 수준 −1, 나머지 0 |
 

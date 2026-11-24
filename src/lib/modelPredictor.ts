@@ -47,7 +47,8 @@ export class ModelInputError extends Error {
 /** 'A²×Machine[L1]' → the factors it multiplies and the level it contrasts. */
 export interface ParsedToken {
   name: string;
-  squares: number;
+  /** Exponent the term applies to the variable (1 for a plain factor). */
+  power: number;
   level: string | null;
 }
 
@@ -57,12 +58,13 @@ export function parseCoefficientLabel(label: string): ParsedToken[] {
     const levelMatch = /\[(.+)\]$/.exec(part);
     const level = levelMatch ? levelMatch[1] : null;
     let name = levelMatch ? part.slice(0, levelMatch.index) : part;
-    let squares = 0;
-    while (name.endsWith('²')) {
-      squares += 1;
-      name = name.slice(0, -1);
+    let power = 1;
+    for (;;) {
+      if (name.endsWith('²')) { power *= 2; name = name.slice(0, -1); continue; }
+      if (name.endsWith('³')) { power *= 3; name = name.slice(0, -1); continue; }
+      break;
     }
-    return { name, squares, level };
+    return { name, power, level };
   });
 }
 
@@ -153,13 +155,8 @@ export function designRow(model: StoredModel, point: PredictionPoint, mode: Inpu
       }
       const numeric = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.NaN;
       if (!Number.isFinite(numeric)) throw new ModelInputError('model.valueMissing', { variable: predictor.name });
-      if (token.squares > 0) {
-        // A coded square is the square of the coded (or measured) value.
-        const base = toDesignValue(predictor, numeric, mode);
-        product *= base ** token.squares;
-        return;
-      }
-      product *= toDesignValue(predictor, numeric, mode);
+      const base = toDesignValue(predictor, numeric, mode);
+      product *= token.power === 1 ? base : base ** token.power;
     });
     values.push(product);
   });

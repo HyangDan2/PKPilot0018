@@ -1741,9 +1741,9 @@ def _model_design_row(spec, values, mode):
             if match:
                 level = match.group(1)
                 token = token[: match.start()]
-            squares = 0
-            while token.endswith("²"):
-                squares += 1
+            power = 1
+            while token.endswith("²") or token.endswith("³"):
+                power *= 2 if token.endswith("²") else 3
                 token = token[:-1]
             predictor = by_name[token]
             if predictor["kind"] == "categorical":
@@ -1754,7 +1754,7 @@ def _model_design_row(spec, values, mode):
                 product *= 1.0 if value == level else (-1.0 if value == levels[-1] else 0.0)
             else:
                 base = _coding_value(predictor, values[token], mode)
-                product *= base if squares == 0 else base ** squares
+                product *= base if power == 1 else base ** power
         row.append(product)
     return np.array(row, dtype=float)
 

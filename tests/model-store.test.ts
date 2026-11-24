@@ -396,13 +396,14 @@ describe('stored model — collection operations (WO-02)', () => {
 describe('stored model — input validation (WO-02)', () => {
   it('parses square and interaction labels', () => {
     expect(parseCoefficientLabel('Constant')).toEqual([]);
-    expect(parseCoefficientLabel('A')).toEqual([{ name: 'A', squares: 0, level: null }]);
-    expect(parseCoefficientLabel('A²')).toEqual([{ name: 'A', squares: 1, level: null }]);
+    expect(parseCoefficientLabel('A')).toEqual([{ name: 'A', power: 1, level: null }]);
+    expect(parseCoefficientLabel('A²')).toEqual([{ name: 'A', power: 2, level: null }]);
+    expect(parseCoefficientLabel('A³')).toEqual([{ name: 'A', power: 3, level: null }]);
     expect(parseCoefficientLabel('A×B')).toEqual([
-      { name: 'A', squares: 0, level: null },
-      { name: 'B', squares: 0, level: null },
+      { name: 'A', power: 1, level: null },
+      { name: 'B', power: 1, level: null },
     ]);
-    expect(parseCoefficientLabel('Machine[Line A]')).toEqual([{ name: 'Machine', squares: 0, level: 'Line A' }]);
+    expect(parseCoefficientLabel('Machine[Line A]')).toEqual([{ name: 'Machine', power: 1, level: 'Line A' }]);
     expect(parseCoefficientLabel('A×Machine[Line A]')).toHaveLength(2);
   });
 

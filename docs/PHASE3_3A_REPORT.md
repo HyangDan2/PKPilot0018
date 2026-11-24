@@ -12,7 +12,7 @@
 | 검증 | 결과 |
 | --- | --- |
 | `npx tsc --noEmit` | 0 errors |
-| `npm test` | **735 / 735 PASS** (24 → 30 테스트 파일, 661 → 735건) |
+| `npm test` | **749 / 749 PASS** (24 → 31 테스트 파일, 661 → 749건) |
 | `npm run qa:stats` | **162 / 162 PASS, 0 FAIL** (156 → 162, 저장 모형 6건 추가) |
 | `npm run build` | 성공, 외부 CDN 없음 |
 | Stage 3A E2E `tools/e2e_phase3_3a.cjs` | **27 / 27 PASS** (데스크톱 1440×900 + 모바일 390×844) |
@@ -115,11 +115,16 @@
 | 출처 | 종류 | 계수 | 공분산 | 비고 |
 | --- | --- | --- | --- | --- |
 | Fit Regression Model | linear / multiple | O | O (`mse·(X'X)⁻¹`) | R²(pred)까지 |
+| Fit Polynomial Regression | polynomial | O | O | 2·3차 항(`A²`, `A³`)은 파생 항으로 저장 |
 | GLM / ANOVA | glm | O | O (`xtxInv`) | 범주 수준·sum-to-zero |
 | Analyze Factorial Design | doe | O | O | 코딩 단위 계수 |
 | Analyze Response Surface | rsm | O | **없음(payload에 없음)** | S·R²·N만, df 없음 |
 
 없는 값은 `null`로 두고 UI가 "없음"이라 표시한다. 공분산이 없으면 SE·예측구간을 계산하지 않는다.
+
+### 3.1.1 다항 회귀
+
+이번 단계에 **다항 회귀분석**(Stat ▸ Regression ▸ Fit Polynomial Regression…)을 추가했다. 각 예측 변수를 `x`, `x²`(2차), 또는 `x³`까지 확장해 적합하고, 카드에서 그대로 모형으로 저장된다. 저장 모형의 입력 변수는 `x` 하나이며 `x²`·`x³`은 **파생 항**으로 다뤄, 예측·재적합·표면에서 사용자가 제곱값을 입력하지 않는다(재적합 시 `x`에서 자동 재생성).
 
 ### 3.2 기능
 

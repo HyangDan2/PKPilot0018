@@ -62,6 +62,7 @@ const CASES: Case[] = [
   { id: 'paired', values: { first: 'C1', second: 'C2', testDiff: 0, confidence: 95, alternative: 'two-sided', chart: false }, numeric: ['first', 'second'] },
   { id: 'anova', values: { response: 'C1', factor: 'C9', confidence: 95 }, numeric: ['response'] },
   { id: 'regression', values: { response: 'C1', predictors: ['C2', 'C3'], fourInOne: false }, numeric: ['response', 'predictors'] },
+  { id: 'polyreg', values: { response: 'C1', predictors: ['C2'], degree: 2, fourInOne: false }, numeric: ['response', 'predictors'] },
   { id: 'imr', values: { variable: 'C1' }, numeric: ['variable'] },
   { id: 'xbarr', values: { variable: 'C1', subgroup: 4 }, numeric: ['variable'] },
   { id: 'pchart', values: { defects: 'C7', sizes: 'C8', sampleSize: 50 }, numeric: ['defects', 'sizes'] },
