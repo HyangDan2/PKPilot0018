@@ -1968,6 +1968,308 @@ def op_feasible(bag, ds, args, cid):
     mark(cid, "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature")
 
 
+# ── Stage 3C: multi-response optimisation ───────────────────────────────
+
+def _opt_desirability(value, goal, limits, weight):
+    """Derringer–Suich desirability, written here rather than imported.
+
+    The rule is the documented one: 0 at the unacceptable end, 1 at the ideal
+    end, the normalised distance raised to `weight` in between; `target` peaks
+    at the target and `range` is a step. `weight` never touches the composite.
+    """
+    if goal == "ignore":
+        return 1.0
+    if value is None or not math.isfinite(value):
+        return 0.0
+    if limits is None:
+        return 0.0
+    lower, upper, target = limits
+    weight = min(10.0, max(0.1, float(weight)))
+    if goal == "maximize":
+        if value <= lower:
+            return 0.0
+        if value >= upper:
+            return 1.0
+        return ((value - lower) / (upper - lower)) ** weight
+    if goal == "minimize":
+        if value <= lower:
+            return 1.0
+        if value >= upper:
+            return 0.0
+        return ((upper - value) / (upper - lower)) ** weight
+    if goal == "target":
+        if target is None:
+            return 1.0 if lower <= value <= upper else 0.0
+        if value <= lower or value >= upper:
+            return 0.0
+        if value <= target:
+            head = target - lower
+            return 1.0 if head <= 0 else ((value - lower) / head) ** weight
+        tail = upper - target
+        return 1.0 if tail <= 0 else ((upper - value) / tail) ** weight
+    return 1.0 if lower <= value <= upper else 0.0
+
+
+def _opt_composite(entries):
+    """Importance-weighted geometric mean over the responses that count."""
+    active = [entry for entry in entries if entry["goal"] != "ignore"]
+    if not active:
+        return 0.0
+    total = 0.0
+    logs = 0.0
+    for entry in active:
+        d = min(1.0, max(0.0, entry["d"]))
+        if d <= 0:
+            return 0.0
+        importance = min(10.0, max(0.1, float(entry["importance"])))
+        total += importance
+        logs += importance * math.log(d)
+    return 0.0 if total <= 0 else math.exp(logs / total)
+
+
+def _opt_limits(response):
+    lower = response.get("lower")
+    upper = response.get("upper")
+    if lower is None or upper is None:
+        return None
+    lo, hi = (min(lower, upper), max(lower, upper))
+    if lo == hi:
+        return None
+    target = response.get("target")
+    return (lo, hi, target if target is not None and math.isfinite(target) else None)
+
+
+def op_optimize(bag, ds, args, cid):
+    """Multi-response optimisation against SciPy, not against the TypeScript search.
+
+    The composite is maximised here with `scipy.optimize.differential_evolution`
+    over the factor bounds and then polished with L-BFGS-B, from a seeded
+    generator so the run is reproducible. A discrete or categorical axis is
+    enumerated exactly instead. The models are either the same quadratics the
+    surface cases fit with statsmodels, or an explicit coefficient spec.
+    """
+    from scipy import optimize as spopt
+
+    factors = args["factors"]
+    responses = args["responses"]
+    mode = args.get("mode", "dataset")
+
+    models = []
+    interval_terms = []
+    rank_issues = []
+    if mode == "spec":
+        for spec in args["models"]:
+            if spec.get("nonEstimable"):
+                rank_issues.append("opt.issue.nonEstimable")
+            labels = [c["label"] for c in spec["coefficients"]]
+            beta = np.array([float(c["value"]) for c in spec["coefficients"]])
+            non_estimable = set(spec.get("nonEstimable") or [])
+            covariance = spec.get("covariance")
+            residual = spec.get("residual") or {}
+            df = residual.get("df")
+
+            def predict(values, spec=spec, labels=labels, beta=beta, non_estimable=non_estimable,
+                        covariance=covariance, df=df, residual=residual):
+                row = _model_design_row(spec, values, "actual")
+                leaning = [labels[i] for i in range(len(labels)) if row[i] != 0 and labels[i] in non_estimable]
+                if leaning:
+                    return None, None
+                value = float(row @ beta)
+                se = None
+                if covariance and df:
+                    sigma = np.array(covariance, dtype=float)
+                    variance = float(row @ sigma @ row)
+                    if variance >= 0:
+                        se = math.sqrt(variance)
+                return value, se
+
+            models.append(predict)
+            interval_terms.append((float(residual.get("mse") or 0.0), df))
+    else:
+        dataset_factors = args.get("datasetFactors", ["x", "y"])
+        for response in responses:
+            fit = _quadratic_fit(ds, response["name"], dataset_factors)
+            params = fit.params
+            cov = fit.cov_params()
+            df = fit.df_resid
+
+            def predict(values, params=params, cov=cov, df=df):
+                row = _quadratic_design([values[dataset_factors[0]]], [values[dataset_factors[1]]])[0]
+                value = float(row @ params)
+                variance = float(row @ cov @ row)
+                se = math.sqrt(variance) if variance >= 0 else None
+                return value, se
+
+            models.append(predict)
+            interval_terms.append((float(fit.mse_resid), df))
+
+    # Every response that takes part needs usable limits, exactly as the app
+    # requires; an unusable one is reported rather than quietly dropped.
+    issues = []
+    limits = []
+    for response in responses:
+        if response["goal"] == "ignore":
+            limits.append(None)
+            continue
+        bound = _opt_limits(response)
+        if bound is None:
+            issues.append("opt.issue.limitsMissing")
+        limits.append(bound)
+    issues.extend(rank_issues)
+    if issues:
+        bag.put("status", "invalid")
+        bag.put("issues", ",".join(sorted(set(issues))))
+        bag.put("composite", None)
+        for factor in factors:
+            bag.put(f"x:{factor['name']}", None)
+        for response in responses:
+            bag.put(f"pred:{response['name']}", None)
+            bag.put(f"d:{response['name']}", None)
+            bag.put(f"se:{response['name']}", None)
+            for suffix in ("pi_low", "pi_high"):
+                bag.put(f"{suffix}:{response['name']}", None)
+        bag.put("evaluations", 0)
+        bag.put("solutions", 0)
+        bag.put("compliant", None)
+        mark(cid, "desirability rules re-implemented · unusable limits refused")
+        return
+
+    free = [factor for factor in factors if not factor.get("fixed")]
+    if not free:
+        bag.put("status", "invalid")
+        bag.put("issues", "opt.issue.allFixed")
+        bag.put("composite", None)
+        for factor in factors:
+            bag.put(f"x:{factor['name']}", None)
+        for response in responses:
+            bag.put(f"pred:{response['name']}", None)
+            bag.put(f"d:{response['name']}", None)
+            bag.put(f"se:{response['name']}", None)
+            for suffix in ("pi_low", "pi_high"):
+                bag.put(f"{suffix}:{response['name']}", None)
+        bag.put("evaluations", 0)
+        bag.put("solutions", 0)
+        bag.put("compliant", None)
+        mark(cid, "desirability rules re-implemented · fully fixed problem refused")
+        return
+
+    counts = {"n": 0}
+
+    def evaluate(values):
+        counts["n"] += 1
+        entries = []
+        preds = {}
+        for index, response in enumerate(responses):
+            value, se = models[index](values)
+            goal = response["goal"]
+            bound = limits[index]
+            d = _opt_desirability(value, goal, bound, response.get("weight", 1))
+            preds[response["name"]] = (value, se, d)
+            if goal != "ignore" and bound is not None:
+                if goal == "maximize":
+                    compliant = value is not None and value >= bound[0]
+                elif goal == "minimize":
+                    compliant = value is not None and value <= bound[1]
+                else:
+                    compliant = value is not None and bound[0] <= value <= bound[1]
+                entries.append({"d": d, "importance": response.get("importance", 1), "goal": goal, "compliant": compliant})
+        composite = _opt_composite(entries)
+        compliant_all = bool(entries) and all(entry["compliant"] for entry in entries)
+        return composite, preds, compliant_all
+
+    base = {}
+    for factor in factors:
+        if factor.get("fixed"):
+            base[factor["name"]] = factor.get("fixedValue", factor["lower"])
+
+    discrete_axes = {}
+    for factor in free:
+        if factor.get("kind") == "categorical":
+            discrete_axes[factor["name"]] = list(factor.get("levels") or [])
+        elif factor.get("kind") == "discrete":
+            step = factor.get("step") or 0
+            if step <= 0:
+                discrete_axes[factor["name"]] = [factor["lower"], factor["upper"]]
+            else:
+                values = np.arange(factor["lower"], factor["upper"] + step * 1e-9, step)
+                discrete_axes[factor["name"]] = [float(v) for v in values]
+
+    def complete(values):
+        point = dict(base)
+        point.update(values)
+        return point
+
+    best = None
+    if discrete_axes and len(discrete_axes) == len(free):
+        # A fully discrete space: enumerate it exactly.
+        import itertools
+        names = list(discrete_axes)
+        for combo in itertools.product(*[discrete_axes[name] for name in names]):
+            point = complete(dict(zip(names, combo)))
+            result = evaluate(point)
+            if best is None or result[0] > best[0]:
+                best = (result[0], point, result[1], result[2])
+    else:
+        continuous = [factor for factor in free if factor["name"] not in discrete_axes]
+        bounds = [(float(factor["lower"]), float(factor["upper"])) for factor in continuous]
+        fixed_levels = {factor["name"]: (discrete_axes[factor["name"]][0] if discrete_axes else None) for factor in free if factor["name"] in discrete_axes}
+
+        def objective(vector):
+            values = {}
+            for index, factor in enumerate(continuous):
+                values[factor["name"]] = float(vector[index])
+            values.update(fixed_levels)
+            for name, axis in discrete_axes.items():
+                values[name] = axis[0]
+            return -evaluate(complete(values))[0]
+
+        result = spopt.differential_evolution(
+            objective, bounds, seed=int(args.get("seed", 1)), tol=1e-12, polish=True,
+            maxiter=400, popsize=24, init="sobol",
+        )
+        values = {factor["name"]: float(result.x[index]) for index, factor in enumerate(continuous)}
+        values.update(fixed_levels)
+        for name, axis in discrete_axes.items():
+            values[name] = axis[0]
+        point = complete(values)
+        # Polish inside the bounds so a boundary optimum sits exactly on it.
+        lo = np.array([b[0] for b in bounds])
+        hi = np.array([b[1] for b in bounds])
+        polished = spopt.minimize(
+            lambda vector: -evaluate(complete({**{factor["name"]: float(np.clip(vector[i], lo[i], hi[i])) for i, factor in enumerate(continuous)}, **{name: axis[0] for name, axis in discrete_axes.items()}}))[0],
+            result.x, method="L-BFGS-B", bounds=bounds, options={"ftol": 1e-15, "gtol": 1e-10},
+        )
+        final = {factor["name"]: float(np.clip(polished.x[index], lo[index], hi[index])) for index, factor in enumerate(continuous)}
+        final.update({name: axis[0] for name, axis in discrete_axes.items()})
+        point = complete(final)
+        result_values = evaluate(point)
+        best = (result_values[0], point, result_values[1], result_values[2])
+
+    composite, point, preds, compliant_all = best
+    status = "optimal" if composite > 0 else "no-feasible"
+    bag.put("status", status)
+    bag.put("issues", "")
+    bag.put("composite", composite)
+    bag.put("compliant", 1 if compliant_all else 0)
+    for factor in factors:
+        bag.put(f"x:{factor['name']}", point.get(factor["name"]))
+    for index, response in enumerate(responses):
+        value, se, d = preds[response["name"]]
+        bag.put(f"pred:{response['name']}", value)
+        bag.put(f"d:{response['name']}", d)
+        bag.put(f"se:{response['name']}", se)
+        half = None
+        mse, df = interval_terms[index]
+        if se is not None and df:
+            from scipy import stats as _stats
+            half = float(_stats.t.ppf(1 - 0.05 / 2, df)) * math.sqrt(se ** 2 + max(0.0, mse))
+        bag.put(f"pi_low:{response['name']}", None if value is None or half is None else value - half)
+        bag.put(f"pi_high:{response['name']}", None if value is None or half is None else value + half)
+    bag.put("evaluations", counts["n"])
+    bag.put("solutions", 1)
+    mark(cid, "statsmodels/numpy models · Derringer–Suich re-implemented · scipy differential_evolution + L-BFGS-B")
+
+
 def op_sheet(bag, ds, args, cid):
     """QA-U — the documented chart / worksheet-transform rules, independently.
 
@@ -2213,6 +2515,7 @@ OPS = {
     "sheet": op_sheet,
     "modelpredict": op_modelpredict,
     "surface3d": op_surface3d,
+    "optimize": op_optimize,
     "feasible": op_feasible,
     "nelson": op_nelson,
 }

@@ -30,6 +30,8 @@ interface Props {
   onContour: (model: StoredModel) => void;
   onSurface: (model: StoredModel) => void;
   onOverlaid: (models: StoredModel[]) => void;
+  /** Open the response optimiser on the picked models (or the selected one). */
+  onOptimize: (models: StoredModel[]) => void;
 }
 
 interface PredictionState {
@@ -55,7 +57,7 @@ function staleLabel(lang: Lang, model: StoredModel, worksheets: Worksheet[]): { 
 }
 
 export function ModelManager({
-  lang, models, worksheets, activeSheetId, onClose, onRename, onDuplicate, onDelete, onRefit, onContour, onSurface, onOverlaid,
+  lang, models, worksheets, activeSheetId, onClose, onRename, onDuplicate, onDelete, onRefit, onContour, onSurface, onOverlaid, onOptimize,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(models[0]?.id ?? null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -74,6 +76,11 @@ export function ModelManager({
   const pickedModels = models.filter((model) => selectedIds.includes(model.id));
   const sharedFactors = pickedModels.length >= 2 ? commonNumericFactors(pickedModels) : { factors: [], problems: [] };
   const overlaidReady = pickedModels.length >= 2 && sharedFactors.factors.length >= 2;
+  // The optimiser needs at least one usable factor: a response with a single
+  // numeric predictor is still a one-dimensional optimisation problem.
+  const optimizerModels = pickedModels.length ? pickedModels : selected ? [selected] : [];
+  const optimizerReady = optimizerModels.length > 0
+    && optimizerModels.some((model) => model.predictors.some((predictor) => predictor.kind === 'numeric'));
   const interval = pickedModels.length ? intervalAvailability(pickedModels) : { ok: true, blocked: [] };
 
   const select = (id: string) => {
@@ -366,10 +373,17 @@ export function ModelManager({
                     >
                       {t(lang, 'model.followup.overlaid', { n: pickedModels.length })}
                     </button>
-                    <button type="button" className="btn" disabled data-testid="mm-optimizer">
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={!optimizerReady || Boolean(staleness && staleness.state === 'missing-data')}
+                      onClick={() => onOptimize(optimizerModels)}
+                      title={t(lang, 'model.followup.optimizerHint')}
+                      data-testid="mm-optimizer"
+                      data-count={optimizerModels.length}
+                    >
                       {t(lang, 'model.followup.optimizer')}
                     </button>
-                    <span className="mono-note">{t(lang, 'model.followup.later')}</span>
                   </div>
                   {previewSurface && (
                     <p className="mono-note" data-testid="mm-surface-preview">

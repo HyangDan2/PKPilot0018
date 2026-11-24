@@ -98,6 +98,8 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const glRef = useRef<SurfaceGlRenderer | null>(null);
   const geometryRef = useRef<SurfaceGeometry | null>(null);
+  /** The geometry inputs the live GL buffers were filled from (mount builds once). */
+  const builtFor = useRef<unknown[] | null>(null);
   const [renderer, setRenderer] = useState<Renderer>('webgl');
   const [camera, setCamera] = useState<SurfaceCameraConfig>(config?.camera ?? defaultSurfaceViewConfig().camera);
   const [dragging, setDragging] = useState(false);
@@ -161,6 +163,7 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
       return undefined;
     }
     glRef.current = rendererGl;
+    builtFor.current = [chart.xs, chart.ys, chart.z, view.colormap, view.zScale, view.meshDensity, view.renderMode];
     setRenderer('webgl');
     const onLost = (event: Event) => {
       event.preventDefault();
@@ -173,6 +176,7 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
       rendererGl.dispose();
       glRef.current = null;
       geometryRef.current = null;
+      builtFor.current = null;
     };
     // Mount only: geometry changes are handled by the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,6 +185,13 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
   useEffect(() => {
     const rendererGl = glRef.current;
     if (!rendererGl) return;
+    const inputs: unknown[] = [chart.xs, chart.ys, chart.z, view.colormap, view.zScale, view.meshDensity, view.renderMode];
+    // The mount effect already uploaded exactly this geometry; re-uploading the
+    // same 160k-vertex grid on every mount would be work for no new pixels.
+    if (builtFor.current && builtFor.current.length === inputs.length && builtFor.current.every((value, index) => value === inputs[index])) {
+      draw();
+      return;
+    }
     const geometry = buildSurfaceGeometry({ xs: chart.xs, ys: chart.ys, z: chart.z }, {
       colormap: view.colormap,
       zScale: view.zScale,
@@ -190,9 +201,11 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
     if (!rendererGl.setGeometry(geometry)) {
       rendererGl.dispose();
       glRef.current = null;
+      builtFor.current = null;
       setRenderer('static');
       return;
     }
+    builtFor.current = inputs;
     geometryRef.current = geometry;
     draw();
     // `draw` is stable per frame; including it would re-upload on every camera move.
