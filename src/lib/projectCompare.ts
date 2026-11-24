@@ -191,8 +191,10 @@ function walk(expected: unknown, actual: unknown, path: string, base: ProjectMis
     for (const key of [...keys].sort()) {
       if (EXCLUDED_METADATA.has(key)) continue;
       const childPath = path ? `${path}.${key}` : key;
-      const hasWant = Object.prototype.hasOwnProperty.call(want, key);
-      const hasGot = Object.prototype.hasOwnProperty.call(got, key);
+      // JSON cannot carry `undefined`: a property set to it and an absent
+      // property are the same record once the project has been written.
+      const hasWant = Object.prototype.hasOwnProperty.call(want, key) && want[key] !== undefined;
+      const hasGot = Object.prototype.hasOwnProperty.call(got, key) && got[key] !== undefined;
       if (hasWant && !hasGot) {
         report(list, budget, {
           kind: kindFor(childPath, base),

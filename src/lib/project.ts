@@ -470,7 +470,7 @@ function styleProblem(value: unknown): string | null {
  * analysis already refers to (see `columnSequence`). Deriving it from the ids
  * the sheet does carry is a migration, not a guess.
  */
-function migrateWorksheet(sheet: Worksheet): Worksheet {
+export function migrateWorksheet(sheet: Worksheet): Worksheet {
   const columns = sheet.columns.map((column) => ({
     ...column,
     values: Array.isArray(column.values) ? column.values : [],

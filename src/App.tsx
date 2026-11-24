@@ -121,6 +121,7 @@ import {
   downloadFile,
   looksLikeMinitabBinary,
   makeOutputId,
+  migrateWorksheet,
   columnSequence,
   newColumnId,
   parseCsv,
@@ -2140,7 +2141,9 @@ export default function App() {
     try {
       const parsed = parseProject(json);
       const comparison = compareProjects(
-        { worksheets, activeSheetId, settings, outputs, models: storedModels, figures, customChartStyles: loadCustomStyles() },
+        // A sheet that predates the current schema is compared as the loader
+        // will hand it back, so a derived migration value is not a difference.
+        { worksheets: worksheets.map(migrateWorksheet), activeSheetId, settings, outputs, models: storedModels, figures, customChartStyles: loadCustomStyles() },
         {
           worksheets: parsed.worksheets,
           activeSheetId: parsed.activeSheetId,

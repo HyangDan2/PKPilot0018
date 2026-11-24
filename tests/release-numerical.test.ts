@@ -138,6 +138,30 @@ describe('WO-02 F-REL-04 · a narrow range at a large offset', () => {
     expect(overlap?.[0]).toBe(OFFSET + 0.0005);
     expect(overlap?.[1]).toBe(NARROW_UPPER);
   });
+
+  it('does not call a design limit rounded into the data an extrapolation', () => {
+    // The CCD axial point is 2^(1/4) = 1.189207115002721; the column that
+    // carries it in the dataset is written with nine decimals. Searching the
+    // design's own range must not be refused: the difference is the column's
+    // rounding (≈1.1e-12 of the width), not a value the data never covered.
+    const fitted = model({ min: -1.189207115, max: 1.189207115 });
+    const axial = 1.189207115002721;
+    const problem = buildProblem(
+      [fitted],
+      [goal(fitted)],
+      [factor({ lower: -axial, upper: axial })],
+      { allowExtrapolation: false },
+    );
+    expect(problem.issues).not.toContain('opt.issue.extrapolationNotAllowed');
+    // A limit a reader could have meant is still a real excursion.
+    const beyond = buildProblem(
+      [fitted],
+      [goal(fitted)],
+      [factor({ lower: -1.189208115, upper: axial })],
+      { allowExtrapolation: false },
+    );
+    expect(beyond.issues).toContain('opt.issue.extrapolationNotAllowed');
+  });
 });
 
 /* ── 12 · fitted ranges that do not overlap ────────────────────────────── */

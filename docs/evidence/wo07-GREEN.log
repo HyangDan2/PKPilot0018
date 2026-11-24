@@ -1,0 +1,37 @@
+# WO-07 GREEN — full regression QA after the WO-07 corrections
+
+date: 2026-11-25 (UTC)
+host: macOS arm64 · node v24.22.1 (local shell) · pinned python 3.12.16
+       numpy 2.5.4 / scipy 1.18.1 / statsmodels 0.15.0 / pandas 3.1.1 / patsy 1.0.3
+
+## typecheck
+npx tsc --noEmit → no output (clean)
+
+## unit suite
+npx vitest run → Test Files 54 passed (54) · Tests 1215 passed (1215)
+  (baseline 1212 + 3 new regression tests: undefined/absent field equality,
+   schema-v2 columnSeq migration is not a difference, and design-limit slack)
+
+## statistics QA (pinned environment)
+bash qa/run.sh → cases 225 · PASS 225 · FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0
+  pass rate (PASS/(PASS+FAIL)) = 100.0%
+  QA-W (optimiser) 32/32 — the 10 extrapolationNotAllowed refusals in the RED
+  run were the width share being below the rounding of a design bound into the
+  data column (2.72e-12 absolute, 1.14e-12 of the width).
+
+## web tutorial E2E
+node tools/e2e_tutorials.cjs → 28/28 checks passed
+  tutorial-rsm-001 now completes; save-project round-trip verified.
+
+## portable build + offline E2E
+npm run build:portable → portable build complete
+node tools/e2e_portable_offline.cjs → 63/63 checks passed
+node tools/e2e_portable_tutorials.cjs → 8/8 portable checks passed
+
+## tutorial guard probe
+node tools/probe_tutorial_guard.cjs → 10/10 checks passed
+
+## totals against the baseline claim
+unit 1212→1215 (additions, none removed) · statistics 225/225 · web tutorials
+24→28 checks (flagship completes again) · portable 63/63 · portable tutorials
+8/8 · guard 10/10.

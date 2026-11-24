@@ -1,0 +1,24 @@
+# WO-07 RED — regression QA against the WO-FINAL-001 baseline (before the WO-07 corrections)
+# date: 2026-11-24T16:57:29Z  commit: 7c6c0a3
+
+## npm test
+1212 passed (1212)
+
+## bash qa/run.sh (pinned python 3.12.16 / numpy 2.5.4 / scipy 1.18.1)
+
+## node tools/e2e_tutorials.cjs
+FAIL · tutorial tutorial-rsm-001 completes · step save-project did not advance after export-project: The saved project could not be read back with the same data, outputs, models and figures.
+    MISMATCHES: worksheets[0].columnSeq present only after parse (schema-v2 migration);
+    outputs[1].blocks[0].caption / chart.groups / chart.xDomain are undefined in memory and absent after JSON.
+12/13 checks passed
+qa/reports/latest.json (225 cases) — summary: PASS 215 / FAIL 10 / REVIEW 0 / UNVERIFIED 0 / ERROR 0
+FAIL QA-W-01: composite [type] adapter={'__special': 'null'} ref=0.7187297217884471; x:x [type] adapter={'__special': 'null'} ref=0.3765970803309491; x:y [type] adapter={'__special': 'null'} ref=-0.2732660517622559; pred:Y1 [type] adapter={'__special': 'null'} ref=61.56189165365341; d:Y1 [type] adapter={'__special': 'null'} ref=0.7187297217884471; se:Y1 [type] adapter={'__special': 'null'} ref=0.08273641407612195; compliant [type] adapter={'__special': 'null'} ref=1
+FAIL QA-W-02: composite [type] adapter={'__special': 'null'} ref=0.7239275863577307; x:x [type] adapter={'__special': 'null'} ref=-0.025321806639832415; x:y [type] adapter={'__special': 'null'} ref=-0.6895746557924373; pred:Y1 [type] adapter={'__special': 'null'} ref=60.274511844017134; pred:Y2 [type] adapter={'__special': 'null'} ref=26.73610891894586; d:Y1 [type] adapter={'__special': 'null'} ref=0.6758170614672377; d:Y2 [type] adapter={'__special': 'null'} ref=0.775463036035138
+FAIL QA-W-03: composite [type] adapter={'__special': 'null'} ref=0.7804836028805346; x:x [type] adapter={'__special': 'null'} ref=-0.34123779256203585; x:y [type] adapter={'__special': 'null'} ref=-1.1011058892084062; pred:Y1 [type] adapter={'__special': 'null'} ref=56.97997048193821; pred:Y2 [type] adapter={'__special': 'null'} ref=24.626985657259578; d:Y2 [type] adapter={'__special': 'null'} ref=0.8457671447580141
+FAIL QA-W-04: composite [type] adapter={'__special': 'null'} ref=0.9999999999999869; pred:Y1 [type] adapter={'__special': 'null'} ref=56.99999999999992; d:Y1 [type] adapter={'__special': 'null'} ref=0.9999999999999869
+FAIL QA-W-06: status [mismatch] adapter=invalid ref=feasible-not-found; composite [type] adapter={'__special': 'null'} ref=0.0; compliant [type] adapter={'__special': 'null'} ref=0
+FAIL QA-W-11: issues [mismatch] adapter=opt.issue.extrapolationNotAllowed,opt.issue.limitsMissing ref=opt.issue.limitsMissing
+FAIL QA-W-12: composite [type] adapter={'__special': 'null'} ref=0.7187297217884473
+FAIL QA-W-13: status [mismatch] adapter=invalid ref=local-converged; composite [type] adapter={'__special': 'null'} ref=0.7187297217884463; x:x [type] adapter={'__special': 'null'} ref=0.37659705847293773; x:y [type] adapter={'__special': 'null'} ref=-0.27326610596054696; pred:Y1 [type] adapter={'__special': 'null'} ref=61.56189165365339
+FAIL QA-W-27: status [mismatch] adapter=invalid ref=feasible-not-found; compliant [type] adapter={'__special': 'null'} ref=0; composite [type] adapter={'__special': 'null'} ref=0.0
+FAIL QA-W-28: composite [type] adapter={'__special': 'null'} ref=0.7239275863577307; rev_composite [type] adapter={'__special': 'null'} ref=0.7239275863577307; x:x [type] adapter={'__special': 'null'} ref=-0.025321806639832415; rev_x:x [type] adapter={'__special': 'null'} ref=-0.025321806639832415; x:y [type] adapter={'__special': 'null'} ref=-0.6895746557924373; rev_x:y [type] adapter={'__special': 'null'} ref=-0.6895746557924373; pred:Y1 [type] adapter={'__special': 'null'} ref=60.274511844017134; rev_pred:Y1 [type] adapter={'__special': 'null'} ref=60.274511844017134

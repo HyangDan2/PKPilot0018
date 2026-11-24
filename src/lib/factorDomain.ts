@@ -48,7 +48,7 @@ export const MAX_SAFE_MAGNITUDE = Number.MAX_SAFE_INTEGER;
 export const MAX_AXIS_POINTS = 20001;
 
 /**
- * The slack allowed around a range's limits (WO-FINAL-001 · F-REL-04).
+ * The slack allowed around a range's limits (WO-FINAL-001 · F-REL-04, WO-07).
  *
  * A bounds question is answered at the resolution the numbers themselves can
  * carry — a few ULPs at this magnitude — plus a tiny share of the range's own
@@ -57,8 +57,13 @@ export const MAX_AXIS_POINTS = 20001;
  * a value 0.05 past Upper, while an endpoint that one arithmetic step rounded
  * by an ULP is still the endpoint.
  *
- * `width / 1e12` absorbs the rounding of building a range (upper − lower) at
- * any magnitude; it never exceeds a meaningful fraction of the range itself.
+ * `width × 1e-9` absorbs a bound that was rounded on its way into a data
+ * column: a design limit such as 1.189207115002721 kept at full precision
+ * against a column written with nine decimals (±1.189207115) differs in the
+ * tenth significant digit, which is ≈1.1e-12 of the width. That share is
+ * still far below anything a reader could choose to search — a range at 1e8
+ * that is 0.001 wide gets 1e-12 of slack — so a physical excursion is never
+ * adopted as an endpoint.
  */
 export function rangeSlack(lower: number, upper: number, value = 0, ulps = 4): number {
   const magnitude = Math.max(
@@ -69,7 +74,7 @@ export function rangeSlack(lower: number, upper: number, value = 0, ulps = 4): n
   const spacing = doubleSpacing(magnitude);
   const fromUlps = Number.isFinite(spacing) ? ulps * spacing : 0;
   const width = Number.isFinite(upper - lower) ? Math.abs(upper - lower) : 0;
-  return Math.max(fromUlps, width * 1e-12);
+  return Math.max(fromUlps, width * 1e-9);
 }
 
 /**

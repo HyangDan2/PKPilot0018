@@ -16,7 +16,7 @@ import type { StoredModel } from '../src/lib/modelStore';
 import type { CustomChartStyle } from '../src/lib/chartStyles';
 import { CHART_STYLE_IDS } from '../src/lib/chartStyles';
 import { compareProjects, projectFingerprint } from '../src/lib/projectCompare';
-import { parseProject, serializeProject, type ProjectState } from '../src/lib/project';
+import { parseProject, serializeProject, migrateWorksheet, type ProjectState } from '../src/lib/project';
 
 const settings: Settings = { theme: 'light', lang: 'en' };
 
@@ -402,6 +402,36 @@ describe('project schema validation', () => {
     expect(parsed.originalVersion).toBe(0);
     expect(parsed.activeSheetId).toBe('W1');
     expect(parsed.worksheets[0].columnSeq).toBe(3);
+  });
+
+  it('26 — an undefined field and an absent field are the same saved record', () => {
+    // A block object built in memory may carry a key whose value is undefined;
+    // JSON cannot write that key. The round-trip check must not call the
+    // dropped key data loss, while a real value still differs.
+    const expected = project();
+    const block = expected.outputs[0].blocks[0] as unknown as Record<string, unknown>;
+    block.caption = undefined;
+    const written = JSON.parse(JSON.stringify(expected));
+    expect(compareProjects(expected, written).ok).toBe(true);
+
+    const changed = JSON.parse(JSON.stringify(expected));
+    (changed.outputs[0].blocks[0] as Record<string, unknown>).caption = '';
+    expect(compareProjects(expected, changed).ok).toBe(false);
+  });
+
+  it('27 — the loader’s derived column sequence is not a round-trip difference', () => {
+    // A sheet created before the v2 schema has no columnSeq; the loader derives
+    // it from the column ids. The save check compares against the sheet as the
+    // loader will hand it back, so the derived value is not reported as a loss.
+    const live = project();
+    delete (live.worksheets[0] as Partial<Worksheet>).columnSeq;
+    const parsed = parseProject(serializeProject(live as unknown as ProjectState));
+    expect(parsed.worksheets[0].columnSeq).toBe(2);
+    expect(compareProjects({ worksheets: live.worksheets }, { worksheets: parsed.worksheets }).ok).toBe(false);
+    expect(compareProjects(
+      { worksheets: live.worksheets.map(migrateWorksheet) },
+      { worksheets: parsed.worksheets },
+    ).ok).toBe(true);
   });
 });
 
