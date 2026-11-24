@@ -17,7 +17,7 @@
 | `npm run build:portable` | 성공 — `sigrun-portable.html` 1 549.2 kB (1 586 419 B) · `sigrun-portable.zip` 453.9 kB (464 816 B), 스탬프 2026-11-24T15:37Z |
 | Portable ZIP 배포 위치 | `/workspace/work/pkpilot0018/sigrun-portable.zip` 갱신 |
 | Tutorial E2E (`tools/e2e_tutorials.cjs`) | 12개 레슨 전부 통과 · 배치별 **16/16, 15/15, 14/14, 13/13** (중복 실행 포함) |
-| Tutorial Guard probe (`tools/probe_tutorial_guard.cjs`) | **9 / 9 PASS** (기준선 빌드에서는 4 FAIL) |
+| Tutorial Guard probe (`tools/probe_tutorial_guard.cjs`) | **10 / 10 PASS** (기준선 빌드에서는 실행된 9건 중 4 FAIL) |
 | Portable Offline (`file://`, 네트워크 차단) | `qa:portable` **63 / 63**, `qa:tutorials:portable` **8 / 8** |
 | 교정 증빙 스위트 (RED → GREEN) | 기준선 **19 FAIL / 5 PASS** → 교정 **24 / 24 PASS** |
 
@@ -29,7 +29,7 @@
 - 시작 경로: `beginTutorial()` → `guardOriginalProject()`가 원본 프로젝트를 `.sigrun.json` 텍스트와 지문(fingerprint)으로 `sigrun.tutorials.original.v1`에 쓰고 **다시 읽어 텍스트·지문이 같은지** 확인한다. 확인되지 않으면 실습을 **시작하지 않고** `tutorial-backup-dialog`를 띄운다. 그 dialog의 "백업을 내려받고 실습 시작" 버튼이 파일을 내려준 뒤에야 실습이 열린다(명시적 백업 안내).
 - 자동 저장 지연: 시작 직전 `saveAutosave()`를 **await**해 아직 남아 있던 자동 저장분을 먼저 확정한다. 진행 중이던 저장은 원본 상태를 담고 있으므로(자동 저장은 실습 중 정지) 원본을 덮지 않는다.
 - 새로고침·브라우저 종료: 자동 저장이 비어 있거나 **실습 프로젝트가 자동 저장 슬롯에 들어 있는** 경우, hydration 단계에서 보관된 원본을 워크스페이스로 복원하고 `tut.originalRestored`를 알린다. 실습을 끝낼 때 창의 스냅샷이 없으면 보관본에서 복원한다(`restoreOriginalProject`).
-- 회귀: (a) 저장소가 거부하는 상태에서 실습이 열리지 않고 백업 dialog가 뜬다, (b) 자동 저장 debounce 중에 시작해도 직전 셀 편집이 살아남는다, (c) 실습 도중 새로고침해도 원본 워크시트가 남는다 — probe 3건 + 기존 E2E 1건.
+- 회귀: (a) 저장소가 거부하는 상태에서 실습이 열리지 않고 백업 dialog가 뜬다, (b) 자동 저장 debounce 중에 시작해도 직전 셀 편집이 살아남는다, (c) 실습 도중 새로고침해도 원본 워크시트가 남는다, (d) 저장 모형과 Figure가 있는 프로젝트를 열어 실습을 마치면 내보낸 파일의 시트·행·모형 계수·Figure 패널/라벨이 모두 그대로다(`tools/fixtures/guard-original.sigrun.json`) — probe 4건 + 기존 E2E 1건.
 
 ### P1 — 실습 격리와 검증 정확성
 
@@ -116,15 +116,18 @@ tests/tutorial-corrective-qa.test.ts
 ### 3.2 실행 중인 앱 (브라우저 probe, 기준선 빌드 vs 교정 빌드)
 
 ```
-DIST=<기준선 dist> node tools/probe_tutorial_guard.cjs   → 4 / 8 통과
-node tools/probe_tutorial_guard.cjs                      → 9 / 9 통과
+DIST=<기준선 dist> node tools/probe_tutorial_guard.cjs   → 5 / 9 통과 (4 FAIL)
+node tools/probe_tutorial_guard.cjs                      → 10 / 10 통과
 ```
+
+기준선에서 9건만 실행되는 이유: "백업 후 원본 복원" 검사는 백업 버튼이 있는 흐름에서만 돌기 때문이다. 기준선에는 그 버튼 자체가 없다.
 
 | 검사 | 기준선 | 교정 |
 | --- | --- | --- |
 | T-01 저장소가 거부하면 실습 중단 + 백업 안내 | **FAIL** `backup=0 dock=1 practiceTab=true` (원본 사본 없이 실습 시작) | PASS `backup=1 dock=0` |
 | T-01 백업을 내려받은 뒤에만 실습 시작 | **FAIL** `no backup button` | PASS |
 | T-01 실습 종료 후 원본 워크시트 복원 | — | PASS |
+| T-01 저장 모형·Figure 포함 원본 프로젝트 완전 복원 | PASS | PASS (회귀, brief 회귀 #2) |
 | T-01 자동 저장 debounce 중 편집 보존 | PASS | PASS (회귀) |
 | T-01 실습 중 새로고침 후 원본 유지 | PASS | PASS (회귀) |
 | T-02 실습 안에서 바꾼 테마가 밖으로 나오지 않음 | **FAIL** `before=light inside=dark after=dark` | PASS `after=light` |
@@ -156,7 +159,7 @@ node tools/probe_tutorial_guard.cjs                      → 9 / 9 통과
 | 원격 브랜치 | `fix/tutorial-corrective-qa` 삭제 (`git push origin --delete`; REST 삭제는 403) |
 | 라이브 번들 | `https://hyangdan2.github.io/PKPilot0018/assets/index-6yt7r07p.js` |
 | 라이브 상태바 | `HD2LAB · SIGRÚN · PHASE 3` (T-13) |
-| 라이브 probe | `LIVE_URL=https://hyangdan2.github.io/PKPilot0018/ node tools/probe_tutorial_guard.cjs` → **9 / 9 PASS** |
+| 라이브 probe | `LIVE_URL=https://hyangdan2.github.io/PKPilot0018/ node tools/probe_tutorial_guard.cjs` → **10 / 10 PASS** |
 | Portable ZIP | `/workspace/work/pkpilot0018/sigrun-portable.zip` (464 816 B, 스탬프 2026-11-24T15:37Z) |
 
 라이브 스크린샷: `work/artifacts/live-tutorial-qa.png`, probe 화면: `work/artifacts/tutorial-guard-live/`.

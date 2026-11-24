@@ -179,6 +179,51 @@ async function main() {
   check('T-01 an edit made while the autosave was still debouncing survives the practice', editSurvived, `cell 4242 present=${editSurvived}`);
   await shot(page, '03-edited-cell-after-practice');
 
+  /* ── T-01/T-02: a project with a stored model and a figure comes back whole ── */
+  const fixture = process.env.GUARD_FIXTURE || path.resolve(__dirname, 'fixtures', 'guard-original.sigrun.json');
+  if (fs.existsSync(fixture)) {
+    await boot(page, base);
+    await page.click('[data-testid=menu-file]');
+    const chooserPromise = page.waitForEvent('filechooser', { timeout: 15000 });
+    await page.click('[data-testid=menu-item-open]');
+    const chooser = await chooserPromise;
+    await chooser.setFiles(fixture);
+    await wait(page, 1500);
+    const exportProject = async () => {
+      const download = page.waitForEvent('download', { timeout: 15000 });
+      await page.click('[data-testid=menu-file]');
+      await page.click('[data-testid=menu-item-save]');
+      const file = await download;
+      const target = path.join(SHOTS, `export-${Date.now()}.sigrun.json`);
+      fs.mkdirSync(SHOTS, { recursive: true });
+      await file.saveAs(target);
+      const parsed = JSON.parse(fs.readFileSync(target, 'utf8'));
+      fs.unlinkSync(target);
+      return parsed;
+    };
+    const summarize = (project) => ({
+      sheets: project.worksheets.length,
+      rows: project.worksheets[0].columns[0].values.length,
+      models: (project.models || []).map((model) => `${model.name}:${model.coefficients.length}`).join('|'),
+      figures: (project.figures || []).map((figure) => figure.panels.map((panel) => panel.kind).join('+')).join('|'),
+      figureLabel: (project.figures || []).map((figure) => figure.panels.filter((panel) => panel.kind === 'figure-label').map((panel) => panel.label).join(',')).join('|'),
+    });
+    const beforeProject = summarize(await exportProject());
+    await startIsolated(page, 'tutorial-data-001');
+    await wait(page, 900);
+    await page.click('[data-testid=tut-exit]');
+    await page.waitForSelector('[data-testid=tutorial-exit-dialog]', { timeout: 8000 });
+    await page.click('[data-testid=tutorial-exit-keep]');
+    await wait(page, 1200);
+    const afterProject = summarize(await exportProject());
+    check('T-01/T-02 the original project comes back with its stored model and its figure',
+      JSON.stringify(beforeProject) === JSON.stringify(afterProject) && beforeProject.models !== '' && beforeProject.figures !== '',
+      `${JSON.stringify(beforeProject)} → ${JSON.stringify(afterProject)}`);
+    await shot(page, '05-restored-project');
+  } else {
+    check('T-01/T-02 the original project comes back with its stored model and its figure', false, `fixture missing: ${fixture}`);
+  }
+
   /* ── T-02: a theme changed inside the practice is put back ─────────── */
   const themeBefore = await page.evaluate(() => document.documentElement.dataset.theme || 'light');
   await startIsolated(page, 'tutorial-normality-001');

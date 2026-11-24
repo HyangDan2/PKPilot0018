@@ -1,0 +1,927 @@
+{
+  "format": "sigrun-project",
+  "version": 2,
+  "savedAt": "2026-11-24T15:54:55.526Z",
+  "app": "HD2Lab Sigrún",
+  "worksheets": [
+    {
+      "id": "ws-mwuvldhv-1",
+      "name": "Display Optics DoE",
+      "columns": [
+        {
+          "name": "StdOrder",
+          "type": "numeric",
+          "values": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          "id": "C1"
+        },
+        {
+          "name": "RunOrder",
+          "type": "numeric",
+          "values": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          "id": "C2"
+        },
+        {
+          "name": "PtType",
+          "type": "text",
+          "values": [
+            "Factorial",
+            "Factorial",
+            "Factorial",
+            "Factorial",
+            "Factorial",
+            "Factorial",
+            "Factorial",
+            "Factorial",
+            "Axial",
+            "Axial",
+            "Axial",
+            "Axial",
+            "Axial",
+            "Axial",
+            "Center",
+            "Center",
+            "Center",
+            "Center",
+            "Center",
+            "Center"
+          ],
+          "id": "C3"
+        },
+        {
+          "name": "LED Current (coded)",
+          "type": "numeric",
+          "values": [
+            -1,
+            -1,
+            -1,
+            -1,
+            1,
+            1,
+            1,
+            1,
+            -1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "id": "C4"
+        },
+        {
+          "name": "Optical Distance (coded)",
+          "type": "numeric",
+          "values": [
+            -1,
+            -1,
+            1,
+            1,
+            -1,
+            -1,
+            1,
+            1,
+            0,
+            0,
+            -1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "id": "C5"
+        },
+        {
+          "name": "Diffuser Haze (coded)",
+          "type": "numeric",
+          "values": [
+            -1,
+            1,
+            -1,
+            1,
+            -1,
+            1,
+            -1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "id": "C6"
+        },
+        {
+          "name": "LED Current (mA)",
+          "type": "numeric",
+          "values": [
+            20,
+            20,
+            20,
+            20,
+            80,
+            80,
+            80,
+            80,
+            20,
+            80,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50,
+            50
+          ],
+          "id": "C7"
+        },
+        {
+          "name": "Optical Distance (mm)",
+          "type": "numeric",
+          "values": [
+            2,
+            2,
+            10,
+            10,
+            2,
+            2,
+            10,
+            10,
+            6,
+            6,
+            2,
+            10,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+          ],
+          "id": "C8"
+        },
+        {
+          "name": "Diffuser Haze (%)",
+          "type": "numeric",
+          "values": [
+            10,
+            70,
+            10,
+            70,
+            10,
+            70,
+            10,
+            70,
+            40,
+            40,
+            40,
+            40,
+            10,
+            70,
+            40,
+            40,
+            40,
+            40,
+            40,
+            40
+          ],
+          "id": "C9"
+        },
+        {
+          "name": "Luminance (cd/m2)",
+          "type": "numeric",
+          "values": [
+            461,
+            493.4,
+            325.2,
+            388.8,
+            564.7,
+            574.2,
+            499.6,
+            520.8,
+            435.4,
+            557.1,
+            553.6,
+            475.1,
+            497.4,
+            541.3,
+            517.4,
+            520.4,
+            523.2,
+            515,
+            521.4,
+            515.7
+          ],
+          "id": "C10"
+        },
+        {
+          "name": "Power Consumption (W)",
+          "type": "numeric",
+          "values": [
+            11.048,
+            10.547,
+            9.415,
+            9.133,
+            15.283,
+            14.447,
+            13.824,
+            12.997,
+            9.834,
+            13.739,
+            12.451,
+            10.974,
+            11.563,
+            11.189,
+            11.539,
+            11.557,
+            11.603,
+            11.544,
+            11.491,
+            11.607
+          ],
+          "id": "C11"
+        },
+        {
+          "name": "Uniformity (%)",
+          "type": "numeric",
+          "values": [
+            85.18,
+            77.28,
+            94.41,
+            87.11,
+            84.36,
+            76.93,
+            85.83,
+            78.19,
+            90.49,
+            85.27,
+            84.37,
+            89.56,
+            91.64,
+            85.12,
+            90.22,
+            90.26,
+            90.67,
+            90.56,
+            90.84,
+            88.85
+          ],
+          "id": "C12"
+        },
+        {
+          "name": "Temperature (C)",
+          "type": "numeric",
+          "values": [
+            38.72,
+            41.21,
+            32.54,
+            34.57,
+            49.4,
+            51.18,
+            44.59,
+            44.54,
+            37.65,
+            47.54,
+            44.51,
+            37.79,
+            40.29,
+            41.38,
+            41.22,
+            41.93,
+            41.71,
+            41.4,
+            40.98,
+            41.71
+          ],
+          "id": "C13"
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "ws-mwuvldhv-1",
+  "settings": {
+    "theme": "light",
+    "lang": "en"
+  },
+  "outputs": [],
+  "models": [
+    {
+      "format": "sigrun-model",
+      "version": 1,
+      "kind": "rsm",
+      "response": {
+        "id": "C10",
+        "name": "Luminance (cd/m2)",
+        "kind": "numeric"
+      },
+      "predictors": [
+        {
+          "id": "C4",
+          "name": "LED Current (coded)",
+          "kind": "numeric",
+          "coding": {
+            "mode": "coded",
+            "center": 0,
+            "halfRange": 1
+          }
+        },
+        {
+          "id": "C5",
+          "name": "Optical Distance (coded)",
+          "kind": "numeric",
+          "coding": {
+            "mode": "coded",
+            "center": 0,
+            "halfRange": 1
+          }
+        },
+        {
+          "id": "C6",
+          "name": "Diffuser Haze (coded)",
+          "kind": "numeric",
+          "coding": {
+            "mode": "coded",
+            "center": 0,
+            "halfRange": 1
+          }
+        }
+      ],
+      "terms": [
+        {
+          "label": "LED Current (coded)",
+          "factors": [
+            "LED Current (coded)"
+          ]
+        },
+        {
+          "label": "Optical Distance (coded)",
+          "factors": [
+            "Optical Distance (coded)"
+          ]
+        },
+        {
+          "label": "Diffuser Haze (coded)",
+          "factors": [
+            "Diffuser Haze (coded)"
+          ]
+        },
+        {
+          "label": "LED Current (coded)²",
+          "factors": [
+            "LED Current (coded)²"
+          ]
+        },
+        {
+          "label": "Optical Distance (coded)²",
+          "factors": [
+            "Optical Distance (coded)²"
+          ]
+        },
+        {
+          "label": "Diffuser Haze (coded)²",
+          "factors": [
+            "Diffuser Haze (coded)²"
+          ]
+        },
+        {
+          "label": "LED Current (coded)×Optical Distance (coded)",
+          "factors": [
+            "LED Current (coded)",
+            "Optical Distance (coded)"
+          ]
+        },
+        {
+          "label": "LED Current (coded)×Diffuser Haze (coded)",
+          "factors": [
+            "LED Current (coded)",
+            "Diffuser Haze (coded)"
+          ]
+        },
+        {
+          "label": "Optical Distance (coded)×Diffuser Haze (coded)",
+          "factors": [
+            "Optical Distance (coded)",
+            "Diffuser Haze (coded)"
+          ]
+        }
+      ],
+      "coefficients": [
+        {
+          "label": "Constant",
+          "value": 520.8554545454547,
+          "se": 1.8695767574684137,
+          "estimable": true
+        },
+        {
+          "label": "LED Current (coded)",
+          "value": 61.25999999999995,
+          "se": 1.7197604880807178,
+          "estimable": true
+        },
+        {
+          "label": "Optical Distance (coded)",
+          "value": -43.7400000000001,
+          "se": 1.7197604880807178,
+          "estimable": true
+        },
+        {
+          "label": "Diffuser Haze (coded)",
+          "value": 17.059999999999896,
+          "se": 1.7197604880807178,
+          "estimable": true
+        },
+        {
+          "label": "LED Current (coded)²",
+          "value": -27.613636363636314,
+          "se": 3.2794545756954094,
+          "estimable": true
+        },
+        {
+          "label": "Optical Distance (coded)²",
+          "value": -9.513636363636286,
+          "se": 3.27945457569541,
+          "estimable": true
+        },
+        {
+          "label": "Diffuser Haze (coded)²",
+          "value": -4.513636363636343,
+          "se": 3.2794545756954085,
+          "estimable": true
+        },
+        {
+          "label": "LED Current (coded)×Optical Distance (coded)",
+          "value": 15.237500000000102,
+          "se": 1.9227506781833519,
+          "estimable": true
+        },
+        {
+          "label": "LED Current (coded)×Diffuser Haze (coded)",
+          "value": -8.162499999999884,
+          "se": 1.9227506781833514,
+          "estimable": true
+        },
+        {
+          "label": "Optical Distance (coded)×Diffuser Haze (coded)",
+          "value": 5.362500000000119,
+          "se": 1.9227506781833508,
+          "estimable": true
+        }
+      ],
+      "covariance": [
+        [
+          3.4953172520661075,
+          9.123394380594349e-17,
+          2.4048708579107097e-16,
+          -1.2644465603364202e-16,
+          -1.3443527892561946,
+          -1.3443527892561968,
+          -1.3443527892561942,
+          3.7081579093364557e-16,
+          3.243371778217223e-17,
+          -5.933291034694037e-16
+        ],
+        [
+          9.123394380594349e-17,
+          2.957576136363629,
+          -6.567138247345626e-16,
+          -3.2835691236728104e-16,
+          1.1193985648884576e-16,
+          1.1193985648884613e-16,
+          5.223859969479468e-16,
+          5.506712827013872e-16,
+          -1.835570942337957e-16,
+          -3.6711418846759105e-16
+        ],
+        [
+          2.4048708579107097e-16,
+          -6.567138247345626e-16,
+          2.957576136363629,
+          -1.6417845618364072e-16,
+          1.492531419851279e-16,
+          1.4925314198512807e-16,
+          1.4925314198512783e-16,
+          -7.34228376935183e-16,
+          4.58892735584489e-16,
+          5.506712827013864e-16
+        ],
+        [
+          -1.2644465603364202e-16,
+          -3.2835691236728104e-16,
+          -1.6417845618364072e-16,
+          2.957576136363629,
+          9.328321374070486e-17,
+          2.985062839702558e-16,
+          9.328321374070464e-17,
+          3.671141884675914e-16,
+          9.691571274905145e-32,
+          -3.671141884675911e-16
+        ],
+        [
+          -1.3443527892561946,
+          1.1193985648884576e-16,
+          1.492531419851279e-16,
+          9.328321374070486e-17,
+          10.754822314049559,
+          -4.033058367768583,
+          -4.033058367768583,
+          -7.9263290691866305e-16,
+          -9.595029925857497e-16,
+          -8.343504283354339e-17
+        ],
+        [
+          -1.3443527892561968,
+          1.1193985648884613e-16,
+          1.4925314198512807e-16,
+          2.985062839702558e-16,
+          -4.033058367768583,
+          10.75482231404956,
+          -4.033058367768582,
+          7.561300756789875e-16,
+          8.760679497522056e-16,
+          8.343504283354346e-16
+        ],
+        [
+          -1.3443527892561942,
+          5.223859969479468e-16,
+          1.4925314198512783e-16,
+          9.328321374070464e-17,
+          -4.033058367768583,
+          -4.033058367768582,
+          10.754822314049553,
+          -9.647176827628457e-16,
+          -5.006102570012601e-16,
+          -8.343504283354368e-17
+        ],
+        [
+          3.7081579093364557e-16,
+          5.506712827013872e-16,
+          -7.34228376935183e-16,
+          3.671141884675914e-16,
+          -7.9263290691866305e-16,
+          7.561300756789875e-16,
+          -9.647176827628457e-16,
+          3.6969701704545392,
+          -2.0522307022955095e-16,
+          4.104461404591018e-16
+        ],
+        [
+          3.243371778217223e-17,
+          -1.835570942337957e-16,
+          4.58892735584489e-16,
+          9.691571274905145e-32,
+          -9.595029925857497e-16,
+          8.760679497522056e-16,
+          -5.006102570012601e-16,
+          -2.0522307022955095e-16,
+          3.6969701704545375,
+          -1.6417845618364065e-15
+        ],
+        [
+          -5.933291034694037e-16,
+          -3.6711418846759105e-16,
+          5.506712827013864e-16,
+          -3.671141884675911e-16,
+          -8.343504283354339e-17,
+          8.343504283354346e-16,
+          -8.343504283354368e-17,
+          4.104461404591018e-16,
+          -1.6417845618364065e-15,
+          3.6969701704545357
+        ]
+      ],
+      "residual": {
+        "sse": 295.7576136363629,
+        "df": 10,
+        "mse": 29.575761363636293,
+        "s": 5.438360172297923
+      },
+      "dof": {
+        "model": 9,
+        "residual": 10,
+        "total": 19,
+        "rank": 10
+      },
+      "factorBounds": {
+        "LED Current (coded)": {
+          "min": -1,
+          "max": 1
+        },
+        "Optical Distance (coded)": {
+          "min": -1,
+          "max": 1
+        },
+        "Diffuser Haze (coded)": {
+          "min": -1,
+          "max": 1
+        }
+      },
+      "categoricalLevels": null,
+      "training": {
+        "sheetId": "ws-mwuvldhv-1",
+        "sheetName": "Display Optics DoE",
+        "rows": 20,
+        "fingerprint": "2b1793cb",
+        "columns": [
+          {
+            "id": "C4",
+            "name": "LED Current (coded)",
+            "type": "numeric"
+          },
+          {
+            "id": "C5",
+            "name": "Optical Distance (coded)",
+            "type": "numeric"
+          },
+          {
+            "id": "C6",
+            "name": "Diffuser Haze (coded)",
+            "type": "numeric"
+          }
+        ]
+      },
+      "diagnostics": {
+        "n": 20,
+        "r2": 0.9957405199988187,
+        "s": 5.438360172297923
+      },
+      "design": {
+        "points": [
+          {
+            "levels": {
+              "LED Current (coded)": -1,
+              "Optical Distance (coded)": -1,
+              "Diffuser Haze (coded)": -1
+            },
+            "y": 461
+          },
+          {
+            "levels": {
+              "LED Current (coded)": -1,
+              "Optical Distance (coded)": -1,
+              "Diffuser Haze (coded)": 1
+            },
+            "y": 493.4
+          },
+          {
+            "levels": {
+              "LED Current (coded)": -1,
+              "Optical Distance (coded)": 1,
+              "Diffuser Haze (coded)": -1
+            },
+            "y": 325.2
+          },
+          {
+            "levels": {
+              "LED Current (coded)": -1,
+              "Optical Distance (coded)": 1,
+              "Diffuser Haze (coded)": 1
+            },
+            "y": 388.8
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 1,
+              "Optical Distance (coded)": -1,
+              "Diffuser Haze (coded)": -1
+            },
+            "y": 564.7
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 1,
+              "Optical Distance (coded)": -1,
+              "Diffuser Haze (coded)": 1
+            },
+            "y": 574.2
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 1,
+              "Optical Distance (coded)": 1,
+              "Diffuser Haze (coded)": -1
+            },
+            "y": 499.6
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 1,
+              "Optical Distance (coded)": 1,
+              "Diffuser Haze (coded)": 1
+            },
+            "y": 520.8
+          },
+          {
+            "levels": {
+              "LED Current (coded)": -1,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 435.4
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 1,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 557.1
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": -1,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 553.6
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": 1,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 475.1
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": -1
+            },
+            "y": 497.4
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": 1
+            },
+            "y": 541.3
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 517.4
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 520.4
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 523.2
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 515
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 521.4
+          },
+          {
+            "levels": {
+              "LED Current (coded)": 0,
+              "Optical Distance (coded)": 0,
+              "Diffuser Haze (coded)": 0
+            },
+            "y": 515.7
+          }
+        ]
+      },
+      "stationary": {
+        "levels": {
+          "LED Current (coded)": 0.5799163172199857,
+          "Optical Distance (coded)": -1.7410437772381016,
+          "Diffuser Haze (coded)": 0.33122803482150553
+        },
+        "response": 579.5202938871277,
+        "kind": "maximum"
+      },
+      "optimal": null,
+      "source": {
+        "analysisId": "rsmanalyze"
+      },
+      "id": "mdl-mwuvldie-1",
+      "name": "Luminance (cd/m2)",
+      "createdAt": "2026-11-24T15:54:55.524Z",
+      "updatedAt": "2026-11-24T15:54:55.524Z"
+    }
+  ],
+  "figures": [
+    {
+      "format": "sigrun-layout",
+      "version": 1,
+      "page": {
+        "preset": "a4-landscape",
+        "widthMm": 297,
+        "heightMm": 210,
+        "marginMm": 15,
+        "background": "#ffffff"
+      },
+      "grid": {
+        "enabled": true,
+        "sizeMm": 2
+      },
+      "panels": [
+        {
+          "id": "panel-1",
+          "kind": "figure-label",
+          "label": "Figure 1",
+          "fontSize": 10,
+          "bold": true,
+          "z": 1,
+          "x": 10,
+          "y": 10,
+          "w": 40,
+          "h": 10
+        }
+      ],
+      "zSeq": 1,
+      "idSeq": 2
+    }
+  ]
+}
