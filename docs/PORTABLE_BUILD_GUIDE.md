@@ -17,7 +17,7 @@ GitHub Pages 빌드(`npm run build`)는 `/PKPilot0018/assets/*.js`를 **ES 모�
 | Node.js / Python | 빌드 시에만 | **불필요** (산출물은 정적 HTML 1개) |
 | 외부 네트워크·CDN | 없음 | **없음** (모든 자산 인라인) |
 | 스크립트 형식 | ES 모듈 | **클래식 스크립트(IIFE)** |
-| 지원 브라우저 | 최신 Chromium/Firefox/Safari | **Microsoft Edge · Google Chrome** (Chromium 110+ 기준으로 검증) |
+| 지원 브라우저 | 최신 Chromium/Firefox/Safari | **Microsoft Edge · Google Chrome** (같은 Chromium 엔진. 실측은 Chromium 1248 headless shell에서 했고 **Edge는 직접 실행해 보지 않았다**) |
 | PWA 설치 | 지원 | 미지원 (파일 하나로 배포하는 쪽을 택했다) |
 
 ---
@@ -107,6 +107,7 @@ node tools/e2e_portable_offline.cjs
 
 1. `dist-portable/sigrun-portable.zip`을 전달한다.
 2. 받는 사람은 압축을 풀고 `sigrun-portable.html`을 더블클릭하거나 Edge/Chrome 창에 끌어다 놓는다.
+   (검증은 Chromium 엔진에서 했다. Edge는 같은 엔진이라 동작할 것으로 보지만 **이 저장소에서 직접 확인하지는 않았다** — §6.7)
 3. 파일을 옮겨도 그대로 동작한다(절대 경로·설치·레지스트리 없음).
 
 사내 배포 시 권장:
@@ -125,6 +126,7 @@ node tools/e2e_portable_offline.cjs
 4. **파일 하나의 크기** — 1.21 MB(압축 359 kB). 시작할 때 한 번에 파싱하므로 부팅 200 ms 수준이지만, 아주 느린 사내 PC에서는 체감이 다를 수 있다.
 5. **WebGL** — 원격 데스크톱·가상 환경에서 WebGL이 막히면 3D 표면은 자동으로 정적 SVG로 폴백한다(값·축·등고는 동일, 회전만 불가). `?webgl=off`로 강제할 수 있다.
 6. **인쇄/PDF** — 브라우저 인쇄를 쓰므로 여백·용지 설정은 사용자 환경을 따른다. Figure 내보내기(SVG/PNG 300 DPI)는 파일 저장 경로를 브라우저가 정한다.
+7. **브라우저 검증 범위** — 실측은 `chrome-headless-shell 1248` 한 종류다. Chrome·Edge의 일반 창, Firefox, Safari에서의 `file://` 동작은 확인하지 않았다. 클래식 스크립트·인라인 CSS만 쓰므로 원리상 최신 브라우저에서 동작하지만, **"모든 브라우저에서 확인했다"고 주장하지 않는다.**
 
 ---
 
