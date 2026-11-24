@@ -17,6 +17,8 @@
 | E2E `tools/e2e_phase3_3b_corrective.cjs` (신규) | **13 / 13 PASS** |
 | E2E 회귀 | Stage 3D 48/48 · Stage 3C 24/24 · Stage 3A 29/29 · Phase 2 차트 34/34 · 차트 축 6/6 |
 | Ultra(401×401, 2모형) 평가 시간 | 약 140 ms (Node 24, `basis: mean`) — 수정 전에도 401+401을 계산했으므로 이번 수정으로 오히려 2배 이상 빨라졌다 |
+| GitHub Actions (`fca4e6f`) | `Statistics QA` **success** · `Deploy Sigrún to GitHub Pages` **success** |
+| 라이브 스모크 (`https://hyangdan2.github.io/PKPilot0018/`) | 3B E2E **41/41**, Corrective E2E **13/13** |
 
 ## 2. 수정 전후 독립 기준값
 
@@ -117,6 +119,10 @@
 
 스크린샷(로컬 dist):
 
+라이브(배포본) 스크린샷: `/workspace/downloads/sigrun-3b-live/phase3-3b-corrective-convergence.png`, `.../phase3-3b-corrective-blocked.png`, `.../phase3-3b-overlaid.png`, `.../phase3-3b-surface.png`.
+
+로컬 dist 스크린샷:
+
 - `/workspace/downloads/sigrun-3b-corrective/phase3-3b-corrective-convergence.png`
 - `/workspace/downloads/sigrun-3b-corrective/phase3-3b-corrective-blocked.png`
 - `/workspace/downloads/sigrun-3b-corrective/phase3-3b-overlaid.png`
@@ -145,6 +151,7 @@ UI에서 새로 보이는 것: 만족 영역 결과에 **격자점 수렴도 / �
 | 구현·테스트·QA·문서 커밋 | `588de3c` (`fix/phase3b-corrective-qa`) |
 | 이 문서의 SHA 기록 커밋 | `c68bbb2` |
 | main(Stage 3C) 병합 커밋 | `fix/phase3b-corrective-qa` 위의 merge 커밋 (PR #18) |
-| main 반영 | Squash merge — 머지 커밋 SHA는 PR과 최종 보고에 기록 |
+| main 반영 (PR #18, Squash) | `fca4e6f` — `Statistics QA`·`Deploy Sigrún to GitHub Pages` success |
+| 라이브 배포본 | https://hyangdan2.github.io/PKPilot0018/ (E2E 41/41 · 13/13) |
 
 Stage 3C Optimizer는 착수하지 않았다.
