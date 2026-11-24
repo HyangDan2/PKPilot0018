@@ -582,7 +582,16 @@ export function ChartFrame({
           </button>
         </div>
         {activeTip && (
-          <div className={`chart-tip${pinned ? ' pinned' : ''}`} style={{ left: activeTip.x + 12, top: activeTip.y + 12 }} data-testid={pinned ? 'chart-tip-pinned' : 'chart-tip'}>
+          <div
+            className={`chart-tip${pinned ? ' pinned' : ''}`}
+            style={{
+              // Keep the readout inside the card: a tooltip half outside the
+              // frame is a tooltip the reader cannot read.
+              left: Math.max(2, Math.min(activeTip.x + 12, (holderRef.current?.clientWidth ?? 560) - 150)),
+              top: Math.max(2, activeTip.y + 12),
+            }}
+            data-testid={pinned ? 'chart-tip-pinned' : 'chart-tip'}
+          >
             {activeTip.lines.map((line, index) => <span key={index}>{line}</span>)}
           </div>
         )}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ChartSpec, Lang, OutputDoc } from '../types';
 import type { ChartConfig } from '../lib/chartConfig';
 import { renderChart, resolveStandaloneSvg } from '../lib/charts';
@@ -293,7 +294,10 @@ export function GraphLayoutEditor({ lang, outputs, initial, onClose, onSave, onT
 
   const page = contentBox(view);
 
-  return (
+  // A portal keeps the editor above every panel: the workspace nests panels in
+  // their own stacking contexts, and a fixed overlay inside one of them would
+  // be painted below another panel's toolbar.
+  const modal = (
     <div className="gl-modal" role="dialog" aria-modal="true" aria-label={t(lang, 'gl.title')} data-testid="graph-layout">
       <header className="gl-head">
         <b>{t(lang, 'gl.title')}</b>
@@ -533,4 +537,6 @@ export function GraphLayoutEditor({ lang, outputs, initial, onClose, onSave, onT
       <input ref={imageRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(event) => { const file = event.target.files?.[0]; if (file) insertImage(file); event.target.value = ''; }} />
     </div>
   );
+  if (typeof document === 'undefined') return modal;
+  return createPortal(modal, document.body);
 }

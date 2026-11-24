@@ -2103,7 +2103,7 @@ tr.row-highlight > th.ws-rownum { background: color-mix(in srgb, var(--accent) 2
   z-index: 150;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--background);
   color: var(--text);
 }
 .gl-head {
@@ -2126,7 +2126,12 @@ tr.row-highlight > th.ws-rownum { background: color-mix(in srgb, var(--accent) 2
 .gl-inspector { border-right: 0; border-left: 1px solid var(--border); }
 .gl-side h4, .gl-inspector h4 { margin: 12px 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); }
 .gl-side section:first-child h4 { margin-top: 0; }
-.gl-stage { overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 16px; background: color-mix(in srgb, var(--border) 22%, var(--bg)); }
+.gl-stage { overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 16px; background: color-mix(in srgb, var(--border) 22%, var(--background)); }
+/* The page shows the figure, not the workspace widgets of each panel. */
+.gl-chart-body .chart-toolbar,
+.gl-chart-body .chart-interaction,
+.gl-chart-body .chart-interaction-tools { display: none; }
+.gl-page { background: #ffffff; }
 .gl-page { position: relative; box-shadow: 0 8px 26px rgba(11, 16, 32, 0.18); flex: 0 0 auto; }
 .gl-margin { position: absolute; border: 1px dashed color-mix(in srgb, var(--text-secondary) 42%, transparent); pointer-events: none; }
 .gl-panel { position: absolute; overflow: hidden; border: 1px solid transparent; cursor: move; touch-action: none; }
