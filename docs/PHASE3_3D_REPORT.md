@@ -13,9 +13,11 @@
 | `npm test` | **913 / 913 PASS** (Stage 3C 834 + Stage 3D 신규 79) |
 | `npm run qa:stats` | **186 / 186 PASS, 0 FAIL** (기존 180 + QA-Y 6) |
 | `npm run build` | 성공 — 외부 CDN·API 없음 |
-| `tools/e2e_phase3_3d.cjs` (로컬) | **48 / 48 PASS** |
-| `tools/e2e_phase3_3d.cjs` (라이브) | **48 / 48 PASS** (`BASE=https://hyangdan2.github.io/PKPilot0018/ SERVE=0`) |
+| `tools/e2e_phase3_3d.cjs` (로컬) | **49 / 49 PASS** |
+| `tools/e2e_phase3_3d.cjs` (라이브) | **49 / 49 PASS** (`BASE=https://hyangdan2.github.io/PKPilot0018/ SERVE=0`) |
 | CI | `Statistics QA` pass, `Deploy Sigrún to GitHub Pages` success |
+
+> 수치는 Stage 3D가 `main`에 들어간 시점(PR #19 · #20 · #21) 기준이다. 같은 날 뒤이어 머지된 **#18(Phase 3B 교정 QA)** 이후 `main`에서 다시 측정하면 테스트 **953 / 953**, `qa:stats` **205 / 205**, `tools/e2e_phase3_3d.cjs` **49 / 49**(로컬·라이브)로 모두 통과한다.
 
 신규 테스트 79건의 구성: `tests/axis-advanced.test.ts` 19 · `tests/error-bars.test.ts` 11 · `tests/contour-styles.test.ts` 13 · `tests/chart-interaction.test.ts` 12 · `tests/graph-layout.test.ts` 24.
 
@@ -131,7 +133,7 @@ n < 2 이거나 유한하지 않은 값뿐이면 **막대를 그리지 않는다
 - 연결: `src/components/OutputPanel.tsx`, `WorksheetGrid.tsx`, `ChartPropertiesDrawer.tsx`, `MenuBar.tsx`, `App.tsx`, `src/lib/project.ts`(`figures`), `src/lib/analyses.ts`(행·출처), `src/lib/i18n.ts`, `src/styles/app.css`
 - 테스트: `tests/axis-advanced.test.ts`, `error-bars.test.ts`, `contour-styles.test.ts`, `chart-interaction.test.ts`, `graph-layout.test.ts` (+ `scatter-stage2.test.ts`의 시트 id 비교 정규화)
 - QA: `qa/cases/QA-Y-stage3d-errorbars.json`, `qa/build_cases.py`, `qa/adapters/sigrun/cli.ts`, `qa/reference/engine.py`
-- E2E: `tools/e2e_phase3_3d.cjs` (48검사)
+- E2E: `tools/e2e_phase3_3d.cjs` (49검사)
 - 문서: `docs/CHART_FEATURE_GAP.md`(Stage 3D 스냅샷·집계 갱신 — SUPPORTED 39→66, MISSING 8→3), 본 보고서
 
 ## 8. 알려진 한계 / 주장하지 않는 것
