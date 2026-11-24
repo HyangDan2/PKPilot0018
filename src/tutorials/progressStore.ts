@@ -18,11 +18,13 @@ import type {
   StepProgress,
 } from './types';
 
-export const TUTORIAL_PROGRESS_KEY = 'sigrun.tutorials.progress.v1';
-export const TUTORIAL_PRACTICE_KEY = 'sigrun.tutorials.practice.v2';
+import { STORAGE_KEY, namespacedKey } from '../config/storageNamespace';
+
+export const TUTORIAL_PROGRESS_KEY = namespacedKey(STORAGE_KEY.tutorialProgress);
+export const TUTORIAL_PRACTICE_KEY = namespacedKey(STORAGE_KEY.tutorialPractice);
 /** Slots written by the previous build; read once, then superseded. */
-export const TUTORIAL_PRACTICE_KEY_V1 = 'sigrun.tutorials.practice.v1';
-export const TUTORIAL_ORIGINAL_KEY = 'sigrun.tutorials.original.v1';
+export const TUTORIAL_PRACTICE_KEY_V1 = namespacedKey(STORAGE_KEY.tutorialPracticeV1);
+export const TUTORIAL_ORIGINAL_KEY = namespacedKey(STORAGE_KEY.tutorialOriginal);
 /** A slot written before sessions existed keeps one stable name. */
 const LEGACY_SESSION = 'legacy-session';
 

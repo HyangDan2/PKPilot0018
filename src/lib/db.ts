@@ -20,10 +20,12 @@
    · A copy written before this envelope existed is still read as the project.
    ───────────────────────────────────────────────────────────────────────── */
 
-const DB_NAME = 'sigrun-workspace';
+import { STORAGE_KEY, namespacedKey } from '../config/storageNamespace';
+
+const DB_NAME = namespacedKey(STORAGE_KEY.indexedDbDatabase);
 const STORE = 'workspace';
 const KEY = 'current';
-const LS_KEY = 'sigrun.autosave.v1';
+const LS_KEY = namespacedKey(STORAGE_KEY.autosave);
 export const AUTOSAVE_STORAGE_KEY = LS_KEY;
 const ENVELOPE = 'sigrun-autosave';
 

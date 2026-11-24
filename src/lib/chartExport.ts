@@ -10,6 +10,7 @@
 import type { ChartSpec } from '../types';
 import { renderChart, resolveStandaloneSvg } from './charts';
 import { defaultExportConfig } from './chartConfig';
+import { PRODUCT } from '../config/product';
 import { pngBlobWithDpi } from './pngDpi';
 import type { ChartConfig, ExportBackground, ExportConfig, ExportFormat, PhysicalUnit } from './chartConfig';
 
@@ -176,8 +177,8 @@ export function exportFileName(chart: ChartSpec, config: Partial<ExportConfig> |
   const stem = slug(caption || chart.title || chart.kind);
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '');
   return cfg.format === 'png'
-    ? `sigrun-${stem}-${cfg.dpi}dpi-${stamp}.png`
-    : `sigrun-${stem}-${stamp}.svg`;
+    ? `${PRODUCT.EXPORT_FILE_PREFIX}-${stem}-${cfg.dpi}dpi-${stamp}.png`
+    : `${PRODUCT.EXPORT_FILE_PREFIX}-${stem}-${stamp}.svg`;
 }
 
 /** One chart's file, ready to hand to a download helper. */

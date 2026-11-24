@@ -14,6 +14,7 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 import { clampNav, clampOutput, findPreset, type LayoutPreset, type LayoutPresetId } from './layout';
+import { STORAGE_KEY, namespacedKey } from '../config/storageNamespace';
 
 export type WorkspaceLayout = 'tri' | 'focus' | 'classic';
 
@@ -38,7 +39,7 @@ export interface WorkspaceState {
  *  `sigrun.workspace.v1` (always `tri` unless someone picked otherwise) is left
  *  behind and every visitor starts on the Phase 1 shell. A choice made now is
  *  stored under v2 and comes back after a reload. */
-export const WORKSPACE_KEY = 'sigrun.workspace.v2';
+export const WORKSPACE_KEY = namespacedKey(STORAGE_KEY.workspace);
 
 /** Each column keeps enough room for its own header and contents. */
 export const MIN_OUTPUT_W = 320;

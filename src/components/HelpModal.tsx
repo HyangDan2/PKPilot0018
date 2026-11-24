@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { Lang } from '../types';
 import { t } from '../lib/i18n';
+import { PRODUCT } from '../config/product';
+import { editionLockup } from '../config/editionMeta';
 import { IconX } from './Icons';
 import { BrandBanner } from './Header';
 import { aboutVersionLine } from '../lib/appInfo';
@@ -47,7 +49,7 @@ export function HelpModal({ lang, initial, onClose, onOpenCenter, onOpenTutorial
         <div className="modal-head">
           <div>
             <h3>{tab === 'help' ? t(lang, 'help.title') : t(lang, 'about.title')}</h3>
-            <div className="modal-sub">HD2LAB · SIGRÚN</div>
+            <div className="modal-sub">{editionLockup(PRODUCT)}</div>
           </div>
           <span className="spacer" />
           <button type="button" className="icon-btn" onClick={onClose} aria-label={t(lang, 'close')}><IconX size={16} /></button>

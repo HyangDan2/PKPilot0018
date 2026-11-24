@@ -1,32 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Lang, Settings } from '../types';
 import { t } from '../lib/i18n';
+import { PRODUCT, PRODUCT_SHORT_NAME } from '../config/product';
 import { IconCheck, IconDots, IconDownload, IconExternal, IconLayout, IconMoon, IconPlus, IconSun } from './Icons';
 import type { LayoutPresetId } from '../lib/layout';
 import { LAYOUT_PRESETS } from '../lib/layout';
 import { WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../lib/workspace';
 
-/** The HD2Lab wordmark: the official dual-skew `.mark` (CSS), never an SVG logo.
+/** The owner's wordmark: the official dual-skew `.mark` (CSS), never an SVG logo.
  *  The top bar keeps the mark alone — the name and the badge live in the
- *  Help ▸ About Sigrún banner — so the menu row gets the room back. */
+ *  Help ▸ About banner — so the menu row gets the room back. */
 export function Brand({ lang }: { lang: Lang }) {
+  const label = `${PRODUCT.APP_NAME} — ${t(lang, 'brand.tag')}`;
   return (
-    <div className="brand" data-testid="brand" aria-label={`HD2Lab Sigrún — ${t(lang, 'brand.tag')}`} title={`HD2Lab Sigrún — ${t(lang, 'brand.tag')}`}>
+    <div className="brand" data-testid="brand" aria-label={label} title={label}>
       <span className="brand-mark" aria-hidden><span className="mark" /></span>
     </div>
   );
 }
 
-/** The full lock-up — mark · `HD2Lab` · divider · `Sigrún` · `STATISTICAL WORKSPACE`.
- *  It sits at the top of Help ▸ About Sigrún, waiting for the visitor who asks
- *  what the workspace is, instead of eating the header on every screen. */
+/** The full lock-up — mark · owner · divider · product · `STATISTICAL WORKSPACE`.
+ *  It sits at the top of Help ▸ About, waiting for the visitor who asks what the
+ *  workspace is, instead of eating the header on every screen. */
 export function BrandBanner({ lang }: { lang: Lang }) {
   return (
-    <div className="about-brand" data-testid="about-brand" aria-label={`HD2Lab Sigrún — ${t(lang, 'brand.tag')}`}>
+    <div className="about-brand" data-testid="about-brand" aria-label={`${PRODUCT.APP_NAME} — ${t(lang, 'brand.tag')}`}>
       <span className="brand-mark" aria-hidden><span className="mark" /></span>
-      <span className="brand-name">HD2Lab</span>
-      <span className="brand-div" aria-hidden />
-      <span className="brand-app">Sigrún</span>
+      {PRODUCT.BRAND_NAME && <span className="brand-name">{PRODUCT.BRAND_NAME}</span>}
+      {PRODUCT.BRAND_NAME && <span className="brand-div" aria-hidden />}
+      <span className="brand-app">{PRODUCT_SHORT_NAME}</span>
       <span className="brand-badge">STATISTICAL WORKSPACE</span>
     </div>
   );
@@ -151,14 +153,18 @@ export function HeaderActions({
             ))}
             <span className="menu-sep" />
             <p className="mono-note" style={{ padding: '4px 8px 2px' }}>{t(lang, 'nav.navigation')}</p>
-            <a className="menu-item" role="menuitem" href="https://hyangdan2.github.io/" target="_blank" rel="noopener noreferrer">
-              <span className="mi-label">{t(lang, 'nav.webhq')}</span>
-              <span className="mi-kbd"><IconExternal size={12} /></span>
-            </a>
-            <a className="menu-item" role="menuitem" href="https://hyangdan2.github.io/ApplicationHub/" target="_blank" rel="noopener noreferrer">
-              <span className="mi-label">{t(lang, 'nav.apphub')}</span>
-              <span className="mi-kbd"><IconExternal size={12} /></span>
-            </a>
+            {PRODUCT.EXTERNAL_LINKS_ENABLED && (
+              <>
+                <a className="menu-item" role="menuitem" href="https://hyangdan2.github.io/" target="_blank" rel="noopener noreferrer">
+                  <span className="mi-label">{t(lang, 'nav.webhq')}</span>
+                  <span className="mi-kbd"><IconExternal size={12} /></span>
+                </a>
+                <a className="menu-item" role="menuitem" href="https://hyangdan2.github.io/ApplicationHub/" target="_blank" rel="noopener noreferrer">
+                  <span className="mi-label">{t(lang, 'nav.apphub')}</span>
+                  <span className="mi-kbd"><IconExternal size={12} /></span>
+                </a>
+              </>
+            )}
           </div>
         )}
       </div>

@@ -81,6 +81,8 @@ import type {
   WorkspaceFacts,
 } from './tutorials/types';
 import { AUTOSAVE_STORAGE_KEY, loadAutosave, saveAutosave, type AutosaveSaveResult } from './lib/db';
+import { PRODUCT } from './config/product';
+import { STORAGE_KEY, namespacedKey } from './config/storageNamespace';
 import { statusBarLabel } from './lib/appInfo';
 import { compareProjects, projectFingerprint } from './lib/projectCompare';
 import { fmt, fmtInt } from './lib/format';
@@ -167,8 +169,8 @@ import {
 } from './lib/sheetOps';
 import { XLSX_ACCEPT, readXlsxRows, workbookToWorksheets, writeXlsx, xlsxFileName } from './lib/xlsx';
 
-const SETTINGS_KEY = 'sigrun.settings.v1';
-const FLOAT_SIZES_KEY = 'sigrun.floatSizes.v1';
+const SETTINGS_KEY = namespacedKey(STORAGE_KEY.settings);
+const FLOAT_SIZES_KEY = namespacedKey(STORAGE_KEY.floatSizes);
 const ENGINE_VERSION = 'sigrun-1.2';
 /* Tutorial progress survives a reload; the practice workspace does not, which is
    why a resumed lesson re-validates every step against what is actually open. */
@@ -2160,8 +2162,8 @@ export default function App() {
       const json = practiceProjectJson();
       const roundtrip = verifyPracticeJson(json);
       const stamp = new Date().toISOString().slice(0, 10);
-      downloadFile(`sigrun-practice-${practice?.tutorialId ?? 'lesson'}-${stamp}.sigrun.json`, json, 'application/json');
-      if (exportCsvToo) downloadFile(`sigrun-practice-${sheet.name.replace(/\s+/g, '-')}.csv`, worksheetToCsv(sheet), 'text/csv;charset=utf-8');
+      downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-practice-${practice?.tutorialId ?? 'lesson'}-${stamp}.sigrun.json`, json, 'application/json');
+      if (exportCsvToo) downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-practice-${sheet.name.replace(/\s+/g, '-')}.csv`, worksheetToCsv(sheet), 'text/csv;charset=utf-8');
       pushTutorialEvent('project-saved', {
         roundtripOk: roundtrip.ok,
         mismatches: roundtrip.mismatches.slice(0, 5),
@@ -2932,7 +2934,7 @@ export default function App() {
         onExportSelection={(rows) => {
           if (!rows.length) return;
           const csv = selectedRowsCsv(sheet.columns, rows);
-          downloadFile(`sigrun-selection-${sheet.name || 'sheet'}.csv`, csv, 'text/csv;charset=utf-8');
+          downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-selection-${sheet.name || 'sheet'}.csv`, csv, 'text/csv;charset=utf-8');
           toast(t(lang, 'toast.selectionExported', { n: rows.length }));
         }}
       />

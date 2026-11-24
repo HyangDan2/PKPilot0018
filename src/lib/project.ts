@@ -5,6 +5,7 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { Column, ColType, ProjectFile, Settings, OutputDoc, StoredModelFileEntry, Worksheet } from '../types';
+import { PRODUCT } from '../config/product';
 import { CHART_STYLE_IDS, type CustomChartStyle } from './chartStyles';
 import { parseStoredModels, type StoredModel } from './modelStore';
 
@@ -42,7 +43,7 @@ export function buildProject(state: ProjectState): ProjectFile {
     format: 'sigrun-project',
     version: CURRENT_PROJECT_VERSION,
     savedAt: new Date().toISOString(),
-    app: 'HD2Lab Sigrún',
+    app: PRODUCT.APP_NAME,
     worksheets: state.worksheets,
     activeSheetId: state.activeSheetId,
     settings: state.settings,
@@ -63,7 +64,7 @@ export function projectFileName(date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
-  return `sigrun-${y}-${m}-${d}.sigrun.json`;
+  return `${PRODUCT.EXPORT_FILE_PREFIX}-${y}-${m}-${d}.sigrun.json`;
 }
 
 /** The picker accepts new, legacy and plain JSON projects, plus a native .mpx

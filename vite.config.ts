@@ -1,10 +1,23 @@
+import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { productPlugin, selectEdition } from './tools/product_plugin';
+import { basePathFor } from './src/config/basePath';
+import { buildYearFrom } from './src/config/buildYear';
 
-// Sigrún is published under a GitHub Pages project sub-path.
+const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+const edition = selectEdition();
+
+// Sigrún is published under a GitHub Pages project sub-path by default; a
+// customer build can state its own base with VITE_BASE_PATH (root, sub-path).
 export default defineConfig({
-  base: '/PKPilot0018/',
-  plugins: [react()],
+  base: basePathFor(edition, process.env.VITE_BASE_PATH || process.env.BASE_PATH),
+  plugins: [react(), productPlugin(edition)],
+  define: {
+    'import.meta.env.VITE_EDITION': JSON.stringify(edition.EDITION_ID),
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
+    'import.meta.env.VITE_BUILD_YEAR': JSON.stringify(String(buildYearFrom(process.env.SOURCE_DATE_EPOCH))),
+  },
   build: {
     target: 'es2022',
     assetsInlineLimit: 0,

@@ -9,6 +9,7 @@
 
 import type { ChartAppearance, ChartStylePresetId, MarkerShape } from './chartConfig';
 import { DEFAULT_CHART_PRESET } from './chartConfig';
+import { STORAGE_KEY, namespacedKey } from '../config/storageNamespace';
 
 export interface ResolvedChartStyle {
   id: string;
@@ -254,7 +255,7 @@ export interface CustomChartStyle {
   overrides: Partial<Omit<ResolvedChartStyle, 'id' | 'label'>>;
 }
 
-export const CUSTOM_STYLE_STORAGE_KEY = 'sigrun.chartStyles.v1';
+export const CUSTOM_STYLE_STORAGE_KEY = namespacedKey(STORAGE_KEY.chartStyles);
 
 function storage(): Storage | null {
   try {
