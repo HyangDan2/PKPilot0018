@@ -12,6 +12,10 @@ import { ContextMenu, type ContextMenuItem } from './components/ContextMenu';
 import { FindReplacePanel } from './components/FindReplacePanel';
 import { AnalysisDialog } from './components/AnalysisDialog';
 import { HelpModal } from './components/HelpModal';
+import { HelpCenter } from './components/HelpCenter';
+import { SampleLibrary } from './components/SampleLibrary';
+import { TutorialLibrary } from './components/tutorial/TutorialLibrary';
+import { TutorialRunner } from './components/tutorial/TutorialRunner';
 import { ModelManager } from './components/ModelManager';
 import { ResponseOptimizer } from './components/ResponseOptimizer';
 import { PredictionProfiler } from './components/PredictionProfiler';
@@ -39,6 +43,41 @@ import { buildModelSurface, buildOverlaidChart, numericFactors } from './lib/cha
 import { commonNumericFactors, OVERLAY_COLORS, OVERLAY_DASHES } from './lib/feasible';
 import { surfaceResolutionPoints } from './lib/surface3d';
 import { DATASETS, emptyWorksheet } from './lib/datasets';
+import { findSample } from './samples/registry';
+import { findTutorial } from './tutorials/registry';
+import { tutorialText } from './tutorials/localize';
+import { lt } from './lib/localized';
+import { findPreset as findTutorialPreset, resolvePreset as resolveTutorialPreset } from './tutorials/presets';
+import { runTutorialAction } from './tutorials/actionRegistry';
+import {
+  ProgressStorageError,
+  TutorialProgressStore,
+  browserProgressStorage,
+  createProgress,
+} from './tutorials/progressStore';
+import {
+  evaluateSession,
+  isTutorialComplete,
+  markManualStep,
+  reopenStep,
+  restartSession,
+  setCurrentStep,
+  skipStep,
+  tutorialSummary,
+} from './tutorials/tutorialEngine';
+import type {
+  ActionResult,
+  BridgeState,
+  PracticeProjectInfo,
+  TutorialActionSpec,
+  TutorialBridge,
+  TutorialChartSpec,
+  TutorialEvent,
+  TutorialOptimizerSpec,
+  TutorialProgress,
+  ValidationOutcome,
+  WorkspaceFacts,
+} from './tutorials/types';
 import { loadAutosave, saveAutosave } from './lib/db';
 import { fmt, fmtInt } from './lib/format';
 import { t } from './lib/i18n';
@@ -127,6 +166,9 @@ import { XLSX_ACCEPT, readXlsxRows, workbookToWorksheets, writeXlsx, xlsxFileNam
 const SETTINGS_KEY = 'sigrun.settings.v1';
 const FLOAT_SIZES_KEY = 'sigrun.floatSizes.v1';
 const ENGINE_VERSION = 'sigrun-1.2';
+/* Tutorial progress survives a reload; the practice workspace does not, which is
+   why a resumed lesson re-validates every step against what is actually open. */
+const TUTORIAL_STORE = new TutorialProgressStore(browserProgressStorage());
 
 type FloatSizes = Record<PanelId, { w: number; h: number }>;
 
@@ -288,6 +330,38 @@ export default function App() {
     point: Record<string, number | string> | null;
   } | null>(null);
 
+  /* ── Guided tutorials (WO-3E-11) ───────────────────────────────────── */
+  const [progressMap, setProgressMap] = useState<Record<string, TutorialProgress>>(() => TUTORIAL_STORE.loadAll());
+  const [tutorialSession, setTutorialSession] = useState<TutorialProgress | null>(null);
+  const [tutorialOutcomes, setTutorialOutcomes] = useState<Record<string, ValidationOutcome>>({});
+  const [tutorialEvents, setTutorialEvents] = useState<TutorialEvent[]>([]);
+  const [tutorialPanel, setTutorialPanel] = useState<'open' | 'collapsed' | 'closed'>('closed');
+  const [tutorialBusy, setTutorialBusy] = useState(false);
+  const [reviewingTutorial, setReviewingTutorial] = useState(false);
+  const [tutorialMessage, setTutorialMessage] = useState<string | null>(null);
+  const [tutorialStorageWarning, setTutorialStorageWarning] = useState<string | null>(null);
+  const [practice, setPractice] = useState<PracticeProjectInfo | null>(null);
+  const [practiceSavedAt, setPracticeSavedAt] = useState<string | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [sampleLibraryOpen, setSampleLibraryOpen] = useState(false);
+  const [sampleLibraryInitial, setSampleLibraryInitial] = useState<string | null>(null);
+  const [helpCenter, setHelpCenter] = useState<{ helpId?: string } | null>(null);
+  const [startPrompt, setStartPrompt] = useState<{ tutorialId: string } | null>(null);
+  const [exitPrompt, setExitPrompt] = useState(false);
+  const [optimizerTutorial, setOptimizerTutorial] = useState<TutorialOptimizerSpec | null>(null);
+  const [dialogNonce, setDialogNonce] = useState(0);
+  const practiceSnapshot = useRef<{
+    worksheets: Worksheet[];
+    activeSheetId: string;
+    outputs: OutputDoc[];
+    storedModels: StoredModel[];
+    figures: LayoutDoc[];
+    past: HistorySnapshot[];
+    future: HistorySnapshot[];
+  } | null>(null);
+  const dialogValues = useRef<Record<string, unknown> | null>(null);
+  const lastOptimizer = useRef<{ result: OptimizerResult; responses: ResponseSettings[]; factors: FactorSettings[]; models: StoredModel[] } | null>(null);
+
   const past = useRef<HistorySnapshot[]>([]);
   const future = useRef<HistorySnapshot[]>([]);
   const sheet = worksheets.find((w) => w.id === activeSheetId) ?? worksheets[0];
@@ -397,7 +471,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
+    // A practice session never writes to the reader's autosave: the original
+    // project stays exactly as it was until the practice ends.
+    if (!hydrated || practice) return;
     setAutosave('saving');
     const timer = setTimeout(() => {
       saveAutosave({ worksheets, activeSheetId, outputs, settings, models: storedModels, savedAt: new Date().toISOString() })
@@ -405,7 +481,7 @@ export default function App() {
         .catch(() => setAutosave('saved'));
     }, 700);
     return () => clearTimeout(timer);
-  }, [worksheets, activeSheetId, outputs, settings, storedModels, hydrated]);
+  }, [worksheets, activeSheetId, outputs, settings, storedModels, hydrated, practice]);
 
   /* ── worksheet mutations & history ─────────────────────────────────── */
 
@@ -961,6 +1037,7 @@ export default function App() {
       const doc = restoreChartConfigs({ ...makeDoc(def, result, buildMeta(def, values, sheet)), ...(result.modelDraft ? { model: result.modelDraft } : {}) });
       rememberChartConfigs(doc);
       focusDoc(doc);
+      pushTutorialEvent('analysis-run', { analysisId: def.id, outputId: doc.id, values: { ...values } });
       setLastDialog({ analysisId: def.id, values });
       setDialog(null);
       if (result.toastKey) toast(t(lang, result.toastKey, result.toastVars));
@@ -1010,6 +1087,9 @@ export default function App() {
     const def = findAnalysis(id);
     if (!def) return;
     setDialog(preset ? { def, initial: { ...defaultDialogValues(def), ...preset } } : { def });
+    setDialogNonce((value) => value + 1);
+    dialogValues.current = null as Record<string, unknown> | null;
+    pushTutorialEvent('analysis-opened', { analysisId: id, values: preset ?? null });
   };
 
   const rerun = useCallback(() => {
@@ -1049,6 +1129,7 @@ export default function App() {
     const base = defaultModelName(draft);
     const model = createStoredModel(draft, uniqueModelName(storedModels, base));
     setStoredModels((prev) => [...prev, model]);
+    pushTutorialEvent('model-saved', { modelId: model.id, name: model.name, response: model.response.name });
     toast(t(lang, 'toast.modelSaved', { name: model.name }));
   };
 
@@ -1213,7 +1294,7 @@ export default function App() {
    * model kept its runs, and stay empty otherwise: a limit nobody stated is not
    * invented, it is asked for in the Overlaid tab.
    */
-  const overlaidFromModels = (models: StoredModel[]) => {
+  const overlaidFromModels = (models: StoredModel[], overrideSpecs?: { name: string; lsl: number | null; usl: number | null; target: number | null }[]) => {
     if (models.length < 2) return;
     const shared = commonNumericFactors(models);
     if (shared.factors.length < 2) {
@@ -1221,7 +1302,7 @@ export default function App() {
       return;
     }
     try {
-      const specs = models.map((model) => {
+      const specs = overrideSpecs ?? models.map((model) => {
         const observed = (model.design?.points ?? []).map((point) => point.y).filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
         if (!observed.length) return { name: model.response.name, lsl: null, usl: null, target: null };
         const min = Math.min(...observed);
@@ -1428,12 +1509,17 @@ export default function App() {
     factors: FactorSettings[];
     models: StoredModel[];
   }) => {
+    lastOptimizer.current = payload;
     setOptimizerModels(null);
     setProfilerState({
       models: payload.models,
       responses: payload.responses,
       factors: payload.factors,
       point: payload.result.solutions[0]?.settings ?? null,
+    });
+    pushTutorialEvent('profiler-opened', {
+      point: payload.result.solutions[0]?.settings ?? null,
+      models: payload.models.map((model) => model.response.name),
     });
   };
 
@@ -1483,6 +1569,10 @@ export default function App() {
         align: ['l', 'r', 'r', 'r', 'r', 'r', 'l'],
       });
     }
+    pushTutorialEvent('profiler-saved', {
+      point: { ...point },
+      solution: solution ? { composite: solution.composite, responses: solution.responses.map((response) => ({ name: response.name, value: response.value })) } : null,
+    });
     const doc: OutputDoc = {
       id: makeOutputId(),
       titleKey: 'an.profilerConditions',
@@ -1663,6 +1753,549 @@ export default function App() {
     }));
   };
 
+
+  /* ── Guided tutorial system (WO-3E-11) ────────────────────────────── */
+
+  const pushTutorialEvent = (type: TutorialEvent['type'], payload: Record<string, unknown>, stepId?: string) => {
+    setTutorialEvents((prev) => [...prev.slice(-299), {
+      id: `ev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      type,
+      at: Date.now(),
+      ...(stepId ? { stepId } : {}),
+      payload,
+    }]);
+  };
+
+  const tutorialFacts = (): WorkspaceFacts => ({
+    worksheets,
+    activeSheetId,
+    outputs,
+    models: storedModels,
+    figures,
+    events: tutorialEvents,
+    practice,
+  });
+
+  const persistProgress = (progress: TutorialProgress) => {
+    try {
+      TUTORIAL_STORE.save(progress);
+      setProgressMap((prev) => ({ ...prev, [progress.tutorialId]: progress }));
+      setTutorialStorageWarning(null);
+    } catch (error) {
+      const quota = error instanceof ProgressStorageError ? error.code === 'quota' : false;
+      setTutorialStorageWarning(t(lang, quota ? 'tut.storageQuota' : 'tut.storageBlocked'));
+    }
+  };
+
+  /* Every change to the workspace re-checks the open lesson: a validated step
+     is only complete while the state that satisfied it still exists. */
+  useEffect(() => {
+    if (!tutorialSession) return;
+    const tutorial = findTutorial(tutorialSession.tutorialId);
+    if (!tutorial) return;
+    const result = evaluateSession(tutorial, tutorialSession, tutorialFacts());
+    setTutorialOutcomes(result.outcomes);
+    if (result.changed) {
+      setTutorialSession(result.progress);
+      persistProgress(result.progress);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worksheets, activeSheetId, outputs, storedModels, figures, tutorialEvents, tutorialSession]);
+
+  const requestStartTutorial = (tutorialId: string) => {
+    if (!findTutorial(tutorialId)) return;
+    if (practice) {
+      setTutorialMessage(t(lang, 'tut.finishFirst'));
+      setTutorialPanel('open');
+      setLibraryOpen(false);
+      return;
+    }
+    setStartPrompt({ tutorialId });
+    setLibraryOpen(false);
+    setSampleLibraryOpen(false);
+    setHelpCenter(null);
+  };
+
+  const beginTutorial = (tutorialId: string, useCurrent: boolean) => {
+    const tutorial = findTutorial(tutorialId);
+    if (!tutorial) return;
+    const projectId = `practice-${Date.now().toString(36)}`;
+    practiceSnapshot.current = {
+      worksheets,
+      activeSheetId,
+      outputs,
+      storedModels,
+      figures,
+      past: [...past.current],
+      future: [...future.current],
+    };
+    if (!useCurrent) {
+      const base = emptyWorksheet(1);
+      const sheetTitle = tutorialText(lang, tutorial.titleKey);
+      const practiceSheet: Worksheet = { ...base, name: `Practice · ${sheetTitle}`.slice(0, 44) };
+      setWorksheets([practiceSheet]);
+      setActiveSheetId(practiceSheet.id);
+      setOutputs([]);
+      setStoredModels([]);
+      setFigures([]);
+      past.current = [];
+      future.current = [];
+      setSel(createSelection({ row: 0, col: 0 }));
+    }
+    const progress = createProgress(tutorial, projectId);
+    setPractice({ id: projectId, mode: useCurrent ? 'current' : 'isolated', tutorialId, sampleIds: [...tutorial.sampleIds] });
+    setTutorialEvents([]);
+    setTutorialOutcomes({});
+    setTutorialSession(progress);
+    persistProgress(progress);
+    setTutorialPanel('open');
+    setTutorialBusy(false);
+    setReviewingTutorial(false);
+    setTutorialMessage(null);
+    setPracticeSavedAt(null);
+    setStartPrompt(null);
+    setExitPrompt(false);
+    toast(t(lang, 'tut.startedToast'));
+  };
+
+  const restorePracticeSnapshot = () => {
+    const snapshot = practiceSnapshot.current;
+    if (!snapshot) return;
+    setWorksheets(snapshot.worksheets);
+    setActiveSheetId(snapshot.activeSheetId);
+    setOutputs(snapshot.outputs);
+    setStoredModels(snapshot.storedModels);
+    setFigures(snapshot.figures);
+    past.current = snapshot.past;
+    future.current = snapshot.future;
+    setSel(createSelection({ row: 0, col: 0 }));
+    practiceSnapshot.current = null;
+  };
+
+  const practiceProjectJson = (): string => serializeProject({
+    worksheets,
+    activeSheetId,
+    settings,
+    outputs,
+    customChartStyles: loadCustomStyles(),
+    models: storedModels,
+    figures,
+  });
+
+  const verifyPracticeJson = (json: string): boolean => {
+    const parsed = parseProject(json);
+    return parsed.worksheets.length === worksheets.length
+      && parsed.outputs.length === outputs.length
+      && (parsed.models?.length ?? 0) === storedModels.length;
+  };
+
+  const savePracticeProject = (exportCsvToo = false): boolean => {
+    try {
+      const json = practiceProjectJson();
+      const roundtripOk = verifyPracticeJson(json);
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadFile(`sigrun-practice-${practice?.tutorialId ?? 'lesson'}-${stamp}.sigrun.json`, json, 'application/json');
+      if (exportCsvToo) downloadFile(`sigrun-practice-${sheet.name.replace(/\s+/g, '-')}.csv`, worksheetToCsv(sheet), 'text/csv;charset=utf-8');
+      pushTutorialEvent('project-saved', {
+        roundtripOk,
+        worksheets: worksheets.length,
+        outputs: outputs.length,
+        models: storedModels.length,
+        exported: exportCsvToo ? 'project+csv' : 'project',
+      });
+      setPracticeSavedAt(new Date().toISOString());
+      toast(t(lang, roundtripOk ? 'tut.savedVerified' : 'tut.savedUnverified'));
+      return roundtripOk;
+    } catch {
+      toast(t(lang, 'file.error'));
+      return false;
+    }
+  };
+
+  const endPracticeSession = () => {
+    setPractice(null);
+    setTutorialSession(null);
+    setTutorialOutcomes({});
+    setTutorialEvents([]);
+    setTutorialPanel('closed');
+    setExitPrompt(false);
+    setTutorialMessage(null);
+    setOptimizerTutorial(null);
+  };
+
+  const keepPractice = () => {
+    try {
+      if (practice?.mode === 'isolated') {
+        TUTORIAL_STORE.savePracticeProject({
+          tutorialId: practice.tutorialId,
+          projectId: practice.id,
+          savedAt: new Date().toISOString(),
+          json: practiceProjectJson(),
+        });
+      }
+      const isolated = practice?.mode !== 'current';
+      endPracticeSession();
+      if (isolated) restorePracticeSnapshot();
+      toast(t(lang, 'tut.practiceKept'));
+    } catch {
+      setTutorialStorageWarning(t(lang, 'tut.storageBlocked'));
+    }
+  };
+
+  const discardPractice = () => {
+    if (!window.confirm(t(lang, 'tut.discardConfirm'))) return;
+    const tutorialId = practice?.tutorialId;
+    TUTORIAL_STORE.clearPracticeProject();
+    restorePracticeSnapshot();
+    if (tutorialId) {
+      TUTORIAL_STORE.remove(tutorialId);
+      setProgressMap((prev) => {
+        const next = { ...prev };
+        delete next[tutorialId];
+        return next;
+      });
+    }
+    endPracticeSession();
+    toast(t(lang, 'tut.discarded'));
+  };
+
+  const resumeTutorial = (tutorialId: string) => {
+    const tutorial = findTutorial(tutorialId);
+    const saved = progressMap[tutorialId];
+    if (!tutorial || !saved) {
+      requestStartTutorial(tutorialId);
+      return;
+    }
+    if (saved.tutorialVersion !== tutorial.version) {
+      requestStartTutorial(tutorialId);
+      return;
+    }
+    if (practice) {
+      if (practice.tutorialId !== tutorialId) {
+        setTutorialMessage(t(lang, 'tut.finishFirst'));
+        return;
+      }
+      setTutorialSession(saved);
+      setTutorialPanel('open');
+      setLibraryOpen(false);
+      return;
+    }
+    const slot = TUTORIAL_STORE.loadPracticeProject();
+    if (slot && slot.tutorialId === tutorialId) {
+      try {
+        const parsed = parseProject(slot.json);
+        practiceSnapshot.current = {
+          worksheets, activeSheetId, outputs, storedModels, figures,
+          past: [...past.current], future: [...future.current],
+        };
+        setWorksheets(parsed.worksheets);
+        setActiveSheetId(parsed.activeSheetId);
+        setOutputs(parsed.outputs);
+        setSettings(parsed.settings);
+        setStoredModels(parsed.models ?? []);
+        if (parsed.figures?.length) setFigures(parsed.figures as unknown as LayoutDoc[]);
+        past.current = [];
+        future.current = [];
+        setPractice({
+          id: slot.projectId || saved.practiceProjectId || `practice-${Date.now().toString(36)}`,
+          mode: 'isolated',
+          tutorialId,
+          sampleIds: [...tutorial.sampleIds],
+        });
+        setTutorialSession({ ...saved, practiceProjectId: slot.projectId || saved.practiceProjectId });
+        setTutorialEvents([]);
+        setTutorialPanel('open');
+        setLibraryOpen(false);
+        toast(t(lang, 'tut.resumed'));
+        return;
+      } catch {
+        /* a damaged saved project falls through to a fresh start */
+      }
+    }
+    // Progress without its practice data is not restored as completed.
+    setStartPrompt({ tutorialId });
+    setLibraryOpen(false);
+    setTutorialMessage(t(lang, 'tut.practiceMissing'));
+  };
+
+  const restartCurrentTutorial = (tutorialId: string) => {
+    const tutorial = findTutorial(tutorialId);
+    if (!tutorial) return;
+    if (!practice || practice.tutorialId !== tutorialId) {
+      requestStartTutorial(tutorialId);
+      return;
+    }
+    const progress = restartSession(tutorial, practice.id);
+    setTutorialSession(progress);
+    setTutorialOutcomes({});
+    setTutorialEvents([]);
+    setReviewingTutorial(false);
+    persistProgress(progress);
+    setTutorialPanel('open');
+    setLibraryOpen(false);
+    toast(t(lang, 'tut.restarted'));
+  };
+
+  /* ── action bridge: the only surface a tutorial can reach ─────────── */
+
+  const tutorialFail = (code: string, message: string): ActionResult => ({ ok: false, code, message });
+
+  const bridgeLoadSample = (sampleId: string): ActionResult => {
+    const sample = findSample(sampleId);
+    if (!sample) return tutorialFail('unknown-sample', t(lang, 'tut.unknownSample'));
+    const created = sample.build();
+    addSheet(created);
+    pushTutorialEvent('sample-loaded', { sampleId, sheetId: created.id, columns: created.columns.map((column) => column.name) });
+    setPractice((prev) => (prev && !prev.sampleIds.includes(sampleId) ? { ...prev, sampleIds: [...prev.sampleIds, sampleId] } : prev));
+    return { ok: true, message: t(lang, 'tut.sampleLoaded', { name: lt(lang, sample.title) }) };
+  };
+
+  const bridgeOpenHelp = (helpId: string): ActionResult => {
+    setHelpCenter({ helpId });
+    pushTutorialEvent('help-opened', { helpId });
+    return { ok: true, message: t(lang, 'tut.helpOpened') };
+  };
+
+  const bridgeOpenAnalysis = (analysisId: string, presetId?: string): ActionResult => {
+    const def = findAnalysis(analysisId);
+    if (!def) return tutorialFail('unknown-analysis', t(lang, 'tut.unknownAnalysis'));
+    let values: Record<string, unknown> = {};
+    if (presetId) {
+      const preset = findTutorialPreset(presetId);
+      if (!preset) return tutorialFail('unknown-preset', t(lang, 'tut.unknownPreset'));
+      const resolved = resolveTutorialPreset(preset, sheet);
+      if (resolved.missing.length) return tutorialFail('missing-columns', t(lang, 'tut.needSample', { columns: resolved.missing.join(', ') }));
+      values = resolved.values;
+    }
+    setDialog({ def, initial: { ...defaultDialogValues(def), ...values } });
+    setDialogNonce((value) => value + 1);
+    dialogValues.current = null;
+    pushTutorialEvent('analysis-opened', { analysisId, presetId, values });
+    return { ok: true, message: t(lang, 'tut.dialogOpened', { name: t(lang, def.titleKey) }) };
+  };
+
+  const bridgeRunAnalysis = (): ActionResult => {
+    if (!dialog) return tutorialFail('no-dialog', t(lang, 'tut.openDialogFirst'));
+    if (!window.confirm(t(lang, 'tut.confirmRun', { name: t(lang, dialog.def.titleKey) }))) {
+      return tutorialFail('cancelled', t(lang, 'tut.cancelled'));
+    }
+    const values = dialogValues.current ? { ...dialogValues.current } : { ...(dialog.initial ?? {}) };
+    const error = execute(dialog.def, values);
+    if (error) return tutorialFail('analysis-failed', error);
+    return { ok: true, message: t(lang, 'tut.analysisRan') };
+  };
+
+  const bridgeOpenModelManager = (): ActionResult => {
+    setModelManagerOpen(true);
+    return { ok: true, message: t(lang, 'tut.managerOpened') };
+  };
+
+  const tutorialModelsFor = (spec: TutorialChartSpec): StoredModel[] => {
+    let list = storedModels;
+    if (spec.modelNames?.length) list = list.filter((model) => spec.modelNames?.includes(model.name));
+    if (spec.responses?.length) list = list.filter((model) => spec.responses?.some((name) => model.response.name.includes(name)));
+    return list;
+  };
+
+  const bridgeOpenChart = (spec: TutorialChartSpec): ActionResult => {
+    if (spec.kind === 'histogram' || spec.kind === 'boxplot' || spec.kind === 'scatter') {
+      return tutorialFail('chart-needs-analysis', t(lang, 'tut.chartUseAnalysis'));
+    }
+    const candidates = tutorialModelsFor(spec);
+    if (!candidates.length) return tutorialFail('no-model', t(lang, 'tut.needModels'));
+    if (spec.kind === 'contour') {
+      const model = candidates.find((candidate) => candidate.predictors.filter((predictor) => predictor.kind === 'numeric').length >= 2);
+      if (!model) return tutorialFail('no-surface', t(lang, 'tut.needModels'));
+      contourFromModel(model);
+      pushTutorialEvent('chart-created', { kind: 'contour', response: model.response.name, modelId: model.id });
+      return { ok: true, message: t(lang, 'tut.chartCreated', { kind: 'contour', response: model.response.name }) };
+    }
+    if (spec.kind === 'surface3d') {
+      const model = candidates.find((candidate) => numericFactors(candidate).length >= 2);
+      if (!model) return tutorialFail('no-surface', t(lang, 'tut.needModels'));
+      surfaceFromModel(model);
+      pushTutorialEvent('chart-created', { kind: 'surface3d', response: model.response.name, modelId: model.id });
+      return { ok: true, message: t(lang, 'tut.chartCreated', { kind: 'surface3d', response: model.response.name }) };
+    }
+    const shared = commonNumericFactors(candidates);
+    if (candidates.length < 2 || shared.factors.length < 2) return tutorialFail('no-common-factors', t(lang, 'tut.needCommonFactors'));
+    const specs = spec.specs?.map((entry) => ({
+      name: entry.response,
+      lsl: entry.lsl ?? null,
+      usl: entry.usl ?? null,
+      target: entry.target ?? null,
+    }));
+    overlaidFromModels(candidates, specs);
+    pushTutorialEvent('chart-created', { kind: 'overlaid', responses: candidates.map((model) => model.response.name) });
+    return { ok: true, message: t(lang, 'tut.chartCreated', { kind: 'overlaid', response: String(candidates.length) }) };
+  };
+
+  const bridgeOpenOptimizer = (spec?: TutorialOptimizerSpec): ActionResult => {
+    let list = storedModels;
+    if (spec?.responses.length) {
+      const wanted = spec.responses.map((response) => response.response);
+      list = storedModels.filter((model) => wanted.includes(model.response.name));
+      const missing = wanted.filter((name) => !list.some((model) => model.response.name === name));
+      if (missing.length) return tutorialFail('missing-models', t(lang, 'tut.needModelsNamed', { names: missing.join(', ') }));
+    }
+    if (!list.length) return tutorialFail('no-model', t(lang, 'tut.needModels'));
+    setOptimizerTutorial(spec ?? null);
+    setOptimizerModels(list);
+    setModelManagerOpen(false);
+    return { ok: true, message: t(lang, 'tut.optimizerOpened') };
+  };
+
+  const bridgeOpenProfiler = (): ActionResult => {
+    const last = lastOptimizer.current;
+    if (!last) return tutorialFail('no-optimizer', t(lang, 'tut.needOptimizer'));
+    const point = last.result.solutions[0]?.settings ?? null;
+    setProfilerState({ models: last.models, responses: last.responses, factors: last.factors, point });
+    pushTutorialEvent('profiler-opened', { point, models: last.models.map((model) => model.response.name) });
+    return { ok: true, message: t(lang, 'tut.profilerOpened') };
+  };
+
+  const bridgeOpenLayout = (): ActionResult => {
+    setLayoutEditorOpen(true);
+    return { ok: true, message: t(lang, 'tut.layoutOpened') };
+  };
+
+  const bridgeExportProject = (): ActionResult => {
+    const ok = savePracticeProject(false);
+    return ok
+      ? { ok: true, message: t(lang, 'tut.savedVerified') }
+      : tutorialFail('save-failed', t(lang, 'tut.savedUnverified'));
+  };
+
+  const bridgeExportChart = (): ActionResult => {
+    setLayoutEditorOpen(true);
+    return { ok: true, message: t(lang, 'tut.exportFromEditor') };
+  };
+
+  const bridgeValidateResult = (): ActionResult => {
+    if (!tutorialSession) return tutorialFail('no-session', t(lang, 'tut.noSession'));
+    const tutorial = findTutorial(tutorialSession.tutorialId);
+    if (!tutorial) return tutorialFail('no-session', t(lang, 'tut.noSession'));
+    const result = evaluateSession(tutorial, tutorialSession, tutorialFacts());
+    setTutorialOutcomes(result.outcomes);
+    setTutorialSession(result.progress);
+    persistProgress(result.progress);
+    const outcome = result.outcomes[tutorialSession.currentStepId];
+    return {
+      ok: outcome?.status !== 'fail',
+      code: outcome?.code ?? 'checked',
+      message: outcome ? lt(lang, outcome.detail) : t(lang, 'tut.checked'),
+    };
+  };
+
+  const bridgeState = (): BridgeState => ({
+    activeSheetId,
+    sheetName: sheet.name,
+    hasDialog: Boolean(dialog),
+    dialogAnalysisId: dialog?.def.id ?? null,
+    modelCount: storedModels.length,
+    outputCount: outputs.length,
+    practiceActive: Boolean(practice),
+  });
+
+  const tutorialBridge: TutorialBridge = {
+    loadSample: bridgeLoadSample,
+    openHelp: bridgeOpenHelp,
+    openAnalysis: bridgeOpenAnalysis,
+    applyPreset: bridgeOpenAnalysis,
+    runAnalysis: bridgeRunAnalysis,
+    openModelManager: bridgeOpenModelManager,
+    openChart: bridgeOpenChart,
+    openOptimizer: bridgeOpenOptimizer,
+    openProfiler: bridgeOpenProfiler,
+    openLayout: bridgeOpenLayout,
+    exportProject: bridgeExportProject,
+    exportChart: bridgeExportChart,
+    validateResult: bridgeValidateResult,
+    state: bridgeState,
+  };
+
+  const handleTutorialAction = (spec: TutorialActionSpec) => {
+    if (!tutorialSession) return;
+    setTutorialBusy(true);
+    setTutorialMessage(null);
+    const result = runTutorialAction(spec, tutorialBridge);
+    setTutorialBusy(false);
+    if (result.ok) {
+      if (result.message) setTutorialMessage(result.message);
+    } else {
+      if (result.code !== 'cancelled') setTutorialMessage(result.message ?? t(lang, 'tut.actionFailed'));
+      pushTutorialEvent('action-failed', { action: spec.action, code: result.code, message: result.message }, tutorialSession.currentStepId);
+    }
+  };
+
+  const moveTutorialStep = (offset: number) => {
+    if (!tutorialSession) return;
+    const tutorial = findTutorial(tutorialSession.tutorialId);
+    if (!tutorial) return;
+    const index = tutorial.steps.findIndex((step) => step.id === tutorialSession.currentStepId);
+    const target = tutorial.steps[Math.max(0, Math.min(tutorial.steps.length - 1, index + offset))];
+    if (!target || target.id === tutorialSession.currentStepId) return;
+    const next = setCurrentStep(tutorialSession, target.id);
+    setTutorialSession(next);
+    persistProgress(next);
+  };
+
+  const selectTutorialStep = (stepId: string) => {
+    if (!tutorialSession) return;
+    const next = setCurrentStep(tutorialSession, stepId);
+    setTutorialSession(next);
+    persistProgress(next);
+  };
+
+  const manualTutorialStep = (done: boolean) => {
+    if (!tutorialSession) return;
+    const tutorial = findTutorial(tutorialSession.tutorialId);
+    if (!tutorial) return;
+    const next = markManualStep(tutorial, tutorialSession, tutorialSession.currentStepId, done);
+    setTutorialSession(next);
+    persistProgress(next);
+  };
+
+  const skipTutorialStep = () => {
+    if (!tutorialSession) return;
+    const tutorial = findTutorial(tutorialSession.tutorialId);
+    if (!tutorial) return;
+    const next = skipStep(tutorial, tutorialSession, tutorialSession.currentStepId);
+    setTutorialSession(next);
+    persistProgress(next);
+  };
+
+  const reopenTutorialStep = () => {
+    if (!tutorialSession) return;
+    const tutorial = findTutorial(tutorialSession.tutorialId);
+    if (!tutorial) return;
+    const next = reopenStep(tutorial, tutorialSession, tutorialSession.currentStepId);
+    setTutorialSession(next);
+    persistProgress(next);
+  };
+
+  const reviewTutorial = () => {
+    if (!tutorialSession) return;
+    const tutorial = findTutorial(tutorialSession.tutorialId);
+    if (!tutorial || !tutorial.steps.length) return;
+    setReviewingTutorial(true);
+    const next = setCurrentStep(tutorialSession, tutorial.steps[0].id);
+    setTutorialSession(next);
+    persistProgress(next);
+  };
+
+  const activeTutorial = tutorialSession ? findTutorial(tutorialSession.tutorialId) : undefined;
+  const tutorialFinished = Boolean(activeTutorial && tutorialSession && !reviewingTutorial && isTutorialComplete(activeTutorial, tutorialSession));
+  const tutorialSummaryData = activeTutorial && tutorialSession ? tutorialSummary(activeTutorial, tutorialSession, tutorialFacts()) : null;
+
+  const onExitedTutorial = () => {
+    const nextId = activeTutorial?.nextTutorialId;
+    endPracticeSession();
+    restorePracticeSnapshot();
+    setLibraryOpen(true);
+    if (nextId) setTutorialMessage(t(lang, 'tut.nextAfterExit'));
+  };
+
   /* ── shortcuts ─────────────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -1684,6 +2317,11 @@ export default function App() {
         event.preventDefault();
         setFindSeed('');
         setFindOpen(true);
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'l') {
+        event.preventDefault();
+        setLibraryOpen(true);
         return;
       }
       if (typing) return;
@@ -1834,6 +2472,10 @@ export default function App() {
       case 'renameSheet': setRenameTarget({ id: sheet.id, draft: sheet.name }); break;
       case 'deleteSheet': deleteSheet(activeSheetId); break;
       case 'help': setHelp('help'); break;
+      case 'helpCenter': setHelpCenter({}); break;
+      case 'tutorials': setLibraryOpen(true); break;
+      case 'learn': setLibraryOpen(true); break;
+      case 'sampleLibrary': setSampleLibraryInitial(null); setSampleLibraryOpen(true); break;
       case 'about': setHelp('about'); break;
       case 'theme': setSettings((prev) => ({ ...prev, theme: prev.theme === 'dark' ? 'light' : 'dark' })); break;
       case 'langKo': setSettings((prev) => ({ ...prev, lang: 'ko' })); break;
@@ -2056,7 +2698,7 @@ export default function App() {
   );
 
   return (
-    <div className="app">
+    <div className={`app${tutorialPanel === 'open' ? ' tutorial-open' : tutorialPanel === 'collapsed' ? ' tutorial-collapsed' : ''}`}>
       <MenuBar
         lang={lang}
         canUndo={past.current.length > 0}
@@ -2093,6 +2735,8 @@ export default function App() {
         workspaceLayout={ws.layout}
         onWorkspaceLayout={applyWorkspaceLayout}
         onSample={loadSample}
+        onSampleLibrary={() => { setSampleLibraryInitial(null); setSampleLibraryOpen(true); }}
+        onLearn={() => setLibraryOpen(true)}
         onAnalysis={openAnalysis}
         onNewSheet={() => addSheet()}
         onRerun={rerun}
@@ -2271,18 +2915,20 @@ export default function App() {
         <span>{t(lang, 'status.cols', { n: sheet.columns.length })}</span>
         <span>{t(lang, 'status.last')} <b>{lastTitle}</b></span>
         <span className="spacer" />
-        <span><i className="dot" />{autosave === 'saving' ? t(lang, 'status.saving') : t(lang, 'status.autosave')}</span>
+        <span><i className="dot" />{practice ? t(lang, 'tut.autosavePaused') : autosave === 'saving' ? t(lang, 'status.saving') : t(lang, 'status.autosave')}</span>
         <span>HD2LAB · SIGRÚN · PHASE 1</span>
       </footer>
 
       {dialog && (
         <AnalysisDialog
+          key={`${dialog.def.id}-${dialogNonce}`}
           def={dialog.def}
           lang={lang}
           sheet={sheet}
           initial={dialog.initial}
-          onClose={() => setDialog(null)}
+          onClose={() => { setDialog(null); dialogValues.current = null; }}
           onRun={(values) => execute(dialog.def, values)}
+          onValuesChange={(values) => { dialogValues.current = values; }}
         />
       )}
 
@@ -2320,7 +2966,15 @@ export default function App() {
         </div>
       )}
 
-      {help && <HelpModal lang={lang} initial={help} onClose={() => setHelp(null)} />}
+      {help && (
+        <HelpModal
+          lang={lang}
+          initial={help}
+          onClose={() => setHelp(null)}
+          onOpenCenter={() => { setHelp(null); setHelpCenter({}); }}
+          onOpenTutorials={() => { setHelp(null); setLibraryOpen(true); }}
+        />
+      )}
 
       {layoutEditorOpen && (
         <GraphLayoutEditor
@@ -2328,8 +2982,15 @@ export default function App() {
           outputs={outputs}
           initial={figures[figures.length - 1] ?? null}
           onClose={() => setLayoutEditorOpen(false)}
-          onSave={(doc) => setFigures((prev) => [...prev.filter((figure) => figure.page.preset !== doc.page.preset || figure.panels.length !== doc.panels.length), doc])}
+          onSave={(doc) => {
+            setFigures((prev) => [...prev.filter((figure) => figure.page.preset !== doc.page.preset || figure.panels.length !== doc.panels.length), doc]);
+            pushTutorialEvent('layout-saved', {
+              chartPanels: doc.panels.filter((panel) => panel.kind === 'chart').length,
+              figureLabels: doc.panels.filter((panel) => panel.kind === 'figure-label').length,
+            });
+          }}
           onToast={toast}
+          onExported={(format, dpi) => pushTutorialEvent('figure-exported', { format, dpi: dpi ?? null })}
         />
       )}
 
@@ -2355,7 +3016,19 @@ export default function App() {
         <ResponseOptimizer
           lang={lang}
           models={optimizerModels}
-          onClose={() => setOptimizerModels(null)}
+          initial={optimizerTutorial}
+          onResult={(payload) => {
+            lastOptimizer.current = payload;
+            pushTutorialEvent('optimizer-run', {
+              status: payload.result.status,
+              composite: payload.result.solutions[0]?.composite ?? null,
+              result: payload.result,
+              responses: payload.responses,
+              factors: payload.factors,
+              models: payload.models.map((model) => model.response.name),
+            });
+          }}
+          onClose={() => { setOptimizerModels(null); setOptimizerTutorial(null); }}
           onInsert={insertOptimizerResult}
           onProfiler={openProfilerFromOptimizer}
         />
@@ -2455,6 +3128,175 @@ export default function App() {
           onCancel={() => setPendingImport(null)}
           onConfirm={confirmImport}
         />
+      )}
+
+      {sampleLibraryOpen && (
+        <SampleLibrary
+          lang={lang}
+          initialSampleId={sampleLibraryInitial ?? undefined}
+          onClose={() => { setSampleLibraryOpen(false); setSampleLibraryInitial(null); }}
+          onLoadSample={(sampleId) => { setSampleLibraryOpen(false); loadSample(sampleId); }}
+          onStartTutorial={(tutorialId) => { setSampleLibraryOpen(false); requestStartTutorial(tutorialId); }}
+        />
+      )}
+
+      {helpCenter && (
+        <HelpCenter
+          lang={lang}
+          initialHelpId={helpCenter.helpId}
+          onClose={() => setHelpCenter(null)}
+          onStartTutorial={(tutorialId) => { setHelpCenter(null); requestStartTutorial(tutorialId); }}
+          onLoadSample={(sampleId) => { setHelpCenter(null); loadSample(sampleId); }}
+          onOpenTutorials={() => { setHelpCenter(null); setLibraryOpen(true); }}
+        />
+      )}
+
+      {libraryOpen && (
+        <TutorialLibrary
+          lang={lang}
+          progressMap={progressMap}
+          activeTutorialId={tutorialSession?.tutorialId ?? null}
+          onClose={() => setLibraryOpen(false)}
+          onStart={(tutorialId) => requestStartTutorial(tutorialId)}
+          onResume={(tutorialId) => resumeTutorial(tutorialId)}
+          onRestart={(tutorialId) => {
+            if (practice && practice.tutorialId === tutorialId) restartCurrentTutorial(tutorialId);
+            else requestStartTutorial(tutorialId);
+          }}
+          onOpenSample={(sampleId) => { setLibraryOpen(false); setSampleLibraryInitial(sampleId); setSampleLibraryOpen(true); }}
+        />
+      )}
+
+      {tutorialSession && tutorialPanel !== 'closed' && tutorialSummaryData && (
+        <TutorialRunner
+          lang={lang}
+          tutorialId={tutorialSession.tutorialId}
+          progress={tutorialSession}
+          outcomes={tutorialOutcomes}
+          summary={tutorialSummaryData}
+          completed={tutorialFinished}
+          reviewing={reviewingTutorial}
+          onShowSummary={() => setReviewingTutorial(false)}
+          busy={tutorialBusy}
+          message={tutorialMessage}
+          practiceMode={practice?.mode ?? null}
+          practiceSaved={Boolean(practiceSavedAt)}
+          collapsed={tutorialPanel === 'collapsed'}
+          storageWarning={tutorialStorageWarning}
+          onAction={handleTutorialAction}
+          onHelp={(helpId) => { setHelpCenter({ helpId }); pushTutorialEvent('help-opened', { helpId }); }}
+          onManual={manualTutorialStep}
+          onSkip={skipTutorialStep}
+          onReopen={reopenTutorialStep}
+          onPrev={() => moveTutorialStep(-1)}
+          onNext={() => moveTutorialStep(1)}
+          onValidate={() => handleTutorialAction({ action: 'validate-result' })}
+          onSelectStep={selectTutorialStep}
+          onRestart={() => restartCurrentTutorial(tutorialSession.tutorialId)}
+          onReview={reviewTutorial}
+          onSavePractice={() => savePracticeProject(false)}
+          onExportPractice={() => savePracticeProject(true)}
+          onNextTutorial={(tutorialId) => {
+            if (practice) {
+              if (!window.confirm(t(lang, 'tut.switchConfirm'))) return;
+              onExitedTutorial();
+              setTutorialMessage(t(lang, 'tut.pickNext', { name: t(lang, 'tut.library') }));
+              void tutorialId;
+              return;
+            }
+            requestStartTutorial(tutorialId);
+          }}
+          onExitPractice={() => setExitPrompt(true)}
+          onClosePanel={() => { setTutorialPanel('closed'); setTutorialMessage(null); }}
+          onToggleCollapse={() => setTutorialPanel((prev) => (prev === 'open' ? 'collapsed' : 'open'))}
+          onOpenLibrary={() => setLibraryOpen(true)}
+        />
+      )}
+
+      {startPrompt && (() => {
+        const tutorial = findTutorial(startPrompt.tutorialId);
+        if (!tutorial) return null;
+        return (
+          <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setStartPrompt(null); }}>
+            <div className="modal narrow" role="dialog" aria-modal="true" aria-label={t(lang, 'tut.startTitle')} data-testid="tutorial-start-dialog">
+              <div className="modal-head">
+                <div>
+                  <h3>{t(lang, 'tut.startTitle')}</h3>
+                  <div className="modal-sub">{tutorialText(lang, tutorial.titleKey)} · {tutorial.estimatedMinutes} {t(lang, 'tut.minutes')}</div>
+                </div>
+              </div>
+              <div className="modal-body">
+                <p className="tut-start-desc">{t(lang, 'tut.startSub')}</p>
+                <div className="tut-start-option">
+                  <h4>{t(lang, 'tut.startIsolated')}</h4>
+                  <p>{t(lang, 'tut.startIsolatedNote')}</p>
+                  <button type="button" className="btn primary" onClick={() => beginTutorial(tutorial.id, false)} data-testid="tutorial-start-isolated">
+                    {t(lang, 'tut.startIsolatedAction')}
+                  </button>
+                </div>
+                <div className="tut-start-option warn">
+                  <h4>{t(lang, 'tut.startCurrent')}</h4>
+                  <p>{t(lang, 'tut.startCurrentNote')}</p>
+                  <button
+                    type="button"
+                    className="btn"
+                    data-testid="tutorial-start-current"
+                    onClick={() => {
+                      if (!window.confirm(t(lang, 'tut.useCurrentConfirm'))) return;
+                      beginTutorial(tutorial.id, true);
+                    }}
+                  >
+                    {t(lang, 'tut.startCurrentAction')}
+                  </button>
+                </div>
+                {tutorialMessage && <p className="tut-warning" role="status">{tutorialMessage}</p>}
+              </div>
+              <div className="modal-foot">
+                <span className="spacer" />
+                <button type="button" className="btn ghost" onClick={() => setStartPrompt(null)}>{t(lang, 'dlg.cancel')}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {exitPrompt && tutorialSession && (
+        <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setExitPrompt(false); }}>
+          <div className="modal narrow" role="dialog" aria-modal="true" aria-label={t(lang, 'tut.exitTitle')} data-testid="tutorial-exit-dialog">
+            <div className="modal-head">
+              <div>
+                <h3>{t(lang, 'tut.exitTitle')}</h3>
+                <div className="modal-sub">{t(lang, 'tut.exitSub')}</div>
+              </div>
+            </div>
+            <div className="modal-body tut-exit-body">
+              <div className="tut-start-option">
+                <h4>{t(lang, 'tut.saveProject')}</h4>
+                <p>{t(lang, 'tut.savePracticeNote')}</p>
+                <button type="button" className="btn" onClick={() => savePracticeProject(false)} data-testid="tutorial-exit-save">{t(lang, 'tut.savePractice')}</button>
+              </div>
+              <div className="tut-start-option">
+                <h4>{t(lang, 'tut.exportProject')}</h4>
+                <p>{t(lang, 'tut.exportPracticeNote')}</p>
+                <button type="button" className="btn" onClick={() => savePracticeProject(true)} data-testid="tutorial-exit-export">{t(lang, 'tut.exportPractice')}</button>
+              </div>
+              <div className="tut-start-option">
+                <h4>{practice?.mode === 'current' ? t(lang, 'tut.keepCurrent') : t(lang, 'tut.keepPractice')}</h4>
+                <p>{practice?.mode === 'current' ? t(lang, 'tut.keepCurrentNote') : t(lang, 'tut.keepPracticeNote')}</p>
+                <button type="button" className="btn" onClick={keepPractice} data-testid="tutorial-exit-keep">{practice?.mode === 'current' ? t(lang, 'tut.keepCurrentAction') : t(lang, 'tut.keepPracticeAction')}</button>
+              </div>
+              <div className="tut-start-option warn">
+                <h4>{t(lang, 'tut.discardPractice')}</h4>
+                <p>{t(lang, 'tut.discardNote')}</p>
+                <button type="button" className="btn" onClick={discardPractice} data-testid="tutorial-exit-discard">{t(lang, 'tut.discardAction')}</button>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <span className="spacer" />
+              <button type="button" className="btn ghost" onClick={() => setExitPrompt(false)}>{t(lang, 'dlg.cancel')}</button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="toast-wrap">

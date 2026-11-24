@@ -11,6 +11,8 @@ interface Props {
   initial?: Record<string, unknown>;
   onClose: () => void;
   onRun: (values: Record<string, unknown>) => string | null;
+  /** Reports the dialog's current values, so an external Run action uses what the reader sees. */
+  onValuesChange?: (values: Record<string, unknown>) => void;
 }
 
 function columnMeta(sheet: Worksheet, ref: string): { id: string; name: string; type: string; n: number } | null {
@@ -38,7 +40,7 @@ export function normalizeValues(def: AnalysisDef, initial?: Record<string, unkno
   return next;
 }
 
-export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun }: Props) {
+export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun, onValuesChange }: Props) {
   const [values, setValues] = useState<Record<string, unknown>>(() => normalizeValues(def, initial));
   const [active, setActive] = useState<string>(() => def.slots.find((s) => s.kind === 'vars' || s.kind === 'col')?.key ?? '');
   const [tab, setTab] = useState<'main' | 'options' | 'graphs'>('main');
@@ -57,6 +59,11 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun }: Pr
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  useEffect(() => {
+    onValuesChange?.(values);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values]);
 
   const activeSlot = def.slots.find((s) => s.key === active);
 

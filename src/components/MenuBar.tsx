@@ -12,7 +12,8 @@ export type MenuAction =
   | 'clear' | 'insertRow' | 'deleteRow' | 'insertColumn' | 'deleteColumn' | 'addColumn' | 'newSheet' | 'renameSheet' | 'deleteSheet'
   | 'findReplace' | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout' | 'toggleNav'
   | 'layoutBalanced' | 'layoutSheet' | 'layoutResults' | 'layoutFocus'
-  | 'wsTri' | 'wsFocus' | 'wsClassic' | 'toggleDrawer' | 'modelManager' | 'graphLayout';
+  | 'wsTri' | 'wsFocus' | 'wsClassic' | 'toggleDrawer' | 'modelManager' | 'graphLayout'
+  | 'tutorials' | 'helpCenter' | 'sampleLibrary' | 'learn';
 
 interface MenuLeaf {
   labelKey: string;
@@ -82,6 +83,7 @@ function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, lay
           separatorBefore: true,
           children: DATASETS.map((ds) => ({ labelKey: ds.nameKey, sample: ds.id })),
         },
+        { labelKey: 'file.sampleLibrary', action: 'sampleLibrary' },
         { labelKey: 'file.help', action: 'help', separatorBefore: true, kbd: '?' },
       ],
     },
@@ -242,6 +244,8 @@ function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, lay
       labelKey: 'menu.help',
       items: [
         { labelKey: 'help.help', action: 'help', kbd: '?' },
+        { labelKey: 'help.center', action: 'helpCenter' },
+        { labelKey: 'tut.library', action: 'tutorials', kbd: 'L' },
         { labelKey: 'help.about', action: 'about', separatorBefore: true },
       ],
     },

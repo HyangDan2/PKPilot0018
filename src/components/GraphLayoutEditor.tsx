@@ -46,6 +46,8 @@ interface Props {
   onClose: () => void;
   onSave: (doc: LayoutDoc) => void;
   onToast: (message: string) => void;
+  /** Reports a completed figure export (a tutorial step validates it). */
+  onExported?: (format: 'svg' | 'png', dpi?: number) => void;
 }
 
 interface ChartRef {
@@ -110,7 +112,7 @@ const PANEL_NAME: Record<PanelKind, string> = {
   image: 'Image',
 };
 
-export function GraphLayoutEditor({ lang, outputs, initial, onClose, onSave, onToast }: Props) {
+export function GraphLayoutEditor({ lang, outputs, initial, onClose, onSave, onToast, onExported }: Props) {
   const historyRef = useRef<LayoutHistory | null>(null);
   if (!historyRef.current) historyRef.current = new LayoutHistory(initial ?? createLayout('a4-landscape'));
   const [doc, setDocState] = useState<LayoutDoc>(historyRef.current.state());
@@ -226,6 +228,7 @@ export function GraphLayoutEditor({ lang, outputs, initial, onClose, onSave, onT
     if (format === 'svg') {
       downloadFile(figureFileName(view, 'svg'), svg, 'image/svg+xml');
       onToast(t(lang, 'gl.exported'));
+      onExported?.('svg');
       return;
     }
     const raster = await svgToPngWithConfig(svg, pageExportConfig(view, 'png', dpi));
@@ -235,6 +238,7 @@ export function GraphLayoutEditor({ lang, outputs, initial, onClose, onSave, onT
     }
     downloadBlob(figureFileName(view, 'png', dpi), raster.blob);
     onToast(t(lang, 'gl.exportedDpi', { dpi }));
+    onExported?.('png', dpi);
   };
 
   const copyFigure = async () => {
