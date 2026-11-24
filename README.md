@@ -13,7 +13,9 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 **Minitab/Origin chart gap audit:** [docs/CHART_FEATURE_GAP.md](docs/CHART_FEATURE_GAP.md) — Graph Editing, Scale, Contour, Surface, Plot Details, Axis Dialog and Colormap compared item by item.
 
-**Independent statistics QA:** [`qa/reports/latest.html`](qa/reports/latest.html) — 156 cases compared against a NumPy/SciPy/statsmodels reference engine (`npm run qa:stats`, also run in CI by `.github/workflows/qa-stats.yml`). Inventory: [`qa/inventory.md`](qa/inventory.md).
+**Independent statistics QA:** [`qa/reports/latest.html`](qa/reports/latest.html) — 187 cases compared against a NumPy/SciPy/statsmodels reference engine (`npm run qa:stats`, also run in CI by `.github/workflows/qa-stats.yml`). Inventory: [`qa/inventory.md`](qa/inventory.md).
+
+**Phase 3B corrective QA:** [docs/PHASE3_3B_CORRECTIVE_QA.md](docs/PHASE3_3B_CORRECTIVE_QA.md) — per-model factor transformation, no silent interval fallback, per-point prediction isolation, non-finite handling, multi-model extrapolation, Ultra grid convergence, interval conditions and engine input validation, with before/after reference numbers and 19 new QA-V cases.
 
 ## What is inside
 

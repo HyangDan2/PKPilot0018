@@ -10,6 +10,7 @@ import {
   type ResponseSpec,
 } from '../src/lib/feasible';
 import { buildOverlaidChart, materializeOverlaid } from '../src/lib/chartConfigOps';
+import { ModelInputError } from '../src/lib/modelPredictor';
 import { renderChart } from '../src/lib/charts';
 import type { ChartSpec } from '../src/types';
 
@@ -191,21 +192,31 @@ describe('overlaid contour — feasible region (WO-04)', () => {
     expect(confidence.feasibleNodes).toBeLessThan(mean.feasibleNodes);
   });
 
-  it('refuses the interval basis when a model has no covariance', () => {
+  it('refuses the interval basis when a model has no covariance (no silent mean)', () => {
     const { first, second } = pair();
     const blocked = withoutCovariance(second);
     const specs: ResponseSpec[] = [
       { model: first, lsl: 13, usl: 17, target: 15 },
       { model: blocked, lsl: 44, usl: 55, target: 50 },
     ];
-    const result = buildOverlaid([first, blocked], specs, {
-      xName: 'A', yName: 'B', xRange: [-1.4, 1.4], yRange: [-1.4, 1.4], resolution: 31, mode: 'coded', basis: 'confidence',
-    });
-    expect(result.intervalBlocked).toEqual(['Strength']);
+    // The basis is refused with a code naming the model: computing the mean
+    // instead would draw a region the reader did not ask for under a label
+    // that claims intervals.
+    let caught: unknown = null;
+    try {
+      buildOverlaid([first, blocked], specs, {
+        xName: 'A', yName: 'B', xRange: [-1.4, 1.4], yRange: [-1.4, 1.4], resolution: 31, mode: 'coded', basis: 'confidence',
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ModelInputError);
+    expect((caught as ModelInputError).code).toBe('feasible.basisUnsupported');
+    expect((caught as ModelInputError).detail).toMatchObject({ basis: 'confidence' });
     const mean = buildOverlaid([first, blocked], specs, {
       xName: 'A', yName: 'B', xRange: [-1.4, 1.4], yRange: [-1.4, 1.4], resolution: 31, mode: 'coded', basis: 'mean',
     });
-    expect(result.feasibleNodes).toBe(mean.feasibleNodes);
+    expect(mean.intervalBlocked).toEqual(['Strength']);
   });
 
   it('warns when no node satisfies every specification', () => {
@@ -225,7 +236,11 @@ describe('overlaid contour — feasible region (WO-04)', () => {
   it('reports which models can answer an interval at all', () => {
     const { first, second } = pair();
     expect(intervalAvailability([first, second])).toEqual({ ok: true, blocked: [] });
-    expect(intervalAvailability([first, withoutCovariance(second)])).toEqual({ ok: false, blocked: ['Strength'] });
+    const blocked = intervalAvailability([first, withoutCovariance(second)]);
+    expect(blocked.ok).toBe(false);
+    expect(blocked.blocked).toEqual(['Strength']);
+    // The reason travels with the name, so the drawer can say why.
+    expect(blocked.details?.[0].reasons.length).toBeGreaterThan(0);
   });
 
   it('ignores a blank specification', () => {
@@ -308,7 +323,7 @@ describe('overlaid contour — chart (WO-04)', () => {
         alpha: 0.05,
         resolution: 'draft',
         specs: [
-          { name: 'Yield', lsl: 'oops' as unknown as number, usl: 16, target: 15 },
+          { name: 'Yield', lsl: 14, usl: 16, target: 15 },
           { name: 'Strength', lsl: 45, usl: 52, target: 50 },
         ],
       },
@@ -319,6 +334,24 @@ describe('overlaid contour — chart (WO-04)', () => {
     // Tighter limits cannot widen the feasible region.
     expect(tight.feasible?.feasibleNodes ?? 0).toBeLessThanOrEqual(loose.feasible?.feasibleNodes ?? 0);
     expect(tight.feasible?.feasibleNodes ?? 0).toBeGreaterThan(0);
+    // A limit that is not a number is refused, and the card says so instead of
+    // keeping a region computed under the old limits.
+    const invalid = materializeOverlaid(before, {
+      ...settings,
+      feasible: {
+        basis: 'mean',
+        alpha: 0.05,
+        resolution: 'draft',
+        specs: [
+          { name: 'Yield', lsl: 'oops' as unknown as number, usl: 16, target: 15 },
+          { name: 'Strength', lsl: 45, usl: 52, target: 50 },
+        ],
+      },
+    });
+    expect(invalid.kind).toBe('overlaid');
+    if (invalid.kind !== 'overlaid') return;
+    expect(invalid.feasible?.error?.code).toBe('feasible.spec.invalid');
+    expect(invalid.feasible?.feasibleNodes).toBe(0);
   });
 
   it('builds the same overlay through buildOverlaidChart with common factors', () => {

@@ -236,13 +236,35 @@ export type ChartSpec =
         feasibleNodes: number;
         totalNodes: number;
         basis: string;
-        /** Difference against a grid at twice the resolution (grid convergence). */
+        /** Node-ratio difference against the neighbour grid (kept for callers). */
         convergenceDelta: number;
+        /** Same measure, with the pair of grids that produced it stated. */
+        nodeConvergenceDelta?: number;
+        /** Area-ratio difference between the same two grids (0/1 mask geometry). */
+        areaConvergenceDelta?: number;
+        convergenceNeighborCount?: number;
+        convergenceDirection?: 'refined' | 'coarsened';
         perResponse: { name: string; areaRatio: number; nodeRatio: number }[];
-        /** Models that carry no covariance / df: the interval basis cannot run. */
+        /** Models that cannot answer a confidence interval at all. */
         intervalBlocked: string[];
+        /** Why each blocked model is blocked. */
+        intervalBlockReasons?: { model: string; reasons: string[] }[];
+        /** A structured refusal: the card shows it and carries no region. */
+        error?: { code: string; blocked?: { model: string; reasons: string[] }[] };
+        /** The models' run ranges do not overlap; the drawn range is the first model's. */
+        rangeWarning?: string;
       };
       extrapolated?: boolean;
+      /** Which model × factor reaches outside that model's runs, and by how far. */
+      extrapolationDetails?: {
+        model: string;
+        factor: string;
+        kind: 'axis' | 'holding';
+        from?: number;
+        to?: number;
+        value?: number;
+        bound: { min: number; max: number };
+      }[];
     })
   | (ChartBase & {
       kind: 'interval';

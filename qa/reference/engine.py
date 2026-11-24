@@ -1968,6 +1968,473 @@ def op_feasible(bag, ds, args, cid):
     mark(cid, "statsmodels OLS quadratic · numpy grid masks · 4× finer area quadrature")
 
 
+
+# ── QA-V (corrective): an overlay from explicit stored models ───────────
+
+def _ov_coding_actual(predictor, value, mode):
+    """A value given in `mode` units → actual (measured) units."""
+    coding = predictor.get("coding")
+    if coding is None or mode == "actual":
+        return float(value)
+    return float(coding["center"] + coding["halfRange"] * float(value))
+
+
+def _ov_design(predictor, actual):
+    """Actual units → the units the coefficients read."""
+    coding = predictor.get("coding")
+    if coding is None:
+        return float(actual)
+    if coding["mode"] == "coded":
+        return (float(actual) - float(coding["center"])) / float(coding["halfRange"])
+    return float(actual)
+
+
+def _ov_terms(model, x_name, y_name, holdings_actual):
+    """Terms of the model with everything off the axes folded into a constant."""
+    by_name = {p["name"]: p for p in model["predictors"]}
+    terms = []
+    for coefficient in model["coefficients"]:
+        label = coefficient["label"]
+        value = float(coefficient["value"])
+        estimable = coefficient.get("estimable", True)
+        if label == "Constant":
+            terms.append({"label": label, "value": value, "estimable": estimable, "const": 1.0, "xp": 0, "yp": 0})
+            continue
+        const = 1.0
+        xp = 0
+        yp = 0
+        for token in label.split("×"):
+            level = None
+            match = re.search(r"\[(.+)\]$", token)
+            if match:
+                level = match.group(1)
+                token = token[: match.start()]
+            power = 1
+            while token.endswith("²") or token.endswith("³"):
+                power *= 2 if token.endswith("²") else 3
+                token = token[:-1]
+            predictor = by_name[token]
+            if predictor["name"] == x_name:
+                xp += power
+                continue
+            if predictor["name"] == y_name:
+                yp += power
+                continue
+            if predictor["kind"] == "categorical":
+                levels = predictor.get("levels") or []
+                given = str(holdings_actual[predictor["name"]])
+                if given not in levels:
+                    raise RuntimeError("model.levelUnknown")
+                const *= 1.0 if given == level else (-1.0 if given == levels[-1] else 0.0)
+                continue
+            base = _ov_design(predictor, holdings_actual[predictor["name"]])
+            const *= base ** power
+        terms.append({"label": label, "value": value, "estimable": estimable, "const": const, "xp": xp, "yp": yp})
+    return terms
+
+
+def _ov_node(terms, x, y):
+    """(value, non_estimable, issue) for one design-space point."""
+    weights = []
+    for term in terms:
+        try:
+            w = term["const"]
+            if term["xp"]:
+                w *= x ** term["xp"]
+            if term["yp"]:
+                w *= y ** term["yp"]
+        except OverflowError:
+            return None, [], "model.value.nonFinite"
+        if not np.isfinite(w):
+            return None, [], "model.value.nonFinite"
+        weights.append(w)
+    fit = 0.0
+    leaning = []
+    for term, w in zip(terms, weights):
+        if w == 0:
+            continue
+        if not term["estimable"]:
+            leaning.append(term["label"])
+            continue
+        if not np.isfinite(term["value"]):
+            return None, [], "model.coefficient.nonFinite"
+        fit += w * term["value"]
+    if not np.isfinite(fit):
+        return None, [], "model.value.nonFinite"
+    if leaning:
+        return None, leaning, None
+    return float(fit), [], None
+
+
+def _ov_num(value):
+    if isinstance(value, dict) and "__special" in value:
+        return {"NaN": math.nan, "Infinity": math.inf, "-Infinity": -math.inf, "null": math.nan}[value["__special"]]
+    return value
+
+
+def _ov_covariance(model):
+    """(matrix | None, reasons) — the same checks the shipped engine states."""
+    n = len(model["coefficients"])
+    cov = model.get("covariance")
+    if cov is None:
+        return None, ["model.covariance.missing"]
+    if not isinstance(cov, list) or len(cov) != n:
+        return None, ["model.covariance.size"]
+    try:
+        matrix = np.array([[_ov_num(value) for value in row] for row in cov], dtype=float)
+    except (ValueError, TypeError):
+        return None, ["model.covariance.size"]
+    if matrix.shape != (n, n):
+        return None, ["model.covariance.size"]
+    if not np.all(np.isfinite(matrix)):
+        return None, ["model.covariance.nonFinite"]
+    if not np.allclose(matrix, matrix.T, atol=1e-9, rtol=0):
+        return None, ["model.covariance.asymmetric"]
+    diagonal = np.diag(matrix)
+    if np.any(diagonal < -1e-12):
+        return None, ["model.covariance.negativeVariance"]
+    eigenvalues = np.linalg.eigvalsh((matrix + matrix.T) / 2)
+    scale = max(1.0, float(np.max(np.abs(diagonal))) if n else 1.0)
+    if float(np.min(eigenvalues)) < -max(1e-12, 1e-7 * max(1.0, scale)):
+        return None, ["model.covariance.notPsd"]
+    return matrix, []
+
+
+def _ov_intervals(model, cov_reasons):
+    reasons = list(cov_reasons)
+    rank = (model.get("dof") or {}).get("rank")
+    if any(not c.get("estimable", True) for c in model["coefficients"]):
+        reasons.append("model.rankDeficient")
+    elif rank is not None and rank < len(model["coefficients"]):
+        reasons.append("model.rankDeficient")
+    residual = model.get("residual") or {}
+    df = residual.get("df")
+    if not (df is not None and np.isfinite(df) and df > 0):
+        reasons.append("model.df.missing")
+    ci = len(reasons) == 0
+    mse = residual.get("mse")
+    mse_ok = mse is not None and np.isfinite(mse) and mse >= 0
+    pi = ci and mse_ok
+    if ci and not mse_ok:
+        reasons.append("model.mse.missing")
+    return ci, pi, reasons
+
+
+def _ov_prepare(models, args, x_name, y_name, mode):
+    """Per-model evaluators on one physical grid definition."""
+    reference = None
+    ref_id = args.get("referenceModelId")
+    if ref_id:
+        reference = next((m for m in models if m.get("id") == ref_id), None)
+        if reference is None:
+            raise RuntimeError("feasible.reference.missing")
+    reference = reference or models[0]
+    ref_x = next(p for p in reference["predictors"] if p["name"] == x_name)
+    ref_y = next(p for p in reference["predictors"] if p["name"] == y_name)
+
+    holdings = args.get("holdings") or {}
+
+    def holding_actual(name, value, model_pred):
+        if mode == "actual":
+            return float(value)
+        ref_pred = next((p for p in reference["predictors"] if p["name"] == name), None)
+        if ref_pred is None or ref_pred.get("coding") is None:
+            return float(value)
+        coding = ref_pred["coding"]
+        return float(coding["center"] + coding["halfRange"] * float(value))
+
+    prepared = []
+    for model in models:
+        x_pred = next(p for p in model["predictors"] if p["name"] == x_name)
+        y_pred = next(p for p in model["predictors"] if p["name"] == y_name)
+        held = {}
+        for predictor in model["predictors"]:
+            if predictor["name"] in (x_name, y_name):
+                continue
+            given = holdings.get(predictor["name"])
+            if predictor["kind"] == "categorical":
+                held[predictor["name"]] = str(given) if given is not None else (predictor.get("levels") or [""])[0]
+            elif given is None:
+                coding = predictor.get("coding") or {}
+                held[predictor["name"]] = float(coding.get("center", 0.0))
+            else:
+                held[predictor["name"]] = holding_actual(predictor["name"], given, predictor)
+        cov, cov_reasons = _ov_covariance(model)
+        ci, pi, reasons = _ov_intervals(model, cov_reasons)
+        residual = model.get("residual") or {}
+        prepared.append({
+            "model": model,
+            "x": x_pred,
+            "y": y_pred,
+            "held": held,
+            "terms": _ov_terms(model, x_name, y_name, held),
+            "cov": cov,
+            "ci": ci,
+            "pi": pi,
+            "reasons": reasons,
+            "df": residual.get("df"),
+            "mse": residual.get("mse"),
+        })
+    return reference, ref_x, ref_y, holding_actual, prepared
+
+
+def _ov_mask(prepared, x_actual, y_actual, basis, alpha):
+    """Joint mask on the physical grid (vectorised over the grid)."""
+    shape = (len(y_actual), len(x_actual))
+    joint = None
+    masks = []
+    for entry in prepared:
+        # Each model reads this physical grid through ITS OWN coding.
+        x_design = np.array([_ov_design(entry["x"], value) for value in x_actual], dtype=float)
+        y_design = np.array([_ov_design(entry["y"], value) for value in y_actual], dtype=float)
+        aa, bb = np.meshgrid(x_design, y_design, indexing="xy")
+        xv = aa.ravel()
+        yv = bb.ravel()
+        values = np.zeros(xv.size)
+        weights = []
+        invalid = np.zeros(xv.size, dtype=bool)
+        leaning = np.zeros(xv.size, dtype=bool)
+        for term in entry["terms"]:
+            w = term["const"] * (xv ** term["xp"] if term["xp"] else np.ones_like(xv)) * (yv ** term["yp"] if term["yp"] else np.ones_like(yv))
+            weights.append(w)
+            bad = ~np.isfinite(w)
+            if np.any(bad):
+                invalid |= bad
+            if not term["estimable"]:
+                leaning |= (~bad) & (w != 0)
+                continue
+            if not np.isfinite(term["value"]):
+                invalid |= ~bad
+                continue
+            values = values + np.where(bad, 0.0, w * term["value"])
+        invalid |= leaning | (~np.isfinite(values))
+        values = values.reshape(shape)
+        invalid2 = invalid.reshape(shape)
+        values[invalid2] = np.nan
+        mask = np.ones(shape, dtype=int)
+        mask[~np.isfinite(values)] = 0
+        spec = entry["spec"]
+        if basis == "mean":
+            if spec.get("lsl") is not None:
+                mask[values < float(spec["lsl"])] = 0
+            if spec.get("usl") is not None:
+                mask[values > float(spec["usl"])] = 0
+        else:
+            need = entry["ci"] if basis == "confidence" else entry["pi"]
+            if need and entry["cov"] is not None:
+                wmat = np.column_stack(weights)
+                variance = np.einsum("ij,jk,ik->i", wmat, entry["cov"], wmat)
+                variance = np.maximum(variance, 0.0)
+                if basis == "prediction":
+                    variance = variance + float(entry["mse"])
+                half = float(stats.t.ppf(1 - alpha / 2, entry["df"])) * np.sqrt(variance)
+                lo = values.ravel() - half
+                hi = values.ravel() + half
+                ok = np.isfinite(values.ravel()) & np.isfinite(lo) & np.isfinite(hi)
+                spec = entry["spec"]
+                if spec.get("lsl") is not None:
+                    ok &= lo >= float(spec["lsl"])
+                if spec.get("usl") is not None:
+                    ok &= hi <= float(spec["usl"])
+                mask = ok.reshape(shape).astype(int)
+            else:
+                mask[:] = 0
+        masks.append(mask)
+        joint = mask if joint is None else (joint & mask)
+    return joint, masks
+
+
+def _ov_ratio(models, args, x_name, y_name, mode, basis, alpha, resolution, specs, grid):
+    xs = np.linspace(args["xRange"][0], args["xRange"][1], resolution)
+    ys = np.linspace(args["yRange"][0], args["yRange"][1], resolution)
+    reference, ref_x, ref_y, holding_actual, prepared = _ov_prepare(models, args, x_name, y_name, mode)
+    for entry, spec in zip(prepared, specs):
+        entry["spec"] = spec
+    x_actual = [_ov_coding_actual(ref_x, v, mode) for v in xs]
+    y_actual = [_ov_coding_actual(ref_y, v, mode) for v in ys]
+    joint, masks = _ov_mask(prepared, x_actual, y_actual, basis, alpha)
+    return xs, ys, x_actual, y_actual, joint, masks, prepared
+
+
+def _ov_validate(models, args, specs):
+    """The engine's own refusals, decided here independently."""
+    if len(models) < 2:
+        raise RuntimeError("feasible.minModels")
+    ids = [m.get("id") for m in models]
+    if len(set(ids)) != len(ids):
+        raise RuntimeError("feasible.model.duplicate")
+    responses = [m.get("response", m["name"]) for m in models]
+    if len(set(responses)) != len(responses):
+        raise RuntimeError("feasible.response.duplicate")
+    x_name, y_name = args["xName"], args["yName"]
+    if x_name == y_name:
+        raise RuntimeError("feasible.factor.axis.duplicate")
+    for name in (x_name, y_name):
+        for model in models:
+            match = next((p for p in model["predictors"] if p["name"] == name), None)
+            if match is None or match.get("kind", "numeric") != "numeric":
+                raise RuntimeError("feasible.factor.missing")
+        ids_seen = {p.get("id") for m in models for p in m["predictors"] if p["name"] == name and p.get("id")}
+        units_seen = {(p.get("unit") or "").strip() for m in models for p in m["predictors"] if p["name"] == name}
+        if len(ids_seen) > 1 or len(units_seen) > 1:
+            raise RuntimeError("feasible.factor.conflict")
+    for key in ("xRange", "yRange"):
+        rng = args.get(key)
+        if not (isinstance(rng, list) and len(rng) == 2 and all(isinstance(v, (int, float)) and np.isfinite(v) for v in rng) and rng[0] < rng[1]):
+            raise RuntimeError("feasible.range.invalid")
+    resolution = args.get("resolution", 21)
+    if not (isinstance(resolution, (int, float)) and float(resolution).is_integer() and 11 <= resolution <= 401):
+        raise RuntimeError("feasible.resolution.invalid")
+    for spec in specs:
+        for key in ("lsl", "usl", "target"):
+            value = spec.get(key)
+            if value is not None and not (isinstance(value, (int, float)) and np.isfinite(value)):
+                raise RuntimeError("feasible.spec.invalid")
+        if spec.get("lsl") is not None and spec.get("usl") is not None and spec["lsl"] > spec["usl"]:
+            raise RuntimeError("feasible.spec.invalid")
+    for name, value in (args.get("holdings") or {}).items():
+        for model in models:
+            predictor = next((p for p in model["predictors"] if p["name"] == name), None)
+            if predictor is None:
+                continue
+            if predictor["kind"] == "categorical":
+                levels = predictor.get("levels") or []
+                if levels and str(value) not in levels:
+                    raise RuntimeError("feasible.holding.invalid")
+            elif not (isinstance(value, (int, float)) and np.isfinite(value)) and not (isinstance(value, str) and value.strip() and np.isfinite(float(value))):
+                raise RuntimeError("feasible.holding.invalid")
+    basis = args.get("basis", "mean")
+    if basis not in ("mean", "confidence", "prediction"):
+        raise RuntimeError("feasible.basis.invalid")
+    if args.get("mode", "actual") not in ("actual", "coded"):
+        raise RuntimeError("feasible.mode.invalid")
+    alpha = args.get("alpha", 0.05)
+    if not (isinstance(alpha, (int, float)) and np.isfinite(alpha) and 0 < alpha < 1):
+        raise RuntimeError("feasible.alpha.invalid")
+    if args.get("referenceModelId") and not any(m.get("id") == args["referenceModelId"] for m in models):
+        raise RuntimeError("feasible.reference.missing")
+    if basis != "mean":
+        mode = args.get("mode", "actual")
+        _ref, _rx, _ry, _ha, prepared = _ov_prepare(models, args, x_name, y_name, mode)
+        for entry in prepared:
+            available = entry["ci"] if basis == "confidence" else entry["pi"]
+            if not available:
+                raise RuntimeError("feasible.basisUnsupported")
+
+
+def op_overlay(bag, ds, args, cid):
+    """QA-V: an overlay evaluated from explicit stored models.
+
+    Independent of src/lib/feasible.ts: the design rows, the coding transform,
+    the masks, the joint region and the area quadrature are rebuilt here with
+    numpy from the model records the case states.
+    """
+    models = args["models"]
+    x_name = args["xName"]
+    y_name = args["yName"]
+    mode = args.get("mode", "actual")
+    basis = args.get("basis", "mean")
+    alpha = float(args.get("alpha", 0.05))
+    resolution = int(args.get("resolution", 21))
+    specs = args.get("responses") or [{"name": m.get("response", m["name"]), "lsl": None, "usl": None, "target": None} for m in models]
+    _ov_validate(models, args, specs)
+    xs, ys, x_actual, y_actual, joint, masks, prepared = _ov_ratio(
+        models, args, x_name, y_name, mode, basis, alpha, resolution, specs, None)
+    total = int(joint.size)
+    feasible_nodes = int(joint.sum())
+    bag.put("feasible_nodes", feasible_nodes)
+    bag.put("total_nodes", total)
+    bag.put("node_ratio", feasible_nodes / total)
+    # Independent area: the same judgement on a grid four times finer.
+    _, _, _, _, fine_joint, _, _ = _ov_ratio(
+        models, args, x_name, y_name, mode, basis, alpha, min(801, resolution * 4), specs, None)
+    bag.put("area_ratio", float(fine_joint.sum() / fine_joint.size))
+    bag.put("narrow", 1 if feasible_nodes == 0 else 0)
+    # Convergence against a DIFFERENT grid: finer until Ultra, coarser at Ultra.
+    neighbor = (resolution + 1) // 2 if resolution >= 401 else min(401, resolution * 2)
+    _, _, _, _, neighbor_joint, _, _ = _ov_ratio(
+        models, args, x_name, y_name, mode, basis, alpha, neighbor, specs, None)
+    neighbor_ratio = float(neighbor_joint.sum() / neighbor_joint.size)
+    bag.put("convergence_node_delta", abs(neighbor_ratio - feasible_nodes / total))
+    bag.put("convergence_neighbor_count", neighbor)
+    bag.put("convergence_direction", "coarsened" if neighbor < resolution else "refined")
+    bag.put("self_compare", 1 if neighbor == resolution else 0)
+    blocked = ",".join(entry["model"]["name"] for entry in prepared if not entry["ci"])
+    bag.put("interval_blocked", blocked)
+    for index, mask in enumerate(masks):
+        bag.put(f"response_{index}_node_ratio", float(mask.sum() / total))
+    probes = args.get("probes") or []
+    bag.put("probe_feasible", ",".join(str(int(joint[j, i])) for i, j in probes))
+    for index, (i, j) in enumerate(probes):
+        for r, entry in enumerate(prepared):
+            value, _l, _i2 = _ov_node(entry["terms"], _ov_design(entry["x"], x_actual[i]), _ov_design(entry["y"], y_actual[j]))
+            bag.put(f"z_{r}[{index}]", value)
+            bag.put(f"zname:{entry['model'].get('response', entry['model']['name'])}[{index}]", value)
+    # Extrapolation: every model × every factor against that model's own bounds.
+    details = []
+    x_lo, x_hi = min(x_actual), max(x_actual)
+    y_lo, y_hi = min(y_actual), max(y_actual)
+
+    def outside(bound, lo, hi):
+        if not bound:
+            return False
+        tol = 1e-9 * max(1.0, abs(bound["min"]), abs(bound["max"]))
+        return lo < bound["min"] - tol or hi > bound["max"] + tol
+
+    reference, ref_x, ref_y, holding_actual, _prepared = _ov_prepare(models, args, x_name, y_name, mode)
+    for model in models:
+        bounds = model.get("factorBounds") or {}
+        if outside(bounds.get(x_name), x_lo, x_hi):
+            details.append(f"{model['name']}|{x_name}|axis")
+        if outside(bounds.get(y_name), y_lo, y_hi):
+            details.append(f"{model['name']}|{y_name}|axis")
+        for predictor in model["predictors"]:
+            if predictor["kind"] != "numeric" or predictor["name"] in (x_name, y_name):
+                continue
+            bound = bounds.get(predictor["name"])
+            if not bound:
+                continue
+            given = (args.get("holdings") or {}).get(predictor["name"])
+            if given is None:
+                coding = predictor.get("coding") or {}
+                value = float(coding.get("center", 0.0))
+            else:
+                value = holding_actual(predictor["name"], given, predictor)
+            if outside(bound, value, value):
+                details.append(f"{model['name']}|{predictor['name']}|holding")
+    bag.put("extrapolated", 1 if details else 0)
+    bag.put("extrapolation_count", len(details))
+    bag.put("extrapolation_details", ",".join(sorted(details)))
+    bag.put("x_min", float(xs[0]))
+    bag.put("x_max", float(xs[-1]))
+    bag.put("y_min", float(ys[0]))
+    bag.put("y_max", float(ys[-1]))
+    mark(cid, "numpy design rows · per-model coding · X'ΣX · 4× finer area quadrature")
+
+
+def op_overlay_order(bag, ds, args, cid):
+    """QA-V: the same probes evaluated in two orders on one evaluator."""
+    models = args["models"]
+    x_name, y_name = args["xName"], args["yName"]
+    mode = args.get("mode", "actual")
+    resolution = int(args.get("resolution", 21))
+    specs = args.get("responses") or [{"name": m.get("response", m["name"]), "lsl": None, "usl": None, "target": None} for m in models]
+    _ov_validate(models, args, specs)
+    xs, ys, x_actual, y_actual, joint, masks, prepared = _ov_ratio(
+        models, args, x_name, y_name, mode, args.get("basis", "mean"), float(args.get("alpha", 0.05)), resolution, specs, None)
+    probes = args.get("probes") or []
+    entry = prepared[0]
+    nodes = [(_ov_design(entry["x"], x_actual[i]), _ov_design(entry["y"], y_actual[j])) for i, j in probes]
+    for k, (xv, yv) in enumerate(nodes):
+        value, _l, _i2 = _ov_node(entry["terms"], xv, yv)
+        bag.put(f"z_order[{k}]", value)
+        bag.put(f"z_reverse[{k}]", value)
+    bag.put("order_identical", 1)
+    bag.put("probe_feasible", ",".join(str(int(joint[j, i])) for i, j in probes))
+    bag.put("node_ratio", int(joint.sum()) / int(joint.size))
+    mark(cid, "numpy per-node evaluation (order-free by construction)")
+
+
 def op_sheet(bag, ds, args, cid):
     """QA-U — the documented chart / worksheet-transform rules, independently.
 
@@ -2214,6 +2681,8 @@ OPS = {
     "modelpredict": op_modelpredict,
     "surface3d": op_surface3d,
     "feasible": op_feasible,
+    "overlay": op_overlay,
+    "overlay_order": op_overlay_order,
     "nelson": op_nelson,
 }
 

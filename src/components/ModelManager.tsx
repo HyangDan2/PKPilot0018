@@ -388,6 +388,7 @@ export function ModelManager({
                   {pickedModels.length >= 2 && sharedFactors.factors.length >= 2 && !interval.ok && (
                     <div className="mm-warn" data-testid="mm-overlaid-interval" data-blocked={interval.blocked.length}>
                       {t(lang, 'model.overlaid.intervalBlocked', { models: interval.blocked.join(', ') })}
+                      {interval.details?.length ? ` · ${interval.details.map((entry) => entry.reasons.map((reason) => t(lang, reason)).join(', ')).join(' / ')}` : ''}
                     </div>
                   )}
                   {compatibility && !compatibility.ok && (

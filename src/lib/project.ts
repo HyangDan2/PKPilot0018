@@ -7,6 +7,9 @@
 import type { Column, ColType, ProjectFile, Settings, OutputDoc, StoredModelFileEntry, Worksheet } from '../types';
 import type { CustomChartStyle } from './chartStyles';
 import { parseStoredModels, type StoredModel } from './modelStore';
+import { basisAvailability } from './feasible';
+import type { FeasibleBasis } from './chartConfig';
+import type { ChartSpec } from '../types';
 import { makeWorksheet, uid } from './datasets';
 
 export interface ProjectState {
@@ -67,6 +70,50 @@ function isColumn(value: unknown): value is Column {
     (col.type === 'numeric' || col.type === 'text' || col.type === 'date');
 }
 
+/**
+ * A restored overlaid card must not keep a region computed under a basis its
+ * models cannot answer. When the saved basis is unsupported the chart is
+ * returned with a structured error and no region, instead of presenting a
+ * mean-based picture under a "confidence interval" label.
+ */
+function restoreChartBasis(chart: ChartSpec): ChartSpec {
+  if (chart.kind !== 'overlaid') return chart;
+  const models = chart.models ?? [];
+  const basis = (chart.feasible?.basis ?? chart.config?.feasible?.basis ?? 'mean') as FeasibleBasis;
+  if (!models.length || basis === 'mean') return chart;
+  const availability = basisAvailability(models, basis);
+  if (availability.ok) return chart;
+  return {
+    ...chart,
+    feasible: {
+      mask: [],
+      areaRatio: 0,
+      nodeRatio: 0,
+      feasibleNodes: 0,
+      totalNodes: 0,
+      basis,
+      convergenceDelta: 0,
+      perResponse: [],
+      intervalBlocked: availability.blocked.map((entry) => entry.model),
+      intervalBlockReasons: availability.blocked,
+      error: { code: 'feasible.basisUnsupported', blocked: availability.blocked },
+    },
+  };
+}
+
+function restoreOutput(output: OutputDoc): OutputDoc {
+  if (!output || !Array.isArray(output.blocks)) return output;
+  let changed = false;
+  const blocks = output.blocks.map((block) => {
+    if (block.type !== 'chart' || !block.chart) return block;
+    const next = restoreChartBasis(block.chart);
+    if (next === block.chart) return block;
+    changed = true;
+    return { ...block, chart: next };
+  });
+  return changed ? { ...output, blocks } : output;
+}
+
 export function parseProject(text: string): ProjectState {
   let data: unknown;
   try {
@@ -89,7 +136,7 @@ export function parseProject(text: string): ProjectState {
     worksheets,
     activeSheetId,
     settings,
-    outputs: Array.isArray(file.outputs) ? file.outputs : [],
+    outputs: Array.isArray(file.outputs) ? file.outputs.map(restoreOutput) : [],
     ...(Array.isArray(file.customChartStyles) ? { customChartStyles: file.customChartStyles } : {}),
     models: parseStoredModels(file.models),
   };
