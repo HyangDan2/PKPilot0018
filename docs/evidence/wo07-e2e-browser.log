@@ -1,0 +1,62 @@
+# WO-07 — browser E2E regression (local dist, Chromium)
+
+date: 2026-11-25 (UTC) · host: macOS arm64 · Chromium (Playwright 1.64.1, revision 1248)
+branch: fix/phase3-final-stabilization · HEAD f83b03b (+ harness commits)
+baseline: 52e8a79178c7bba2c543d4d10cafe0e59ab74922 (worktree, own `vite build`)
+
+The suites run against the built `dist/` they are given. Where a suite failed,
+the same suite was run against the baseline build in a separate worktree, and
+against the live Pages site (`LIVE=1`) where the harness supports it. Raw logs:
+`docs/evidence/e2e/`.
+
+| suite | branch | baseline 52e8a79 | verdict |
+| --- | --- | --- | --- |
+| stage1 (worksheet/selection/menus) | 37 PASS · 15 FAIL · harness aborted at 52/77 | **37 PASS · 15 FAIL**, same 15 names, same abort | 환경 — 동일 |
+| stage2 (scatter/chart) | **37 / 37 PASS** | (기준선 주장 37) | PASS |
+| stage3 (layout/regression) | 172 / 176 — 4 FAIL, 모두 붙여넣기 | **172 / 176**, 같은 4건, 같은 상세(`10.069`, `Line 3/Line 1`) | 환경 — 동일 |
+| chart_axes | **6 / 6 PASS** | — | PASS |
+| chart_upgrade | **34 / 34 PASS** | — | PASS |
+| ui_compact (ui·panels·mobile390·mobile320) | **63 / 63 PASS** (23+26+7+7, 파트 분리 실행) | — | PASS |
+| Phase 3A | **29 / 29 PASS** | — | PASS |
+| Phase 3B | **41 / 41 PASS** | **41 / 41 PASS** | PASS |
+| Phase 3B corrective | **13 / 13 PASS** | **13 / 13 PASS** | PASS |
+| Phase 3C | **24 / 24 PASS** | — | PASS |
+| Phase 3D | **49 / 49 PASS** | — | PASS |
+| 합계 | **505 / 524 실행** (19 FAIL, 25 미도달) | — | see below |
+
+## stage1 / stage3 — why these fail here
+
+The failures are in the clipboard path. The app writes its selection to
+`navigator.clipboard` and the harness reads it back; on this host the page's
+clipboard writes do not reach the harness (the read-back still holds a previous
+value, e.g. `10.069`), so every later check that depends on a paste cascades.
+The same 15 stage1 checks and the same 4 stage3 checks fail, with identical
+messages, at:
+
+- baseline `52e8a79` (fresh build in a worktree),
+- Phase 3E `2695b65` (fresh build in a worktree),
+- the live Pages site (`LIVE=1`),
+- this branch.
+
+So the failures are independent of this branch. They are not counted as PASS.
+CI runs the same suites on Linux with `CHROME_PATH=/usr/bin/google-chrome`;
+that run is the one that will establish their status (WO-08).
+
+## ui_compact — sandbox workaround
+
+Running every part in one browser process crashed the browser
+(`browserContext.newPage: … has been closed`) while opening the next context.
+The harness header says the sandbox runs Chromium single-process and the run is
+meant to be split; run that way (PART=ui, PART=panels; then PART=mobile with
+`WIDTHS=390` and `WIDTHS=320`), all 63 checks pass with 0 failures.
+
+## Harness change made for the autosave envelope (not a product test change)
+
+Phase 3B / 3B-corrective seed the app's autosave record by hand. Since WO-01 the
+record is a revision envelope (`{ format: 'sigrun-autosave', revision, savedAt,
+payload }`); the seeding helpers in `tools/e2e_phase3_3b.cjs` and
+`tools/e2e_phase3_3b_corrective.cjs` now unwrap/wrap it. No check was removed,
+renamed or relaxed: the same assertions (two models saved, then the blocked
+interval bases) run on both sides. Before the change the branch failed
+`the autosave holds both models for the seeded state`; after it, 41/41 and 13/13
+pass — matching the baseline's 41/41 and 13/13.

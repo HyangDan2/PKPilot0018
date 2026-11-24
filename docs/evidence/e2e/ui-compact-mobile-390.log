@@ -1,0 +1,27 @@
+(node:16341) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[PASS] 390px: no horizontal overflow — 0px
+[PASS] 390px: brand and language/theme/kebab visible
+[PASS] 390px: menus take their own row — 44
+[PASS] 390px: brand and actions do not overlap — 0px
+[PASS] 390px: sample dropdown inside viewport — {"x":8,"y":117.5,"width":374,"height":330.25}
+[PASS] 390px: sample dropdown paints on top
+[PASS] no console or page errors
+E2E crashed: browserContext.newPage: Target page, context or browser has been closed
+Browser logs:
+
+<launching> /Users/jaehyukshim/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,AvoidCorsURLLoaderRestartOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --single-process --no-zygote --disable-gpu --disable-dev-shm-usage --disable-software-rasterizer --user-data-dir=/var/folders/xv/j7750_315wqfd8n2j88y49_40000gn/T/playwright_chromiumdev_profile-7mop4c --remote-debugging-pipe --no-startup-window
+<launched> pid=16343
+[pid=16343][err] [16343:58650304:1125/023227.797638:ERROR:chrome/browser/net/system_network_context_manager.cc:1002] Cannot use V8 Proxy resolver in single process mode.
+[pid=16343][err] [16343:58650304:1125/023227.865459:ERROR:chrome/browser/net/system_network_context_manager.cc:1002] Cannot use V8 Proxy resolver in single process mode.
+[pid=16343][err] [16343:58650304:1125/023228.037113:ERROR:chrome/browser/net/system_network_context_manager.cc:1002] Cannot use V8 Proxy resolver in single process mode.
+[pid=16343][err] [16343:58650370:1125/023228.315445:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=16343][err] [16343:58650370:1125/023228.315807:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=16343][err] [16343:58650370:1125/023228.315948:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=16343][err] [16343:58650370:1125/023228.316046:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=16343][err] [16343:58650370:1125/023228.316258:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[pid=16343][err] [16343:58650304:1125/023229.295214:ERROR:chrome/browser/net/system_network_context_manager.cc:1002] Cannot use V8 Proxy resolver in single process mode.
+    at partMobile (/Users/jaehyukshim/QoderWS/PKPilot0018/tools/e2e_ui_compact.cjs:302:28)
+    at async /Users/jaehyukshim/QoderWS/PKPilot0018/tools/e2e_ui_compact.cjs:346:46 {
+  log: []
+}

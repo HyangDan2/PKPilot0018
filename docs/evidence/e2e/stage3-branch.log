@@ -1,0 +1,251 @@
+(node:12697) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+── 1. default workspace — classic shell (1366×768) ──
+[PASS] 1366×768 · 1: opens in the classic arrangement — classic
+[PASS] 1366×768 · 1: navigator on the left, output stacked above the worksheet — nav 254 | out y 82–425 | sheet y 431
+[PASS] 1366×768 · 1: the stacked splitter is back
+[PASS] 1366×768 · 1: both stacked panes have real size — 343 / 311
+[PASS] 1366×768 · 1: the header shows no wordmark text — ""
+[PASS] 1366×768 · 1: the dual-skew .mark is what is left — 29px wide
+[PASS] 1366×768 · 1: the brand keeps its accessible name — HD2Lab Sigrún — Statistical Workspace
+[PASS] 1366×768 · 1: the logo no longer prints an svg
+[PASS] 1366×768 · 1: toolbar order is classic · 3-panel · focus — ws-layout-classic,ws-layout-tri,ws-layout-focus
+[PASS] 1366×768 · 1: classic is the pressed switch
+[PASS] 1366×768 · 1: classic comes back after a reload — classic
+[PASS] 1366×768 · 1: the workspace is stored under v2 — {"layout":"classic","navW":254,"outputW":520,"outputH":52,"drawerW":460,"drawerOpen":false}
+[PASS] 1366×768 · 1: no horizontal page overflow — 0px
+
+── 1b. About Sigrún banner (1366×768) ──
+[PASS] 1366×768 · 1b: the about banner is drawn
+[PASS] 1366×768 · 1b: the banner carries mark · HD2Lab · Sigrún · badge — HD2Lab Sigrún STATISTICAL WORKSPACE
+[PASS] 1366×768 · 1b: the banner sits above the description — banner 288–339, description 368
+[PASS] 1366×768 · 1b: the modal closes again
+
+── 2. draggable splitters (1366×768) ──
+[PASS] 1366×768 · 2: navigator splitter widens the navigator — 254→334, sheet 582→502
+[PASS] 1366×768 · 2: output splitter resizes the output column — 520→430, sheet 502→592
+[PASS] 1366×768 · 2: splitter takes arrow keys — 334→358
+[PASS] 1366×768 · 2: output column stops at its minimum width — 320px
+
+── 3. focus mode · drawer open/close (1366×768) ──
+[PASS] 1366×768 · 3: focus mode is painted — focus
+[PASS] 1366×768 · 3: the drawer opens when focus mode is picked
+[PASS] 1366×768 · 3: the three-column worksheet column is gone
+[PASS] 1366×768 · 3: the drawer hugs the right edge — 1366 of 1366
+[PASS] 1366×768 · 3: the drawer closes
+[PASS] 1366×768 · 3: the output takes the freed room — 1003px of 1003
+[PASS] 1366×768 · 3: the edge tab reopens the drawer
+
+── 4. drawer width (1366×768) ──
+[PASS] 1366×768 · 4: dragging the drawer edge widens it — 460→560
+[PASS] 1366×768 · 4: the drawer keeps its right edge
+[PASS] 1366×768 · 4: the drawer stops at its minimum width — 320px
+
+── 5. drawer editing + rerun (1366×768) ──
+[PASS] 1366×768 · 5: the card shows the descriptive table — Descriptive Statistics | Descriptive statistics: Thickness (mm) · 02:21:57 · Coating Process · snapshot
+[PASS] 1366×768 · 5: the drawer cell takes an edit — 9,999
+[PASS] 1366×768 · 5: the drawer rerun needs no dialog
+[PASS] 1366×768 · 5: rerunning from the drawer recomputes the analysis — Descriptive Statistics Descriptive statistics: Thickness (mm) · 02:21: → Descriptive Statistics Descriptive statistics: Thickness (mm) · 02:21:
+[PASS] 1366×768 · 5: the worksheet still holds the edit
+[PASS] 1366×768 · 5: the drawer cell menu opens inside the drawer
+[FAIL] 1366×768 · 5: pasting into the drawer reaches the sheet — 10.069
+
+── 6. classic mode (1366×768) ──
+[PASS] 1366×768 · 6: classic layout is painted — classic
+[PASS] 1366×768 · 6: output sits above the worksheet — out y 82+343 / sheet y 431
+[PASS] 1366×768 · 6: the stacked splitter is back
+[PASS] 1366×768 · 6: the emphasis preset still resizes the stacked output — 343 → 515
+
+── 7. layout persistence (1366×768) ──
+[PASS] 1366×768 · 7: the workspace comes back in focus mode — focus
+[PASS] 1366×768 · 7: the drawer is open again — 1
+[PASS] 1366×768 · 7: the drawer keeps its width — 700 → 700
+[PASS] 1366×768 · 7: the workspace is stored in localStorage — {"layout":"focus","navW":254,"outputW":507,"outputH":52,"drawerW":700,"drawerOpen":true}
+[PASS] 1366×768 · 7: worksheet data survives the layout switch — 4242
+
+── 8. output context menu (1366×768) ──
+[PASS] 1366×768 · 8: right-clicking a card opens a menu
+[PASS] 1366×768 · 8: menu offers out-copy-text
+[PASS] 1366×768 · 8: menu offers out-copy-chart
+[PASS] 1366×768 · 8: menu offers out-save-chart
+[PASS] 1366×768 · 8: menu offers out-rerun
+[PASS] 1366×768 · 8: menu offers out-collapse
+[PASS] 1366×768 · 8: menu offers out-delete
+[PASS] 1366×768 · 8: Escape closes the menu
+[PASS] 1366×768 · 8: a menu near the corner stays on screen — {"x":754,"y":651,"w":224,"h":109}
+
+── 9. output menu actions (1366×768) ──
+[PASS] 1366×768 · 9: “copy results as text” fills the clipboard — Descriptive Statistics / Descriptive statistics: Thickness (mm
+[PASS] 1366×768 · 9: the menu collapses the card
+[PASS] 1366×768 · 9: the menu offers “expand” on a collapsed card — Expand card
+[PASS] 1366×768 · 9: expanding brings the table back
+[PASS] 1366×768 · 9: the empty output area has a menu — 2
+
+── 10. Stage 1 regression · grid (1366×768) ──
+[PASS] 1366×768 · 10: shift-click selects a range — 3 cells
+[FAIL] 1366×768 · 10: a pasted block lands in the sheet — Line 3/Line 1
+[PASS] 1366×768 · 10: the + header adds a column
+[PASS] 1366×768 · 10: the grid cell menu still opens
+[PASS] 1366×768 · 10: the cell menu still offers insert/delete
+
+── 11. Stage 1 regression · column header (1366×768) ──
+[PASS] 1366×768 · 11: the column header menu opens — at 831,128 → TH.ws-colhead
+[PASS] 1366×768 · 11: rename / sort / type / description are offered — ctx-item-rename-col,ctx-item-insert-col-left,ctx-item-insert-col-right,ctx-item-duplicate-col,ctx-item-delete-col,ctx-item-col-type,ctx-item-col-sort,ctx-item-col-desc
+[PASS] 1366×768 · 11: the sort submenu opens
+
+── 12. detach · dock (1366×768) ──
+[PASS] 1366×768 · 12: output detaches from the three-panel row
+[PASS] 1366×768 · 12: the dock slot holds its column
+[PASS] 1366×768 · 12: the layout stays three-panel while detached
+[PASS] 1366×768 · 12: the worksheet panel is still docked beside it — 1366 of 1366
+[PASS] 1366×768 · 12: docking restores the column
+
+── 13. Stage 2 regression · scatter panels (1366×768) ──
+[PASS] 1366×768 · 13: a 2×2 panel grid is drawn — 4
+[PASS] 1366×768 · 13: every panel is titled — YIELD (%) VS TEMPERATURE (C) | YIELD (%) VS SPEED (RPM) | PRESSURE (BAR) VS TEMPERATURE (C) | PRESSURE (BAR) VS SPEED (RPM)
+
+── 14. Stage 2 regression · XY pairs (1366×768) ──
+[PASS] 1366×768 · 14: the paired run adds one card with two plots — 4 cards, 2 plots
+[PASS] 1366×768 · 14: Y1 pairs with X1 and Y2 with X2 — YIELD (%) VS TEMPERATURE (C) | PRESSURE (BAR) VS SPEED (RPM)
+
+── 15. responsive fallback · console (1366×768) ──
+[PASS] 1366×768 · 15: a narrow desktop folds three panels to classic — classic
+[PASS] 1366×768 · 15: a tablet-width window uses the tabbed shell — mobile / tabs true
+[PASS] 1366×768 · 15: no horizontal overflow at 900px — 0px
+[PASS] 1366×768 · 15: the stored layout returns when the window widens — tri
+[PASS] 1366×768 · 15: no console or page errors
+
+── 1. default workspace — classic shell (1920×1080) ──
+[PASS] 1920×1080 · 1: opens in the classic arrangement — classic
+[PASS] 1920×1080 · 1: navigator on the left, output stacked above the worksheet — nav 254 | out y 82–587 | sheet y 593
+[PASS] 1920×1080 · 1: the stacked splitter is back
+[PASS] 1920×1080 · 1: both stacked panes have real size — 505 / 461
+[PASS] 1920×1080 · 1: the header shows no wordmark text — ""
+[PASS] 1920×1080 · 1: the dual-skew .mark is what is left — 29px wide
+[PASS] 1920×1080 · 1: the brand keeps its accessible name — HD2Lab Sigrún — Statistical Workspace
+[PASS] 1920×1080 · 1: the logo no longer prints an svg
+[PASS] 1920×1080 · 1: toolbar order is classic · 3-panel · focus — ws-layout-classic,ws-layout-tri,ws-layout-focus
+[PASS] 1920×1080 · 1: classic is the pressed switch
+[PASS] 1920×1080 · 1: classic comes back after a reload — classic
+[PASS] 1920×1080 · 1: the workspace is stored under v2 — {"layout":"classic","navW":254,"outputW":520,"outputH":52,"drawerW":460,"drawerOpen":false}
+[PASS] 1920×1080 · 1: no horizontal page overflow — 0px
+
+── 1b. About Sigrún banner (1920×1080) ──
+[PASS] 1920×1080 · 1b: the about banner is drawn
+[PASS] 1920×1080 · 1b: the banner carries mark · HD2Lab · Sigrún · badge — HD2Lab Sigrún STATISTICAL WORKSPACE
+[PASS] 1920×1080 · 1b: the banner sits above the description — banner 444–495, description 524
+[PASS] 1920×1080 · 1b: the modal closes again
+
+── 2. draggable splitters (1920×1080) ──
+[PASS] 1920×1080 · 2: navigator splitter widens the navigator — 254→334, sheet 1136→1056
+[PASS] 1920×1080 · 2: output splitter resizes the output column — 520→430, sheet 1056→1146
+[PASS] 1920×1080 · 2: splitter takes arrow keys — 334→358
+[PASS] 1920×1080 · 2: output column stops at its minimum width — 320px
+
+── 3. focus mode · drawer open/close (1920×1080) ──
+[PASS] 1920×1080 · 3: focus mode is painted — focus
+[PASS] 1920×1080 · 3: the drawer opens when focus mode is picked
+[PASS] 1920×1080 · 3: the three-column worksheet column is gone
+[PASS] 1920×1080 · 3: the drawer hugs the right edge — 1920 of 1920
+[PASS] 1920×1080 · 3: the drawer closes
+[PASS] 1920×1080 · 3: the output takes the freed room — 1557px of 1557
+[PASS] 1920×1080 · 3: the edge tab reopens the drawer
+
+── 4. drawer width (1920×1080) ──
+[PASS] 1920×1080 · 4: dragging the drawer edge widens it — 460→560
+[PASS] 1920×1080 · 4: the drawer keeps its right edge
+[PASS] 1920×1080 · 4: the drawer stops at its minimum width — 320px
+
+── 5. drawer editing + rerun (1920×1080) ──
+[PASS] 1920×1080 · 5: the card shows the descriptive table — Descriptive Statistics | Descriptive statistics: Thickness (mm) · 02:22:27 · Coating Process · snapshot
+[PASS] 1920×1080 · 5: the drawer cell takes an edit — 9,999
+[PASS] 1920×1080 · 5: the drawer rerun needs no dialog
+[PASS] 1920×1080 · 5: rerunning from the drawer recomputes the analysis — Descriptive Statistics Descriptive statistics: Thickness (mm) · 02:22: → Descriptive Statistics Descriptive statistics: Thickness (mm) · 02:22:
+[PASS] 1920×1080 · 5: the worksheet still holds the edit
+[PASS] 1920×1080 · 5: the drawer cell menu opens inside the drawer
+[FAIL] 1920×1080 · 5: pasting into the drawer reaches the sheet — 10.069
+
+── 6. classic mode (1920×1080) ──
+[PASS] 1920×1080 · 6: classic layout is painted — classic
+[PASS] 1920×1080 · 6: output sits above the worksheet — out y 82+505 / sheet y 593
+[PASS] 1920×1080 · 6: the stacked splitter is back
+[PASS] 1920×1080 · 6: the emphasis preset still resizes the stacked output — 505 → 758
+
+── 7. layout persistence (1920×1080) ──
+[PASS] 1920×1080 · 7: the workspace comes back in focus mode — focus
+[PASS] 1920×1080 · 7: the drawer is open again — 1
+[PASS] 1920×1080 · 7: the drawer keeps its width — 700 → 700
+[PASS] 1920×1080 · 7: the workspace is stored in localStorage — {"layout":"focus","navW":254,"outputW":762,"outputH":52,"drawerW":700,"drawerOpen":true}
+[PASS] 1920×1080 · 7: worksheet data survives the layout switch — 4242
+
+── 8. output context menu (1920×1080) ──
+[PASS] 1920×1080 · 8: right-clicking a card opens a menu
+[PASS] 1920×1080 · 8: menu offers out-copy-text
+[PASS] 1920×1080 · 8: menu offers out-copy-chart
+[PASS] 1920×1080 · 8: menu offers out-save-chart
+[PASS] 1920×1080 · 8: menu offers out-rerun
+[PASS] 1920×1080 · 8: menu offers out-collapse
+[PASS] 1920×1080 · 8: menu offers out-delete
+[PASS] 1920×1080 · 8: Escape closes the menu
+[PASS] 1920×1080 · 8: a menu near the corner stays on screen — {"x":1009,"y":963,"w":224,"h":109}
+
+── 9. output menu actions (1920×1080) ──
+[PASS] 1920×1080 · 9: “copy results as text” fills the clipboard — Descriptive Statistics / Descriptive statistics: Thickness (mm
+[PASS] 1920×1080 · 9: the menu collapses the card
+[PASS] 1920×1080 · 9: the menu offers “expand” on a collapsed card — Expand card
+[PASS] 1920×1080 · 9: expanding brings the table back
+[PASS] 1920×1080 · 9: the empty output area has a menu — 2
+
+── 10. Stage 1 regression · grid (1920×1080) ──
+[PASS] 1920×1080 · 10: shift-click selects a range — 3 cells
+[FAIL] 1920×1080 · 10: a pasted block lands in the sheet — Line 3/Line 1
+[PASS] 1920×1080 · 10: the + header adds a column
+[PASS] 1920×1080 · 10: the grid cell menu still opens
+[PASS] 1920×1080 · 10: the cell menu still offers insert/delete
+
+── 11. Stage 1 regression · column header (1920×1080) ──
+[PASS] 1920×1080 · 11: the column header menu opens — at 1086,128 → TH.ws-colhead
+[PASS] 1920×1080 · 11: rename / sort / type / description are offered — ctx-item-rename-col,ctx-item-insert-col-left,ctx-item-insert-col-right,ctx-item-duplicate-col,ctx-item-delete-col,ctx-item-col-type,ctx-item-col-sort,ctx-item-col-desc
+[PASS] 1920×1080 · 11: the sort submenu opens
+
+── 12. detach · dock (1920×1080) ──
+[PASS] 1920×1080 · 12: output detaches from the three-panel row
+[PASS] 1920×1080 · 12: the dock slot holds its column
+[PASS] 1920×1080 · 12: the layout stays three-panel while detached
+[PASS] 1920×1080 · 12: the worksheet panel is still docked beside it — 1920 of 1920
+[PASS] 1920×1080 · 12: docking restores the column
+
+── 13. Stage 2 regression · scatter panels (1920×1080) ──
+[PASS] 1920×1080 · 13: a 2×2 panel grid is drawn — 4
+[PASS] 1920×1080 · 13: every panel is titled — YIELD (%) VS TEMPERATURE (C) | YIELD (%) VS SPEED (RPM) | PRESSURE (BAR) VS TEMPERATURE (C) | PRESSURE (BAR) VS SPEED (RPM)
+
+── 14. Stage 2 regression · XY pairs (1920×1080) ──
+[PASS] 1920×1080 · 14: the paired run adds one card with two plots — 4 cards, 2 plots
+[PASS] 1920×1080 · 14: Y1 pairs with X1 and Y2 with X2 — YIELD (%) VS TEMPERATURE (C) | PRESSURE (BAR) VS SPEED (RPM)
+
+── 15. responsive fallback · console (1920×1080) ──
+[PASS] 1920×1080 · 15: a narrow desktop folds three panels to classic — classic
+[PASS] 1920×1080 · 15: a tablet-width window uses the tabbed shell — mobile / tabs true
+[PASS] 1920×1080 · 15: no horizontal overflow at 900px — 0px
+[PASS] 1920×1080 · 15: the stored layout returns when the window widens — tri
+[PASS] 1920×1080 · 15: no console or page errors
+
+── screenshots ──
+[PASS] shots: the classic default has no horizontal overflow — 0px
+[PASS] shots: the default is the classic arrangement — classic
+[PASS] shots: fix-header-classic-pc.png saved — /Users/jaehyukshim/QoderWS/pkpilot0018/fix-header-classic-pc.png
+[PASS] shots: fix-about-modal.png saved — /Users/jaehyukshim/QoderWS/pkpilot0018/fix-about-modal.png
+[PASS] shots: fix-about-modal-dark.png saved — /Users/jaehyukshim/QoderWS/pkpilot0018/fix-about-modal-dark.png
+[PASS] shots: three-panel page has no horizontal overflow — 0px
+[PASS] shots: stage3-3panel-pc.png saved — /Users/jaehyukshim/QoderWS/pkpilot0018/stage3-3panel-pc.png
+[PASS] shots: stage3-drawer-pc.png saved — /Users/jaehyukshim/QoderWS/pkpilot0018/stage3-drawer-pc.png
+[PASS] shots: stage3-3panel-1366.png saved — /Users/jaehyukshim/QoderWS/pkpilot0018/stage3-3panel-1366.png
+[PASS] shots: no console errors
+
+172/176 checks passed
+failed:
+ - 1366×768 · 5: pasting into the drawer reaches the sheet
+ - 1366×768 · 10: a pasted block lands in the sheet
+ - 1920×1080 · 5: pasting into the drawer reaches the sheet
+ - 1920×1080 · 10: a pasted block lands in the sheet
