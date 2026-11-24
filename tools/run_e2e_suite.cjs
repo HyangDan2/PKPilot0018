@@ -134,7 +134,8 @@ function startServer() {
     summary.push({ ...suite, ok, pass: passed.length, fail: failed.length, ms, totals: totals.slice(-2) });
   }
   if (server) server.close();
-  fs.writeFileSync(path.join(OUT, LIVE ? 'phase3-3e-e2e-live-suite.json' : 'phase3-3e-e2e-suite.json'), JSON.stringify({ base, at: new Date().toISOString(), summary }, null, 1));
+  const suiteFile = process.env.SUITE_OUT || (LIVE ? 'phase3-3e-e2e-live-suite.json' : 'phase3-3e-e2e-suite.json');
+  fs.writeFileSync(path.join(OUT, suiteFile), JSON.stringify({ base, at: new Date().toISOString(), summary }, null, 1));
   console.log('\n════ summary ════');
   for (const row of summary) console.log(`${row.ok ? 'ok  ' : 'FAIL'} ${row.name.padEnd(20)} ${String(row.pass).padStart(3)} PASS ${String(row.fail).padStart(2)} FAIL ${(row.ms / 1000).toFixed(1)}s`);
   const bad = summary.filter((row) => !row.ok).length;

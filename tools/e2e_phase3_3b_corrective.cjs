@@ -301,5 +301,8 @@ async function writeAutosave(page, state) {
 
   const failed = results.filter((entry) => !entry.ok);
   console.log(`\n${results.length - failed.length} / ${results.length} PASS`);
+  /* The in-process server keeps the event loop alive otherwise, so a finished
+     run looks like a hang to whatever started it. */
+  if (local) local.server.close();
   if (failed.length) process.exitCode = 1;
 })();

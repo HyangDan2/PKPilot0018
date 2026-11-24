@@ -1,0 +1,238 @@
+{
+ "at": "2026-11-24T11:00:45.568Z",
+ "environment": {
+  "browser": "chrome-headless-shell 1248 (single-process, SwiftShader)",
+  "viewport": "1440×1000",
+  "url": "http://127.0.0.1:4198/PKPilot0018/",
+  "node": "v24.19.0",
+  "host": "linux x64",
+  "rows": 50000
+ },
+ "measurements": {
+  "boot": {
+   "samples": [
+    125,
+    134,
+    206
+   ],
+   "medianMs": 134,
+   "domContentLoadedMs": 72
+  },
+  "bootHeapMB": 12,
+  "largeImport": {
+   "rows": 50000,
+   "ms": 4385
+  },
+  "descriptiveLarge": {
+   "rows": 50000,
+   "variables": 4,
+   "ms": 1637
+  },
+  "scatterLarge": {
+   "rows": 50000,
+   "ms": 6724,
+   "marks": 50003
+  },
+  "largeHeapMB": 45,
+  "optimizer": {
+   "responses": 2,
+   "factors": 2,
+   "gridPoints": 21,
+   "samples": [
+    68,
+    72,
+    173
+   ],
+   "medianMs": 72
+  },
+  "profiler": {
+   "samples": [
+    {
+     "sync": 1.2999999970197678,
+     "painted": 8.5
+    },
+    {
+     "sync": 3.600000001490116,
+     "painted": 29.69999999552965
+    },
+    {
+     "sync": 4.899999998509884,
+     "painted": 32.20000000298023
+    },
+    {
+     "sync": 0.8999999985098839,
+     "painted": 31.899999998509884
+    },
+    {
+     "sync": 0.7000000029802322,
+     "painted": 41.30000000447035
+    }
+   ],
+   "syncMedianMs": 1.3,
+   "paintMedianMs": 31.9
+  },
+  "profilerHeapMB": 15
+ },
+ "limits": {
+  "scatterPairs": 36,
+  "surfaceGrid": 401,
+  "surfaceMeshGrid": 121,
+  "feasibleGrid": 401,
+  "optimizerGridPoints": 201,
+  "optimizerEvaluations": 60000
+ },
+ "checks": [
+  {
+   "name": "boot to interactive (median of 3)",
+   "ok": null,
+   "value": 134,
+   "unit": "samples 125 / 134 / 206 ms · DOMContentLoaded 72 ms",
+   "detail": ""
+  },
+  {
+   "name": "JS heap after boot",
+   "ok": null,
+   "value": 12,
+   "unit": "MB",
+   "detail": ""
+  },
+  {
+   "name": "the page boots without a page error",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "the large CSV is offered to the importer",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "import 50000 rows × 4 columns (CSV, preview + commit)",
+   "ok": null,
+   "value": 4385,
+   "unit": "ms",
+   "detail": ""
+  },
+  {
+   "name": "descriptive statistics on 50000 rows × 4 variables",
+   "ok": null,
+   "value": 1637,
+   "unit": "ms",
+   "detail": ""
+  },
+  {
+   "name": "the large descriptive table reports all four variables",
+   "ok": true,
+   "detail": "Descriptive Statistics Descriptive statistics: Temperature, "
+  },
+  {
+   "name": "every imported row reached the statistics (N = 50000)",
+   "ok": true,
+   "detail": "50000,000,179,078"
+  },
+  {
+   "name": "scatterplot of 50000 points (compute + draw)",
+   "ok": null,
+   "value": 6724,
+   "unit": "50003 marks drawn",
+   "detail": ""
+  },
+  {
+   "name": "the large scatterplot actually draws its points",
+   "ok": true,
+   "detail": "50003 marks"
+  },
+  {
+   "name": "JS heap after the large-data session",
+   "ok": null,
+   "value": 45,
+   "unit": "MB",
+   "detail": "50000 rows in the worksheet"
+  },
+  {
+   "name": "the large-data session produced no page error",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "optimizer solve, 2 responses × 2 factors (median of 3)",
+   "ok": null,
+   "value": 72,
+   "unit": "samples 68 / 72 / 173 ms",
+   "detail": ""
+  },
+  {
+   "name": "profiler slider: handler cost (median of 5)",
+   "ok": null,
+   "value": 1.2999999970197678,
+   "unit": "ms",
+   "detail": ""
+  },
+  {
+   "name": "profiler slider: dispatch → two frames painted (median of 5)",
+   "ok": null,
+   "value": 31.899999998509884,
+   "unit": "ms",
+   "detail": ""
+  },
+  {
+   "name": "a factor change is reflected within 100 ms",
+   "ok": true,
+   "detail": "31.9 ms"
+  },
+  {
+   "name": "JS heap with the optimizer and profiler open",
+   "ok": null,
+   "value": 15,
+   "unit": "MB",
+   "detail": ""
+  },
+  {
+   "name": "the performance session produced no page error",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "scatter combination ceiling (pairs per dialog)",
+   "ok": null,
+   "value": 36,
+   "unit": "documented constant",
+   "detail": ""
+  },
+  {
+   "name": "surface grid ceiling",
+   "ok": null,
+   "value": 401,
+   "unit": "documented constant",
+   "detail": ""
+  },
+  {
+   "name": "surface mesh ceiling per axis",
+   "ok": null,
+   "value": 121,
+   "unit": "documented constant",
+   "detail": ""
+  },
+  {
+   "name": "feasible-region grid ceiling",
+   "ok": null,
+   "value": 401,
+   "unit": "documented constant",
+   "detail": ""
+  },
+  {
+   "name": "optimizer grid points (UI ceiling)",
+   "ok": null,
+   "value": 201,
+   "unit": "points per axis",
+   "detail": ""
+  },
+  {
+   "name": "optimizer evaluation budget",
+   "ok": null,
+   "value": 60000,
+   "unit": "documented constant",
+   "detail": ""
+  }
+ ]
+}

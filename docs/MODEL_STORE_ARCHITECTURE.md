@@ -1,7 +1,7 @@
-# Sigrún — Stored Model 관리자 설계 (Stage 3A / WO-02)
+# Sigrún — Stored Model 관리자 설계 (Stage 3A / WO-02 · Stage 3B–3C 연결 · Stage 3E 확인)
 
-> **대상**: `HD2Lab Sigrún` (`HyangDan2/PKPilot0018`), Stage 3A
-> **모듈**: `src/lib/modelStore.ts` · `src/lib/modelPredictor.ts` · `src/components/ModelManager.tsx`
+> **대상**: `HD2Lab Sigrún` (`HyangDan2/PKPilot0018`), Stage 3A부터 Phase 3 끝까지
+> **모듈**: `src/lib/modelStore.ts` · `src/lib/modelPredictor.ts` · `src/lib/predictionAdapter.ts` · `src/components/ModelManager.tsx`
 > **목적**: 분석에서 적합된 모형을 독립적으로 보관하고, 후속 실행(등고선·표면·최적화)에서 **재적합 없이** 재사용한다.
 
 ---
@@ -96,7 +96,8 @@ coding.mode = 'actual'  actual 입력 → x
 
 - `se(ŷ) = √(xᵀ Σ x)`, Σ = 저장된 공분산
 - `PI = ŷ ± t(1−α/2, dfe) · √(xᵀ Σ x + mse)`
-- 공분산이나 dfe가 없으면 `null` (0으로 대체하지 않는다)
+- 공분산이나 dfe가 없으면 `null` (0으로 대체하지 않는다). **mse가 없으면 PI도 `null`** — Stage 3C 교정(F-3C-11)에서 값을 지어내던 경로를 없앴다
+- "이 모형이 무엇을 답할 수 있는가"는 `modelPredictor.intervalStatus()` 한 곳이 정하고, 최적화·프로파일러도 `predictionAdapter.ts`를 통해 **같은 판정**을 쓴다(교차검사 `crossCheck()`, QA-W-31·32)
 
 ### 3.4 랭크 부족(Rank-deficient)
 
@@ -137,7 +138,7 @@ coding.mode = 'actual'  actual 입력 → x
 - **목록**: 이름·종류·반응←예측·stale 배지·비교 체크박스
 - **상세**: ID/생성/수정, 계수표(별칭은 "추정 불가"), 공분산 유무, 학습 데이터, 3항 예측(단위 전환·범주 선택), 예측 결과(ŷ·SE·95% PI 또는 사유), 호환성 경고, 재적합, 복제, 삭제
 - **비교**: 2개 이상 선택 시 N·dfe·S·R²·R²(adj)·R²(pred)·별칭·공분산 유무·수정 시각 표
-- **후속 진입점**: `등고선` 활성(수치 요인 2개 이상, 추정 가능), `3D 표면`/`최적화`는 Stage 3B–3C 자리로 비활성 표시
+- **후속 진입점**: `등고선`(수치 요인 2개 이상, 추정 가능), `3D 표면`(수치 요인 2개), `Overlaid Contour`(반응 2개 이상 선택 시), `최적화`(선택한 모형들이 인자를 공유할 때) — 모두 Stage 3B·3C에서 활성화됐다
 
 ---
 
@@ -147,6 +148,10 @@ coding.mode = 'actual'  actual 입력 → x
 modelSurface(model, { xName, yName, holdings, resolution, mode })
 // → { xs, ys, z[][], xRange, yRange, outOfRange, nonEstimable[] }
 //   Stage 3B 표면 투영·3C 최적화가 같은 격자를 그대로 사용한다.
+
+predictStoredModel(model, inputs)      // 모형관리자의 점별 예측
+// predictionAdapter.predictPoint(...) — optimizer·profiler가 쓰는 같은 정의의 경로
+// 두 경로의 답이 같은지는 crossCheck()와 QA-W-31·32가 확인한다.
 ```
 
 `z`의 `NaN`은 "이 점에서는 예측할 수 없음"이며 등고선 엔진이 마스크로 처리한다(값을 임의로 채우지 않는다).
@@ -163,3 +168,5 @@ modelSurface(model, { xName, yName, holdings, resolution, mode })
 | Stale/재적합/지문 | `tests/model-store.test.ts` |
 | 변수 ID·단위·범주 수준 호환성 | `checkCompatibility()`, `tests/model-store.test.ts` |
 | 브라우저 UI | `tools/e2e_phase3_3a.cjs` (저장 → 관리자 → 예측 → 등고선) |
+| 3D 표면·최적화 연결 | `tools/e2e_phase3_3b.cjs` 41 · `e2e_phase3_3c.cjs` 24 (로컬·라이브) |
+| Portable(`file://`) | `tools/e2e_portable_offline.cjs` — 저장 모형 2개 → 표면·등고·최적화·프로파일러 (Stage 3E, 63검사 중 해당 항목) |

@@ -1,9 +1,11 @@
-# Sigrún 반응 최적화 방법론 (Stage 3C · WO-05 / WO-06)
+# Sigrún 반응 최적화 방법론 (Stage 3C · WO-05 / WO-06 · 3C 교정 F-3C-01~13 반영 · Stage 3E 확인)
 
 > **대상**: `HyangDan2/PKPilot0018` (HD2Lab Sigrún) — 브라우저에서만 도는 통계·품질 워크스페이스
 > **범위**: 다중 반응 최적화(`ResponseOptimizer`)와 예측 프로파일러(`PredictionProfiler`)
-> **코드**: `src/lib/desirability.ts` · `src/lib/optimizer.ts` · `src/lib/profiler.ts` · `src/lib/optimizationTypes.ts` · `src/components/ResponseOptimizer.tsx` · `src/components/PredictionProfiler.tsx`
-> **독립 검증**: `qa/cases/QA-W-stage3c-optimizer.json` (12건, SciPy 기준) · `tests/optimizer.test.ts` (28건) · `tests/profiler.test.ts` (11건) · `tools/e2e_phase3_3c.cjs` (24검사)
+> **코드**: `src/lib/desirability.ts` · `src/lib/optimizer.ts` · `src/lib/factorDomain.ts` · `src/lib/predictionAdapter.ts` · `src/lib/modelPredictor.ts` · `src/lib/profiler.ts` · `src/lib/optimizationTypes.ts` · `src/components/ResponseOptimizer.tsx` · `src/components/PredictionProfiler.tsx`
+> **독립 검증**: `qa/cases/QA-W-stage3c-optimizer.json` (**20건**, SciPy 기준) · `tests/optimizer.test.ts` · `tests/phase3c-corrective.test.ts` (41건) · `tests/profiler.test.ts` · `tests/perf-optimizer.test.ts` · `tools/e2e_phase3_3c.cjs` (24검사)
+> **교정 이력**: `docs/PHASE3_3C_CORRECTIVE_QA.md` (F-3C-01~13) — 상태 7종 재정의, 정의역 모듈화, 단일 예측 엔진, 부적합 반응 차단, 인자 충돌 검출, 외삽 금지. 본 문서는 **교정 후 코드**를 설명한다.
+> **Stage 3E 확인**: 최적화·프로파일러 코드는 Stage 3E에서 바뀌지 않았다. 통합 QA(`qa:stats` 225/225, `npm test` 1 001/1 001, 3C E2E 24/24 로컬·라이브, Portable `file://` 경로 포함)에서 그대로 통과했고, 창 안에서의 풀이 시간은 **63 ms**(반응 2 · 인자 2 · 격자 21점, 중앙값 3회)로 측정됐다(`docs/PHASE3_UPGRADE_REPORT.md` §5).
 
 ---
 
@@ -71,24 +73,39 @@ D = ( Π dᵢ^Iᵢ ) ^ (1 / Σ Iᵢ)        (Iᵢ = Importance, 참여 반응만
 | 방법 | 하는 일 | 보장 |
 | --- | --- | --- |
 | Grid Search | 연속 인자를 격자로 훑고, 이산은 간격대로, 범주는 수준마다 | 격자 위 최선. 전역 최적은 주장하지 않음 |
-| Multi-start Local Search | 격자로 좋은 골짜기를 찾은 뒤, 시드로 뽑은 여러 시작점에서 좌표 패턴 탐색(이동 → 실패 시 간격 반감) | 같은 시드 = 같은 답. 수렴하면 `optimal`, 아니면 `best-found` |
+| Multi-start Local Search | 격자로 좋은 골짜기를 찾은 뒤, 시드로 뽑은 여러 시작점에서 좌표 패턴 탐색(이동 → 실패 시 간격 반감) | 같은 시드 = 같은 답. 허용오차까지 수렴하면 `local-converged`, 아니면 `best-found` |
 | Bounded Optimization | 한 시작점(중심 또는 최선 격자점)에서 경계를 지키며 같은 정련 | 경계를 벗어나지 않음 |
-| Discrete / Categorical Enumeration | 전 조합을 빠짐없이 평가 | 그 공간의 최적 (유일하게 "전역"을 주장할 수 있는 방법) |
+| Discrete / Categorical Enumeration | 전 조합을 빠짐없이 평가 | 그 공간의 최적 — **모든 자유 인자가 이산·범주형이고 예산 안에서 전 조합을 평가했을 때만** `global-optimal` |
+
+### 정의역은 한 모듈이 소유한다 (`src/lib/factorDomain.ts`)
+
+교정 전에는 격자·랜덤 시작·국소 탐색·프로파일러가 각자 값 목록을 만들었고, 누적 덧셈 때문에 `0.3`의 배수나 `1e-4` 간격에서 값이 어긋났다(0…1 step 0.6이 21점이 되고, 0.00015000000000000001이 생겼다). 지금은 아래 네 함수가 유일한 구현이다.
+
+- `discreteValueAt(lower, step, k)` — 정수 인덱스와 `10^d` 스케일 산술로 `Lower + k × Step`을 정확히 만든다(중복 없음).
+- `discreteAxis()` — `k = 0 … floor((Upper−Lower)/Step)`만 만든다. 상한을 넘는 값을 만들지 않는다(0…1 step 0.6 → `[0, 0.6]`).
+- `validateFactorValue()` / `factorIssues()` — 고정값과 후보값을 범위·간격으로 검증한다(`fixedOutside`, `fixedOffStep`, `valueOffStep`, `valueOutside`, `levelUnknown`).
+- `candidateIssues()` — 모든 후보를 평가 **직전**에 검증하고, 거부 수를 `search.rejected`로 보고한다.
+
+정의역의 기본값도 규칙이 있다. 같은 이름의 인자가 서로 다른 단위(°C·°F)면 `opt.issue.unitConflict`, 수치와 범주가 섞이면 `opt.issue.typeConflict`로 **탐색을 시작하지 않는다**. 여러 모형의 적합 범위가 다르면 **교집합**을 쓴다(`domainSource: intersection`). 모형이 적합된 범위 밖을 탐색하려 하면 `opt.issue.extrapolationNotAllowed`로 거부한다.
 
 - **격자점 수**: 연속 인자 축마다 `gridPoints`(기본 21). 이산 인자는 `step`을 지킨다 — 간격은 사용자가 정한 약속이므로 임의로 줄이지 않는다.
 - **탐색 횟수 상한**: `maxEvaluations`(기본 60 000). 격자가 상한보다 크면 연속 축을 반씩 성기게 조정하고 그 사실을 `opt.warn.gridReduced`로 알린다. 이산 축은 그대로 두므로 전수 열거가 상한을 넘으면 `limit` 상태로 끝나고 **그때까지의 최선**을 보고한다.
 - **시간 상한**: `timeLimitMs`(기본 4 000 ms). 초과하면 같은 방식으로 `limit`.
 - **재현성**: 시작점은 `mulberry32(seed)`로 만들고, 이산/범주 열거와 격자는 결정적이다. 같은 시드·같은 설정이면 평가 횟수까지 같다(테스트가 확인).
 
-### 상태 표시
+### 상태 표시 (7종)
 
 | 상태 | 뜻 |
 | --- | --- |
-| `optimal` | 만족 해를 찾았고, 전수 열거이거나 국소 탐색이 허용오차까지 수렴했다 |
-| `best-found` | 만족 해를 찾았지만 전역 최적은 주장하지 않는다 (격자, 수렴 전 종료) |
-| `no-feasible` | 어떤 조건도 모든 목표를 만족하지 못했다 (종합 만족도 0) |
-| `invalid` | 문제 정의가 성립하지 않는다 (반응 없음, 전 인자 고정, 범위 오류, 랭크 부족 모형) |
-| `limit` | 평가/시간 상한에 걸렸다. 최선의 해는 함께 보고한다 |
+| `global-optimal` | 모든 자유 인자가 이산·범주형이고 전 조합을 예산 안에서 평가해 최선을 확정했다 |
+| `local-converged` | 연속 공간에서 국소 탐색이 허용오차까지 수렴했다. 전역 최적은 주장하지 않는다 |
+| `best-found` | 만족 해를 찾았지만 수렴도 전수도 아니다 (격자 최선, 시작점 중 최선) |
+| `feasible-not-found` | 탐색을 끝냈지만 어떤 조건도 모든 목표를 만족하지 못했다 (종합 만족도 0) |
+| `infeasible` | 문제가 성립하지 않아 탐색 자체가 불가능하다 (전 인자 고정·충돌·외삽 금지 등) |
+| `invalid` | 입력이 잘못됐다 (반응 없음, 모형 없음, 중복 반응, 한계 역전, 랭크 부족 모형 …) — `opt.issue.*`로 이유를 밝힌다 |
+| `limit` | 평가/시간 상한에 걸렸다. 최선의 해와 중단 사유(`search.stoppedBy`)를 함께 보고한다 |
+
+격자 축소(`search.gridReduced`), 중단 사유(`search.stoppedBy` = `complete`·`budget`·`time`·`cancel`), 전수 여부(`search.exhaustive`)는 상태와 별도로 기록한다. **상태 이름은 "얼마나 보장하는가"를 말하고, 그 근거는 이 세 필드가 말한다.**
 
 ---
 
@@ -103,13 +120,17 @@ D = ( Π dᵢ^Iᵢ ) ^ (1 / Σ Iᵢ)        (Iᵢ = Importance, 참여 반응만
 
 공분산이나 잔차 자유도가 없는 모형(예: 초기 RSM 페이로드)은 SE·구간을 `—`로 두고 값을 지어내지 않는다. UI는 그 사실을 표에서 바로 보여준다.
 
+예측은 **한 경로**로만 계산한다(`src/lib/predictionAdapter.ts`). 교정 전 `optimizer.ts`가 자체 보유하던 예측 산술(`compilePointEvaluator`)은 제거됐고, 어댑터가 실제 좌표를 모형별 코딩으로 변환해(`designFromActual`) 값·SE·CI·PI·비식별·문제 코드를 한 형태로 돌려준다. **"무엇을 답할 수 있는가"는 `modelPredictor.intervalStatus()`가 한 곳에서 정한다.** 모형관리자의 점별 예측과 최적화·프로파일러의 예측이 같은지 `crossCheck()`와 QA-W-31·32가 확인한다.
+
+교정으로 달라진 점 하나: 잔차 평균제곱(mse)이 없는 모형은 **개별 예측구간(PI)을 표시하지 않는다**(교정 전에는 값을 지어냈다). 평균 신뢰구간은 공분산이 있으면 그대로 계산한다.
+
 ### 랭크 부족 모형은 최적화 대상이 아니다
 
 식별되지 않은 항(aliased)이 있는 모형은 x=0처럼 그 항의 가중치가 0인 점에서만 그럴듯한 값이 나온다. 그 값은 모형의 성질이 아니라 해법의 인공물이므로, 그런 모형이 하나라도 섞이면 탐색을 시작하지 않고 `invalid` + `opt.issue.nonEstimable`로 끝낸다.
 
-### 외삽 경고
+### 외삽은 경고가 아니라 거부다 (교정)
 
-최적 조건의 인자값이 그 모형을 적합한 범위(`factorBounds`) 밖이면 `extrapolated`로 표시한다. 해가 적합 영역 밖에 있다는 것은 "이 조건은 데이터가 지지하지 않는 곳"이라는 뜻이며, 값 자체는 계산되지만 그렇게 표시된다.
+교정 전에는 적합 범위(`factorBounds`) 밖의 해를 계산해 `extrapolated`로 표시했다. 지금은 **탐색 공간 자체를 적합 범위의 교집합으로 제한**하고, 사용자가 범위를 넓히려 하면 `opt.issue.extrapolationNotAllowed`로 실행을 막는다. 데이터가 지지하지 않는 곳의 만족도는 모형의 성질이 아니라 외삽의 산물이므로, 그런 해를 "최적 조건"으로 보여주지 않는다.
 
 ### 기본 한계값
 
@@ -131,7 +152,7 @@ D = ( Π dᵢ^Iᵢ ) ^ (1 / Σ Iᵢ)        (Iᵢ = Importance, 참여 반응만
 
 ## 7. 무엇을 검증했고 무엇을 주장하지 않는가
 
-### 독립 검증 (`npm run qa:stats`, QA-W 12건)
+### 독립 검증 (`npm run qa:stats`, QA-W 20건)
 
 | 케이스 | 검증 내용 | 기준 |
 | --- | --- | --- |
@@ -145,6 +166,7 @@ D = ( Π dᵢ^Iᵢ ) ^ (1 / Σ Iᵢ)        (Iᵢ = Importance, 참여 반응만
 | W-10 | 랭크 부족 → 거부 | 규칙 |
 | W-11 | 잘못된 입력 → `invalid` + 이유 | 규칙 |
 | W-12 | 평가 예산 → 성긴 격자, 최선 보고 | SciPy(예산 개념 없음)와 합성 만족도만 비교 |
+| W-13~W-20 | 교정 QA: 상태 구분, 이산 축 정확값, 고정값 검증, 단일 예측 엔진 교차검사, 인자 충돌, 외삽 거부, 한계 역전, PI 없음 | 규칙 + `crossCheck()` + SciPy |
 
 허용오차는 결과를 본 뒤 고르지 않았다. `optimizer_objective`(1e-6), `optimizer_argmax`(0.005), `optimizer_prediction`(1e-3), `optimizer_coarse_grid`(2e-3) 각각에 수치적 이유를 `qa/tolerances.json`에 적었다.
 
@@ -161,7 +183,7 @@ D = ( Π dᵢ^Iᵢ ) ^ (1 / Σ Iᵢ)        (Iᵢ = Importance, 참여 반응만
 ```bash
 npx tsc --noEmit            # 0 errors
 npm test                    # 단위·통합 테스트
-npm run qa:stats            # QA 180건 (기존 168 + QA-W 12), SciPy 기준 포함
+npm run qa:stats            # QA 225건 (QA-W 20 포함), SciPy 기준 포함
 npm run build               # 정적 빌드 (외부 CDN 없음)
 node tools/e2e_phase3_3c.cjs    # 로컬: 3D 표면 수정 · 최적화 · 프로파일러 · 회귀
 BASE=https://hyangdan2.github.io/PKPilot0018/ SERVE=0 node tools/e2e_phase3_3c.cjs   # 라이브

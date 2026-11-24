@@ -13,7 +13,7 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 **Minitab/Origin chart gap audit:** [docs/CHART_FEATURE_GAP.md](docs/CHART_FEATURE_GAP.md) — Graph Editing, Scale, Contour, Surface, Plot Details, Axis Dialog and Colormap compared item by item.
 
-**Independent statistics QA:** [`qa/reports/latest.html`](qa/reports/latest.html) — 205 cases compared against a NumPy/SciPy/statsmodels reference engine (`npm run qa:stats`, also run in CI by `.github/workflows/qa-stats.yml`). Inventory: [`qa/inventory.md`](qa/inventory.md).
+**Independent statistics QA:** [`qa/reports/latest.html`](qa/reports/latest.html) — 225 cases compared against a NumPy/SciPy/statsmodels reference engine (`npm run qa:stats`, also run in CI by `.github/workflows/qa-stats.yml`). Inventory: [`qa/inventory.md`](qa/inventory.md).
 
 **Phase 3B corrective QA:** [docs/PHASE3_3B_CORRECTIVE_QA.md](docs/PHASE3_3B_CORRECTIVE_QA.md) — per-model factor transformation, no silent interval fallback, per-point prediction isolation, non-finite handling, multi-model extrapolation, Ultra grid convergence, interval conditions and engine input validation, with before/after reference numbers and 19 new QA-V cases (with the 12 Stage 3C QA-W cases in the same suite).
 
@@ -78,10 +78,12 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 ```bash
 npm install
 npm run dev        # http://localhost:5178
-npm test           # 583 unit tests (statistics, SPC, parser, project files, charts, layout, workspace layouts, i18n, input audit, scatter Stage 2, QA-F regressions)
+npm test           # 1 001 unit tests (44 files: statistics, SPC, charts and their guards,
+                   # model store, surface, optimizer, profiler, graph layout, project files, i18n, QA regressions)
 npm run qa:stats   # independent reference QA → qa/reports/latest.html
 npm run typecheck  # tsc --noEmit
 npm run build      # production bundle in dist/
+npm run build:portable  # one self-contained HTML for offline/file:// use → dist-portable/
 
 # live browser E2E for the compact top bar, sample-dropdown layer, chart clipboard,
 # floating panels (drag · resize · remembered size) and layout presets
@@ -90,7 +92,19 @@ PART=ui node tools/e2e_ui_compact.cjs     # ui · panels · mobile (or no PART f
 node tools/e2e_chart_axes.cjs             # Cure Study 2-sample t boxplot axis regression
 node tools/e2e_stage2.cjs                 # scatter Stage 2: Y×X, XY pairs, groups, save/reopen (LIVE=1 for Pages)
 node tools/e2e_stage3.cjs                 # Stage 3: 15 scenarios at 1366×768 and 1920×1080 + report screenshots
+node tools/e2e_phase3_3a.cjs              # 3A: chart guards, stored model manager
+node tools/e2e_phase3_3b.cjs              # 3B: 3D surface (WebGL + fallback), overlaid contour
+node tools/e2e_phase3_3c.cjs              # 3C: multi-response optimizer, prediction profiler
+node tools/e2e_phase3_3d.cjs              # 3D: layout editor, advanced axes/contours, chart interaction
+node tools/run_e2e_suite.cjs              # every browser suite above, one command (local dist)
+node tools/e2e_portable_offline.cjs       # the portable HTML opened from file:// with the network off
+node tools/perf_qa_3e.cjs                 # boot, large-data and optimizer timings → qa/reports/perf-3e.json
 ```
+
+The portable build (a single HTML that runs from `file://` with no server, no Node and no
+network) is documented in [`docs/PORTABLE_BUILD_GUIDE.md`](docs/PORTABLE_BUILD_GUIDE.md).
+The Phase 3 result as a whole — what changed, what was measured, what is not claimed — is in
+[`docs/PHASE3_UPGRADE_REPORT.md`](docs/PHASE3_UPGRADE_REPORT.md).
 
 The statistical engine is dependency-free: `src/lib/dist.ts` (normal, t, F and studentized-range
 distributions), `src/lib/stats.ts` (tests, ANOVA/Tukey, regression), `src/lib/spc.ts`
@@ -103,4 +117,4 @@ which runs the type check, the unit tests and the production build before publis
 
 ---
 
-HD2Lab · Sigrún · Phase 1
+HD2Lab · Sigrún · Phase 3

@@ -362,7 +362,11 @@ async function section(title, body) {
       const optMs = Date.now() - optStart;
       await page.waitForTimeout(300);
       const status = await page.locator('[data-testid=opt-result]').getAttribute('data-status');
-      check('the optimizer returns a status', ['optimal', 'best-found', 'limit', 'no-feasible'].includes(status || ''), String(status));
+      check(
+        'the optimizer returns one of the Stage 3C statuses',
+        ['global-optimal', 'local-converged', 'best-found', 'limit', 'feasible-not-found', 'infeasible', 'invalid'].includes(status || ''),
+        String(status),
+      );
       const composite = (await page.locator('[data-testid=opt-composite]').count()) ? await page.locator('[data-testid=opt-composite]').textContent() : 'n/a';
       check('the composite desirability is within 0…1', Number(composite) >= 0 && Number(composite) <= 1, `${composite} · ${optMs} ms`);
       check('the optimizer reports optimal factor settings', (await page.locator('[data-testid=opt-condition-row]').count()) === 2);
