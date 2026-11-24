@@ -137,4 +137,10 @@ UI에서 새로 보이는 것: 만족 영역 결과에 **격자점 수렴도 / �
 - QA: `qa/reference/engine.py`, `qa/adapters/sigrun/cli.ts`, `qa/build_cases.py`, `qa/cases/QA-V-stage3b-surface.json`, `qa/tolerances.json`
 - E2E: `tools/e2e_phase3_3b_corrective.cjs` (신규)
 
-브랜치 커밋과 main 스쿼시 머지 커밋 SHA는 PR 본문과 최종 보고에 기록한다. (이 문서 커밋 다음에 SHA 기록용 커밋이 하나 더 붙는다.)
+| 기록 | SHA |
+| --- | --- |
+| 구현·테스트·QA·문서 커밋 | `588de3c` (`fix/phase3b-corrective-qa`) |
+| 이 문서의 SHA 기록 커밋 | 바로 다음 커밋 |
+| main 반영 | Squash merge — 머지 커밋 SHA는 PR과 최종 보고에 기록 |
+
+Stage 3C Optimizer는 착수하지 않았다.
