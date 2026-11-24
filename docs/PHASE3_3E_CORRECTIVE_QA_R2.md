@@ -220,3 +220,18 @@ tol = min(step / 4, max(4 × ULP(값, lower, upper), step × 1e-12))
 - `crossCheck`의 `nonEstimable` 비교는 현재 두 경로가 같은 계산을 공유해 **실제로 갈라지는 입력을 만들 수 없다**. 그래서 이 항목은 "비교 범위"를 고정하는 가드로 남겼다(§2의 `nonEstimable` 행).
 - `latticeTolerance`의 4 ULP는 관측된 산술 오차(≤1 ULP)에 여유를 둔 값이다. 스텝이 ULP에 가까운 극단(예: 1e15에서 스텝 0.2)은 여전히 `opt.issue.stepBelowPrecision`으로 거부된다.
 - Portable CI의 실제 실행은 §6대로 UNVERIFIED다.
+
+## 9. 머지·배포 기록 (2026-11-24)
+
+| 항목 | 값 |
+| --- | --- |
+| PR | [#30](https://github.com/HyangDan2/PKPilot0018/pull/30) — squash 머지 |
+| 머지 커밋 (`main`) | **`7f4b2e9`** |
+| 원격 브랜치 | `fix/phase3e-corrective-r2` 삭제 완료 |
+| PR CI (`Statistics QA (independent reference)`) | run [45400225012](https://github.com/HyangDan2/PKPilot0018/actions/runs/45400225012) — **success** (53s) |
+| 배포 (`Deploy Sigrún to GitHub Pages`) | run [45400716046](https://github.com/HyangDan2/PKPilot0018/actions/runs/45400716046) — **success** |
+| main QA (`Statistics QA`) | run [45400716116](https://github.com/HyangDan2/PKPilot0018/actions/runs/45400716116) — **success** |
+| 라이브 번들 | `https://hyangdan2.github.io/PKPilot0018/` → `assets/index-1h2h5KCj.js` · `assets/index-DDhi7ejY.css` (로컬 `dist/`와 동일 해시) |
+| 라이브 E2E | 3C **24 / 24 PASS** · 3D **49 / 49 PASS** (`node tools/run_e2e_suite.cjs --live`) |
+| Portable 산출물 | `dist-portable/sigrun-portable.html` 1 278 617 B (`sha256 4ce9461b…38da83`) · `sigrun-portable.zip` 372 300 B (`sha256 fae1f6bb…`) · `build-info.json` `commit: 7f4b2e9` |
+| 최종 `file://` 스모크 (머지본) | **63 / 63 PASS** |
