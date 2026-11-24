@@ -1,10 +1,10 @@
 # Sigrún v1.0.0 Release Candidate — 릴리스 자격 검증
 
 > **작업지시**: WO-FINAL-001 · WO-06(릴리스 빌드) · WO-08(CI/CD) · **WO-FINAL-002**(최종 RC 교정)  
-> **릴리스**: `v1.0.0-rc.1` · 제품 `HD2Lab Sigrún 1.0.0` · 에디션 `public` · 채널 `rc` · 태그 없음  
-> **빌드 커밋**: `bf78daa` — 브랜치 `fix/phase3-final-stabilization`  
+> **릴리스**: `v1.0.0-rc.1` · 제품 `HD2Lab Sigrún 1.0.0` · 에디션 `public` · 채널 `rc` · 태그 `v1.0.0-rc.1`  
+> **빌드 커밋**: `91382d3` — main (`Merge pull request #35`)  
 > **빌드 환경**: node v22.23.4 · vite 6.4.6 · macOS arm64 (로컬), CI는 ubuntu-latest + node 22  
-> **빌드 시각**: `2026-11-24T22:14:51Z` (= `SOURCE_DATE_EPOCH` 1795558491)
+> **빌드 시각**: `2026-11-24T22:50:52Z` (= `SOURCE_DATE_EPOCH` 1795560652)
 
 ## 1. 한 문장 결론
 
@@ -15,17 +15,17 @@
 | 파일 | 바이트 | SHA-256 |
 | --- | ---: | --- |
 | `Sigrun-v1.0.0-rc.1.html` | 1,605,775 | `db4dad0d3dcec19cf4e1a71611715d84342c7016c9433fdacf954cf8c2071441` |
-| `Sigrun-v1.0.0-rc.1-Portable.zip` | 469,960 | `ac5a5040be06d2e92f3b219334c54e1335bcb4af50dbacb86de24faa6b1437c9` |
-| `Sigrun-v1.0.0-rc.1-Web.zip` | 616,244 | `71579f0fb56f1ae5531dd84d4c4d68cd67cb0083db4616cb1e132cb5cbc99700` |
-| `build-info.json` | 966 | `51afcbe557d1be2ae71ca3109916aae041f76f848819ecf00a0afb7bd4841cbc` |
-| `VERSION.txt` | 161 | `2c96d70428a3587c1c452d6aa65156da14106ddb347e59bd2711761b1b99b21e` |
+| `Sigrun-v1.0.0-rc.1-Portable.zip` | 469,961 | `6b652902c6f73699fddb2b0bc8d4b2a037f342215f49cbe82a28a1a32c191d87` |
+| `Sigrun-v1.0.0-rc.1-Web.zip` | 616,244 | `5f76c821f3721557947eeffb8940aaf17f6262fa7951f626cacfb35770b42ce4` |
+| `build-info.json` | 975 | `815ecfaba2ed43ffb3ccfe17ea89348a49d9b8dc6cbec36a7502a89504376638` |
+| `VERSION.txt` | 161 | `8b031c73959e1cb9539e871f771e2e144fa913a4df400f2e2f912ea49c3412b3` |
 | `LICENSES.txt` | 383,480 | `46eaa06756853900f66eef8130cea4dacf2be9fb43d97389530d8009c9370459` |
-| `README-KO.txt` / `README-EN.txt` | 2,128 / 1,840 | `33e890f0…` / `7f5b3ef1…` |
-| `RELEASE_NOTES.md` | 4,449 | `69c3cb58…` |
+| `README-KO.txt` / `README-EN.txt` | 2,128 / 1,840 | `70e42875…` / `32f8d179…` |
+| `RELEASE_NOTES.md` | 4,449 | `d47f1ba3…` |
 | `KNOWN_LIMITATIONS.md` | 2,023 | `eae7abb4…` |
 | `SHA256SUMS.txt` | 850 | 자기 자신을 나열하지 않음 |
 
-전체 해시는 `release/v1.0.0-rc.1/SHA256SUMS.txt`가 단일 출처다. `build-info.json`에는 다음이 기록된다: 릴리스 ID(`v1.0.0-rc.1`)·**채널(`rc`)·태그(`null`)**·에디션·커밋(`bf78daa`)·빌드 시각·zip 타임스탬프·HTML/zip 해시·web index 해시·파일 수·사용된 node/vite 버전. `SHA256SUMS.txt`를 다시 계산해 10개 항목이 모두 일치함을 확인했다. `LICENSES.txt`가 8.5 KB에서 383 KB로 커진 것은 WO-FINAL-002 Q-05로 **라이선스 전문과 NOTICE 원문**을 넣었기 때문이다.
+전체 해시는 `release/v1.0.0-rc.1/SHA256SUMS.txt`가 단일 출처다. `build-info.json`에는 다음이 기록된다: 릴리스 ID(`v1.0.0-rc.1`)·**채널(`rc`)·태그(`v1.0.0-rc.1`)**·에디션·커밋(`91382d3`)·빌드 시각·zip 타임스탬프·HTML/zip 해시·web index 해시·파일 수·사용된 node/vite 버전. `SHA256SUMS.txt`를 다시 계산해 10개 항목이 모두 일치함을 확인했다. `LICENSES.txt`가 8.5 KB에서 383 KB로 커진 것은 WO-FINAL-002 Q-05로 **라이선스 전문과 NOTICE 원문**을 넣었기 때문이다.
 
 ## 3. 빌드·검증 명령 (그대로 재현 가능)
 
@@ -49,7 +49,7 @@ portable HTML is byte-identical on rebuild
 
 검증 항목: 파일 집합(예상 11개, 여분 0), 모든 해시 재계산, `SHA256SUMS.txt` 자기 미포함, `build-info.json` 자기 해시 미포함(순환 방지), 버전·커밋·릴리스 ID 일치, VERSION.txt 교차 확인, Portable.zip 안의 HTML이 릴리스 HTML과 바이트 동일, Web.zip의 index.html이 빌드 페이지와 동일, ZIP 타임스탬프가 빌드 스탬프와 일치, HTML이 외부 스크립트를 싣지 않음, 미해결 제품 토큰 0건, 공개 manifest의 브랜드 유지.
 
-커밋 검사는 “빌드 커밋 이후 `src`·`public`·`index.html`·`portable.html`·`package-lock.json`·`tsconfig.json`·Vite 설정·portable 패키저 등 **빌드 입력이 바뀌지 않았을 것**”을 뜻한다. 문서·CI·테스트 도구만 바뀐 후속 커밋은 산출물을 무효화하지 않으며, 빌드 입력이 바뀌면 예전 산출물은 즉시 실패한다. 이 저장소의 산출물은 `bf78daa`에서 빌드됐고, 그 뒤 커밋은 산출물·문서뿐이다(검증 출력: `built at bf78daa, before HEAD … — build inputs unchanged`).
+커밋 검사는 “빌드 커밋 이후 `src`·`public`·`index.html`·`portable.html`·`package-lock.json`·`tsconfig.json`·Vite 설정·portable 패키저 등 **빌드 입력이 바뀌지 않았을 것**”을 뜻한다. 문서·CI·테스트 도구만 바뀐 후속 커밋은 산출물을 무효화하지 않으며, 빌드 입력이 바뀌면 예전 산출물은 즉시 실패한다. 이 저장소의 산출물은 `91382d3`(main 병합 커밋)에서 태그 identity(`RELEASE_TAG=v1.0.0-rc.1`)로 빌드됐고, 그 뒤 커밋은 산출물·문서뿐이다(검증 출력: `built at 91382d3, before HEAD … — build inputs unchanged`). 태그 `v1.0.0-rc.1`은 이 산출물을 포함한 커밋에 동결된다.
 
 ## 4. 라이선스
 

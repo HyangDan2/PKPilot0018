@@ -191,7 +191,7 @@ WO-FINAL-001에서 미해결로 남긴 stage1 15건·stage3 4건(합 19 FAIL)과
 
 ## 9. 최종 산출물 (SHA-256)
 
-빌드 커밋·시각과 전체 해시는 `release/v1.0.0-rc.1/build-info.json`·`SHA256SUMS.txt`가 단일 출처다. 이번 재빌드의 11개 파일 해시는 `docs/RELEASE_V1_0_0_QUALIFICATION.md` §2 표에 옮겼다.
+빌드 커밋·시각·태그와 전체 해시는 `release/v1.0.0-rc.1/build-info.json`·`SHA256SUMS.txt`가 단일 출처다. 최종 산출물은 **main 병합 SHA `91382d3`**에서 `RELEASE_TAG=v1.0.0-rc.1`로 재빌드했고(태그·채널이 manifest에 기록됨), 11개 파일 해시는 `docs/RELEASE_V1_0_0_QUALIFICATION.md` §2 표에 옮겼다. 태그 `v1.0.0-rc.1`은 이 산출물을 담은 커밋에 동결된다.
 
 ```bash
 export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
