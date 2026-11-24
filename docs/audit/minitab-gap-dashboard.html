@@ -1,0 +1,146 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sigrún ↔ Minitab 기능 격차 대시보드</title>
+<style>
+:root{--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--bg:#f8fafc;--card:#fff;--accent:#1f2937}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Malgun Gothic',sans-serif}
+header{padding:28px 32px 18px;background:var(--card);border-bottom:1px solid var(--line)}
+h1{margin:0 0 6px;font-size:22px;letter-spacing:-.01em}
+h2{margin:0 0 12px;font-size:16px}
+.meta{color:var(--muted);font-size:12.5px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+main{padding:24px 32px 60px;max-width:1180px;margin:0 auto}
+.grid{display:grid;gap:16px;align-items:start}
+.kpis{grid-template-columns:repeat(5,1fr);margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.kpi b{display:block;font-size:26px;letter-spacing:-.02em}
+.kpi span{color:var(--muted);font-size:12px}
+.two{grid-template-columns:1.25fr .75fr}
+.three{grid-template-columns:repeat(3,1fr)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+.pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;border:1px solid var(--line);color:var(--muted)}
+ul.clean{margin:6px 0 0;padding-left:18px}
+ul.clean li{margin:3px 0}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.two,.three{grid-template-columns:1fr}main{padding:16px}}
+</style>
+</head><body>
+<header>
+<h1>Sigrún ↔ Minitab 기능 격차 대시보드</h1>
+<div class="meta">비교 제품 Minitab Statistical Software 22.6.x · 감사일 2026-11-24 · 기준 커밋 <span class="mono">43b0b071cf</span> · 완전 오프라인 단일 파일</div>
+</header><main>
+<section class="grid kpis">
+<div class="card kpi"><b>289</b><span>Minitab 기능(분모)</span></div>
+<div class="card kpi"><b>70 <small style="font-size:13px;color:#6b7280">(24.2%)</small></b><span>Sigrún이 어떤 형태로든 제공</span></div>
+<div class="card kpi"><b>218</b><span>도구 없음(MISSING)</span></div>
+<div class="card kpi"><b>61</b><span>Sigrún 기능 인벤토리</span></div>
+<div class="card kpi"><b>225</b><span>독립 통계 QA 케이스</span></div>
+</section>
+<div class="grid two">
+<section class="card"><h2>영역별 구현 상태</h2><svg viewBox="0 0 900 324" role="img" aria-label="영역별 구현 상태"><text x="178" y="24" text-anchor="end" font-size="12">Data &amp; Workspace</text><rect x="190.0" y="6" width="123.8" height="26" fill="#3d8fbf"><title>Data &amp; Workspace · PARTIAL 12</title></rect><text x="251.9" y="23" text-anchor="middle" font-size="11" fill="#fff">12</text><rect x="313.8" y="6" width="10.3" height="26" fill="#8a6fc4"><title>Data &amp; Workspace · DIFFERENT 1</title></rect><rect x="324.1" y="6" width="237.3" height="26" fill="#c9584f"><title>Data &amp; Workspace · MISSING 23</title></rect><text x="442.8" y="23" text-anchor="middle" font-size="11" fill="#fff">23</text><rect x="561.4" y="6" width="10.3" height="26" fill="#9aa3ad"><title>Data &amp; Workspace · N/A 1</title></rect><text x="579.7" y="23" font-size="11" fill="#4b5563">37</text><text x="178" y="62" text-anchor="end" font-size="12">Statistical Analysis</text><rect x="190.0" y="44" width="113.5" height="26" fill="#3d8fbf"><title>Statistical Analysis · PARTIAL 11</title></rect><text x="246.7" y="61" text-anchor="middle" font-size="11" fill="#fff">11</text><rect x="303.5" y="44" width="423.0" height="26" fill="#c9584f"><title>Statistical Analysis · MISSING 41</title></rect><text x="515.0" y="61" text-anchor="middle" font-size="11" fill="#fff">41</text><text x="734.5" y="61" font-size="11" fill="#4b5563">52</text><text x="178" y="100" text-anchor="end" font-size="12">Statistical Modeling</text><rect x="190.0" y="82" width="41.3" height="26" fill="#3d8fbf"><title>Statistical Modeling · PARTIAL 4</title></rect><text x="210.6" y="99" text-anchor="middle" font-size="11" fill="#fff">4</text><rect x="231.3" y="82" width="20.6" height="26" fill="#8a6fc4"><title>Statistical Modeling · DIFFERENT 2</title></rect><rect x="251.9" y="82" width="268.3" height="26" fill="#c9584f"><title>Statistical Modeling · MISSING 26</title></rect><text x="386.0" y="99" text-anchor="middle" font-size="11" fill="#fff">26</text><text x="528.2" y="99" font-size="11" fill="#4b5563">32</text><text x="178" y="138" text-anchor="end" font-size="12">Quality Engineering</text><rect x="190.0" y="120" width="154.8" height="26" fill="#3d8fbf"><title>Quality Engineering · PARTIAL 15</title></rect><text x="267.4" y="137" text-anchor="middle" font-size="11" fill="#fff">15</text><rect x="344.8" y="120" width="495.2" height="26" fill="#c9584f"><title>Quality Engineering · MISSING 48</title></rect><text x="592.4" y="137" text-anchor="middle" font-size="11" fill="#fff">48</text><text x="848.0" y="137" font-size="11" fill="#4b5563">63</text><text x="178" y="176" text-anchor="end" font-size="12">DOE &amp; Optimization</text><rect x="190.0" y="158" width="20.6" height="26" fill="#1f7a5c"><title>DOE &amp; Optimization · FULL 2</title></rect><rect x="210.6" y="158" width="82.5" height="26" fill="#3d8fbf"><title>DOE &amp; Optimization · PARTIAL 8</title></rect><text x="251.9" y="175" text-anchor="middle" font-size="11" fill="#fff">8</text><rect x="293.2" y="158" width="185.7" height="26" fill="#c9584f"><title>DOE &amp; Optimization · MISSING 18</title></rect><text x="386.0" y="175" text-anchor="middle" font-size="11" fill="#fff">18</text><text x="486.9" y="175" font-size="11" fill="#4b5563">28</text><text x="178" y="214" text-anchor="end" font-size="12">Reliability &amp; Survival</text><rect x="190.0" y="196" width="10.3" height="26" fill="#3d8fbf"><title>Reliability &amp; Survival · PARTIAL 1</title></rect><rect x="200.3" y="196" width="154.8" height="26" fill="#c9584f"><title>Reliability &amp; Survival · MISSING 15</title></rect><text x="277.7" y="213" text-anchor="middle" font-size="11" fill="#fff">15</text><text x="363.1" y="213" font-size="11" fill="#4b5563">16</text><text x="178" y="252" text-anchor="end" font-size="12">Multivariate &amp; Time Series</text><rect x="190.0" y="234" width="10.3" height="26" fill="#3d8fbf"><title>Multivariate &amp; Time Series · PARTIAL 1</title></rect><rect x="200.3" y="234" width="247.6" height="26" fill="#c9584f"><title>Multivariate &amp; Time Series · MISSING 24</title></rect><text x="324.1" y="251" text-anchor="middle" font-size="11" fill="#fff">24</text><text x="455.9" y="251" font-size="11" fill="#4b5563">25</text><text x="178" y="290" text-anchor="end" font-size="12">Visualization &amp; Automation</text><rect x="190.0" y="272" width="134.1" height="26" fill="#3d8fbf"><title>Visualization &amp; Automation · PARTIAL 13</title></rect><text x="257.1" y="289" text-anchor="middle" font-size="11" fill="#fff">13</text><rect x="324.1" y="272" width="237.3" height="26" fill="#c9584f"><title>Visualization &amp; Automation · MISSING 23</title></rect><text x="442.8" y="289" text-anchor="middle" font-size="11" fill="#fff">23</text><text x="569.4" y="289" font-size="11" fill="#4b5563">36</text></svg>
+<div class="legend"><span><i style="background:#1f7a5c"></i>FULL</span><span><i style="background:#3d8fbf"></i>PARTIAL</span><span><i style="background:#8a6fc4"></i>DIFFERENT</span><span><i style="background:#c9584f"></i>MISSING</span><span><i style="background:#9aa3ad"></i>N/A</span></div>
+<p class="note">막대 끝 숫자는 그 영역의 Minitab 기능 수다. 기능 1개는 정확히 한 상태에만 들어가므로 합이 분모와 같다.</p></section>
+<section class="card"><h2>상태 분포</h2><svg viewBox="0 0 220 220" role="img" aria-label="상태 분포"><path d="M 110.00 26.00 A 84 84 0 0 1 113.65 26.08" fill="none" stroke="#1f7a5c" stroke-width="30"><title>FULL 2</title></path><path d="M 113.65 26.08 A 84 84 0 0 1 193.45 100.43" fill="none" stroke="#3d8fbf" stroke-width="30"><title>PARTIAL 65</title></path><path d="M 193.45 100.43 A 84 84 0 0 1 193.90 105.89" fill="none" stroke="#8a6fc4" stroke-width="30"><title>DIFFERENT 3</title></path><path d="M 193.90 105.89 A 84 84 0 1 1 108.17 26.02" fill="none" stroke="#c9584f" stroke-width="30"><title>MISSING 218</title></path><path d="M 108.17 26.02 A 84 84 0 0 1 110.00 26.00" fill="none" stroke="#9aa3ad" stroke-width="30"><title>NOT_APPLICABLE 1</title></path><text x="110" y="106" text-anchor="middle" font-size="26" font-weight="600">289</text><text x="110" y="128" text-anchor="middle" font-size="11" fill="#4b5563">Minitab 기능</text></svg>
+<table><tr><th>상태</th><th class="n">기능</th><th class="n">비중</th></tr>
+<tr><td>FULL</td><td class="n">2</td><td class="n">0.7%</td></tr>
+<tr><td>PARTIAL</td><td class="n">65</td><td class="n">22.5%</td></tr>
+<tr><td>DIFFERENT</td><td class="n">3</td><td class="n">1.0%</td></tr>
+<tr><td>MISSING</td><td class="n">218</td><td class="n">75.4%</td></tr>
+<tr><td>NOT_APPLICABLE</td><td class="n">1</td><td class="n">0.3%</td></tr>
+<tr><td>UNKNOWN</td><td class="n">0</td><td class="n">0.0%</td></tr>
+</table></section>
+</div>
+<div class="grid three" style="margin-top:16px">
+<section class="card"><h2>우선순위별 격차</h2><svg viewBox="0 0 360 158" role="img" aria-label="막대 목록"><text x="0" y="15" font-size="11" fill="#374151">P1 (일상 흐름)</text><rect x="0" y="20" width="113.0" height="12" fill="#c9584f" rx="3"/><text x="358" y="30" text-anchor="end" font-size="11" fill="#111827">73</text><text x="0" y="53" font-size="11" fill="#374151">P2 (편의)</text><rect x="0" y="58" width="308.0" height="12" fill="#c9584f" rx="3"/><text x="358" y="68" text-anchor="end" font-size="11" fill="#111827">199</text><text x="0" y="91" font-size="11" fill="#374151">P3 (범위 밖)</text><rect x="0" y="96" width="26.3" height="12" fill="#c9584f" rx="3"/><text x="358" y="106" text-anchor="end" font-size="11" fill="#111827">17</text><text x="0" y="129" font-size="11" fill="#374151">P0 (정확성)</text><rect x="0" y="134" width="2.0" height="12" fill="#c9584f" rx="3"/><text x="358" y="144" text-anchor="end" font-size="11" fill="#111827">0</text></svg>
+<p class="note">P0는 0건이다. 기존 구현의 정확성·데이터 손실 결함은 없다.</p></section>
+<section class="card"><h2>Phase별 예정</h2><svg viewBox="0 0 360 120" role="img" aria-label="막대 목록"><text x="0" y="15" font-size="11" fill="#374151">Phase 4</text><rect x="0" y="20" width="146.3" height="12" fill="#3d8fbf" rx="3"/><text x="358" y="30" text-anchor="end" font-size="11" fill="#111827">85</text><text x="0" y="53" font-size="11" fill="#374151">Phase 5</text><rect x="0" y="58" width="308.0" height="12" fill="#3d8fbf" rx="3"/><text x="358" y="68" text-anchor="end" font-size="11" fill="#111827">179</text><text x="0" y="91" font-size="11" fill="#374151">Phase 6</text><rect x="0" y="96" width="43.0" height="12" fill="#3d8fbf" rx="3"/><text x="358" y="106" text-anchor="end" font-size="11" fill="#111827">25</text></svg>
+<p class="note">작업지시 14 + 11 + 6건. 기능 289개가 한 번씩만 배정됐다.</p></section>
+<section class="card"><h2>복잡도 분포</h2><svg viewBox="0 0 360 120" role="img" aria-label="막대 목록"><text x="0" y="15" font-size="11" fill="#374151">S</text><rect x="0" y="20" width="278.4" height="12" fill="#8a6fc4" rx="3"/><text x="358" y="30" text-anchor="end" font-size="11" fill="#111827">141</text><text x="0" y="53" font-size="11" fill="#374151">M</text><rect x="0" y="58" width="308.0" height="12" fill="#8a6fc4" rx="3"/><text x="358" y="68" text-anchor="end" font-size="11" fill="#111827">156</text><text x="0" y="91" font-size="11" fill="#374151">L</text><rect x="0" y="96" width="5.9" height="12" fill="#8a6fc4" rx="3"/><text x="358" y="106" text-anchor="end" font-size="11" fill="#111827">3</text></svg>
+<p class="note">S 0.5일 이하 · M 1–2일 · L 3일 이상(Stage 2 표기 계승).</p></section>
+</div>
+<div class="grid two" style="margin-top:16px">
+<section class="card"><h2>영역별 미구현(MISSING)</h2><svg viewBox="0 0 360 310" role="img" aria-label="막대 목록"><text x="0" y="15" font-size="11" fill="#374151">Quality Engineering</text><rect x="0" y="20" width="308.0" height="12" fill="#c9584f" rx="3"/><text x="358" y="30" text-anchor="end" font-size="11" fill="#111827">48</text><text x="0" y="53" font-size="11" fill="#374151">Statistical Analysis</text><rect x="0" y="58" width="263.1" height="12" fill="#c9584f" rx="3"/><text x="358" y="68" text-anchor="end" font-size="11" fill="#111827">41</text><text x="0" y="91" font-size="11" fill="#374151">Statistical Modeling</text><rect x="0" y="96" width="166.8" height="12" fill="#c9584f" rx="3"/><text x="358" y="106" text-anchor="end" font-size="11" fill="#111827">26</text><text x="0" y="129" font-size="11" fill="#374151">Multivariate &amp; Time Series</text><rect x="0" y="134" width="154.0" height="12" fill="#c9584f" rx="3"/><text x="358" y="144" text-anchor="end" font-size="11" fill="#111827">24</text><text x="0" y="167" font-size="11" fill="#374151">Data &amp; Workspace</text><rect x="0" y="172" width="147.6" height="12" fill="#c9584f" rx="3"/><text x="358" y="182" text-anchor="end" font-size="11" fill="#111827">23</text><text x="0" y="205" font-size="11" fill="#374151">Visualization &amp; Automation</text><rect x="0" y="210" width="147.6" height="12" fill="#c9584f" rx="3"/><text x="358" y="220" text-anchor="end" font-size="11" fill="#111827">23</text><text x="0" y="243" font-size="11" fill="#374151">DOE &amp; Optimization</text><rect x="0" y="248" width="115.5" height="12" fill="#c9584f" rx="3"/><text x="358" y="258" text-anchor="end" font-size="11" fill="#111827">18</text><text x="0" y="281" font-size="11" fill="#374151">Reliability &amp; Survival</text><rect x="0" y="286" width="96.2" height="12" fill="#c9584f" rx="3"/><text x="358" y="296" text-anchor="end" font-size="11" fill="#111827">15</text></svg>
+</section>
+<section class="card"><h2>독립 QA 커버리지</h2>
+<p class="note" style="margin-top:0">qa/cases 225건 전부 PASS(FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0). 판정은 PASS/(PASS+FAIL)만 사용한다. 케이스가 있는 기능 38 / 61.</p>
+<svg viewBox="0 0 360 386" role="img" aria-label="막대 목록"><text x="0" y="15" font-size="11" fill="#374151">다중 반응 최적화(Response Optimi…</text><rect x="0" y="20" width="308.0" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="30" text-anchor="end" font-size="11" fill="#111827">29</text><text x="0" y="53" font-size="11" fill="#374151">등고선·실행가능영역</text><rect x="0" y="58" width="244.3" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="68" text-anchor="end" font-size="11" fill="#111827">23</text><text x="0" y="91" font-size="11" fill="#374151">Weibull 분포 분석</text><rect x="0" y="96" width="138.1" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="106" text-anchor="end" font-size="11" fill="#111827">13</text><text x="0" y="129" font-size="11" fill="#374151">워크시트 그리드·다중 시트</text><rect x="0" y="134" width="95.6" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="144" text-anchor="end" font-size="11" fill="#111827">9</text><text x="0" y="167" font-size="11" fill="#374151">공정능력 보고서</text><rect x="0" y="172" width="74.3" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="182" text-anchor="end" font-size="11" fill="#111827">7</text><text x="0" y="205" font-size="11" fill="#374151">Gage R&amp;R 연구</text><rect x="0" y="210" width="74.3" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="220" text-anchor="end" font-size="11" fill="#111827">7</text><text x="0" y="243" font-size="11" fill="#374151">기술통계량</text><rect x="0" y="248" width="63.7" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="258" text-anchor="end" font-size="11" fill="#111827">6</text><text x="0" y="281" font-size="11" fill="#374151">검정력과 표본 크기 — 1표본 t</text><rect x="0" y="286" width="63.7" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="296" text-anchor="end" font-size="11" fill="#111827">6</text><text x="0" y="319" font-size="11" fill="#374151">검정력과 표본 크기 — 1 비율</text><rect x="0" y="324" width="63.7" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="334" text-anchor="end" font-size="11" fill="#111827">6</text><text x="0" y="357" font-size="11" fill="#374151">차트 속성 드로워(축·계열·등고·표시)</text><rect x="0" y="362" width="63.7" height="12" fill="#1f7a5c" rx="3"/><text x="358" y="372" text-anchor="end" font-size="11" fill="#111827">6</text></svg>
+</section>
+</div>
+<section class="card" style="margin-top:16px"><h2>P1 미구현 기능 (일상 흐름이 끊기는 순서)</h2>
+<table><tr><th>영역</th><th>Minitab 기능</th><th>Minitab 메뉴 경로</th></tr>
+<tr><td>Data &amp; Workspace</td><td>열 서식</td><td>Data &gt; Column &gt; Format</td></tr>
+<tr><td>Data &amp; Workspace</td><td>조건부 서식</td><td>Data &gt; Conditional Formatting</td></tr>
+<tr><td>Data &amp; Workspace</td><td>순위</td><td>Data &gt; Rank</td></tr>
+<tr><td>Data &amp; Workspace</td><td>문자 결합</td><td>Data &gt; Concatenate</td></tr>
+<tr><td>Data &amp; Workspace</td><td>열 스택</td><td>Data &gt; Stack &gt; Columns</td></tr>
+<tr><td>Data &amp; Workspace</td><td>워크시트 스택</td><td>Data &gt; Stack &gt; Worksheets</td></tr>
+<tr><td>Data &amp; Workspace</td><td>열 Unstack</td><td>Data &gt; Unstack Columns</td></tr>
+<tr><td>Data &amp; Workspace</td><td>전치</td><td>Data &gt; Transpose Columns</td></tr>
+<tr><td>Data &amp; Workspace</td><td>부분집합</td><td>Data &gt; Subset Worksheet</td></tr>
+<tr><td>Data &amp; Workspace</td><td>시트 분할</td><td>Data &gt; Split Worksheet</td></tr>
+<tr><td>Data &amp; Workspace</td><td>시트 병합</td><td>Data &gt; Merge Worksheets</td></tr>
+<tr><td>Data &amp; Workspace</td><td>행렬 연산</td><td>Calc &gt; Matrices</td></tr>
+<tr><td>Data &amp; Workspace</td><td>지시변수 생성</td><td>Calc &gt; Make Indicator Variables</td></tr>
+<tr><td>Statistical Analysis</td><td>기술통계량 저장</td><td>Stat &gt; Basic Statistics &gt; Store Descriptive Statistics</td></tr>
+<tr><td>Statistical Analysis</td><td>그래픽 요약</td><td>Stat &gt; Basic Statistics &gt; Graphical Summary</td></tr>
+<tr><td>Statistical Analysis</td><td>이상치 검정</td><td>Stat &gt; Basic Statistics &gt; Outlier Test</td></tr>
+<tr><td>Statistical Analysis</td><td>1표본 Z 검정</td><td>Stat &gt; Basic Statistics &gt; 1-Sample Z</td></tr>
+<tr><td>Statistical Analysis</td><td>1비율 검정</td><td>Stat &gt; Basic Statistics &gt; 1 Proportion</td></tr>
+<tr><td>Statistical Analysis</td><td>2비율 검정</td><td>Stat &gt; Basic Statistics &gt; 2 Proportions</td></tr>
+<tr><td>Statistical Analysis</td><td>상관분석</td><td>Stat &gt; Basic Statistics &gt; Correlation</td></tr>
+<tr><td>Statistical Analysis</td><td>공분산</td><td>Stat &gt; Basic Statistics &gt; Covariance</td></tr>
+<tr><td>Statistical Analysis</td><td>빈도 집계</td><td>Stat &gt; Tables &gt; Tally Individual Variables</td></tr>
+<tr><td>Statistical Analysis</td><td>교차표·카이제곱</td><td>Stat &gt; Tables &gt; Cross Tabulation and Chi-Square</td></tr>
+<tr><td>Statistical Analysis</td><td>카이제곱 적합도 검정</td><td>Stat &gt; Tables &gt; Chi-Square Goodness-of-Fit Test</td></tr>
+</table>
+<p class="note">P1 미구현은 총 73건이며 전부 Phase 4 작업지시에 배정됐다. 전체 목록은 CSV·JSON에 있다.</p></section>
+<section class="card" style="margin-top:16px"><h2>작업지시 · 의존성 · 복잡도</h2>
+<table><tr><th>WO</th><th>항목</th><th class="n">기능</th><th>복잡도</th><th>의존성</th></tr>
+<tr><td class="mono">WO-P4-01</td><td>상관·교차표·카이제곱: 기초 통계의 빈 자리 채우기</td><td class="n">7</td><td>M</td><td>없음(기존 stats.ts·dist.ts 재사용)</td></tr>
+<tr><td class="mono">WO-P4-02</td><td>비모수 검정 6종</td><td class="n">6</td><td>M</td><td>WO-P4-01의 순위·교차표 유틸 공유</td></tr>
+<tr><td class="mono">WO-P4-03</td><td>워크시트 재구조화: Stack·Unstack·Transpose·Subset·Split·Merge</td><td class="n">8</td><td>M</td><td>sheetOps 확장</td></tr>
+<tr><td class="mono">WO-P4-04</td><td>열 메타데이터: 서식·유형 변환 보고·순위·지시변수·조건부 서식</td><td class="n">5</td><td>S</td><td>—</td></tr>
+<tr><td class="mono">WO-P4-05</td><td>관리도 단계·한계 고정·규칙 선택</td><td class="n">10</td><td>M</td><td>lib/spc.ts 확장</td></tr>
+<tr><td class="mono">WO-P4-06</td><td>정규성 확장과 변환: Box-Cox·Johnson·분포 식별</td><td class="n">6</td><td>L</td><td>dist.ts·nonnormal.ts 확장</td></tr>
+<tr><td class="mono">WO-P4-07</td><td>회귀·GLM 모형 언어: 공변량·범주·단계적·최적부분집합</td><td class="n">3</td><td>L</td><td>modelStore 스키마 v2</td></tr>
+<tr><td class="mono">WO-P4-08</td><td>DOE 스크리닝: 부분요인·Plackett–Burman·Definitive Screening·블록</td><td class="n">4</td><td>L</td><td>lib/doe.ts 확장</td></tr>
+<tr><td class="mono">WO-P4-09</td><td>신뢰성 분포 확장과 수명 회귀</td><td class="n">4</td><td>L</td><td>lib/reliability.ts 확장</td></tr>
+<tr><td class="mono">WO-P4-10</td><td>시계열 기초: ACF/PACF·ARIMA·지수평활</td><td class="n">6</td><td>L</td><td>신규 lib/timeseries.ts</td></tr>
+<tr><td class="mono">WO-P4-11</td><td>차트 종류 확장 1: 개별값·구간·막대·산점도 행렬·ECDF·표 요약</td><td class="n">6</td><td>M</td><td>차트 엔진 재사용</td></tr>
+<tr><td class="mono">WO-P4-12</td><td>기초 통계 보강: 요약 통계량 입력·비율/분산 검정·그래픽 요약·이상치</td><td class="n">11</td><td>M</td><td>dist.ts의 분포 함수</td></tr>
+<tr><td class="mono">WO-P4-13</td><td>MSA 확장: Type 1·직선성/편의·속성 일치도</td><td class="n">4</td><td>M</td><td>lib/gagerr.ts 확장</td></tr>
+<tr><td class="mono">WO-P4-X14</td><td>잔여 항목 일괄 정리 — DOE &amp; Optimization, Data &amp; Workspace, Quality Engineering</td><td class="n">5</td><td>M</td><td>해당 영역의 선행 WO</td></tr>
+<tr><td class="mono">WO-P5-01</td><td>다변량 분석: PCA·요인·군집·판별</td><td class="n">9</td><td>L</td><td>행렬 유틸(신규 lib/matrix.ts)</td></tr>
+<tr><td class="mono">WO-P5-02</td><td>DOE 확장: 혼합물·다구찌·사용자 설계</td><td class="n">10</td><td>L</td><td>lib/doe.ts 확장</td></tr>
+<tr><td class="mono">WO-P5-03</td><td>그래프 종류 확장 2: 열지도·버블·주변·원·점·영역·평행좌표·3D 산점·웨이퍼</td><td class="n">10</td><td>M</td><td>chartConfig 확장</td></tr>
+<tr><td class="mono">WO-P5-04</td><td>회귀 확장: 로지스틱·비선형·PLS·안정성</td><td class="n">10</td><td>L</td><td>WO-P4-07 모형 언어</td></tr>
+<tr><td class="mono">WO-P5-05</td><td>신뢰성 확장: 비모수·가속·성장·보증 제외</td><td class="n">5</td><td>L</td><td>WO-P4-09</td></tr>
+<tr><td class="mono">WO-P5-06</td><td>품질 도구: 런 차트·변동 차트·Multi-Vari·대칭·공차구간</td><td class="n">7</td><td>M</td><td>none</td></tr>
+<tr><td class="mono">WO-P5-07</td><td>관리도 확장: CUSUM·EWMA·이동평균·Laney·다변량</td><td class="n">15</td><td>L</td><td>WO-P4-05 단계 옵션</td></tr>
+<tr><td class="mono">WO-P5-08</td><td>검정력·표본크기 확장과 동등성 검정</td><td class="n">16</td><td>M</td><td>WO-P4-12</td></tr>
+<tr><td class="mono">WO-P5-09</td><td>차트 편집 심화: 데이터 레이블·개별 눈금·주석</td><td class="n">6</td><td>M</td><td>S-MOD-04</td></tr>
+<tr><td class="mono">WO-P5-10</td><td>ANOVA·모형 사용 확장: ANOM·균형·중첩·MANOVA·등분산·비교</td><td class="n">10</td><td>L</td><td>WO-P4-07</td></tr>
+<tr><td class="mono">WO-P5-X11</td><td>잔여 항목 일괄 정리 — DOE &amp; Optimization, Data &amp; Workspace, Multivariate &amp; Time Series, Quality Engineering, Reliability &amp; Survival, Statistical Analysis, Statistical Modeling, Visualization &amp; Automation</td><td class="n">81</td><td>M</td><td>해당 영역의 선행 WO</td></tr>
+<tr><td class="mono">WO-P6-01</td><td>스크립트·자동화: 명령줄·매크로</td><td class="n">4</td><td>L</td><td>전체 분석 레지스트리</td></tr>
+<tr><td class="mono">WO-P6-02</td><td>시료 채취·보증·시험 계획</td><td class="n">8</td><td>L</td><td>WO-P5-05</td></tr>
+<tr><td class="mono">WO-P6-03</td><td>예측 분석 모듈(CART/TreeNet/RF/MARS)</td><td class="n">5</td><td>L</td><td>—</td></tr>
+<tr><td class="mono">WO-P6-04</td><td>Six Sigma 모듈 리포트</td><td class="n">3</td><td>M</td><td>—</td></tr>
+<tr><td class="mono">WO-P6-05</td><td>데스크톱 연동: ODBC·Minitab 파일·문서 앱 전송</td><td class="n">4</td><td>S</td><td>—</td></tr>
+<tr><td class="mono">WO-P6-06</td><td>Python/R 스크립트 실행</td><td class="n">1</td><td>L</td><td>—</td></tr>
+</table><p class="note">같은 기능을 두 작업지시가 나눠 갖지 않는다. 공통 엔진(lib/stats·dist·doe·reliability)을 공유하는 항목은 의존성 열에 선행 WO를 적었다.</p></section>
+<section class="card" style="margin-top:16px"><h2>집계 규칙</h2>
+<ul class="clean">
+<li>기능 1개 = 행 1개. Minitab 대화상자의 세부 옵션은 행을 늘리지 않고 Missing Parameters/Outputs에 적었다 — 기능과 옵션을 더하는 이중 계산이 없다.</li>
+<li>분모는 Minitab 공개 문서에서 확인한 289개. Sigrún 독립 구현 11개는 분모에 넣지 않고 별도 표기했다.</li>
+<li>Sigrún이 같은 기능으로 여러 Minitab 항목을 충족하는 경우(예: 등고선 1개가 DOE·Graph 두 항목을 덮음)는 Minitab 항목마다 1행이며, 분모는 Minitab 쪽 기준이다.</li>
+<li>검증 상태는 INDEPENDENT 48 · E2E 20 · UNIT 11 · IMPLEMENTATION_ONLY 2 · UNVERIFIED 219행(MISSING 포함).</li>
+<li>이 파일은 외부 요청을 하나도 하지 않는다(폰트·스크립트·이미지·API 없음). 수치의 단일 출처는 docs/audit/audit-summary.json 이다.</li>
+</ul></section>
+<script id="audit-dashboard-data" type="application/json">{"kind": "audit-dashboard-data", "rowCount": 300, "minitabFeatureCount": 289, "overall": {"FULL": 2, "PARTIAL": 65, "MISSING": 218, "DIFFERENT": 3, "NOT_APPLICABLE": 1, "UNKNOWN": 0, "implemented": 70, "implementedPct": 24.2}, "byDomain": [{"category": "Data & Workspace", "FULL": 0, "PARTIAL": 12, "MISSING": 23, "DIFFERENT": 1, "NOT_APPLICABLE": 1, "UNKNOWN": 0, "total": 37}, {"category": "Statistical Analysis", "FULL": 0, "PARTIAL": 11, "MISSING": 41, "DIFFERENT": 0, "NOT_APPLICABLE": 0, "UNKNOWN": 0, "total": 52}, {"category": "Statistical Modeling", "FULL": 0, "PARTIAL": 4, "MISSING": 26, "DIFFERENT": 2, "NOT_APPLICABLE": 0, "UNKNOWN": 0, "total": 32}, {"category": "Quality Engineering", "FULL": 0, "PARTIAL": 15, "MISSING": 48, "DIFFERENT": 0, "NOT_APPLICABLE": 0, "UNKNOWN": 0, "total": 63}, {"category": "DOE & Optimization", "FULL": 2, "PARTIAL": 8, "MISSING": 18, "DIFFERENT": 0, "NOT_APPLICABLE": 0, "UNKNOWN": 0, "total": 28}, {"category": "Reliability & Survival", "FULL": 0, "PARTIAL": 1, "MISSING": 15, "DIFFERENT": 0, "NOT_APPLICABLE": 0, "UNKNOWN": 0, "total": 16}, {"category": "Multivariate & Time Series", "FULL": 0, "PARTIAL": 1, "MISSING": 24, "DIFFERENT": 0, "NOT_APPLICABLE": 0, "UNKNOWN": 0, "total": 25}, {"category": "Visualization & Automation", "FULL": 0, "PARTIAL": 13, "MISSING": 23, "DIFFERENT": 0, "NOT_APPLICABLE": 0, "UNKNOWN": 0, "total": 36}], "byPriority": {"P0": 0, "P1": 73, "P2": 199, "P3": 17}, "byPhase": {"Phase 4": 85, "Phase 5": 179, "Phase 6": 25}, "byVerification": {"UNIT_VERIFIED": 11, "UNVERIFIED": 219, "E2E_VERIFIED": 20, "IMPLEMENTATION_ONLY": 2, "INDEPENDENT_VERIFIED": 48}, "qaCases": 225, "backlog": {"Phase 4": {"workOrders": 14, "features": 85}, "Phase 5": {"workOrders": 11, "features": 179}, "Phase 6": {"workOrders": 6, "features": 25}}}</script>
+</main></body></html>

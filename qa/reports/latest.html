@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sigrún 통계 엔진 독립 QA 보고서 · c56c4724</title>
+<title>Sigrún 통계 엔진 독립 QA 보고서 · 43b0b071</title>
 <style>
 :root{--ink:#1b1b23;--muted:#6a6a7a;--line:#e3e3ec;--bg:#f7f7fb;--card:#fff;--accent:#3b3b98}
 *{box-sizing:border-box}
@@ -36,7 +36,7 @@ table.fields{margin-top:8px}
 </style></head>
 <body><main>
 <h1>Sigrún 통계 엔진 독립 QA 보고서</h1>
-<p class="sub">Sigrún statistics engine · independent reference QA · generated 2026-11-24T22:59:11+09:00</p>
+<p class="sub">Sigrún statistics engine · independent reference QA · generated 2026-11-24T23:28:55+09:00</p>
 <div class="cards">
   <div class="card"><div class="k">케이스 / cases</div><div class="v">225</div></div>
   <div class="card"><div class="k">PASS</div><div class="v" style="color:#0b7a3b">225</div></div>
@@ -72,7 +72,7 @@ REVIEW 0.0% · UNVERIFIED 0.0% — 두 분류는 <b>PASS에 합산하지 않습�
 
 <h2>6. 재현 · reproduce</h2>
 <div class="formula">npm run qa:stats<br># 1 python3 qa/datasets/generate.py   (golden datasets)<br># 2 node qa/adapters/sigrun/.build/cli.mjs qa/_run/request.json qa/_run/adapter.json<br># 3 python3 qa/reference/engine.py qa/_run/request.json qa/_run/reference.json<br># 4 python3 qa/compare.py … → qa/reports/latest.json + latest.html</div>
-<p class="muted">Sigrún commit <span class="mono">c56c4724fd5dbf9498ec0c464d1ba1a10d22d898</span> · engine bundle Node v24.11.0
+<p class="muted">Sigrún commit <span class="mono">43b0b071cf010352d8add7600dfa29d158a2b3e3</span> · engine bundle Node v24.19.0
 · reference Python 3.12.16 · NumPy 2.5.4
 · SciPy 1.18.1 · statsmodels 0.15.0
 · pandas 3.1.1 · patsy 1.0.3</p>
