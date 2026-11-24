@@ -349,6 +349,14 @@ async function axisMin(card) {
     check('a chart of the same columns joins the selection', (await partner.locator('.chart-point.chart-selected').count()) > 0, String(await partner.locator('.chart-point.chart-selected').count()));
     check('a chart of other columns never joins it', (await stranger.locator('.chart-point.chart-selected').count()) === 0, String(await stranger.locator('.chart-point.chart-selected').count()));
     await page.screenshot({ path: path.join(OUT, 'phase3-3d-selection.png') });
+    // Frame the whole link: the marked point above and the highlighted row in
+    // the worksheet below, which is the point of the interaction upgrade.
+    const highlightedRow = page.locator('tr[data-highlight="1"]').first();
+    if (await highlightedRow.count()) {
+      await highlightedRow.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(250);
+      check('the highlighted worksheet row is visible in the grid', await highlightedRow.isVisible());
+    }
     await page.screenshot({ path: path.join(OUT, 'phase3-3d-interaction.png') });
 
     const [download] = await Promise.all([
