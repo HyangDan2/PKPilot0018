@@ -12,7 +12,7 @@
 | 항목 | 결과 |
 | --- | --- |
 | `npx tsc --noEmit` | 0 errors |
-| `npm test` | **835 / 835 PASS** (Stage 3B 795 + Stage 3C 신규 40: 최적화 29·프로파일러 11) |
+| `npm test` | **834 / 834 PASS** (Stage 3B 795 + Stage 3C 신규 39: 최적화 28·프로파일러 11) |
 | `npm run qa:stats` | **180 / 180 PASS, 0 FAIL** (168 + QA-W 12: SciPy 기준 최적화 비교) |
 | `npm run build` | 성공 (외부 CDN 없음, 최적화·프로파일러 모두 브라우저 내부 계산) |
 | 3D Surface 결함 | `setGeometry`가 정점/인덱스 버퍼를 `ARRAY_BUFFER`로 재업로드해 WebGL 1의 "버퍼는 한 대상에만 결합" 규칙에 걸리던 결함을 수정 — 인덱스는 `ELEMENT_ARRAY_BUFFER`, 정점은 `ARRAY_BUFFER`로 올리고 업로드 실패 시 정적 투영으로 폴백. E2E가 WebGL 픽셀 면적을 같은 카드의 정적 SVG와 비교(15.7% vs 10.6%, 깨진 상태는 3.6%) |
