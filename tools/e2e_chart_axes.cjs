@@ -8,23 +8,11 @@
    Local: BASE=http://localhost:4178/PKPilot0018/ node tools/e2e_chart_axes.cjs
    Live:  BASE=https://hyangdan2.github.io/PKPilot0018/ SHOT=1 node tools/e2e_chart_axes.cjs
 */
-function loadPlaywright() {
-  const candidates = [
-    process.env.PLAYWRIGHT_PATH,
-    '/workspace/repos/PKPilot0011/node_modules/playwright',
-    '/workspace/repos/PKPilot0015/node_modules/playwright',
-    'playwright',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    try { return require(candidate); } catch { /* try the next install */ }
-  }
-  throw new Error('playwright is not installed in any known location');
-}
-const { chromium } = loadPlaywright();
+const path = require('path');
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 
 const BASE = process.env.BASE || require('./serve_inline.cjs').ensureServed();
-const OUT = process.env.OUT || '/workspace/work/pkpilot0018';
-const EXE = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 const results = [];
 function check(name, ok, detail = '') {
   results.push({ name, ok, detail });
@@ -36,7 +24,8 @@ function check(name, ok, detail = '') {
   const errors = [];
   const browser = await chromium.launch({
     headless: true,
-    executablePath: EXE,
+    executablePath: CHROME,
+    env: browserEnv,
     args: ['--single-process', '--no-zygote', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer'],
   });
   try {

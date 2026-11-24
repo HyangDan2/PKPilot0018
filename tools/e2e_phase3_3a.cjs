@@ -7,27 +7,14 @@
 const fs = require('fs');
 const path = require('path');
 
-function loadPlaywright() {
-  const candidates = [
-    process.env.PLAYWRIGHT_PATH,
-    '/workspace/repos/PKPilot0015/node_modules/playwright',
-    '/workspace/repos/AGPilot0012/node_modules/playwright',
-    'playwright',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    try { return require(candidate); } catch { /* try the next install */ }
-  }
-  throw new Error('playwright is not installed in any known location');
-}
-const { chromium } = loadPlaywright();
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 
 const BASE = process.env.BASE || 'http://127.0.0.1:4190/PKPilot0018/';
 const SERVE = process.env.SERVE !== '0';
 /** Set once the in-process server knows its port. */
 let ACTIVE_BASE = BASE;
-const OUT = process.env.OUT || '/workspace/downloads/sigrun-phase3-3a';
-const EXE = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
-const LAUNCH = { headless: true, executablePath: EXE, args: ['--single-process', '--no-zygote', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer'] };
+const OUT = process.env.OUT || path.resolve(__dirname, '..', 'artifacts', 'sigrun-phase3-3a');
+const LAUNCH = { headless: true, executablePath: CHROME, env: browserEnv, args: ['--single-process', '--no-zygote', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer'] };
 
 fs.mkdirSync(OUT, { recursive: true });
 

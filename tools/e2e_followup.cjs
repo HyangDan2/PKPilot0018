@@ -1,21 +1,11 @@
 /* Sigrún follow-up QA — live browser E2E for the chart rules and sheet
    transforms (QA-U-01…09) against the built app served by `vite preview`. */
-const { chromium } = (() => {
-  for (const candidate of [
-    process.env.PLAYWRIGHT_PATH,
-    '/workspace/repos/PKPilot0015/node_modules/playwright',
-    '/workspace/repos/PKPilot0011/node_modules/playwright',
-    '/workspace/tmp-pwlibs/root/usr/lib/node_modules/playwright',
-    'playwright',
-  ].filter(Boolean)) {
-    try { return require(candidate); } catch { /* next install */ }
-  }
-  throw new Error('playwright is not installed in any known location');
-})();
+const path = require('path');
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 
 const STEP = (m) => console.log('[step]', m);
 const BASE = process.env.BASE || 'http://localhost:4178/PKPilot0018/';
-const OUT = '/workspace/downloads';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', 'artifacts', 'downloads');
 
 async function openMenu(page, testid) {
   await page.click(`[data-testid=${testid}]`);
@@ -63,7 +53,7 @@ async function runAnalysis(page, menuTestid, itemLabel, setup) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, executablePath: '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell' });
+  const browser = await chromium.launch({ headless: true, executablePath: CHROME, env: browserEnv });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));

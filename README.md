@@ -17,6 +17,8 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 **Phase 3B corrective QA:** [docs/PHASE3_3B_CORRECTIVE_QA.md](docs/PHASE3_3B_CORRECTIVE_QA.md) — per-model factor transformation, no silent interval fallback, per-point prediction isolation, non-finite handling, multi-model extrapolation, Ultra grid convergence, interval conditions and engine input validation, with before/after reference numbers and 19 new QA-V cases (with the 12 Stage 3C QA-W cases in the same suite).
 
+**Phase 3E corrective review (F-01 … F-15):** [docs/PHASE3_3E_CORRECTIVE_QA.md](docs/PHASE3_3E_CORRECTIVE_QA.md) — non-finite predictions refused by every path, decimal-exact discrete lattices and safe-integer/precision limits, fixed-factor extrapolation, project schema versioning and damaged-file refusal, lattice-consistent local steps, duplicate factor identifiers, machine-independent tooling with `npm ci`, reproducible ZIP timestamps and a build manifest. Before/after measurements are in the report's §2.
+
 ## What is inside
 
 | Area | Capability |
@@ -76,10 +78,11 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 ## Development
 
 ```bash
-npm install
+npm ci             # exact lockfile: the build and the E2E suites depend only on it
 npm run dev        # http://localhost:5178
-npm test           # 1 001 unit tests (44 files: statistics, SPC, charts and their guards,
-                   # model store, surface, optimizer, profiler, graph layout, project files, i18n, QA regressions)
+npm test           # 1 049 unit tests (45 files: statistics, SPC, charts and their guards,
+                   # model store, surface, optimizer, profiler, graph layout, project files, i18n,
+                   # QA regressions and the Phase 3E corrective suite)
 npm run qa:stats   # independent reference QA → qa/reports/latest.html
 npm run typecheck  # tsc --noEmit
 npm run build      # production bundle in dist/
@@ -87,7 +90,8 @@ npm run build:portable  # one self-contained HTML for offline/file:// use → di
 
 # live browser E2E for the compact top bar, sample-dropdown layer, chart clipboard,
 # floating panels (drag · resize · remembered size) and layout presets
-# (needs playwright + a preview server on :4178)
+# (browser + libraries are resolved by tools/browser_env.cjs: CHROME_PATH / CHROME_LIBS
+#  override it, otherwise a Playwright download and a sibling chrome-libs are used)
 PART=ui node tools/e2e_ui_compact.cjs     # ui · panels · mobile (or no PART for all)
 node tools/e2e_chart_axes.cjs             # Cure Study 2-sample t boxplot axis regression
 node tools/e2e_stage2.cjs                 # scatter Stage 2: Y×X, XY pairs, groups, save/reopen (LIVE=1 for Pages)
@@ -113,7 +117,9 @@ distributions), `src/lib/stats.ts` (tests, ANOVA/Tukey, regression), `src/lib/sp
 ## Deployment
 
 Pushes to `main` deploy through GitHub Actions to GitHub Pages (`.github/workflows/deploy.yml`),
-which runs the type check, the unit tests and the production build before publishing `dist/`.
+which runs `npm ci`, the type check, the unit tests and the production build before publishing `dist/`.
+`.github/workflows/portable.yml` qualifies the portable build from a fresh checkout: `npm ci`,
+`build:portable` with a reproducible timestamp, and the `file://` offline smoke test in Chromium.
 
 ---
 

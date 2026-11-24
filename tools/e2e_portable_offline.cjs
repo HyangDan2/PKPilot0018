@@ -13,34 +13,18 @@
    blocked request rather than as a mystery failure.
 
    Usage:  node tools/e2e_portable_offline.cjs
-           OUT=/workspace/work/pkpilot0018 PORTABLE=dist-portable/sigrun-portable.html
+           OUT=<release folder> PORTABLE=dist-portable/sigrun-portable.html
 */
 const fs = require('fs');
 const path = require('path');
 
-function loadPlaywright() {
-  const candidates = [
-    process.env.PLAYWRIGHT_PATH,
-    '/workspace/pkpilot0014/node_modules/playwright',
-    '/workspace/visna-sol/node_modules/playwright',
-    '/workspace/repos/PKPilot0015/node_modules/playwright',
-    'playwright',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    try { return require(candidate); } catch { /* try the next install */ }
-  }
-  throw new Error('playwright is not installed in any known location');
-}
-const { chromium } = loadPlaywright();
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 
-const OUT = process.env.OUT || '/workspace/work/pkpilot0018';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 const ROOT = path.resolve(__dirname, '..');
 const HTML = path.resolve(ROOT, process.env.PORTABLE || 'dist-portable/sigrun-portable.html');
 const FIXTURE_CSV = path.join(OUT, 'portable-fixture.csv');
 const PROJECT_PATH = path.join(OUT, 'phase3-3e-portable.sigrun.json');
-const SHELL = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
-const LIBS = process.env.CHROME_LIBS || '/workspace/work/chrome-libs/usr/lib/x86_64-linux-gnu:/workspace/work/chrome-libs/lib/x86_64-linux-gnu';
-const BROWSER_ENV = { ...process.env, LD_LIBRARY_PATH: LIBS };
 
 fs.mkdirSync(OUT, { recursive: true });
 if (!fs.existsSync(HTML)) {
@@ -63,8 +47,8 @@ function note(name, value) {
 function launchArgs() {
   return {
     headless: true,
-    executablePath: SHELL,
-    env: BROWSER_ENV,
+    executablePath: CHROME,
+    env: browserEnv,
     args: ['--single-process', '--no-zygote', '--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   };
 }
@@ -569,7 +553,7 @@ async function section(title, body) {
       ]);
       await download.saveAs(PROJECT_PATH);
       const project = JSON.parse(fs.readFileSync(PROJECT_PATH, 'utf8'));
-      check('Save Project writes a .sigrun.json file', project.format === 'sigrun-project' && project.version === 1, `${path.basename(PROJECT_PATH)} · ${fs.statSync(PROJECT_PATH).size} bytes`);
+      check('Save Project writes a .sigrun.json file', project.format === 'sigrun-project' && project.version === 2, `${path.basename(PROJECT_PATH)} · ${fs.statSync(PROJECT_PATH).size} bytes`);
       check('the file carries the worksheets and the output', Array.isArray(project.worksheets) && project.worksheets.length >= 1 && Array.isArray(project.outputs) && project.outputs.length === outsBefore, `${project.worksheets.length} sheets · ${project.outputs.length} outputs`);
       const fatal = errors.filter((message) => !/favicon|manifest|ResizeObserver/i.test(message));
       check('no page error while saving the project', fatal.length === 0, fatal.slice(0, 2).join(' | '));

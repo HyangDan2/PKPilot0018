@@ -5,16 +5,18 @@
 */
 const fs = require('fs');
 const path = require('path');
-const { chromium } = require('/workspace/repos/PKPilot0015/node_modules/playwright');
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
+
 
 const BASE = process.env.BASE || 'https://hyangdan2.github.io/PKPilot0018/';
-const OUT = process.env.OUT || '/workspace/work/pkpilot0018';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 const FILE = process.env.FILE || 'phase3-3a-pc.png';
 
 (async () => {
   const browser = await chromium.launch({
     headless: true,
-    executablePath: process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell',
+    executablePath: CHROME,
+    env: browserEnv,
     args: ['--single-process', '--no-zygote', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage'],
   });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

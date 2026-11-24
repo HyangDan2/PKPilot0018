@@ -15,7 +15,16 @@ import type { LayoutDoc } from './graphLayout';
 
 import { makeWorksheet, uid } from './datasets';
 
+/** Schema version this build writes. */
+export const CURRENT_PROJECT_VERSION = 2;
+/** The oldest schema still read: 1 written by Phase 1/2, 0 = legacy .mpx.json. */
+export const OLDEST_PROJECT_VERSION = 0;
+
 export interface ProjectState {
+  /** Schema version the restored project conforms to (after migration). */
+  version?: number;
+  /** The version the file itself stated (0 for a legacy .mpx.json). */
+  originalVersion?: number;
   worksheets: Worksheet[];
   activeSheetId: string;
   settings: Settings;
@@ -31,7 +40,7 @@ export interface ProjectState {
 export function buildProject(state: ProjectState): ProjectFile {
   return {
     format: 'sigrun-project',
-    version: 1,
+    version: CURRENT_PROJECT_VERSION,
     savedAt: new Date().toISOString(),
     app: 'HD2Lab Sigrún',
     worksheets: state.worksheets,
@@ -120,6 +129,69 @@ function restoreOutput(output: OutputDoc): OutputDoc {
   return changed ? { ...output, blocks } : output;
 }
 
+/**
+ * Why one worksheet cannot be restored (null when it can).
+ *
+ * A sheet whose columns are not columns, or whose two columns share one id, is
+ * not a sheet this build can hold: restoring the rest of the file around it
+ * would silently delete the reader's data, so the restore stops and says so.
+ */
+function worksheetProblem(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return 'worksheet';
+  const sheet = value as Partial<Worksheet>;
+  if (typeof sheet.id !== 'string' || !sheet.id) return 'worksheet.id';
+  if (typeof sheet.name !== 'string') return 'worksheet.name';
+  if (!Array.isArray(sheet.columns)) return 'worksheet.columns';
+  const ids = new Set<string>();
+  for (const column of sheet.columns) {
+    const candidate = column as Partial<Column>;
+    if (!isColumn(column)) return 'worksheet.column';
+    // A cell may be a number, text, a date or empty; anything else (an array, an
+    // object) is a value no analysis can read.
+    if (!(candidate.values ?? []).every((cell) => cell === null || typeof cell === 'number' || typeof cell === 'string')) return 'worksheet.value';
+    if (ids.has(candidate.id as string)) return 'worksheet.columnId';
+    ids.add(candidate.id as string);
+  }
+  return null;
+}
+
+/** Why one stored model cannot be restored (null when it can). */
+function modelProblem(value: unknown): string | null {
+  const entry = value as Record<string, unknown> | null;
+  if (!entry || typeof entry !== 'object') return 'model';
+  if (entry.format !== 'sigrun-model') return 'model.format';
+  if (typeof entry.id !== 'string' || !entry.id) return 'model.id';
+  if (!Array.isArray(entry.predictors)) return 'model.predictors';
+  if (!Array.isArray(entry.coefficients)) return 'model.coefficients';
+  if (!entry.response || typeof entry.response !== 'object') return 'model.response';
+  return null;
+}
+
+/**
+ * A worksheet written by an older schema, brought up to the current one.
+ *
+ * The only thing version 2 adds is the column sequence: a restored sheet that
+ * has forgotten how many columns it has ever used would hand out an id that an
+ * analysis already refers to (see `columnSequence`). Deriving it from the ids
+ * the sheet does carry is a migration, not a guess.
+ */
+function migrateWorksheet(sheet: Worksheet): Worksheet {
+  const columns = sheet.columns.map((column) => ({
+    ...column,
+    values: Array.isArray(column.values) ? column.values : [],
+  }));
+  const columnSeq = Number.isFinite(sheet.columnSeq) ? sheet.columnSeq : columnSequence({ ...sheet, columns });
+  return { ...sheet, columns, columnSeq };
+}
+
+/**
+ * Read a project, or refuse it with the reason.
+ *
+ * The version is checked before anything is restored: a file from a newer build
+ * is not "mostly readable", and a version that is not a number is not a guess
+ * to make. A damaged worksheet or model stops the restore (the current
+ * workspace is left as it was) rather than being dropped from the file.
+ */
 export function parseProject(text: string): ProjectState {
   let data: unknown;
   try {
@@ -127,24 +199,43 @@ export function parseProject(text: string): ProjectState {
   } catch {
     throw new Error('file.error');
   }
-  const file = data as Partial<ProjectFile>;
+  const file = data as Partial<ProjectFile> & { version?: unknown };
   if (!file || file.format !== 'sigrun-project' || !Array.isArray(file.worksheets)) throw new Error('file.error');
-  const worksheets = file.worksheets.filter((ws): ws is Worksheet =>
-    Boolean(ws) && typeof ws.id === 'string' && typeof ws.name === 'string' && Array.isArray(ws.columns) && ws.columns.every(isColumn),
-  );
-  if (!worksheets.length) throw new Error('file.error');
+
+  const rawVersion = file.version;
+  let version: number;
+  if (rawVersion === undefined || rawVersion === null) {
+    version = OLDEST_PROJECT_VERSION; // legacy .mpx.json, written before versions existed
+  } else if (typeof rawVersion !== 'number' || !Number.isInteger(rawVersion) || rawVersion < OLDEST_PROJECT_VERSION) {
+    throw new Error('file.versionInvalid');
+  } else if (rawVersion > CURRENT_PROJECT_VERSION) {
+    throw new Error('file.versionNewer');
+  } else {
+    version = rawVersion;
+  }
+
+  if (!file.worksheets.length) throw new Error('file.error');
+  const problems = file.worksheets.map((sheet) => worksheetProblem(sheet));
+  if (problems.some(Boolean)) throw new Error('file.worksheetCorrupt');
+  const rawModels = file.models === undefined ? [] : file.models;
+  if (!Array.isArray(rawModels)) throw new Error('file.modelCorrupt');
+  if (rawModels.some((entry) => modelProblem(entry) !== null)) throw new Error('file.modelCorrupt');
+
+  const worksheets = (file.worksheets as Worksheet[]).map(migrateWorksheet);
   const activeSheetId = worksheets.some((ws) => ws.id === file.activeSheetId) ? (file.activeSheetId as string) : worksheets[0].id;
   const settings: Settings = {
     theme: file.settings?.theme === 'dark' ? 'dark' : 'light',
     lang: file.settings?.lang === 'ko' ? 'ko' : 'en',
   };
   return {
+    version: CURRENT_PROJECT_VERSION,
+    originalVersion: version,
     worksheets,
     activeSheetId,
     settings,
     outputs: Array.isArray(file.outputs) ? file.outputs.map(restoreOutput) : [],
     ...(Array.isArray(file.customChartStyles) ? { customChartStyles: file.customChartStyles } : {}),
-    models: parseStoredModels(file.models),
+    models: parseStoredModels(rawModels),
     ...(Array.isArray(file.figures) ? { figures: (file.figures as unknown as LayoutDoc[]).filter((entry) => Boolean(entry) && entry.format === 'sigrun-layout') } : {}),
   };
 }

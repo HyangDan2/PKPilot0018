@@ -1,18 +1,13 @@
 /* Clean live screenshots for the compact-UI handoff (PC, mobile, detach, presets). */
-const { chromium } = (() => {
-  for (const candidate of ['/workspace/repos/PKPilot0015/node_modules/playwright', 'playwright']) {
-    try { return require(candidate); } catch { /* next */ }
-  }
-  throw new Error('playwright missing');
-})();
+const path = require('path');
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 const BASE = process.env.BASE || 'https://hyangdan2.github.io/PKPilot0018/';
-const OUT = '/workspace/work/pkpilot0018';
-const EXE = '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 
 const MENU = (page, name) => page.getByRole('menuitem', { name, exact: true });
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, executablePath: EXE, args: ['--single-process', '--no-zygote', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer'] });
+  const browser = await chromium.launch({ headless: true, executablePath: CHROME, env: browserEnv, args: ['--single-process', '--no-zygote', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer'] });
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await page.goto(BASE, { waitUntil: 'networkidle' });

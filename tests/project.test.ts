@@ -48,7 +48,9 @@ describe('project files', () => {
     const sheet = DATASETS[1].build();
     const project = buildProject({ worksheets: [sheet], activeSheetId: sheet.id, settings, outputs: [] });
     expect(project.format).toBe('sigrun-project');
-    expect(project.version).toBe(1);
+    // Stage 3E corrective (F-04): the envelope states the schema it is written
+    // with; parseProject migrates anything older and refuses anything newer.
+    expect(project.version).toBe(2);
     expect(project.app).toContain('Sigrún');
     expect(Number.isNaN(Date.parse(project.savedAt))).toBe(false);
   });
@@ -95,14 +97,16 @@ describe('project files', () => {
     expect(restored.settings).toEqual({ theme: 'dark', lang: 'ko' });
   });
 
-  it('drops malformed worksheets instead of failing the whole project', () => {
+  it('refuses a project with a damaged worksheet instead of dropping it silently', () => {
+    // Stage 3E corrective (F-05): dropping the damaged sheet would look like a
+    // successful restore while the reader's data was missing, so the restore
+    // stops and the current workspace stays as it was.
     const sheet = DATASETS[0].build();
-    const restored = parseProject(JSON.stringify({
+    expect(() => parseProject(JSON.stringify({
       format: 'sigrun-project',
+      version: 2,
       worksheets: [sheet, { id: 'bad', name: 'Bad' }],
-    }));
-    expect(restored.worksheets).toHaveLength(1);
-    expect(restored.worksheets[0].id).toBe(sheet.id);
+    }))).toThrow('file.worksheetCorrupt');
   });
 
   it('recognises Minitab native binaries so they can be refused with an explanation', () => {

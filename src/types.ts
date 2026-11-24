@@ -359,7 +359,8 @@ export interface Settings {
 
 export interface ProjectFile {
   format: 'sigrun-project';
-  version: 1;
+  /** Schema version; see CURRENT_PROJECT_VERSION in lib/project.ts. */
+  version: number;
   savedAt: string;
   app: string;
   worksheets: Worksheet[];

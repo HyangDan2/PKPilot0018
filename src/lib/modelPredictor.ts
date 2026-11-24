@@ -191,6 +191,54 @@ export function designRow(model: StoredModel, point: PredictionPoint, mode: Inpu
   return { values, labels };
 }
 
+/**
+ * ŷ from a design row, with the refusal rules in one place.
+ *
+ * This is the arithmetic every prediction path shares: the Model Manager, the
+ * contour and surface grids, the optimiser and the profiler all arrive here
+ * with their own weights, so a non-finite weight (a polynomial overflow, a
+ * broken transform) is refused identically everywhere instead of being skipped
+ * by one path and refused by another.
+ */
+export interface DesignSum {
+  value: number | null;
+  nonEstimable: string[];
+  issues: string[];
+}
+
+export function sumDesignRow(model: StoredModel, weights: number[]): DesignSum {
+  const nonEstimable: string[] = [];
+  let fit = 0;
+  for (let index = 0; index < model.coefficients.length; index += 1) {
+    const weight = weights[index];
+    // Skipping a non-finite weight would return the rest of the sum as if it
+    // were the prediction; the whole point is refused instead.
+    if (!Number.isFinite(weight)) return { value: null, nonEstimable: [], issues: ['model.value.nonFinite'] };
+    if (weight === 0) continue;
+    const coefficient = model.coefficients[index];
+    if (!coefficient.estimable) {
+      if (!nonEstimable.includes(coefficient.label)) nonEstimable.push(coefficient.label);
+      continue;
+    }
+    if (!Number.isFinite(coefficient.value)) return { value: null, nonEstimable: [], issues: ['model.coefficient.nonFinite'] };
+    fit += weight * coefficient.value;
+    if (!Number.isFinite(fit)) return { value: null, nonEstimable: [], issues: ['model.value.nonFinite'] };
+  }
+  if (nonEstimable.length) return { value: null, nonEstimable, issues: [] };
+  return { value: fit, nonEstimable: [], issues: [] };
+}
+
+/**
+ * The interval remarks a prediction carries, from the shared basis rules.
+ *
+ * A missing covariance or residual df is the absence of a quantity rather than
+ * a defect, so it is not repeated as an issue; a missing mse, a rank-deficient
+ * fit or a covariance that fails its checks is stated — by every path alike.
+ */
+export function intervalIssues(model: StoredModel): string[] {
+  return intervalStatus(model).reasons.filter((reason) => reason !== 'model.covariance.missing' && reason !== 'model.df.missing');
+}
+
 /** Does this model's coefficient list look internally consistent? */
 export function structureIssues(model: StoredModel): string[] {
   const issues: string[] = [];
@@ -230,35 +278,19 @@ export function predictStoredModel(model: StoredModel, point: PredictionPoint, o
     if (error instanceof ModelInputError) return { value: null, se: null, pi: null, nonEstimable: [], issues: [error.code] };
     return { value: null, se: null, pi: null, nonEstimable: [], issues: ['model.predictFailed'] };
   }
-  const nonEstimable: string[] = [];
-  let fit = 0;
-  let invalid: string | null = null;
-  model.coefficients.forEach((coefficient, index) => {
-    if (invalid) return;
-    const weight = design.values[index];
-    // A non-finite weight is an overflow or a broken transform. Skipping the
-    // term would return the rest of the sum as if it were the prediction, so
-    // the whole point is refused instead.
-    if (!Number.isFinite(weight)) { invalid = 'model.value.nonFinite'; return; }
-    if (weight === 0) return;
-    if (!coefficient.estimable) { nonEstimable.push(coefficient.label); return; }
-    if (!Number.isFinite(coefficient.value)) { invalid = 'model.coefficient.nonFinite'; return; }
-    fit += weight * coefficient.value;
-  });
-  if (invalid) return { value: null, se: null, pi: null, nonEstimable: [], issues: [...issues, invalid] };
-  if (!Number.isFinite(fit)) return { value: null, se: null, pi: null, nonEstimable: [], issues: [...issues, 'model.value.nonFinite'] };
-  if (nonEstimable.length) {
-    return { value: null, se: null, pi: null, nonEstimable, issues };
+  const summed = sumDesignRow(model, design.values);
+  if (summed.value === null) {
+    return { value: null, se: null, pi: null, nonEstimable: summed.nonEstimable, issues: [...issues, ...summed.issues] };
   }
+  const fit = summed.value;
   // Intervals: covariance and df gate a confidence interval, mse additionally
   // gates a prediction interval. A missing quantity is named, never filled in.
   const covarianceCheck = covarianceStatus(model);
   const intervals = intervalStatus(model);
   let se: number | null = null;
   let pi: [number, number] | null = null;
-  if (!intervals.ci) {
-    issues.push(...intervals.reasons.filter((reason) => reason !== 'model.covariance.missing' && reason !== 'model.df.missing'));
-  } else {
+  issues.push(...intervalIssues(model));
+  if (intervals.ci) {
     const variance = quadraticForm(covarianceCheck.matrix as number[][], design.values);
     if (!variance.ok) {
       issues.push(variance.reason);
@@ -274,7 +306,7 @@ export function predictStoredModel(model: StoredModel, point: PredictionPoint, o
       }
     }
   }
-  return { value: fit, se, pi, nonEstimable, issues };
+  return { value: fit, se, pi, nonEstimable: [], issues };
 }
 
 /* ── covariance and interval conditions ──────────────────────────────── */
@@ -403,7 +435,7 @@ interface QuadraticForm {
 }
 
 /** w'Σw with the documented negative-variance distinction. */
-function quadraticForm(covariance: number[][], weights: number[]): QuadraticForm {
+export function quadraticForm(covariance: number[][], weights: number[]): QuadraticForm {
   let sum = 0;
   let scale = 0;
   for (let i = 0; i < weights.length; i += 1) {
@@ -659,24 +691,11 @@ export function compileSurfaceEvaluator(
       }
       weights[i] = w;
     }
-    let fit = 0;
-    const leaning: string[] = [];
-    for (let i = 0; i < terms.length; i += 1) {
-      const w = weights[i];
-      if (w === 0) continue;
-      const term = terms[i];
-      if (!term.estimable) { leaning.push(term.label); continue; }
-      if (!Number.isFinite(term.value)) {
-        return { value: null, nonEstimable: [], se: null, ciHalf: null, piHalf: null, issues: ['model.coefficient.nonFinite'] };
-      }
-      fit += w * term.value;
+    const summed = sumDesignRow(model, weights);
+    if (summed.value === null) {
+      return { value: null, nonEstimable: summed.nonEstimable, se: null, ciHalf: null, piHalf: null, issues: [...issues, ...summed.issues] };
     }
-    if (!Number.isFinite(fit)) {
-      return { value: null, nonEstimable: [], se: null, ciHalf: null, piHalf: null, issues: ['model.value.nonFinite'] };
-    }
-    if (leaning.length) {
-      return { value: null, nonEstimable: [...new Set(leaning)], se: null, ciHalf: null, piHalf: null, issues };
-    }
+    const fit = summed.value;
     let se: number | null = null;
     let ciHalf: number | null = null;
     let piHalf: number | null = null;
@@ -693,10 +712,8 @@ export function compileSurfaceEvaluator(
           piHalf = Number.isFinite(half) ? half : null;
         }
       }
-    } else if (!covarianceCheck.ok && covarianceCheck.reasons.some((reason) => reason !== 'model.covariance.missing')) {
-      issues.push(...covarianceCheck.reasons);
     }
-    return { value: fit, nonEstimable: [], se, ciHalf, piHalf, issues };
+    return { value: fit, nonEstimable: [], se, ciHalf, piHalf, issues: [...new Set([...issues, ...intervalIssues(model)])] };
   };
   return {
     xName: xPredictor.name,

@@ -1,0 +1,38 @@
+export const ZIP_MIN_YEAR: number;
+export const ZIP_MAX_YEAR: number;
+export function resolveBuildDate(env?: Record<string, string | undefined>, now?: Date): Date;
+export function zipTimestamp(date: Date): string;
+export function readCommit(root: string): string;
+export function fileSha256(file: string): string;
+export function buildManifest(fields: {
+  name?: string;
+  version?: string;
+  phase?: string;
+  commit?: string;
+  builtAt: Date | string;
+  zipTimestamp?: string;
+  file: string;
+  bytes: number;
+  sha256: string;
+  zip?: { file: string; bytes: number; sha256: string };
+  jsBytes?: number;
+  cssBytes?: number;
+  format?: string;
+  tools?: Record<string, string>;
+}): {
+  name: string;
+  version: string;
+  phase: string;
+  commit: string;
+  builtAt: string;
+  zipTimestamp: string;
+  file: string;
+  bytes: number;
+  sha256: string;
+  zip?: { file: string; bytes: number; sha256: string };
+  jsBytes?: number;
+  cssBytes?: number;
+  format: string;
+  tools?: Record<string, string>;
+};
+export function releaseDirectory(env: Record<string, string | undefined> | undefined, root: string): string | null;

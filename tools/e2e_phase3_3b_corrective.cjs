@@ -2,36 +2,20 @@
 
    Local:  BASE=http://127.0.0.1:4190/PKPilot0018/ node tools/e2e_phase3_3b.cjs
    Live:   BASE=https://hyangdan2.github.io/PKPilot0018/ node tools/e2e_phase3_3b.cjs
-   Screens: OUT=/workspace/work/pkpilot0018
+   Screens: OUT=<release folder>
 */
 const fs = require('fs');
 const path = require('path');
 
-function loadPlaywright() {
-  const candidates = [
-    process.env.PLAYWRIGHT_PATH,
-    '/workspace/pkpilot0014/node_modules/playwright',
-    '/workspace/visna-sol/node_modules/playwright',
-    '/workspace/repos/PKPilot0015/node_modules/playwright',
-    'playwright',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    try { return require(candidate); } catch { /* try the next install */ }
-  }
-  throw new Error('playwright is not installed in any known location');
-}
-const { chromium } = loadPlaywright();
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 
 const BASE = process.env.BASE || 'http://127.0.0.1:4190/PKPilot0018/';
 const SERVE = process.env.SERVE !== '0';
 let ACTIVE_BASE = BASE;
-const OUT = process.env.OUT || '/workspace/downloads/sigrun-3b-corrective';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', 'artifacts', 'sigrun-3b-corrective');
 /* The headless shell is the one browser binary this sandbox can run. Its
    system libraries are not installed, so the ones it needs are unpacked into
    work/chrome-libs and pointed at through LD_LIBRARY_PATH. */
-const SHELL = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
-const LIBS = process.env.CHROME_LIBS || '/workspace/work/chrome-libs/usr/lib/x86_64-linux-gnu:/workspace/work/chrome-libs/lib/x86_64-linux-gnu';
-const BROWSER_ENV = { ...process.env, LD_LIBRARY_PATH: LIBS };
 
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -47,11 +31,11 @@ function launchArgs(kind) {
   const base = ['--single-process', '--no-zygote', '--no-sandbox', '--disable-dev-shm-usage'];
   if (kind === 'webgl') {
     // SwiftShader gives the headless browser a real WebGL 1 context.
-    return { headless: true, executablePath: SHELL, env: BROWSER_ENV, args: [...base, '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
+    return { headless: true, executablePath: CHROME, env: browserEnv, args: [...base, '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
   }
   // Software rasterisation disabled: WebGL is unavailable, which is the
   // environment the automatic static fallback exists for.
-  return { headless: true, executablePath: SHELL, env: BROWSER_ENV, args: [...base, '--disable-gpu', '--disable-software-rasterizer'] };
+  return { headless: true, executablePath: CHROME, env: browserEnv, args: [...base, '--disable-gpu', '--disable-software-rasterizer'] };
 }
 
 async function openPage(browser, options = {}) {
