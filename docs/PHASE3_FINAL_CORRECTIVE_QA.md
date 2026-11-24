@@ -157,4 +157,5 @@ npm run qa:network
 
 - **Minitab을 실행하지 않았다.** 수치 동등성은 주장하지 않는다(`docs/MINITAB_MASTER_FEATURE_GAP.md` §0).
 - GitHub Actions는 이 세션에서 실행하지 못했다(원격 권한 없음). 워크플로 파일은 커밋됐고 PR 푸시 후 실행된다.
-- 브라우저 E2E §4의 실패는 **이 호스트에서** 미해결이다. 이 스위트들은 CI에 연결되어 있지 않아 Linux 결과도 없다(CI는 portable 오프라인·튜토리얼 E2E만 실행).
+- 브라우저 E2E §4의 실패는 **이 호스트에서** 미해결이다. WO-FINAL-002에서 이 스위트들을 Linux 러너 잡(`deploy.yml`의 `browser-regression`)으로 CI에 연결했다 — 결과 판정은 `docs/WO_FINAL_002_CORRECTIVE_REVIEW.md` §7.3이 단일 출처다. CI가 통과하기 전까지 19건은 미해결이다.
+

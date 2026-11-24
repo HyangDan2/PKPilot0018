@@ -24,10 +24,41 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build as esbuild } from 'esbuild';
 import { readCommit, resolveBuildDate } from './build_manifest.mjs';
+import { collectLicenses, licensesText } from './license_report.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGE = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-const RELEASE_ID = process.env.RELEASE_ID || `v${PACKAGE.version}-rc.1`;
+
+/* The release identity is the Git tag when the build runs at a tag, and an RC
+   id otherwise. A tag, the package version and the built manifest must all
+   name the same release; `check` refuses to build when they do not (Q-04). */
+export function parseReleaseId(id) {
+  const match = /^v(\d+\.\d+\.\d+)(?:-rc\.(\d+))?$/.exec(id);
+  return match ? { version: match[1], channel: match[2] ? 'rc' : 'final' } : null;
+}
+
+export function releaseIdentity(version, { env = {}, tag = '' } = {}) {
+  const envTag = env.GITHUB_REF_TYPE === 'tag' ? (env.GITHUB_REF_NAME ?? '') : '';
+  const explicitTag = envTag || env.RELEASE_TAG || tag || '';
+  const id = env.RELEASE_ID || explicitTag || `v${version}-rc.1`;
+  const parsed = parseReleaseId(id);
+  const problems = [];
+  if (!parsed) problems.push(`release id "${id}" is not vX.Y.Z or vX.Y.Z-rc.N`);
+  else if (parsed.version !== version) problems.push(`release id ${id} does not match package version ${version}`);
+  if (explicitTag && id !== explicitTag) problems.push(`release id ${id} ≠ git tag ${explicitTag}`);
+  return { id, tag: explicitTag || null, channel: parsed?.channel ?? null, problems };
+}
+
+function gitTag() {
+  try {
+    return execFileSync('git', ['describe', '--tags', '--exact-match', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return '';
+  }
+}
+
+const IDENTITY = releaseIdentity(PACKAGE.version, { env: process.env, tag: gitTag() });
+const RELEASE_ID = IDENTITY.id;
 const RELEASE_DIR = path.resolve(ROOT, process.env.RELEASE_DIR || path.join('release', RELEASE_ID));
 const EPOCH = resolveBuildDate(process.env);
 const JSON_SPACE = 2;
@@ -62,50 +93,10 @@ async function editions() {
 
 /* ── licenses ──────────────────────────────────────────────────────────── */
 
-function installedPackages() {
-  const modules = path.join(ROOT, 'node_modules');
-  const found = [];
-  for (const entry of fs.readdirSync(modules).sort()) {
-    if (entry.startsWith('.')) continue;
-    if (entry.startsWith('@')) {
-      for (const scoped of fs.readdirSync(path.join(modules, entry)).sort()) {
-        if (scoped.startsWith('.')) continue;
-        found.push(path.join(modules, entry, scoped));
-      }
-      continue;
-    }
-    found.push(path.join(modules, entry));
-  }
-  return found.filter((dir) => fs.existsSync(path.join(dir, 'package.json')));
-}
-
-function licenseOf(manifest) {
-  const value = manifest.license ?? (typeof manifest.licenses === 'string' ? manifest.licenses : manifest.licenses?.[0]?.type);
-  return typeof value === 'string' && value.trim() ? value.trim() : '';
-}
-
 function auditLicenses() {
-  const rows = [];
-  for (const dir of installedPackages()) {
-    const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
-    const license = licenseOf(manifest);
-    if (!license || /^unlicensed$/i.test(license)) {
-      problem(`license: ${manifest.name}@${manifest.version} has no confirmed license`);
-      continue;
-    }
-    rows.push({ name: manifest.name, version: manifest.version, license, url: manifest.homepage || (manifest.repository && (manifest.repository.url || manifest.repository)) || '' });
-  }
+  const { rows, problems } = collectLicenses(ROOT);
+  for (const message of problems) problem(message);
   return rows;
-}
-
-function licensesText(rows) {
-  const lines = [
-    `Third-party packages installed for ${PACKAGE.description ?? PACKAGE.name}`,
-    `build ${PACKAGE.version} · ${rows.length} packages · generated from node_modules`,
-    '',
-  ];
-  for (const row of rows) lines.push(`${row.name}@${row.version}  ${row.license}${row.url ? `  ${row.url}` : ''}`);
-  return `${lines.join('\n')}\n`;
 }
 
 /* ── check ─────────────────────────────────────────────────────────────── */
@@ -120,6 +111,7 @@ async function commandCheck() {
   step('release identity');
   if (!/^\d+\.\d+\.\d+/.test(PACKAGE.version)) problem(`package version "${PACKAGE.version}" is not semver`);
   if (!PACKAGE.description) problem('package.json has no description');
+  for (const message of IDENTITY.problems) problem(message);
   const built = await editions();
   const pub = built.public;
   for (const field of ['PRODUCT_ID', 'EDITION_ID', 'APP_NAME', 'APP_NAME_LOCAL', 'APP_VERSION', 'APP_PHASE', 'BRAND_NAME', 'BASE_PATH', 'STORAGE_NAMESPACE', 'EXPORT_FILE_PREFIX']) {
@@ -132,12 +124,13 @@ async function commandCheck() {
     if (!built.enterprise.COPYRIGHT) problem('enterprise: COPYRIGHT is not approved yet');
     if (!built.enterprise.STORAGE_NAMESPACE) problem('enterprise: STORAGE_NAMESPACE is empty');
   }
-  console.log(`release ${RELEASE_ID} · product ${pub.APP_NAME} ${pub.APP_VERSION} · edition ${pub.EDITION_ID}`);
+  console.log(`release ${RELEASE_ID} · ${IDENTITY.channel ?? 'unknown'} channel${IDENTITY.tag ? ` · tag ${IDENTITY.tag}` : ' · no tag on HEAD'}`);
+  console.log(`product ${pub.APP_NAME} ${pub.APP_VERSION} · edition ${pub.EDITION_ID}`);
 
   step('licenses');
   const rows = auditLicenses();
-  console.log(`${rows.length} packages with a confirmed license`);
-  const licenses = licensesText(rows);
+  console.log(`${rows.length} packages with a confirmed license · ${rows.filter((row) => row.texts.length).length} with license text · ${rows.filter((row) => row.notices.length).length} with NOTICE`);
+  const licenses = licensesText(rows, { version: PACKAGE.version, description: PACKAGE.description });
 
   if (PROBLEMS.length) {
     for (const message of PROBLEMS) console.error(`FAIL · ${message}`);
@@ -227,7 +220,7 @@ async function commandBuild() {
       .replaceAll('%COMMIT%', readCommit(ROOT));
     fs.writeFileSync(path.join(RELEASE_DIR, target), text);
   }
-  fs.writeFileSync(path.join(RELEASE_DIR, 'LICENSES.txt'), checked.licenses ?? licensesText(auditLicenses()));
+  fs.writeFileSync(path.join(RELEASE_DIR, 'LICENSES.txt'), checked.licenses ?? licensesText(auditLicenses(), { version: PACKAGE.version, description: PACKAGE.description }));
   fs.writeFileSync(path.join(RELEASE_DIR, 'VERSION.txt'), [
     `name        ${product.APP_NAME}`,
     `version     ${PACKAGE.version}`,
@@ -244,6 +237,8 @@ async function commandBuild() {
   const releaseInfo = {
     ...info,
     release: RELEASE_ID,
+    channel: IDENTITY.channel,
+    tag: IDENTITY.tag,
     edition: product.EDITION_ID,
     web: {
       indexSha256: sha256(path.join(ROOT, 'dist', 'index.html')),
@@ -344,6 +339,11 @@ async function commandVerify(repro) {
     else problem(`build-info commit ${info.commit} ≠ HEAD ${readCommit(ROOT)} and the build inputs changed since`);
   }
   if (!info.release || info.release !== RELEASE_ID) problem(`build-info release ${info.release} ≠ ${RELEASE_ID}`);
+  const packaged = parseReleaseId(String(info.release ?? ''));
+  if (info.release && !packaged) problem(`build-info release ${info.release} is not a version tag`);
+  else if (packaged && packaged.version !== PACKAGE.version) problem(`build-info release ${info.release} ≠ package version ${PACKAGE.version}`);
+  if (info.channel && packaged && info.channel !== packaged.channel) problem(`build-info channel ${info.channel} ≠ ${packaged.channel} implied by ${info.release}`);
+  if (info.tag && info.tag !== info.release) problem(`build-info tag ${info.tag} ≠ release ${info.release}`);
 
   step('VERSION.txt');
   const versionText = fs.readFileSync(path.join(RELEASE_DIR, 'VERSION.txt'), 'utf8');
@@ -407,8 +407,8 @@ async function commandVerify(repro) {
 
 /* ── entry ─────────────────────────────────────────────────────────────── */
 
-const [, , command, ...flags] = process.argv;
-try {
+async function main(argv) {
+  const [, , command, ...flags] = argv;
   if (command === 'check') await commandCheck();
   else if (command === 'build') await commandBuild();
   else if (command === 'verify') await commandVerify(flags.includes('--repro'));
@@ -416,7 +416,13 @@ try {
     console.error('usage: node tools/release.mjs check|build|verify [--repro]');
     process.exitCode = 2;
   }
-} catch (error) {
-  console.error(String(error.message).split('\n').slice(0, 4).join('\n'));
-  process.exitCode = 1;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    await main(process.argv);
+  } catch (error) {
+    console.error(String(error.message).split('\n').slice(0, 4).join('\n'));
+    process.exitCode = 1;
+  }
 }

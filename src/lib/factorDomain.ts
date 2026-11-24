@@ -472,17 +472,24 @@ export function validateFactorValue(factor: FactorSettings, value: number | stri
   return null;
 }
 
-/** The intersection of several closed ranges, or null when they do not overlap. */
+/**
+ * The intersection of several closed ranges, or null when they do not overlap.
+ *
+ * Near-touch policy (Q-03): two ranges whose bounds differ only by the rounding
+ * of their own doubles (at most a few ULPs, plus a 1e-9 share of the gap) are
+ * one point, reported as `[b, b]` with `b` the shared bound. A gap wider than
+ * that rounding is no intersection, and an inverted interval (`lower > upper`)
+ * is never returned.
+ */
 export function rangeIntersection(ranges: [number, number][]): [number, number] | null {
   const usable = ranges.filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b)).map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as [number, number]);
   if (!usable.length) return null;
   const lower = Math.max(...usable.map(([a]) => a));
   const upper = Math.min(...usable.map(([, b]) => b));
-  // Two ranges that do not touch have no intersection, however narrow they are
-  // and however large the offset they sit at (F-REL-04). The slack is the
-  // rounding of the doubles, not a share of the offset.
+  if (upper >= lower) return [lower, upper];
   const slack = rangeSlack(lower, upper);
-  return upper >= lower - slack ? [lower, upper] : null;
+  if (lower - upper <= slack) return [upper, upper];
+  return null;
 }
 
 /** The levels every model fitted, in the first model's order. */

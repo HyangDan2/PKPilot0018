@@ -27,11 +27,28 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: npm ci --no-audit --no-fund
       - run: npx tsc --noEmit
       - run: npm test
 
-      - name: Preflight
+      - name: Install the pinned reference stack
+        run: pip install -r qa/reference/requirements.txt
+
+      - name: Independent statistics QA
+        run: npm run qa:stats
+
+      - name: Upload QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa/reports/
+          retention-days: 90
+
+      - name: Preflight (tag, version and manifest agree)
         run: npm run release:check
 
       - name: Build release artifacts
@@ -44,6 +61,21 @@ jobs:
 
       - name: Portable offline E2E
         run: npm run qa:portable
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Portable tutorial E2E
+        run: npm run qa:tutorials:portable
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Tutorial guard probe
+        run: npm run qa:guard
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Network audit (public, portable, enterprise)
+        run: npm run qa:network
         env:
           CHROME_PATH: /usr/bin/google-chrome
 

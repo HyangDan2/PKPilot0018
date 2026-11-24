@@ -139,6 +139,18 @@ describe('WO-02 F-REL-04 · a narrow range at a large offset', () => {
     expect(overlap?.[1]).toBe(NARROW_UPPER);
   });
 
+  it('never returns an inverted interval when two ranges nearly touch (Q-03)', () => {
+    const touching = rangeIntersection([[0, 1], [1 + 2 * Number.EPSILON, 2]]);
+    expect(touching).not.toBeNull();
+    expect(touching![0]).toBeLessThanOrEqual(touching![1]);
+    expect(touching).toEqual([1, 1]);
+    // A gap wider than the rounding of the endpoints is still no intersection.
+    expect(rangeIntersection([[0, 1], [1 + 1e-12, 2]])).toBeNull();
+    // Reversed inputs are ordered before the test, so they cannot invert it.
+    const reversed = rangeIntersection([[1, 0], [1 + 2 * Number.EPSILON, 2]]);
+    expect(reversed![0]).toBeLessThanOrEqual(reversed![1]);
+  });
+
   it('does not call a design limit rounded into the data an extrapolation', () => {
     // The CCD axial point is 2^(1/4) = 1.189207115002721; the column that
     // carries it in the dataset is written with nine decimals. Searching the

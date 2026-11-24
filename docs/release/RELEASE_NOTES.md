@@ -3,7 +3,7 @@
 Build: %VERSION% · %RELEASE_ID% · commit %COMMIT%
 
 Sigrún is a pure-browser statistical and quality workspace. This release is the
-Phase 3 final stabilization and enterprise-readiness build (WO-FINAL-001). It
+Phase 3 final stabilization and enterprise-readiness build (WO-FINAL-001, corrected under WO-FINAL-002). It
 adds no Phase 4 features; the existing UI, analyses and chart behaviour are
 kept, and the fixes below close defects found by the corrective QA.
 
@@ -20,6 +20,14 @@ kept, and the fixes below close defects found by the corrective QA.
 - **The reader's own project is guarded** before every practice, with the file
   read back and compared; a backup is never deleted on failure and a resumed
   lesson never reuses another session's original-project id.
+- **A restored project is kept, not just shown.** Restoring the guarded copy —
+  at startup, at the end of a practice, when keeping or exporting one, or when
+  moving to the next lesson — now writes it to the autosave, reads it back and
+  compares every record; the backup is removed only when that read-back is
+  identical. A newer guarded copy also takes precedence over an older autosave.
+- **Custom chart styles travel with the project**, including an empty list,
+  when a project is opened, a practice is resumed, or the guarded copy is
+  restored.
 - Projects now persist worksheets, column metadata, the active sheet, outputs,
   stored models, figures, graph layout, chart styles, settings and practice
   evidence; a resumed practice is checked for tutorial version and project
@@ -73,4 +81,4 @@ verification pass. Exact counts and outcomes are recorded in
 | `Sigrun-%RELEASE_ID%-Web.zip` | the static web build (serve the folder) |
 | `SHA256SUMS.txt` | sha256 of every other file here |
 | `build-info.json` | build manifest: version, commit, bytes, hashes |
-| `LICENSES.txt` | every third-party package and its license |
+| `LICENSES.txt` | every third-party package with its full license text and NOTICE files, plus the first-party content notice |

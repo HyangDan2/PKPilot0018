@@ -80,11 +80,19 @@ import type {
   ValidationOutcome,
   WorkspaceFacts,
 } from './tutorials/types';
-import { AUTOSAVE_STORAGE_KEY, loadAutosave, saveAutosave, type AutosaveSaveResult } from './lib/db';
+import { AUTOSAVE_STORAGE_KEY, loadAutosaveRecord, saveAutosave, type AutosaveSaveResult } from './lib/db';
 import { PRODUCT } from './config/product';
 import { STORAGE_KEY, namespacedKey } from './config/storageNamespace';
 import { statusBarLabel } from './lib/appInfo';
 import { compareProjects, projectFingerprint } from './lib/projectCompare';
+import {
+  originalBackupWins,
+  restoredStateMatches,
+  stateFromAutosave,
+  stateFromProject,
+  type RestorePersistence,
+  type RestoredWorkspace,
+} from './lib/restorePolicy';
 import { fmt, fmtInt } from './lib/format';
 import { t } from './lib/i18n';
 import {
@@ -416,34 +424,33 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    loadAutosave<StoredState>()
-      .then((saved) => {
+    loadAutosaveRecord<StoredState>()
+      .then(async (record) => {
         if (cancelled) return;
+        const saved = record?.payload;
         const usable = Boolean(saved && Array.isArray(saved.worksheets) && saved.worksheets.length);
         if (!usable) {
           // WO-TQA-01: no autosave, but a practice may have been cut off by a
           // reload. The guarded copy of the reader's project is what comes back.
           const original = TUTORIAL_STORE.latestOriginalProject();
-          if (original && loadProjectJson(original.json)) {
-            setTutorialMessage(t(lang, 'tut.originalRestored'));
-          }
+          if (original) await restoreGuardedAtStartup(original);
           return;
         }
         const loaded = saved!;
         // A practice project in the autosave slot is not the reader's project: the
-        // guarded copy wins (WO-TQA-01/T-02).
+        // guarded copy wins (WO-TQA-01/T-02). Q-01: so does a guard written after
+        // the autosave's last save — the autosave is then older than the reader's
+        // work, whether the save failed or never ran.
         const loadedPrint = projectFingerprint({
           worksheets: loaded.worksheets,
           activeSheetId: loaded.activeSheetId,
           outputs: loaded.outputs ?? [],
           models: loaded.models ? parseStoredModels(loaded.models) : [],
+          customChartStyles: Array.isArray(loaded.customChartStyles) ? loaded.customChartStyles : [],
         });
         const original = TUTORIAL_STORE.latestOriginalProject();
-        if (original && original.fingerprint !== loadedPrint && practiceSlotFingerprints().includes(loadedPrint)) {
-          if (loadProjectJson(original.json)) {
-            setTutorialMessage(t(lang, 'tut.originalRestored'));
-            return;
-          }
+        if (originalBackupWins(original, record, loadedPrint, practiceSlotFingerprints())) {
+          if (await restoreGuardedAtStartup(original!)) return;
         }
         setWorksheets(loaded.worksheets);
         setActiveSheetId(loaded.activeSheetId || loaded.worksheets[0].id);
@@ -451,6 +458,8 @@ export default function App() {
         if (loaded.models) setStoredModels(parseStoredModels(loaded.models));
         if (loaded.settings) setSettings({ theme: loaded.settings.theme === 'dark' ? 'dark' : 'light', lang: loaded.settings.lang === 'ko' ? 'ko' : 'en' });
         if (Array.isArray(loaded.figures)) setFigures(loaded.figures as unknown as LayoutDoc[]);
+        // An empty list is not written over the style library here: a style added
+        // after the last autosave is newer than this payload (Q-02).
         if (Array.isArray(loaded.customChartStyles) && loaded.customChartStyles.length) {
           writeCustomStyles(loaded.customChartStyles as Parameters<typeof writeCustomStyles>[0]);
         }
@@ -546,16 +555,18 @@ export default function App() {
    * WO-01 F-REL-02: the status is whatever the stores actually reported. An
    * older request never overwrites the status of a newer one.
    */
-  const runAutosave = useCallback(async (): Promise<AutosaveSaveResult> => {
+  const saveProjectState = useCallback(async (payload: StoredState): Promise<AutosaveSaveResult> => {
     const seq = ++autosaveSeq.current;
     setAutosave('saving');
-    const result = await saveAutosave<StoredState>(autosavePayload());
+    const result = await saveAutosave<StoredState>(payload);
     if (seq === autosaveSeq.current) {
       setAutosave(autosaveUiFor(result));
       setAutosavePrompt(result.status !== 'SAVED');
     }
     return result;
-  }, [autosavePayload]);
+  }, []);
+
+  const runAutosave = useCallback(async (): Promise<AutosaveSaveResult> => saveProjectState(autosavePayload()), [autosavePayload, saveProjectState]);
 
   useEffect(() => {
     // A practice session never writes to the reader's autosave: the original
@@ -2021,20 +2032,96 @@ export default function App() {
     toast(t(lang, 'tut.startedToast'));
   };
 
+  /** Put a parsed project into the workspace, styles included (Q-02). */
+  const applyProjectState = (parsed: ReturnType<typeof parseProject>): void => {
+    setWorksheets(parsed.worksheets);
+    setActiveSheetId(parsed.activeSheetId || parsed.worksheets[0]?.id || '');
+    setOutputs(parsed.outputs);
+    setSettings(parsed.settings);
+    setStoredModels(parsed.models ?? []);
+    setFigures((parsed.figures ?? []) as unknown as LayoutDoc[]);
+    // The styles travel with the project. An explicitly empty list is a state
+    // of its own: it clears the styles a practice created.
+    writeCustomStyles(parsed.customChartStyles ?? []);
+  };
+
   /** Load a project file into the workspace without touching the guard. */
   const loadProjectJson = (json: string): boolean => {
     try {
-      const parsed = parseProject(json);
-      setWorksheets(parsed.worksheets);
-      setActiveSheetId(parsed.activeSheetId || parsed.worksheets[0]?.id || '');
-      setOutputs(parsed.outputs);
-      setSettings(parsed.settings);
-      setStoredModels(parsed.models ?? []);
-      setFigures((parsed.figures ?? []) as unknown as LayoutDoc[]);
+      applyProjectState(parseProject(json));
       return true;
     } catch {
       return false;
     }
+  };
+
+  const currentWorkspaceState = (): RestoredWorkspace => stateFromProject({
+    worksheets, activeSheetId, settings, outputs, models: storedModels, figures, customChartStyles: loadCustomStyles(),
+  });
+
+  const snapshotWorkspaceState = (snapshot: WorkspaceSnapshot): RestoredWorkspace => stateFromProject({
+    worksheets: snapshot.worksheets,
+    activeSheetId: snapshot.activeSheetId,
+    settings: snapshot.settings,
+    outputs: snapshot.outputs,
+    models: snapshot.storedModels,
+    figures: snapshot.figures,
+    customChartStyles: snapshot.customStyles,
+  });
+
+  const slotWorkspaceState = (projectId: string | null): RestoredWorkspace | null => {
+    const slot = projectId ? TUTORIAL_STORE.loadOriginalProject(projectId) : null;
+    if (!slot) return null;
+    try {
+      return stateFromProject(parseProject(slot.json));
+    } catch {
+      return null;
+    }
+  };
+
+  /**
+   * Q-01: memory is not persistence. The restored workspace is written to the
+   * autosave stores, read back, and compared record by record; only `verified`
+   * may remove a protective backup or count as a restore.
+   */
+  const persistWorkspaceVerified = async (expected: RestoredWorkspace): Promise<RestorePersistence> => {
+    const result = await saveProjectState({
+      worksheets: expected.worksheets,
+      activeSheetId: expected.activeSheetId,
+      outputs: expected.outputs,
+      settings: expected.settings ?? settings,
+      models: expected.models,
+      figures: expected.figures,
+      customChartStyles: expected.customChartStyles,
+    });
+    if (result.status !== 'SAVED') return 'unsaved';
+    const record = await loadAutosaveRecord<StoredState>();
+    const stored = record ? stateFromAutosave(record.payload) : null;
+    if (!stored) return 'unsaved';
+    return restoredStateMatches(expected, stored).ok ? 'verified' : 'mismatch';
+  };
+
+  /**
+   * Restore the guarded copy at startup, then prove it is on disk before the
+   * backup is removed (Q-01). `true` means the guard was loaded into the
+   * workspace (whether or not the store accepted the copy yet).
+   */
+  const restoreGuardedAtStartup = async (original: { projectId: string; json: string }): Promise<boolean> => {
+    let parsed: ReturnType<typeof parseProject>;
+    try {
+      parsed = parseProject(original.json);
+    } catch {
+      return false;
+    }
+    applyProjectState(parsed);
+    setTutorialMessage(t(lang, 'tut.originalRestored'));
+    const outcome = await persistWorkspaceVerified(stateFromProject(parsed));
+    if (outcome === 'verified') {
+      TUTORIAL_STORE.removeOriginalProject(original.projectId);
+    } else {
+      setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+    }
+    return true;
   };
 
   /** Fingerprints of every kept practice project, to tell one from the reader's own. */
@@ -2048,6 +2135,7 @@ export default function App() {
         outputs: parsed.outputs,
         models: parsed.models ?? [],
         figures: parsed.figures ?? [],
+        customChartStyles: parsed.customChartStyles ?? [],
       })];
     } catch {
       return [];
@@ -2090,48 +2178,6 @@ export default function App() {
   const practiceProjectJson = (): string => workspaceProjectJson();
 
   type WorkspaceSnapshot = NonNullable<typeof practiceSnapshot.current>;
-
-  const snapshotFingerprint = (snapshot: WorkspaceSnapshot): string => projectFingerprint({
-    worksheets: snapshot.worksheets,
-    activeSheetId: snapshot.activeSheetId,
-    settings: snapshot.settings,
-    outputs: snapshot.outputs,
-    models: snapshot.storedModels,
-    figures: snapshot.figures,
-    customChartStyles: snapshot.customStyles,
-  });
-
-  /**
-   * WO-01 F-REL-03: a restore counts only when what came back matches the guarded
-   * copy. `verified` is the only outcome that may remove the backup.
-   */
-  const restoreOriginalVerified = (projectId: string | null): 'verified' | 'unverified' | 'missing' => {
-    const expected = projectId ? TUTORIAL_STORE.loadOriginalProject(projectId) : null;
-    const snapshot = practiceSnapshot.current;
-    const restored = restoreOriginalProject(projectId);
-    if (!restored) return 'missing';
-    if (!expected) return 'verified'; // the practice began with a file backup only
-    let actual: string | null = null;
-    if (snapshot) {
-      actual = snapshotFingerprint(snapshot);
-    } else {
-      try {
-        const parsed = parseProject(expected.json);
-        actual = projectFingerprint({
-          worksheets: parsed.worksheets,
-          activeSheetId: parsed.activeSheetId,
-          settings: parsed.settings,
-          outputs: parsed.outputs,
-          models: parsed.models ?? [],
-          figures: parsed.figures ?? [],
-          customChartStyles: parsed.customChartStyles ?? [],
-        });
-      } catch {
-        actual = null;
-      }
-    }
-    return actual === expected.fingerprint ? 'verified' : 'unverified';
-  };
 
   /**
    * WO-TQA-09 — the round trip is checked against the records themselves, not
@@ -2232,24 +2278,37 @@ export default function App() {
     }
   };
 
-  /** End the practice and put the guarded original back, verifying the result first. */
-  const restoreAfterPractice = (): void => {
+  /**
+   * End the practice and put the guarded original back.
+   *
+   * Q-01: the backup is removed only after the restored workspace was written
+   * and read back identical. A save that fails (quota, blocked storage) leaves
+   * the backup in place and says so, for every exit path — discard, keep, file
+   * export and the switch to the next lesson.
+   */
+  const restoreAfterPractice = async (): Promise<void> => {
     const isolated = practice?.mode !== 'current';
     const originalId = practiceOriginalId.current;
+    const snapshot = practiceSnapshot.current;
+    const expected = isolated
+      ? (snapshot ? snapshotWorkspaceState(snapshot) : slotWorkspaceState(originalId))
+      : currentWorkspaceState();
     endPracticeSession();
     practiceOriginalId.current = null;
-    if (!isolated) return;
-    const outcome = restoreOriginalVerified(originalId);
+    if (isolated && !restoreOriginalProject(originalId)) {
+      setTutorialStorageWarning(t(lang, 'tut.originalMissing'));
+      return;
+    }
+    if (!expected) return;
+    const outcome = await persistWorkspaceVerified(expected);
     if (outcome === 'verified') {
       if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
-    } else if (outcome === 'unverified') {
-      setTutorialStorageWarning(t(lang, 'tut.originalUnverified'));
     } else {
-      setTutorialStorageWarning(t(lang, 'tut.originalMissing'));
+      setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
     }
   };
 
-  const keepPractice = () => {
+  const keepPractice = async () => {
     if (!practice) return;
     const failure = writePracticeSlot();
     if (failure) {
@@ -2257,26 +2316,25 @@ export default function App() {
       return;
     }
     setPracticeSaveFailure(null);
-    restoreAfterPractice();
     toast(t(lang, 'tut.practiceKept'));
+    await restoreAfterPractice();
   };
 
   /** The file is the kept copy: end only after a verified export. */
-  const exportFailedPractice = () => {
+  const exportFailedPractice = async () => {
     if (!savePracticeProject()) return;
     setPracticeSaveFailure(null);
-    restoreAfterPractice();
     toast(t(lang, 'tut.practiceKeptUnsaved'));
+    await restoreAfterPractice();
   };
 
-  const discardPractice = () => {
+  const discardPractice = async () => {
     if (!window.confirm(t(lang, 'tut.discardConfirm'))) return;
     const tutorialId = practice?.tutorialId;
     const sessionId = practice?.sessionId ?? tutorialSession?.sessionId;
     // Only this session's slot goes; another kept practice must survive (WO-TQA-07).
     if (tutorialId && sessionId) TUTORIAL_STORE.removePracticeSlot(practiceSlotId(tutorialId, sessionId));
     else TUTORIAL_STORE.clearPracticeProject();
-    restoreAfterPractice();
     if (tutorialId) {
       TUTORIAL_STORE.remove(tutorialId);
       setProgressMap((prev) => {
@@ -2285,6 +2343,7 @@ export default function App() {
         return next;
       });
     }
+    await restoreAfterPractice();
     toast(t(lang, 'tut.discarded'));
   };
 
@@ -2345,6 +2404,8 @@ export default function App() {
         setSettings(parsed.settings);
         setStoredModels(parsed.models ?? []);
         setFigures((parsed.figures ?? []) as unknown as LayoutDoc[]);
+        // Q-02: the practice's custom chart styles are part of what is resumed.
+        writeCustomStyles(parsed.customChartStyles ?? []);
         past.current = [];
         future.current = [];
         const resumed = slot.progress && slot.progress.tutorialId === tutorialId ? slot.progress : saved;
@@ -2644,10 +2705,33 @@ export default function App() {
   const tutorialFinished = Boolean(activeTutorial && tutorialSession && !reviewingTutorial && isTutorialComplete(activeTutorial, tutorialSession));
   const tutorialSummaryData = activeTutorial && tutorialSession ? tutorialSummary(activeTutorial, tutorialSession, tutorialFacts()) : null;
 
-  const onExitedTutorial = () => {
+  const onExitedTutorial = async () => {
     const nextId = activeTutorial?.nextTutorialId;
+    const originalId = practiceOriginalId.current;
+    const isolated = practice?.mode !== 'current';
+    const snapshot = practiceSnapshot.current;
+    const expected = isolated ? (snapshot ? snapshotWorkspaceState(snapshot) : null) : currentWorkspaceState();
     endPracticeSession();
-    restorePracticeSnapshot();
+    practiceOriginalId.current = null;
+    // Q-01: the next-tutorial path restores under the same policy — the backup
+    // goes only after the restored workspace is on disk and reads back equal.
+    if (isolated) {
+      if (restorePracticeSnapshot() && expected) {
+        const outcome = await persistWorkspaceVerified(expected);
+        if (outcome === 'verified') {
+          if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
+        } else {
+          setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+        }
+      }
+    } else {
+      const outcome = await persistWorkspaceVerified(currentWorkspaceState());
+      if (outcome === 'verified') {
+        if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
+      } else {
+        setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+      }
+    }
     setLibraryOpen(true);
     if (nextId) setTutorialMessage(t(lang, 'tut.nextAfterExit'));
   };
