@@ -22,6 +22,19 @@
    soon as any single response is unacceptable, which is what "all responses
    must be in specification" means. `range` is a step function and `ignore`
    leaves the composite while still being predicted and reported.
+
+   Stage 3C correction — validation is explicit, never corrective:
+
+   · Limits are taken as stated. A reversed pair (upper first) is an error, not
+     an invitation to swap them, because a reader who typed them that way is
+     telling us something we should ask about.
+   · Weight and importance must be finite and positive; NaN and ±Infinity are
+     reported instead of being replaced by 1.
+   · A target that sits exactly on a limit is defined here once: the peak of the
+     curve is at the target, so d = 1 at that limit and falls to 0 at the other.
+   · Desirability (soft, comparable) and the hard specification (acceptable or
+     not) are separate verdicts. This module reports both; the optimiser only
+     recommends a condition that meets every hard specification.
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { ResponseGoal, ResponseSettings } from './optimizationTypes';
@@ -31,8 +44,8 @@ export const WEIGHT_MAX = 10;
 export const IMPORTANCE_MIN = 0.1;
 export const IMPORTANCE_MAX = 10;
 
-/** Clamp to a documented range; the caller is expected to report the change. */
-const clamp = (value: number, lo: number, hi: number): number => (Number.isFinite(value) ? Math.min(hi, Math.max(lo, value)) : 1);
+/** Clamp a *validated finite* number into its documented range. */
+const clamp = (value: number, lo: number, hi: number): number => (Number.isFinite(value) ? Math.min(hi, Math.max(lo, value)) : lo);
 
 export interface ResponseLimits {
   lower: number;
@@ -43,44 +56,48 @@ export interface ResponseLimits {
 /**
  * The limits a response is judged on, or null when they are not usable.
  *
- * `lower` and `upper` are the acceptable region. A caller who types them the
- * other way round (upper first) is read as meaning the same interval rather
- * than being refused; an interval of zero width is refused, because no curve
- * can be drawn on it.
+ * `lower` must be below `upper`. Nothing is swapped: a reversed pair returns
+ * null and `responseIssues` names the reason, so the reader can fix the input
+ * rather than silently optimise a different interval.
  */
 export function responseLimits(settings: ResponseSettings): ResponseLimits | null {
   const a = settings.lower;
   const b = settings.upper;
   if (a === null || b === null || !Number.isFinite(a) || !Number.isFinite(b)) return null;
   if (a === b) return null;
-  const lower = Math.min(a, b);
-  const upper = Math.max(a, b);
+  if (a > b) return null;
   const target = settings.target !== null && Number.isFinite(settings.target) ? settings.target : null;
-  return { lower, upper, target };
+  return { lower: a, upper: b, target };
 }
 
-/**
- * Problems with a response definition (i18n keys, empty when it is usable).
- *
- * These are reported, never silently repaired: a limit nobody stated cannot be
- * invented, so a missing one stops the response from taking part.
- */
+/** Did the reader state the two limits the wrong way round? */
+export function limitsReversed(settings: ResponseSettings): boolean {
+  const a = settings.lower;
+  const b = settings.upper;
+  return a !== null && b !== null && Number.isFinite(a) && Number.isFinite(b) && a > b;
+}
+
+/** Problems with a response definition (i18n keys, empty when it is usable). */
 export function responseIssues(settings: ResponseSettings): string[] {
   if (settings.goal === 'ignore') return [];
   const issues: string[] = [];
-  const limits = responseLimits(settings);
-  if (!limits) {
-    const missing = settings.lower === null || settings.upper === null;
-    issues.push(missing ? 'opt.issue.limitsMissing' : 'opt.issue.limitsOrder');
-    return issues;
+  if (limitsReversed(settings)) {
+    issues.push('opt.issue.limitsReversed');
+  } else {
+    const limits = responseLimits(settings);
+    if (!limits) {
+      const missing = settings.lower === null || settings.upper === null;
+      issues.push(missing ? 'opt.issue.limitsMissing' : 'opt.issue.limitsOrder');
+      return issues;
+    }
+    if (settings.goal === 'target') {
+      if (limits.target === null) issues.push('opt.issue.targetMissing');
+      else if (limits.target < limits.lower || limits.target > limits.upper) issues.push('opt.issue.targetOutside');
+    }
   }
-  if (settings.goal === 'target') {
-    if (limits.target === null) issues.push('opt.issue.targetMissing');
-    else if (limits.target < limits.lower || limits.target > limits.upper) issues.push('opt.issue.targetOutside');
-  }
-  if (!(settings.weight > 0)) issues.push('opt.issue.weight');
-  if (!(settings.importance > 0)) if (!issues.includes('opt.issue.importance')) issues.push('opt.issue.importance');
-  return issues;
+  if (!(typeof settings.weight === 'number' && Number.isFinite(settings.weight) && settings.weight > 0)) issues.push('opt.issue.weight');
+  if (!(typeof settings.importance === 'number' && Number.isFinite(settings.importance) && settings.importance > 0)) issues.push('opt.issue.importance');
+  return [...new Set(issues)];
 }
 
 /** Does this response take part in the composite at all? */
@@ -94,6 +111,10 @@ export function participates(settings: ResponseSettings): boolean {
  * `value === null` (a prediction that leans on an unidentified column, or a
  * point the model cannot evaluate) scores 0: an unknown response cannot be
  * called good.
+ *
+ * Target boundaries: with `target = lower` the peak sits on the lower limit, so
+ * d = 1 there and d = ((upper − y) / (upper − lower))^w above it; with
+ * `target = upper` the mirror image holds. Values outside the limits score 0.
  */
 export function individualDesirability(value: number | null, settings: ResponseSettings): number {
   if (settings.goal === 'ignore') return 1;
@@ -101,6 +122,7 @@ export function individualDesirability(value: number | null, settings: ResponseS
   const limits = responseLimits(settings);
   if (!limits) return 0;
   const { lower, upper, target } = limits;
+  if (!(Number.isFinite(settings.weight) && settings.weight > 0)) return 0;
   const weight = clamp(settings.weight, WEIGHT_MIN, WEIGHT_MAX);
   const span = upper - lower;
   switch (settings.goal) {
@@ -116,15 +138,14 @@ export function individualDesirability(value: number | null, settings: ResponseS
     }
     case 'target': {
       if (target === null) return value >= lower && value <= upper ? 1 : 0;
-      if (value <= lower || value >= upper) return 0;
-      if (value <= target) {
+      if (value < lower || value > upper) return 0;
+      if (value === target) return 1;
+      if (value < target) {
         const head = target - lower;
-        if (head <= 0) return 1;
-        return Math.pow((value - lower) / head, weight);
+        return head <= 0 ? 1 : Math.pow((value - lower) / head, weight);
       }
       const tail = upper - target;
-      if (tail <= 0) return 1;
-      return Math.pow((upper - value) / tail, weight);
+      return tail <= 0 ? 1 : Math.pow((upper - value) / tail, weight);
     }
     case 'range':
       // "In range" is a step: the value is either acceptable or it is not.
@@ -135,7 +156,7 @@ export function individualDesirability(value: number | null, settings: ResponseS
 }
 
 /**
- * Is the predicted value acceptable for this goal?
+ * Is the predicted value acceptable for this goal? (the hard specification)
  *
  * The two limits do not mean the same thing under every goal, so the test is
  * goal-aware rather than a plain interval check:
@@ -169,7 +190,9 @@ export interface DesirabilityEntry {
  * Returns 0 when any participating response is unacceptable (a geometric mean
  * of a zero is zero) and 1 when all of them sit at their best. Responses whose
  * goal is `ignore` do not enter the product; when nothing participates the
- * composite is 0, because there is no goal to be satisfied.
+ * composite is 0, because there is no goal to be satisfied. A non-finite or
+ * non-positive importance makes the composite unanswerable (0) rather than
+ * being replaced by a neutral 1.
  */
 export function compositeDesirability(entries: DesirabilityEntry[]): number {
   const active = entries.filter((entry) => entry.goal !== 'ignore');
@@ -177,6 +200,7 @@ export function compositeDesirability(entries: DesirabilityEntry[]): number {
   let weightSum = 0;
   let logSum = 0;
   for (const entry of active) {
+    if (!(typeof entry.importance === 'number' && Number.isFinite(entry.importance) && entry.importance > 0)) return 0;
     const importance = clamp(entry.importance, IMPORTANCE_MIN, IMPORTANCE_MAX);
     const d = Math.min(1, Math.max(0, Number.isFinite(entry.desirability) ? entry.desirability : 0));
     if (d <= 0) return 0;
