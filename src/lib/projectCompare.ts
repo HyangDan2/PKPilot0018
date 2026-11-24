@@ -1,19 +1,20 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — project round-trip comparison (WO-TQA-09)
+   Sigrún — project round-trip comparison (WO-TQA-09, WO-FINAL-001 F-REL-05~08)
 
    A saved project is only "verified" when what comes back out of the file is
-   the same data, not when the counts happen to agree. This module builds a
-   canonical fingerprint of everything a project carries — sheet and column
-   identities, every cell, output cards and their blocks, each stored model's
-   terms and coefficients, figures, settings and custom styles — and compares
-   two projects record by record, naming what differs.
+   the same data, not when the counts happen to agree. The comparison walks
+   every record of both projects structurally — every table row, every chart
+   data array, the whole 3-D grid, figure coordinates and sizes, model terms,
+   coefficients, covariance and residual variance, variable coding, and the
+   actual attributes of custom chart styles — with full numeric precision.
 
-   The comparison is used twice: to confirm a practice project survived its own
-   write/read cycle (`project-saved`), and to confirm the original project came
-   back untouched after a practice (`original project guard`).
+   Field order never matters; array order always does. A number is compared as
+   a number (including -0, NaN and ±Infinity), so `null`, `0`, `"0"` and `""`
+   are all different values. The only fields skipped are the ones on the
+   explicit metadata list below, which are expected to change on every save.
    ───────────────────────────────────────────────────────────────────────── */
 
-import type { ChartSpec, OutputDoc, Settings, Worksheet } from '../types';
+import type { OutputDoc, Settings, Worksheet } from '../types';
 import type { LayoutDoc } from './graphLayout';
 import type { StoredModel } from './modelStore';
 
@@ -42,7 +43,7 @@ export type ProjectMismatchKind =
 
 export interface ProjectMismatch {
   kind: ProjectMismatchKind;
-  /** A stable location inside the project, e.g. `sheet:Sheet 1/column:C2`. */
+  /** A stable location inside the project, e.g. `sheet[0]/column[2]/values[7]`. */
   where: string;
   detail: string;
   expected?: string;
@@ -56,57 +57,184 @@ export interface ProjectComparison {
   counts: { worksheets: number; columns: number; cells: number; outputs: number; models: number; figures: number };
 }
 
-function cellToken(value: number | string | null): string {
-  if (value === null || value === undefined) return '∅';
-  if (typeof value === 'number') return Number.isFinite(value) ? value.toPrecision(15) : 'NaN';
-  return value;
+/**
+ * Fields expected to differ between two saves of the same project. Nothing else
+ * is excluded: a field missing from this list is compared, however small.
+ */
+const EXCLUDED_METADATA = new Set(['savedAt']);
+
+const MAX_MISMATCHES = 50;
+
+function truncate(text: string): string {
+  return text.length > 160 ? `${text.slice(0, 157)}…` : text;
 }
 
-function columnToken(values: (number | string | null)[]): string {
-  return values.map(cellToken).join('\u0001');
-}
-
-function chartToken(chart: ChartSpec): string {
-  const base = `${chart.kind}|${chart.title ?? ''}`;
-  if (chart.kind === 'overlaid') {
-    const specs = chart.responses
-      .map((response) => `${response.name}:${response.lsl ?? ''}/${response.usl ?? ''}/${response.target ?? ''}`)
-      .join(',');
-    return `${base}|${specs}|${chart.feasible?.areaRatio ?? ''}`;
+/**
+ * Canonical encoding of one value: type-tagged, object keys sorted, numbers at
+ * their full round-trip precision. Two values are the same project data exactly
+ * when their encodings are equal.
+ */
+export function canonicalValue(value: unknown): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  switch (typeof value) {
+    case 'number':
+      if (Number.isNaN(value)) return 'number:NaN';
+      if (value === Infinity) return 'number:Infinity';
+      if (value === -Infinity) return 'number:-Infinity';
+      // `String(-0)` is "0": the sign of zero is part of the data.
+      if (Object.is(value, -0)) return 'number:-0';
+      return `number:${value}`;
+    case 'string':
+      return `string:${JSON.stringify(value)}`;
+    case 'boolean':
+      return `boolean:${value}`;
+    case 'bigint':
+      return `bigint:${value.toString()}`;
+    default:
+      break;
   }
-  if (chart.kind === 'surface3d') {
-    const z = chart.z ?? [];
-    const sample = z.length && z[0]?.length ? cellToken(z[Math.floor(z.length / 2)]?.[Math.floor((z[0]?.length ?? 1) / 2)] ?? null) : '';
-    return `${base}|${chart.model?.response.name ?? ''}|${chart.xLabel ?? ''}|${chart.yLabel ?? ''}|${chart.xs?.length ?? 0}x${chart.ys?.length ?? 0}|${sample}`;
+  if (Array.isArray(value)) return `array:[${value.map(canonicalValue).join(',')}]`;
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    return `object:{${keys.map((key) => `${JSON.stringify(key)}:${canonicalValue(record[key])}`).join(',')}}`;
   }
-  return `${base}|${('yLabel' in chart ? chart.yLabel : '') ?? ''}`;
+  return `${typeof value}:${String(value)}`;
 }
 
-function blockToken(doc: OutputDoc): string {
-  return doc.blocks
-    .map((block) => {
-      if (block.type === 'table') return `table:${block.headers.join('|')}:${block.rows.length}:${block.rows[0]?.map(cellToken).join('|') ?? ''}`;
-      if (block.type === 'chart') return `chart:${chartToken(block.chart)}`;
-      if (block.type === 'chartgrid') return `chartgrid:${block.charts.map((entry) => chartToken(entry.chart)).join('+')}`;
-      return `text:${block.lines.length}`;
-    })
-    .join(';');
+interface WalkBudget {
+  left: number;
 }
 
-function modelToken(model: StoredModel): string {
-  const terms = model.terms.map((term) => term.label).join('+');
-  const coefficients = model.coefficients.map((coefficient) => `${coefficient.label}=${cellToken(coefficient.value)}`).join(',');
-  return `${model.kind}|${model.response.name}|${terms}|${coefficients}|${cellToken(model.diagnostics.r2 ?? null)}`;
-}
-
-function figureToken(figure: LayoutDoc): string {
-  const panels = figure.panels.map((panel) => `${panel.kind}:${(panel as { title?: string }).title ?? ''}`).join(',');
-  return `${figure.panels.length}|${panels}`;
-}
-
-function push(list: ProjectMismatch[], mismatch: ProjectMismatch): void {
+function report(list: ProjectMismatch[], budget: WalkBudget, mismatch: ProjectMismatch): void {
+  if (budget.left <= 0) return;
+  budget.left -= 1;
   list.push(mismatch);
 }
+
+function kindFor(path: string, base: ProjectMismatchKind): ProjectMismatchKind {
+  if (base === 'outputs' || base === 'output-blocks') {
+    if (path.includes('.chart') || path.includes('.charts[')) return 'charts';
+    if (path.includes('.blocks')) return 'output-blocks';
+    return 'outputs';
+  }
+  if (base === 'models' && path.includes('.coefficients')) return 'model-coefficients';
+  if (base === 'worksheets' && (path.includes('.values[') || path.includes('.columns'))) return 'worksheet-data';
+  return base;
+}
+
+const WORKSHEET_VALUE_PATH = /^worksheets\[(\d+)\]\.columns\[(\d+)\]\.values(?:\[(\d+)\])?$/;
+
+/** Name the column and row a worksheet difference is in, not just its index. */
+function humanizeWhere(where: string, sheets: Worksheet[]): string {
+  const match = WORKSHEET_VALUE_PATH.exec(where);
+  if (!match) return where;
+  const column = sheets[Number(match[1])]?.columns[Number(match[2])];
+  if (!column) return where;
+  const head = `sheet[${match[1]}]/column[${match[2]}]/“${column.name}”`;
+  return match[3] === undefined ? `${head}/values` : `${head}/row ${Number(match[3]) + 1}`;
+}
+
+/**
+ * Structural difference walk: names the first place two values part ways instead
+ * of comparing serialised substrings.
+ */
+function walk(expected: unknown, actual: unknown, path: string, base: ProjectMismatchKind, list: ProjectMismatch[], budget: WalkBudget): void {
+  if (budget.left <= 0) return;
+  if (canonicalValue(expected) === canonicalValue(actual)) return;
+
+  if (Array.isArray(expected) || Array.isArray(actual)) {
+    if (!Array.isArray(expected) || !Array.isArray(actual)) {
+      report(list, budget, {
+        kind: kindFor(path, base),
+        where: path,
+        detail: 'An array is compared against a non-array.',
+        expected: truncate(canonicalValue(expected)),
+        actual: truncate(canonicalValue(actual)),
+      });
+      return;
+    }
+    if (expected.length !== actual.length) {
+      report(list, budget, {
+        kind: kindFor(path, base),
+        where: path,
+        detail: 'The array length differs (order is part of the data).',
+        expected: String(expected.length),
+        actual: String(actual.length),
+      });
+    }
+    const shared = Math.min(expected.length, actual.length);
+    for (let index = 0; index < shared; index += 1) {
+      walk(expected[index], actual[index], `${path}[${index}]`, base, list, budget);
+      if (budget.left <= 0) return;
+    }
+    return;
+  }
+
+  const expectedObject = Boolean(expected) && typeof expected === 'object';
+  const actualObject = Boolean(actual) && typeof actual === 'object';
+  if (expectedObject || actualObject) {
+    if (!expectedObject || !actualObject) {
+      report(list, budget, {
+        kind: kindFor(path, base),
+        where: path,
+        detail: 'An object is compared against a non-object.',
+        expected: truncate(canonicalValue(expected)),
+        actual: truncate(canonicalValue(actual)),
+      });
+      return;
+    }
+    const want = expected as Record<string, unknown>;
+    const got = actual as Record<string, unknown>;
+    const keys = new Set([...Object.keys(want), ...Object.keys(got)]);
+    for (const key of [...keys].sort()) {
+      if (EXCLUDED_METADATA.has(key)) continue;
+      const childPath = path ? `${path}.${key}` : key;
+      const hasWant = Object.prototype.hasOwnProperty.call(want, key);
+      const hasGot = Object.prototype.hasOwnProperty.call(got, key);
+      if (hasWant && !hasGot) {
+        report(list, budget, {
+          kind: kindFor(childPath, base),
+          where: childPath,
+          detail: 'A field that the saved project has is missing.',
+          expected: truncate(canonicalValue(want[key])),
+        });
+        continue;
+      }
+      if (!hasWant && hasGot) {
+        report(list, budget, {
+          kind: kindFor(childPath, base),
+          where: childPath,
+          detail: 'A field the saved project did not have is present.',
+          actual: truncate(canonicalValue(got[key])),
+        });
+        continue;
+      }
+      walk(want[key], got[key], childPath, base, list, budget);
+      if (budget.left <= 0) return;
+    }
+    return;
+  }
+
+  report(list, budget, {
+    kind: kindFor(path, base),
+    where: path,
+    detail: 'The value differs.',
+    expected: truncate(canonicalValue(expected)),
+    actual: truncate(canonicalValue(actual)),
+  });
+}
+
+const SECTIONS: { key: keyof ProjectComparable; kind: ProjectMismatchKind }[] = [
+  { key: 'worksheets', kind: 'worksheets' },
+  { key: 'activeSheetId', kind: 'active-sheet' },
+  { key: 'settings', kind: 'settings' },
+  { key: 'outputs', kind: 'outputs' },
+  { key: 'models', kind: 'models' },
+  { key: 'figures', kind: 'figures' },
+  { key: 'customChartStyles', kind: 'custom-styles' },
+];
 
 /**
  * Compare what a project states with what came back from its own file. The
@@ -115,176 +243,39 @@ function push(list: ProjectMismatch[], mismatch: ProjectMismatch): void {
  */
 export function compareProjects(expected: ProjectComparable, actual: ProjectComparable): ProjectComparison {
   const mismatches: ProjectMismatch[] = [];
-  const counts = { worksheets: 0, columns: 0, cells: 0, outputs: 0, models: 0, figures: 0 };
-
+  const budget: WalkBudget = { left: MAX_MISMATCHES };
   const expectedSheets = expected.worksheets ?? [];
   const actualSheets = actual.worksheets ?? [];
-  counts.worksheets = expectedSheets.length;
-  if (expectedSheets.length !== actualSheets.length) {
-    push(mismatches, {
-      kind: 'worksheets',
-      where: 'worksheets',
-      detail: 'The number of worksheets differs.',
-      expected: String(expectedSheets.length),
-      actual: String(actualSheets.length),
-    });
-  }
-  const sheetCount = Math.min(expectedSheets.length, actualSheets.length);
-  for (let index = 0; index < sheetCount; index += 1) {
-    const want = expectedSheets[index];
-    const got = actualSheets[index];
-    const where = `sheet[${index}]`;
-    if (want.id !== got.id || want.name !== got.name) {
-      push(mismatches, { kind: 'worksheets', where, detail: 'The worksheet identity differs.', expected: `${want.id}/${want.name}`, actual: `${got.id}/${got.name}` });
-      continue;
-    }
-    counts.columns += want.columns.length;
-    if (want.columns.length !== got.columns.length) {
-      push(mismatches, {
-        kind: 'worksheet-data',
-        where,
-        detail: 'The number of columns differs.',
-        expected: String(want.columns.length),
-        actual: String(got.columns.length),
-      });
-    }
-    const columnCount = Math.min(want.columns.length, got.columns.length);
-    for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
-      const wantColumn = want.columns[columnIndex];
-      const gotColumn = got.columns[columnIndex];
-      const columnWhere = `${where}/column[${columnIndex}]`;
-      if (wantColumn.id !== gotColumn.id || wantColumn.name !== gotColumn.name || wantColumn.type !== gotColumn.type) {
-        push(mismatches, {
-          kind: 'worksheet-data',
-          where: columnWhere,
-          detail: 'The column identity differs.',
-          expected: `${wantColumn.id}/${wantColumn.name}/${wantColumn.type}`,
-          actual: `${gotColumn.id}/${gotColumn.name}/${gotColumn.type}`,
-        });
-        continue;
-      }
-      counts.cells += wantColumn.values.length;
-      const wantToken = columnToken(wantColumn.values);
-      const gotToken = columnToken(gotColumn.values);
-      if (wantToken !== gotToken) {
-        const wantValues = wantColumn.values.map(cellToken);
-        const gotValues = gotColumn.values.map(cellToken);
-        const row = wantValues.findIndex((value, position) => value !== gotValues[position]);
-        push(mismatches, {
-          kind: 'worksheet-data',
-          where: `${columnWhere}/“${wantColumn.name}”`,
-          detail: row >= 0 ? `Row ${row + 1} of the column differs.` : 'The column length differs.',
-          expected: row >= 0 ? wantValues[row] : String(wantValues.length),
-          actual: row >= 0 ? (gotValues[row] ?? '∅') : String(gotValues.length),
-        });
-      }
-    }
-  }
-  if ((expected.activeSheetId ?? '') !== (actual.activeSheetId ?? '')) {
-    push(mismatches, { kind: 'active-sheet', where: 'activeSheetId', detail: 'The active worksheet differs.', expected: expected.activeSheetId ?? '', actual: actual.activeSheetId ?? '' });
-  }
+  const counts = {
+    worksheets: expectedSheets.length,
+    columns: expectedSheets.reduce((sum, sheet) => sum + sheet.columns.length, 0),
+    cells: expectedSheets.reduce((sum, sheet) => sum + sheet.columns.reduce((inner, column) => inner + column.values.length, 0), 0),
+    outputs: (expected.outputs ?? []).length,
+    models: (expected.models ?? []).length,
+    figures: (expected.figures ?? []).length,
+  };
 
-  const expectedOutputs = expected.outputs ?? [];
-  const actualOutputs = actual.outputs ?? [];
-  counts.outputs = expectedOutputs.length;
-  if (expectedOutputs.length !== actualOutputs.length) {
-    push(mismatches, { kind: 'outputs', where: 'outputs', detail: 'The number of output cards differs.', expected: String(expectedOutputs.length), actual: String(actualOutputs.length) });
+  for (const section of SECTIONS) {
+    walk(expected[section.key], actual[section.key], section.key, section.kind, mismatches, budget);
+    if (budget.left <= 0) break;
   }
-  const outputCount = Math.min(expectedOutputs.length, actualOutputs.length);
-  for (let index = 0; index < outputCount; index += 1) {
-    const want = expectedOutputs[index];
-    const got = actualOutputs[index];
-    const where = `output[${index}]`;
-    if (want.id !== got.id || (want.meta?.analysisId ?? want.dialog?.analysisId ?? '') !== (got.meta?.analysisId ?? got.dialog?.analysisId ?? '')) {
-      push(mismatches, {
-        kind: 'outputs',
-        where,
-        detail: 'The output card identity differs.',
-        expected: `${want.id}/${want.meta?.analysisId ?? want.dialog?.analysisId ?? ''}`,
-        actual: `${got.id}/${got.meta?.analysisId ?? got.dialog?.analysisId ?? ''}`,
-      });
-      continue;
-    }
-    if (blockToken(want) !== blockToken(got)) {
-      push(mismatches, { kind: 'output-blocks', where, detail: 'The blocks of the output card differ.', expected: blockToken(want).slice(0, 160), actual: blockToken(got).slice(0, 160) });
-    }
-    const wantCharts = (want.blocks ?? []).flatMap((block) => (block.type === 'chart' ? [chartToken(block.chart)] : block.type === 'chartgrid' ? block.charts.map((entry) => chartToken(entry.chart)) : []));
-    const gotCharts = (got.blocks ?? []).flatMap((block) => (block.type === 'chart' ? [chartToken(block.chart)] : block.type === 'chartgrid' ? block.charts.map((entry) => chartToken(entry.chart)) : []));
-    if (wantCharts.join('§') !== gotCharts.join('§')) {
-      push(mismatches, { kind: 'charts', where, detail: 'A chart inside the card differs.' });
-    }
-  }
-
-  const expectedModels = expected.models ?? [];
-  const actualModels = actual.models ?? [];
-  counts.models = expectedModels.length;
-  if (expectedModels.length !== actualModels.length) {
-    push(mismatches, { kind: 'models', where: 'models', detail: 'The number of stored models differs.', expected: String(expectedModels.length), actual: String(actualModels.length) });
-  }
-  const modelCount = Math.min(expectedModels.length, actualModels.length);
-  for (let index = 0; index < modelCount; index += 1) {
-    const want = expectedModels[index];
-    const got = actualModels[index];
-    const where = `model[${index}]`;
-    if (want.id !== got.id || want.name !== got.name || want.response.name !== got.response.name) {
-      push(mismatches, {
-        kind: 'models',
-        where,
-        detail: 'The stored model identity differs.',
-        expected: `${want.id}/${want.name}/${want.response.name}`,
-        actual: `${got.id}/${got.name}/${got.response.name}`,
-      });
-      continue;
-    }
-    if (modelToken(want) !== modelToken(got)) {
-      push(mismatches, { kind: 'model-coefficients', where, detail: 'The terms or coefficients of the model differ.', expected: modelToken(want).slice(0, 160), actual: modelToken(got).slice(0, 160) });
-    }
-  }
-
-  const expectedFigures = expected.figures ?? [];
-  const actualFigures = actual.figures ?? [];
-  counts.figures = expectedFigures.length;
-  if (expectedFigures.length !== actualFigures.length) {
-    push(mismatches, { kind: 'figures', where: 'figures', detail: 'The number of saved figures differs.', expected: String(expectedFigures.length), actual: String(actualFigures.length) });
-  }
-  const figureCount = Math.min(expectedFigures.length, actualFigures.length);
-  for (let index = 0; index < figureCount; index += 1) {
-    if (figureToken(expectedFigures[index]) !== figureToken(actualFigures[index])) {
-      push(mismatches, { kind: 'figures', where: `figure[${index}]`, detail: 'A saved figure differs.', expected: figureToken(expectedFigures[index]), actual: figureToken(actualFigures[index]) });
-    }
-  }
-
-  if (expected.settings && actual.settings && (expected.settings.theme !== actual.settings.theme || expected.settings.lang !== actual.settings.lang)) {
-    push(mismatches, {
-      kind: 'settings',
-      where: 'settings',
-      detail: 'The project settings differ.',
-      expected: `${expected.settings.theme}/${expected.settings.lang}`,
-      actual: `${actual.settings.theme}/${actual.settings.lang}`,
-    });
-  }
-
-  if (expected.customChartStyles || actual.customChartStyles) {
-    const wantIds = (expected.customChartStyles ?? []).map((style) => style.id).join(',');
-    const gotIds = (actual.customChartStyles ?? []).map((style) => style.id).join(',');
-    if (wantIds !== gotIds) {
-      push(mismatches, { kind: 'custom-styles', where: 'customChartStyles', detail: 'The saved custom chart styles differ.', expected: wantIds, actual: gotIds });
-    }
-  }
-
+  for (const mismatch of mismatches) mismatch.where = humanizeWhere(mismatch.where, expectedSheets.length ? expectedSheets : actualSheets);
   return { ok: mismatches.length === 0, mismatches, counts };
 }
 
 /** One string that changes whenever any compared record changes. */
 export function projectFingerprint(project: ProjectComparable): string {
-  const sheetTokens = (project.worksheets ?? []).map((sheet) => `${sheet.id}/${sheet.name}:${sheet.columns.map((column) => `${column.id}/${column.name}/${column.type}:${columnToken(column.values)}`).join(';')}`);
-  const outputTokens = (project.outputs ?? []).map((output) => `${output.id}/${output.meta?.analysisId ?? ''}:${blockToken(output)}`);
-  const modelTokens = (project.models ?? []).map((model) => `${model.id}:${modelToken(model)}`);
-  const figureTokens = (project.figures ?? []).map((figure) => figureToken(figure));
-  const settingsToken = project.settings ? `${project.settings.theme}/${project.settings.lang}` : '';
-  const styleToken = (project.customChartStyles ?? []).map((style) => style.id).join(',');
-  const text = [(project.worksheets ?? []).length, sheetTokens.join('§'), project.activeSheetId ?? '', outputTokens.join('§'), modelTokens.join('§'), figureTokens.join('§'), settingsToken, styleToken].join('‖');
+  const text = canonicalValue({
+    worksheets: project.worksheets ?? [],
+    activeSheetId: project.activeSheetId ?? '',
+    settings: project.settings ?? null,
+    outputs: project.outputs ?? [],
+    models: project.models ?? [],
+    figures: project.figures ?? [],
+    customChartStyles: project.customChartStyles ?? [],
+  });
   // FNV-1a, 32-bit: enough to tell two projects apart, cheap on a 20k-row sheet.
+  // It is an auxiliary change detector; compareProjects is the verification.
   let hash = 0x811c9dc5;
   for (let index = 0; index < text.length; index += 1) {
     hash ^= text.charCodeAt(index);

@@ -1732,7 +1732,11 @@ export default function App() {
       // A refusal names its reason (a newer schema, a damaged sheet) so the
       // reader knows the file was not half-read.
       const code = error instanceof Error ? error.message : '';
-      const known = ['file.versionNewer', 'file.versionInvalid', 'file.worksheetCorrupt', 'file.modelCorrupt'];
+      const known = [
+        'file.versionNewer', 'file.versionInvalid', 'file.worksheetCorrupt', 'file.worksheetDuplicate',
+        'file.modelCorrupt', 'file.modelDuplicate', 'file.outputCorrupt', 'file.outputDuplicate',
+        'file.figureCorrupt', 'file.styleCorrupt', 'file.styleDuplicate',
+      ];
       toast(t(lang, known.includes(code) ? code : 'file.error'));
     }
   };

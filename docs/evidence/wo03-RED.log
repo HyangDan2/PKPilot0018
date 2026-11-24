@@ -1,0 +1,32 @@
+   ✓ project comparison sees every record > 16 — notices a change in the second row of a statistics table 2ms
+   ✓ project comparison sees every record > 17 — notices a change in one chart data array 1ms
+   ✓ project comparison sees every record > 18 — notices a 3-D grid node that is not the centre 0ms
+   ✓ project comparison sees every record > 19 — notices a covariance change with every count agreeing 0ms
+   ✓ project comparison sees every record > 20 — notices a coding or residual-variance change 1ms
+   ✓ project comparison sees every record > 21 — notices a figure coordinate change 0ms
+   ✓ project comparison sees every record > 22 — notices a custom-style attribute change 0ms
+   ✓ project comparison sees every record > 23 — compares numbers at full precision, including the 16th digit 0ms
+   ✓ project comparison sees every record > 23b — the same change hidden by toPrecision(15) is still a mismatch 0ms
+   ✓ project comparison sees every record > keeps null, zero and empty text apart 0ms
+   ✓ project comparison sees every record > preserves array order and ignores object key order 1ms
+   × project schema validation > round-trips the rich project it was given 7ms
+   ✓ project schema validation > refuses an unsupported schema version 1ms
+   ✓ project schema validation > refuses an unknown block kind instead of dropping the card 0ms
+   ✓ project schema validation > refuses a corrupted table row 0ms
+   ✓ project schema validation > refuses a ragged 3-D grid 0ms
+   ✓ project schema validation > refuses a grid whose axes do not match it 0ms
+   ✓ project schema validation > refuses a figure panel without a position 0ms
+   ✓ project schema validation > refuses duplicate panel ids inside one figure 0ms
+   ✓ project schema validation > refuses a chart panel that points at an output card the file does not have 0ms
+   ✓ project schema validation > refuses a custom style whose attribute is not a value 0ms
+   ✓ project schema validation > refuses a model whose covariance does not fit its coefficients 0ms
+   ✓ project schema validation > refuses a model without its terms 0ms
+   ✓ project schema validation > refuses a model with a non-finite coefficient 0ms
+   ✓ project schema validation > keeps an older project opening exactly as before 0ms
+   ✓ project schema validation > 24 — a refused import cannot have touched the current project 1ms
+   ✓ project schema validation > 25 — migrates a version-0 file to the current schema 0ms
+   ✓ fingerprint is an auxiliary detector > changes for a 16th-digit edit that a truncated hash could miss 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected null to deeply equal { X: { min: 1, max: 3 } }
+    286|     expect(parsed.models?.[0].factorBounds).toEqual({ X: { min: 1, max…
+      Tests  1 failed | 27 passed (28)

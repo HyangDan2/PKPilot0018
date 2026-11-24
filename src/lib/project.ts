@@ -141,11 +141,13 @@ function worksheetProblem(value: unknown): string | null {
   const sheet = value as Partial<Worksheet>;
   if (typeof sheet.id !== 'string' || !sheet.id) return 'worksheet.id';
   if (typeof sheet.name !== 'string') return 'worksheet.name';
+  if (sheet.columnSeq !== undefined && (!Number.isInteger(sheet.columnSeq) || (sheet.columnSeq as number) < 0)) return 'worksheet.columnSeq';
   if (!Array.isArray(sheet.columns)) return 'worksheet.columns';
   const ids = new Set<string>();
   for (const column of sheet.columns) {
     const candidate = column as Partial<Column>;
     if (!isColumn(column)) return 'worksheet.column';
+    if (candidate.description !== undefined && typeof candidate.description !== 'string') return 'worksheet.column';
     // A cell may be a number, text, a date or empty; anything else (an array, an
     // object) is a value no analysis can read.
     if (!(candidate.values ?? []).every((cell) => cell === null || typeof cell === 'number' || typeof cell === 'string')) return 'worksheet.value';
@@ -156,6 +158,127 @@ function worksheetProblem(value: unknown): string | null {
 }
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const isNumberArray = (value: unknown): value is number[] =>
+  Array.isArray(value) && value.every((entry) => typeof entry === 'number');
+
+/** A point list `{x, y}`: both coordinates must be real numbers. */
+function isPointList(value: unknown): boolean {
+  return Array.isArray(value) && value.every((point) => isPlainObject(point) && Number.isFinite(point.x) && Number.isFinite(point.y));
+}
+
+/** A numeric grid with a consistent row width and at least one cell. */
+function isGrid(value: unknown): boolean {
+  if (!Array.isArray(value) || !value.length) return false;
+  const width = (value[0] as unknown[])?.length;
+  if (!width) return false;
+  return value.every((row) => Array.isArray(row) && row.length === width && row.every((entry) => typeof entry === 'number'));
+}
+
+/** The chart kinds this build can draw; anything else would render as nothing. */
+const CHART_KINDS = new Set([
+  'histogram', 'line', 'bar', 'contour', 'probplot', 'boxplot', 'scatter',
+  'timeseries', 'normalprob', 'control', 'pareto', 'capability', 'surface3d',
+  'overlaid', 'interval',
+]);
+
+/**
+ * The data a chart carries, validated by kind (F-REL-12).
+ *
+ * Only the arrays the renderer reads are checked for shape and type; optional
+ * presentation fields stay optional. A grid must be rectangular and match its
+ * axes, because a ragged surface would be drawn from different cells than the
+ * file states.
+ */
+function chartProblem(value: unknown): string | null {
+  if (!isPlainObject(value)) return 'output.chart';
+  const kind = value.kind;
+  if (typeof kind !== 'string' || !CHART_KINDS.has(kind)) return 'output.chart.kind';
+  switch (kind) {
+    case 'histogram':
+      if (!isNumberArray(value.values)) return 'output.chart.values';
+      if (value.rows !== undefined && !(Array.isArray(value.rows) && value.rows.every((row) => row === null || Number.isFinite(row)))) return 'output.chart.rows';
+      return null;
+    case 'timeseries':
+      if (!isNumberArray(value.values)) return 'output.chart.values';
+      return null;
+    case 'line':
+      if (!Array.isArray(value.series) || !value.series.length) return 'output.chart.series';
+      for (const series of value.series) {
+        if (!isPlainObject(series) || !isPointList(series.points)) return 'output.chart.series';
+      }
+      return null;
+    case 'bar':
+      if (!Array.isArray(value.items) || value.items.some((item) => !isPlainObject(item) || typeof item.label !== 'string' || !Number.isFinite(item.value))) return 'output.chart.items';
+      if (value.groups !== undefined && !(Array.isArray(value.groups) && value.groups.every((group) => isPlainObject(group) && isNumberArray(group.values)))) return 'output.chart.groups';
+      return null;
+    case 'contour':
+    case 'surface3d':
+      if (!isNumberArray(value.xs) || !isNumberArray(value.ys)) return 'output.chart.axes';
+      if (!isGrid(value.z)) return 'output.chart.grid';
+      if ((value.z as unknown[]).length !== (value.ys as unknown[]).length) return 'output.chart.grid';
+      if ((value.z as unknown[][]).some((row) => row.length !== (value.xs as unknown[]).length)) return 'output.chart.grid';
+      return null;
+    case 'overlaid':
+      if (!isNumberArray(value.xs) || !isNumberArray(value.ys)) return 'output.chart.axes';
+      if (!Array.isArray(value.responses)) return 'output.chart.responses';
+      for (const response of value.responses) {
+        if (!isPlainObject(response) || typeof response.name !== 'string') return 'output.chart.responses';
+        if (!isGrid(response.z) || !isGrid(response.mask)) return 'output.chart.grid';
+      }
+      return null;
+    case 'probplot':
+    case 'normalprob':
+      if (!isPointList(value.points)) return 'output.chart.points';
+      if (!isPlainObject(value.fit) || !Number.isFinite(value.fit.intercept) || !Number.isFinite(value.fit.slope)) return 'output.chart.fit';
+      return null;
+    case 'scatter':
+      if (!isPointList(value.points)) return 'output.chart.points';
+      if (value.series !== undefined && !(Array.isArray(value.series) && value.series.every((series) => isPlainObject(series) && isPointList(series.points)))) return 'output.chart.series';
+      return null;
+    case 'boxplot':
+      if (!Array.isArray(value.groups) || value.groups.some((group) => !isPlainObject(group) || typeof group.label !== 'string' || !isNumberArray(group.values))) return 'output.chart.groups';
+      return null;
+    case 'pareto':
+      if (!Array.isArray(value.items) || value.items.some((item) => !isPlainObject(item) || typeof item.label !== 'string' || !Number.isFinite(item.count))) return 'output.chart.items';
+      return null;
+    case 'capability':
+      return isPlainObject(value.result) ? null : 'output.chart.result';
+    case 'control':
+      if (!isPlainObject(value.panel) || !isNumberArray(value.panel.points) || !Number.isFinite(value.panel.center)) return 'output.chart.panel';
+      return null;
+    case 'interval':
+      if (!Array.isArray(value.groups) || value.groups.some((group) => !isPlainObject(group) || typeof group.label !== 'string' || !Number.isFinite(group.mean) || !Number.isFinite(group.lo) || !Number.isFinite(group.hi))) return 'output.chart.groups';
+      return null;
+    default:
+      return 'output.chart.kind';
+  }
+}
+
+/** Why one output block cannot be drawn (null when it can). */
+function blockProblem(value: unknown): string | null {
+  if (!isPlainObject(value)) return 'output.block';
+  if (value.type === 'table') {
+    if (!Array.isArray(value.headers) || value.headers.some((header) => typeof header !== 'string')) return 'output.block';
+    // Every row is part of the result table: a second or later row is data too.
+    if (!Array.isArray(value.rows) || value.rows.some((row) => !Array.isArray(row) || row.some((cell) => typeof cell !== 'string' && typeof cell !== 'number'))) return 'output.block.rows';
+    return null;
+  }
+  if (value.type === 'chart') return chartProblem(value.chart);
+  if (value.type === 'chartgrid') {
+    if (!Array.isArray(value.charts) || !value.charts.length) return 'output.block.charts';
+    for (const entry of value.charts) {
+      if (!isPlainObject(entry) || typeof entry.title !== 'string') return 'output.block.charts';
+      if (chartProblem(entry.chart)) return 'output.block.charts';
+    }
+    return null;
+  }
+  if (value.type === 'text') {
+    if (!Array.isArray(value.lines) || value.lines.some((line) => typeof line !== 'string')) return 'output.block.lines';
+    return null;
+  }
+  return 'output.block';
+}
 
 /** A model variable's own schema: a name, a kind, and a usable coding. */
 function variableProblem(value: unknown, code: string): boolean {
@@ -228,6 +351,44 @@ function modelProblem(value: unknown): string | null {
       if (!isPlainObject(bound) || !Number.isFinite(bound.min) || !Number.isFinite(bound.max)) return 'model.factorBounds';
     }
   }
+  if (!Array.isArray(value.terms) || value.terms.some((term) => !isPlainObject(term) || typeof term.label !== 'string' || !Array.isArray(term.factors) || term.factors.some((factor) => typeof factor !== 'string'))) {
+    return 'model.terms';
+  }
+  if (value.dof !== undefined && value.dof !== null) {
+    const dof = value.dof;
+    if (!isPlainObject(dof)) return 'model.dof';
+    if (!['model', 'residual', 'total', 'rank'].every((key) => Number.isFinite(dof[key]))) return 'model.dof';
+  }
+  if (value.categoricalLevels !== undefined && value.categoricalLevels !== null) {
+    if (!isPlainObject(value.categoricalLevels)) return 'model.categoricalLevels';
+    for (const levels of Object.values(value.categoricalLevels)) {
+      if (!Array.isArray(levels) || levels.some((level) => typeof level !== 'string')) return 'model.categoricalLevels';
+    }
+  }
+  if (value.training !== undefined && value.training !== null) {
+    if (!isPlainObject(value.training)) return 'model.training';
+    if (!Number.isFinite(value.training.rows) || typeof value.training.fingerprint !== 'string') return 'model.training';
+    if (!Array.isArray(value.training.columns) || value.training.columns.some((column) => !isPlainObject(column) || typeof column.id !== 'string' || typeof column.name !== 'string' || typeof column.type !== 'string')) {
+      return 'model.training';
+    }
+  }
+  if (value.diagnostics !== undefined && value.diagnostics !== null && !isPlainObject(value.diagnostics)) return 'model.diagnostics';
+  const levelRecord = (levels: unknown): boolean => isPlainObject(levels) && Object.values(levels).every((level) => typeof level === 'number' && Number.isFinite(level));
+  if (value.design !== undefined && value.design !== null) {
+    if (!isPlainObject(value.design) || !Array.isArray(value.design.points)) return 'model.design';
+    if (value.design.points.some((point) => !isPlainObject(point) || !levelRecord(point.levels) || !(point.y === null || Number.isFinite(point.y)))) return 'model.design';
+  }
+  if (value.stationary !== undefined && value.stationary !== null) {
+    if (!isPlainObject(value.stationary) || !levelRecord(value.stationary.levels) || !Number.isFinite(value.stationary.response) || typeof value.stationary.kind !== 'string') return 'model.stationary';
+  }
+  if (value.optimal !== undefined && value.optimal !== null) {
+    if (!isPlainObject(value.optimal) || !levelRecord(value.optimal.levels) || !Number.isFinite(value.optimal.response)) return 'model.optimal';
+  }
+  if (value.source !== undefined && value.source !== null) {
+    if (!isPlainObject(value.source)) return 'model.source';
+    if (value.source.analysisId !== undefined && typeof value.source.analysisId !== 'string') return 'model.source';
+    if (value.source.outputId !== undefined && typeof value.source.outputId !== 'string') return 'model.source';
+  }
   return null;
 }
 
@@ -238,18 +399,14 @@ function outputProblem(value: unknown): string | null {
   if (typeof value.titleKey !== 'string') return 'output.titleKey';
   if (!Array.isArray(value.blocks)) return 'output.blocks';
   for (const block of value.blocks as unknown[]) {
-    if (!isPlainObject(block) || typeof block.type !== 'string' || !block.type) return 'output.block';
-    if (block.type === 'chart') {
-      const chart = block.chart;
-      if (!isPlainObject(chart) || typeof chart.kind !== 'string' || !chart.kind) return 'output.chart';
-      if (chart.kind === 'overlaid' && chart.models !== undefined && !Array.isArray(chart.models)) return 'output.chart';
-    }
+    const problem = blockProblem(block);
+    if (problem) return problem;
   }
   return null;
 }
 
 /** Why one figure layout cannot be restored (null when it can). */
-function figureProblem(value: unknown): string | null {
+function figureProblem(value: unknown, outputs: Map<string, OutputDoc>): string | null {
   if (!isPlainObject(value)) return 'figure';
   if (value.format !== 'sigrun-layout') return 'figure.format';
   if (value.version !== 1) return 'figure.version';
@@ -257,11 +414,29 @@ function figureProblem(value: unknown): string | null {
   const page = value.page;
   if (typeof page.preset !== 'string') return 'figure.page';
   if (!Number.isFinite(page.widthMm) || !Number.isFinite(page.heightMm) || !Number.isFinite(page.marginMm)) return 'figure.page';
+  if (!isPlainObject(value.grid) || typeof value.grid.enabled !== 'boolean' || !Number.isFinite(value.grid.sizeMm)) return 'figure.grid';
+  if (!Number.isFinite(value.zSeq) || !Number.isFinite(value.idSeq)) return 'figure.sequence';
   if (!Array.isArray(value.panels)) return 'figure.panels';
+  const panelIds = new Set<string>();
   for (const panel of value.panels as unknown[]) {
     if (!isPlainObject(panel)) return 'figure.panel';
     if (typeof panel.id !== 'string' || !panel.id) return 'figure.panel';
     if (typeof panel.kind !== 'string' || !panel.kind) return 'figure.panel';
+    if (panelIds.has(panel.id)) return 'figure.panelDuplicate';
+    panelIds.add(panel.id);
+    // Where the panel sits and how big it is: both are part of the page.
+    if (!Number.isFinite(panel.x) || !Number.isFinite(panel.y) || !Number.isFinite(panel.w) || !Number.isFinite(panel.h)) return 'figure.panelBox';
+    if ((panel.w as number) <= 0 || (panel.h as number) <= 0) return 'figure.panelBox';
+    if (!Number.isFinite(panel.z)) return 'figure.panelBox';
+    if (panel.kind === 'chart') {
+      const source = panel.source;
+      if (!isPlainObject(source) || typeof source.outputId !== 'string' || !Number.isInteger(source.blockIndex) || !Number.isInteger(source.chartIndex)) return 'figure.panelSource';
+      const output = outputs.get(source.outputId);
+      if (!output) return 'figure.panelSource';
+      const block = output.blocks[(source.blockIndex as number)];
+      const charts = block?.type === 'chart' ? 1 : block?.type === 'chartgrid' ? block.charts.length : 0;
+      if (!charts || (source.chartIndex as number) < 0 || (source.chartIndex as number) >= charts) return 'figure.panelSource';
+    }
   }
   return null;
 }
@@ -272,7 +447,17 @@ function styleProblem(value: unknown): string | null {
   if (typeof value.id !== 'string' || !value.id) return 'style.id';
   if (typeof value.name !== 'string' || !value.name) return 'style.name';
   if (typeof value.base !== 'string' || !(CHART_STYLE_IDS as string[]).includes(value.base)) return 'style.base';
-  if (value.overrides !== undefined && !isPlainObject(value.overrides)) return 'style.overrides';
+  if (value.overrides !== undefined) {
+    if (!isPlainObject(value.overrides)) return 'style.overrides';
+    const isScalar = (entry: unknown): boolean =>
+      typeof entry === 'number' ? Number.isFinite(entry) : typeof entry === 'string' || typeof entry === 'boolean';
+    for (const entry of Object.values(value.overrides)) {
+      // Style attributes are scalars or scalar lists (e.g. a palette); a nested
+      // object would reach the renderer as an unknown value and be ignored.
+      const ok = isScalar(entry) || (Array.isArray(entry) && entry.every(isScalar));
+      if (!ok) return 'style.overrides';
+    }
+  }
   return null;
 }
 
@@ -351,6 +536,7 @@ export function parseProject(text: string): ProjectState {
     if (outputIds.has(entry.id)) throw new Error('file.outputDuplicate');
     outputIds.add(entry.id);
   }
+  const outputsById = new Map((rawOutputs as OutputDoc[]).map((output) => [output.id, output]));
 
   const rawStyles = file.customChartStyles === undefined ? [] : file.customChartStyles;
   if (!Array.isArray(rawStyles)) throw new Error('file.styleCorrupt');
@@ -365,7 +551,7 @@ export function parseProject(text: string): ProjectState {
   // leave the reader with a project that opens and silently lacks a page.
   const rawFigures = file.figures === undefined ? [] : file.figures;
   if (!Array.isArray(rawFigures)) throw new Error('file.figureCorrupt');
-  if ((rawFigures as unknown[]).some((entry) => figureProblem(entry) !== null)) throw new Error('file.figureCorrupt');
+  if ((rawFigures as unknown[]).some((entry) => figureProblem(entry, outputsById) !== null)) throw new Error('file.figureCorrupt');
 
   const worksheets = (file.worksheets as Worksheet[]).map(migrateWorksheet);
   const activeSheetId = worksheets.some((ws) => ws.id === file.activeSheetId) ? (file.activeSheetId as string) : worksheets[0].id;

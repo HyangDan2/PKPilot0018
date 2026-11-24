@@ -711,7 +711,9 @@ export function parseStoredModels(raw: unknown): StoredModel[] {
       covariance: Array.isArray(candidate.covariance) ? candidate.covariance : null,
       residual: isObject(candidate.residual) ? candidate.residual : null,
       dof: isObject(candidate.dof) ? candidate.dof : null,
-      factorBounds: Array.isArray(candidate.factorBounds) ? candidate.factorBounds : null,
+      // factorBounds is a name → {min,max} record, not a list: reading it as an
+      // array dropped every stored model's fitting range on a project load.
+      factorBounds: isObject(candidate.factorBounds) ? candidate.factorBounds as Record<string, { min: number; max: number }> : null,
       categoricalLevels: isObject(candidate.categoricalLevels) ? candidate.categoricalLevels as Record<string, string[]> : null,
       training: isObject(candidate.training) ? candidate.training as unknown as StoredModelTraining : null,
       diagnostics: isObject(candidate.diagnostics) ? candidate.diagnostics : {},
