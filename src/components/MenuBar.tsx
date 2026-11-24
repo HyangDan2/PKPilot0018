@@ -140,7 +140,13 @@ function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, lay
             { labelKey: 'stat.glm', analysis: 'glm' },
           ],
         },
-        { labelKey: 'stat.regression', children: [{ labelKey: 'stat.fitRegression', analysis: 'regression' }] },
+        {
+          labelKey: 'stat.regression',
+          children: [
+            { labelKey: 'stat.fitRegression', analysis: 'regression' },
+            { labelKey: 'stat.polyreg', analysis: 'polyreg' },
+          ],
+        },
         { labelKey: 'stat.modelManager', action: 'modelManager' },
         {
           labelKey: 'stat.control',

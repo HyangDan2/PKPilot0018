@@ -335,6 +335,40 @@ function startStaticServer() {
     await page.click('[data-testid=cd-cancel]');
     await page.waitForTimeout(200);
 
+    /* ── 12. polynomial regression becomes a stored polynomial model ──── */
+    await page.locator('.ws-tab', { hasText: 'Reactor' }).first().click();
+    await page.waitForTimeout(250);
+    await page.click('[data-testid=menu-stat]');
+    await page.getByRole('menuitem', { name: 'Regression', exact: true }).hover();
+    await page.waitForTimeout(150);
+    await page.getByRole('menuitem', { name: /Fit Polynomial Regression/ }).click();
+    await page.waitForSelector('[data-testid=analysis-dialog]');
+    await page.click('[data-testid=slot-response]');
+    await page.click('[data-testid=var-C4]');
+    await page.click('[data-testid=add-selected]');
+    await page.click('[data-testid=slot-predictors]');
+    await page.click('[data-testid=var-C1]');
+    await page.click('[data-testid=add-selected]');
+    await page.click('[data-testid=tab-options]');
+    await page.waitForTimeout(150);
+    await page.fill('[data-testid=field-degree]', '2');
+    await page.click('[data-testid=tab-main]');
+    await page.waitForTimeout(150);
+    await page.click('[data-testid=dialog-ok]');
+    await page.waitForSelector('[data-testid=analysis-dialog]', { state: 'detached', timeout: 30000 });
+    await page.waitForTimeout(700);
+    const polyCard = page.locator('[data-testid=out-card]').last();
+    check('the polynomial card shows a squared term', (await polyCard.innerText()).includes('²'));
+    await rightClick(page, polyCard);
+    await page.getByRole('menuitem', { name: /Save model to Model Manager/ }).click();
+    await page.waitForTimeout(400);
+    await openModelManager(page);
+    const kinds = await page.locator('[data-testid=mm-item]').allInnerTexts();
+    check('the polynomial model is stored as its own kind', kinds.some((text) => /Polynomial regression/i.test(text)), kinds.join(' | ').slice(0, 120));
+    await page.screenshot({ path: path.join(OUT, 'phase3-3a-polynomial.png') });
+    await page.click('[data-testid=mm-close]');
+    await page.waitForTimeout(200);
+
     check('no horizontal overflow at 1440 px', await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
     check('desktop run produced no console or page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
     await ctx.close();

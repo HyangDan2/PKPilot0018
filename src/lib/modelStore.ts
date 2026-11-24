@@ -227,10 +227,29 @@ export interface GlmModelInput {
 }
 
 /** One fitted general linear model (GLM, DOE, RSM) becomes a stored record. */
+/** A variable derived from another one (A² is A squared, never an input). */
+export function isDerivedFactorName(name: string): { base: string; power: number } | null {
+  let power = 1;
+  let base = name;
+  for (;;) {
+    if (base.endsWith('²')) { power *= 2; base = base.slice(0, -1); continue; }
+    if (base.endsWith('³')) { power *= 3; base = base.slice(0, -1); continue; }
+    break;
+  }
+  return power > 1 && base ? { base, power } : null;
+}
+
 export function draftFromGlm(input: GlmModelInput): StoredModelDraft {
-  const { glm, factors, terms, response, kind } = input;
+  const { glm, terms, response, kind } = input;
   const aliased = new Set(glm.aliased);
   const mode = input.codingMode ?? 'actual';
+  // Interaction/squared terms are fitted through derived factors; they are
+  // model structure, not variables a reader types a value into.
+  const names = new Set(input.factors.map((factor) => factor.name));
+  const factors = input.factors.filter((factor) => {
+    const derived = isDerivedFactorName(factor.name);
+    return !(derived && names.has(derived.base));
+  });
   const predictors = factors.map((factor) => {
     const column = input.sheet?.columns.find((c) => c.id === factor.name || c.name === factor.name);
     const name = factor.name;
@@ -565,6 +584,19 @@ export function refitStoredModel(model: StoredModel, sheet: Worksheet | undefine
         : column.values.map((value) => (value === null || value === undefined ? null : String(value))),
     });
   });
+  // Rebuild any derived factor (A² from A) a term refers to.
+  model.terms.forEach((term) => term.factors.forEach((name) => {
+    if (factors.some((factor) => factor.name === name)) return;
+    const derived = isDerivedFactorName(name);
+    const base = derived ? factors.find((factor) => factor.name === derived.base) : undefined;
+    if (!derived || !base) throw new ModelRefitError('model.structure', { variable: name });
+    if (base.kind !== 'numeric') throw new ModelRefitError('model.structure', { variable: name });
+    factors.push({
+      name,
+      kind: 'numeric',
+      values: base.values.map((value) => (typeof value === 'number' ? value ** derived.power : null)),
+    });
+  }));
   const terms: ModelTerm[] = model.terms.map((term) => ({ name: term.label, factors: [...term.factors] }));
   let glm: GlmResult;
   try {

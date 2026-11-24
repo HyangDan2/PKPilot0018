@@ -718,6 +718,117 @@ function runRegression(ctx: RunContext): RunResult {
   return { subtitle: `${response.name} ← ${predictors.map((p) => p.name).join(' + ')}`, blocks, modelDraft };
 }
 
+/* ── polynomial regression ────────────────────────────────────────────── */
+
+/**
+ * Fit y on x, x² (and x³) per predictor — Minitab's "quadratic/cubic terms"
+ * without the interaction columns. The squares are derived factors, so the
+ * stored model keeps one input per variable while its terms still carry A².
+ */
+function runPolyRegression(ctx: RunContext): RunResult {
+  const { sheet, values, lang } = ctx;
+  const response = numericColumn(sheet, values.response);
+  const refs = refList(values, 'predictors');
+  const columns = numericColumns(sheet, refs);
+  if (!columns.length) throw new Error('req.input');
+  const degree = Math.max(2, Math.min(3, Math.round(num(values.degree, 2))));
+  const base: ModelFactor[] = columns.map((column) => ({
+    name: column.name || column.id,
+    kind: 'numeric',
+    values: column.values.map((value) => (typeof value === 'number' ? value : null)),
+  }));
+  const derived: ModelFactor[] = [];
+  base.forEach((factor) => {
+    if (degree >= 2) {
+      derived.push({ name: `${factor.name}²`, kind: 'numeric', values: factor.values.map((v) => (typeof v === 'number' ? v * v : null)) });
+    }
+    if (degree >= 3) {
+      derived.push({ name: `${factor.name}³`, kind: 'numeric', values: factor.values.map((v) => (typeof v === 'number' ? v ** 3 : null)) });
+    }
+  });
+  const factors = [...base, ...derived];
+  const terms: ModelTerm[] = factors.map((factor) => ({ name: factor.name, factors: [factor.name] }));
+  const yValues = response.values.map((value) => (typeof value === 'number' ? value : null));
+  let glm;
+  try {
+    glm = fitGlm(yValues, factors, terms);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.singular');
+    throw error;
+  }
+  const equation = glm.labels
+    .slice(1)
+    .reduce((text, label, index) => {
+      const coef = glm.beta[index + 1];
+      const sign = coef >= 0 ? '+' : '−';
+      return `${text} ${sign} ${fmt(Math.abs(coef))} ${label}`;
+    }, `${response.name || response.id} = ${fmt(glm.beta[0])}`);
+  const coefRows = glm.labels.map((label, index) => [
+    label,
+    fmt(glm.beta[index], 5),
+    Number.isFinite(glm.se[index]) ? fmt(glm.se[index], 5) : '—',
+    Number.isFinite(glm.t[index]) ? fmt(glm.t[index], 3) : '—',
+    Number.isFinite(glm.p[index]) ? fmtP(glm.p[index]) : '—',
+  ]);
+  const anovaRows = glm.terms.map((term) => [
+    term.name,
+    fmtInt(term.df),
+    fmt(term.ssSeq),
+    fmt(term.ssAdj),
+    Number.isFinite(term.msAdj) ? fmt(term.msAdj) : '—',
+    Number.isFinite(term.f) ? fmt(term.f) : '—',
+    Number.isFinite(term.p) ? fmtP(term.p) : '—',
+  ]);
+  anovaRows.push([t(lang, '@th.error'), fmtInt(glm.dfe), fmt(glm.sse), fmt(glm.sse), fmt(glm.mse), '—', '—']);
+  anovaRows.push([t(lang, '@th.total'), fmtInt(glm.dfe + glm.rank - 1), fmt(glm.ssTotal), '—', '—', '—', '—']);
+  const residuals = glm.residuals;
+  const sorts = [...residuals].sort((a, b) => a - b);
+  const zs = sorts.map((_, index) => normalScores(residuals.length)[index]);
+  const residMean = mean(residuals);
+  const residSd = stdev(residuals) || 1;
+  const blocks: Block[] = [
+    { type: 'text', lines: [`${t(lang, 'res.equation')}: ${equation}`, t(lang, 'res.polyNote', { degree: fmtInt(degree) })] },
+    {
+      type: 'table',
+      title: tableTitle('res.modelSummary'),
+      headers: ['@th.statistic', '@th.value'],
+      rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
+      align: ['l', 'r'],
+    },
+    { type: 'table', title: tableTitle('res.coefficients'), headers: ['@th.term', '@th.coef', '@th.seCoef', '@th.t', '@th.p'], rows: coefRows, align: ['l', 'r', 'r', 'r', 'r'] },
+    { type: 'table', title: tableTitle('res.anovaTable'), headers: ['@th.source', '@th.df', '@th.ssTypeI', '@th.ssTypeIII', '@th.ms', '@th.f', '@th.p'], rows: anovaRows, align: ['l', 'r', 'r', 'r', 'r', 'r', 'r'] },
+  ];
+  if (bool(values.fourInOne, true)) {
+    blocks.push({
+      type: 'chartgrid',
+      charts: [
+        {
+          title: '@chart.normalprob',
+          chart: { kind: 'normalprob', points: sorts.map((x, i) => ({ x, y: zs[i] })), fit: { intercept: -residMean / residSd, slope: 1 / residSd }, xLabel: 'Residual' },
+        },
+        { title: '@chart.versusFits', chart: { kind: 'scatter', points: glm.fitted.map((f, i) => ({ x: f, y: residuals[i] })), xLabel: 'Fitted value', yLabel: 'Residual' } },
+        { title: '@chart.residHist', chart: { kind: 'histogram', values: residuals, normal: true, xLabel: 'Residual' } },
+        { title: '@chart.versusOrder', chart: { kind: 'timeseries', values: residuals, yLabel: 'Residual', xLabel: 'Observation order' } },
+      ],
+    });
+  }
+  const modelDraft = draftFromGlm({
+    glm,
+    factors,
+    terms,
+    response: { id: response.id, name: response.name || response.id, values: response.values },
+    kind: 'polynomial',
+    sheet,
+    analysisId: 'polyreg',
+  });
+  return {
+    subtitle: `${response.name || response.id} ← ${base.map((factor) => factor.name).join(', ')} · ${t(lang, 'res.degree', { n: fmtInt(degree) })}`,
+    blocks,
+    modelDraft,
+  };
+}
+
 /* ── control charts ───────────────────────────────────────────────────── */
 
 function chartRows(panels: { titleKey: string; center: number; ucl: number | number[]; lcl: number | number[]; sigma: number | number[]; violations: { index: number; rules: number[] }[]; points: number[] }[]): (string | number)[][] {
@@ -2876,6 +2987,17 @@ export const ANALYSES: AnalysisDef[] = [
       { key: 'fourInOne', label: 'opt.fourInOne', kind: 'check', group: 'graphs', defaultValue: true },
     ],
     run: runRegression,
+  },
+  {
+    id: 'polyreg',
+    titleKey: 'an.polyreg',
+    slots: [
+      { key: 'response', label: 'slot.response', kind: 'col', required: true },
+      { key: 'predictors', label: 'slot.predictors', kind: 'vars', required: true },
+      { key: 'degree', label: 'slot.degree', kind: 'num', group: 'options', defaultValue: 2, min: 2, max: 3, step: 1 },
+      { key: 'fourInOne', label: 'opt.fourInOne', kind: 'check', group: 'graphs', defaultValue: true },
+    ],
+    run: runPolyRegression,
   },
   {
     id: 'imr',

@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-24T13:22:53+09:00",
-  "commit": "87728e9fe7fd6095ebe930ef77586646e092514e",
+  "generated_at": "2026-11-24T13:38:25+09:00",
+  "commit": "9b2ad4ea461334c302dc0875c7c0b66b71a0ff65",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
    "node": "v22.20.0",
-   "commit": "87728e9fe7fd6095ebe930ef77586646e092514e",
+   "commit": "9b2ad4ea461334c302dc0875c7c0b66b71a0ff65",
    "cases": 162,
-   "generatedAt": "2026-11-24T04:22:39.199Z"
+   "generatedAt": "2026-11-24T04:38:10.296Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",
@@ -23084,8 +23084,8 @@
      "key": "pred[1]",
      "tol": "default",
      "kind": "number",
-     "adapter": 78.19999999999997,
-     "reference": 78.19999999999997,
+     "adapter": 69.99999999999999,
+     "reference": 69.99999999999999,
      "abs": 0.0,
      "rel": 0.0,
      "status": "match"
@@ -23130,10 +23130,10 @@
      "key": "pred[2]",
      "tol": "default",
      "kind": "number",
-     "adapter": 75.2610644,
-     "reference": 75.2610644,
-     "abs": 0.0,
-     "rel": 0.0,
+     "adapter": 47.1000112,
+     "reference": 47.10001119999999,
+     "abs": 7.105427357601002e-15,
+     "rel": 1.5085829443711477e-16,
      "status": "match"
     },
     {
@@ -23193,8 +23193,8 @@
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0
+   "max_abs": 7.105427357601002e-15,
+   "max_rel": 1.5085829443711477e-16
   },
   {
    "id": "QA-J-04",
@@ -23372,8 +23372,8 @@
      "key": "pred[1]",
      "tol": "default",
      "kind": "number",
-     "adapter": 78.19999999999997,
-     "reference": 78.19999999999997,
+     "adapter": 69.99999999999999,
+     "reference": 69.99999999999999,
      "abs": 0.0,
      "rel": 0.0,
      "status": "match"
@@ -23418,10 +23418,10 @@
      "key": "pred[2]",
      "tol": "default",
      "kind": "number",
-     "adapter": 75.26106439999998,
-     "reference": 75.26106439999998,
-     "abs": 0.0,
-     "rel": 0.0,
+     "adapter": 47.1000112,
+     "reference": 47.10001119999999,
+     "abs": 7.105427357601002e-15,
+     "rel": 1.5085829443711477e-16,
      "status": "match"
     },
     {
@@ -23481,8 +23481,8 @@
    ],
    "verdict": "PASS",
    "errors": [],
-   "max_abs": 0.0,
-   "max_rel": 0.0
+   "max_abs": 7.105427357601002e-15,
+   "max_rel": 1.5085829443711477e-16
   },
   {
    "id": "QA-J-05",

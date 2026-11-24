@@ -12,7 +12,7 @@
 | 항목 | 결과 |
 | --- | --- |
 | `npx tsc --noEmit` | 0 errors |
-| `npm test` | **735 / 735 PASS** (Phase 2 661 + Stage 3A 신규 74) |
+| `npm test` | **749 / 749 PASS** (Phase 2 661 + Stage 3A 신규 88) |
 | `npm run qa:stats` | **162 / 162 PASS, 0 FAIL** (기존 156 + 저장 모형 6) |
 | `npm run build` | 성공 (외부 CDN 없음) |
 | PNG DPI | `pHYs` 청크 바이트 단위 검증 — 150/300/600 DPI = 5906/11811/23622 px/m, CRC-32 재계산, 중복 `pHYs` 교체 (`tests/png-dpi.test.ts` 8건) |
@@ -247,6 +247,7 @@ node_modules/.bin/vite-node tools/contour_benchmark.ts
 | 항목 | 상태 | 근거 |
 | --- | --- | --- |
 | 모형 저장·이름변경·복제·삭제·비교 | SUPPORTED | `src/lib/modelStore.ts`, `src/components/ModelManager.tsx` |
+| 다항 회귀(2·3차) 적합·저장 | SUPPORTED | `runPolyRegression()` (`analyses.ts`), `tests/polyreg-model.test.ts` |
 | 저장 정보(계수·공분산·잔차분산·자유도·요인범위·코딩변환·범주수준·학습데이터·진단·버전·시각) | SUPPORTED | `StoredModel`, `draftFromGlm()`, `draftFromRegression()`, `draftFromRsmPayload()` |
 | 모형 예측(단위 전환·SE·예측구간) | SUPPORTED | `predictStoredModel()` |
 | 랭크 부족 시 추정 불가 표시 | SUPPORTED | `nonEstimable`, QA-J-06 |
