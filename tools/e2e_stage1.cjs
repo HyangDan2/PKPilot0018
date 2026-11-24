@@ -7,26 +7,13 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-function loadPlaywright() {
-  const candidates = [
-    process.env.PLAYWRIGHT_PATH,
-    '/workspace/repos/PKPilot0015/node_modules/playwright',
-    '/workspace/tmp-pwlibs/root/usr/lib/node_modules/playwright',
-    'playwright',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    try { return require(candidate); } catch { /* try the next install */ }
-  }
-  throw new Error('playwright is not installed in any known location');
-}
-const { chromium } = loadPlaywright();
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 
 const ROOT = path.resolve(__dirname, '..', 'dist');
 const PORT = Number(process.env.PORT || 4183);
 const LIVE = process.env.LIVE === '1';
 const BASE = LIVE ? 'https://hyangdan2.github.io/PKPilot0018/' : `http://127.0.0.1:${PORT}/PKPilot0018/`;
-const OUT = '/workspace/work/pkpilot0018';
-const EXE = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 const PART = process.env.PART || 'all';
 
 const MIME = {
@@ -485,7 +472,8 @@ async function partShots(browser) {
 async function launch() {
   return chromium.launch({
     headless: true,
-    executablePath: EXE,
+    executablePath: CHROME,
+    env: browserEnv,
     args: ['--single-process', '--no-zygote', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer'],
   });
 }

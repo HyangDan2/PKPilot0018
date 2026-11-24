@@ -1545,8 +1545,12 @@ export default function App() {
       past.current = [];
       future.current = [];
       toast(t(lang, 'file.loaded'));
-    } catch {
-      toast(t(lang, 'file.error'));
+    } catch (error) {
+      // A refusal names its reason (a newer schema, a damaged sheet) so the
+      // reader knows the file was not half-read.
+      const code = error instanceof Error ? error.message : '';
+      const known = ['file.versionNewer', 'file.versionInvalid', 'file.worksheetCorrupt', 'file.modelCorrupt'];
+      toast(t(lang, known.includes(code) ? code : 'file.error'));
     }
   };
 

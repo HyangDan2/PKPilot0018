@@ -3,6 +3,7 @@ import type { Lang } from '../types';
 import { t } from '../lib/i18n';
 import { IconX } from './Icons';
 import { BrandBanner } from './Header';
+import { aboutVersionLine } from '../lib/appInfo';
 
 interface Props {
   lang: Lang;
@@ -91,7 +92,7 @@ export function HelpModal({ lang, initial, onClose }: Props) {
             <div className="help-body">
               <BrandBanner lang={lang} />
               <p>{t(lang, 'about.text')}</p>
-              <p className="mono-note">PHASE 1 · {new Date().getFullYear()}</p>
+              <p className="mono-note">{aboutVersionLine(lang)}</p>
             </div>
           )}
         </div>

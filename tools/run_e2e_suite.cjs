@@ -16,8 +16,10 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
+const { libraries: browserLibraries } = require('./browser_env.cjs');
+
 const ROOT = path.resolve(__dirname, '..');
-const OUT = process.env.OUT || '/workspace/work/pkpilot0018';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 const PORT = Number(process.env.SUITE_PORT || 4197);
 const LIVE = process.argv.includes('--live');
 const LIVE_BASE = 'https://hyangdan2.github.io/PKPilot0018/';
@@ -101,11 +103,10 @@ function startServer() {
     const script = path.join(ROOT, 'tools', suite.file);
     if (!fs.existsSync(script)) { console.log(`SKIP ${suite.name} — ${suite.file} is missing`); summary.push({ ...suite, ok: false, note: 'missing script' }); continue; }
     const env = { ...process.env, OUT, PATH: `${path.join(ROOT, 'node_modules', '.bin')}:${process.env.PATH}` };
-    /* The headless shell's system libraries live outside the default search
-       path in this sandbox; the suites that do not set it themselves inherit
-       it from here. */
-    env.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH
-      || '/workspace/work/chrome-libs/usr/lib/x86_64-linux-gnu:/workspace/work/chrome-libs/lib/x86_64-linux-gnu';
+    /* The suites resolve the browser binary and its libraries themselves
+       (tools/browser_env.cjs); this hands on what that resolver found so the
+       child processes inherit the same environment. */
+    if (browserLibraries) env.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH || browserLibraries;
     if (suite.base) env.BASE = base;
     if (LIVE && suite.base) env.SERVE = '0';
     console.log(`\n════ ${suite.name} (${suite.phase}) ════`);

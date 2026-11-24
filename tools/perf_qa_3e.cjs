@@ -19,23 +19,10 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
-function loadPlaywright() {
-  const candidates = [
-    process.env.PLAYWRIGHT_PATH,
-    '/workspace/pkpilot0014/node_modules/playwright',
-    '/workspace/visna-sol/node_modules/playwright',
-    '/workspace/repos/PKPilot0015/node_modules/playwright',
-    'playwright',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    try { return require(candidate); } catch { /* try the next install */ }
-  }
-  throw new Error('playwright is not installed in any known location');
-}
-const { chromium } = loadPlaywright();
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
-const OUT = process.env.OUT || '/workspace/work/pkpilot0018';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 const REPORT = path.resolve(ROOT, process.env.REPORT || 'qa/reports/perf-3e.json');
 const PORT = Number(process.env.PORT || 4198);
 const ROWS = Number(process.env.ROWS || 20000);
@@ -43,9 +30,6 @@ const ROWS = Number(process.env.ROWS || 20000);
    out after a 50,000-point scatter followed by a 50,000-point control chart in
    one page, so the heavy steps can be measured one at a time. */
 const STEPS = (process.env.STEPS || 'import,descriptive,scatter,control').split(',');
-const SHELL = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
-const LIBS = process.env.CHROME_LIBS || '/workspace/work/chrome-libs/usr/lib/x86_64-linux-gnu:/workspace/work/chrome-libs/lib/x86_64-linux-gnu';
-const BROWSER_ENV = { ...process.env, LD_LIBRARY_PATH: LIBS };
 
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(path.dirname(REPORT), { recursive: true });
@@ -85,8 +69,8 @@ function startServer() {
 function launch() {
   return chromium.launch({
     headless: true,
-    executablePath: SHELL,
-    env: BROWSER_ENV,
+    executablePath: CHROME,
+    env: browserEnv,
     args: ['--single-process', '--no-zygote', '--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-precise-memory-info'],
   });
 }

@@ -8,8 +8,14 @@
 
    · A discrete factor's allowed values are exactly Lower + k × Step for an
      integer k ≥ 0, stopping at the last value not beyond Upper. The value is
-     computed from the integer index in one multiply-add, not accumulated in a
-     loop, so a 0.0001 step does not drift and 0.3 has no 0.30000000000000004.
+     computed from the integer index with decimal arithmetic (BigInt on the
+     digits the two numbers are written with), so a 0.0001 step does not drift,
+     0.3 has no 0.30000000000000004, and a lower bound of 100000000.01 keeps
+     its cent.
+   · A lattice a reader could not actually set is refused rather than offered:
+     a domain beyond the safe integer range, a step below the resolution the
+     numbers can carry at that magnitude, and a factor name used twice are
+     issues, not search decisions.
    · A categorical factor's allowed values are its fitted levels and nothing
      else: no invented level, no numeric stand-in.
    · A fixed value is a value like any other: it must sit inside the range and
@@ -22,42 +28,175 @@
 
 import type { FactorSettings } from './optimizationTypes';
 
-/** Relative tolerance for "is this number on the lattice" questions. */
+/** Relative tolerance for "is this value inside this range" questions. */
 export const DOMAIN_EPS = 1e-9;
+
+/**
+ * Relative tolerance for "is this value one of the lattice's own numbers".
+ *
+ * This has to be far finer than a step: a value that is 0.3 of a step away is
+ * not on the lattice, however large the lattice's offset is. It only absorbs
+ * the rounding of the arithmetic that produced the value (≈ 1e-16 relative) with
+ * a wide margin.
+ */
+export const LATTICE_EPS = 1e-12;
+
+/** The largest integer a double states exactly (9007199254740991). */
+export const MAX_SAFE_MAGNITUDE = Number.MAX_SAFE_INTEGER;
 
 /** A step axis longer than this is sampled rather than listed in full. */
 export const MAX_AXIS_POINTS = 20001;
 
-/** Decimals needed to write a number without float noise (≤ 12). */
-export function decimalsOf(value: number): number {
-  if (!Number.isFinite(value) || value === 0) return 0;
-  const abs = Math.abs(value);
-  for (let decimals = 0; decimals <= 12; decimals += 1) {
-    const scaled = abs * 10 ** decimals;
-    if (Math.abs(scaled - Math.round(scaled)) <= 1e-9 * Math.max(1, scaled)) return decimals;
+/**
+ * The absolute slack the range policy allows around a value.
+ *
+ * One place, one number: a limit check compares with this, never with a
+ * hard-coded epsilon of its own, so the optimiser and the profiler agree about
+ * what "inside the range" means at every magnitude.
+ */
+export function relativeSlack(...values: number[]): number {
+  let magnitude = 1;
+  for (const value of values) if (Number.isFinite(value)) magnitude = Math.max(magnitude, Math.abs(value));
+  return DOMAIN_EPS * magnitude;
+}
+
+/** The slack allowed when asking whether a value is one of the lattice's numbers. */
+export function latticeSlack(...values: number[]): number {
+  let magnitude = 1;
+  for (const value of values) if (Number.isFinite(value)) magnitude = Math.max(magnitude, Math.abs(value));
+  return LATTICE_EPS * magnitude;
+}
+
+/** A decimal number split into an exact integer and a power of ten. */
+interface DecimalParts {
+  digits: bigint;
+  exp: number;
+}
+
+/**
+ * The shortest decimal this double round-trips through, as digits × 10^exp.
+ *
+ * 100000000.01 → 10000000001 × 10^-2, 0.1 → 1 × 10^-1, 1e-7 → 1 × 10^-7.
+ * Reading the printed form (not a tolerance) is what keeps a cent a cent at
+ * 1e8, where a relative tolerance of 1e-9 would call 0.01 "zero".
+ */
+function decimalParts(value: number): DecimalParts | null {
+  if (!Number.isFinite(value)) return null;
+  if (value === 0) return { digits: 0n, exp: 0 };
+  const text = Math.abs(value).toString();
+  const match = /^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(text);
+  if (!match) return null;
+  const whole = match[1];
+  const fraction = match[2] ?? '';
+  const exponent = match[3] ? Number(match[3]) : 0;
+  const digits = BigInt(whole + fraction);
+  return { digits: value < 0 ? -digits : digits, exp: exponent - fraction.length };
+}
+
+/** digits × 10^exp back to the nearest double, without a lossy power of ten. */
+function fromDecimal(digits: bigint, exp: number): number {
+  if (exp === 0) return Number(digits);
+  const text = digits.toString();
+  const negative = text.startsWith('-');
+  const body = negative ? text.slice(1) : text;
+  let written: string;
+  if (exp >= 0) {
+    written = body + '0'.repeat(exp);
+  } else {
+    const point = body.length + exp;
+    written = point > 0 ? `${body.slice(0, point)}.${body.slice(point)}` : `0.${'0'.repeat(-point)}${body}`;
   }
-  return 12;
+  return Number(`${negative ? '-' : ''}${written}`);
+}
+
+/** Decimals needed to write a number as its shortest round-trip decimal. */
+export function decimalsOf(value: number): number {
+  const parts = decimalParts(value);
+  if (!parts) return 0;
+  return Math.max(0, Math.min(15, -parts.exp));
 }
 
 /** Number of complete steps between lower and upper (k max), or −1 when unusable. */
 export function discreteStepCount(lower: number, upper: number, step: number): number {
   if (!Number.isFinite(lower) || !Number.isFinite(upper) || !Number.isFinite(step) || !(step > 0)) return -1;
   if (!(upper > lower)) return -1;
+  const l = decimalParts(lower);
+  const u = decimalParts(upper);
+  const s = decimalParts(step);
+  if (l && u && s) {
+    const exp = Math.min(l.exp, u.exp, s.exp);
+    const scaledLower = l.digits * 10n ** BigInt(l.exp - exp);
+    const scaledUpper = u.digits * 10n ** BigInt(u.exp - exp);
+    const scaledStep = s.digits * 10n ** BigInt(s.exp - exp);
+    if (scaledStep <= 0n) return -1;
+    const count = (scaledUpper - scaledLower) / scaledStep;
+    if (count < 0n) return -1;
+    const asNumber = Number(count);
+    return Number.isFinite(asNumber) ? asNumber : -1;
+  }
   const ratio = (upper - lower) / step;
-  const kMax = Math.floor(ratio + DOMAIN_EPS);
+  const kMax = Math.floor(ratio + DOMAIN_EPS * Math.max(1, Math.abs(ratio)));
   return kMax >= 0 ? kMax : -1;
 }
 
 /** The k-th allowed value: Lower + k × Step, with float noise removed. */
 export function discreteValueAt(lower: number, step: number, k: number): number {
-  const decimals = Math.max(decimalsOf(step), decimalsOf(lower));
-  const scale = 10 ** decimals;
-  const scaledStep = Math.round(step * scale);
-  const scaledLower = Math.round(lower * scale);
-  if (Number.isFinite(scaledStep) && scaledStep > 0 && Math.abs(step * scale - scaledStep) <= 1e-6) {
-    return (scaledLower + k * scaledStep) / scale;
+  if (!Number.isFinite(lower) || !Number.isFinite(step) || !Number.isFinite(k)) return Number.NaN;
+  const l = decimalParts(lower);
+  const s = decimalParts(step);
+  if (l && s && Number.isInteger(k) && Math.abs(k) <= MAX_SAFE_MAGNITUDE) {
+    const exp = Math.min(l.exp, s.exp, 0);
+    const scaledLower = l.digits * 10n ** BigInt(l.exp - exp);
+    const scaledStep = s.digits * 10n ** BigInt(s.exp - exp);
+    return fromDecimal(scaledLower + BigInt(k) * scaledStep, exp);
   }
   return Number((lower + k * step).toPrecision(15));
+}
+
+/**
+ * Would this lattice hand out the same number twice?
+ *
+ * A step smaller than the spacing two doubles can have at this magnitude
+ * (0.1 at 1e15, where the spacing is 0.125) does not describe a finer domain:
+ * several indices collapse onto one value, so the search would enumerate
+ * duplicates and the reader would be told about values that do not exist.
+ */
+/** The distance between two neighbouring doubles at this magnitude. */
+export function doubleSpacing(value: number): number {
+  const magnitude = Math.abs(value);
+  if (!Number.isFinite(magnitude)) return Number.NaN;
+  if (magnitude === 0) return 2 ** -1074;
+  const exponent = Math.floor(Math.log2(magnitude));
+  return 2 ** (exponent - 52);
+}
+
+export function latticeIsRepresentable(lower: number, upper: number, step: number, steps = discreteStepCount(lower, upper, step)): boolean {
+  if (steps < 0) return false;
+  const first = discreteValueAt(lower, step, 0);
+  const second = discreteValueAt(lower, step, 1);
+  const last = discreteValueAt(lower, step, steps);
+  if (!Number.isFinite(first) || !Number.isFinite(second) || !Number.isFinite(last)) return false;
+  return second > first && last >= second;
+}
+
+/**
+ * Every reason a discrete domain cannot be searched, as one verdict.
+ *
+ * The order matters: a range that is not a range is reported as such before
+ * anything is asked about its lattice.
+ */
+export function discreteDomainIssue(lower: number, upper: number, step: number): string | null {
+  if (!Number.isFinite(lower) || !Number.isFinite(upper) || !(upper > lower)) return 'opt.issue.factorRange';
+  if (!Number.isFinite(step) || !(step > 0)) return 'opt.issue.factorStep';
+  if (Math.abs(lower) > MAX_SAFE_MAGNITUDE || Math.abs(upper) > MAX_SAFE_MAGNITUDE) return 'opt.issue.integerSafeRange';
+  const steps = discreteStepCount(lower, upper, step);
+  if (steps < 0) return 'opt.issue.factorRange';
+  if (steps > MAX_SAFE_MAGNITUDE) return 'opt.issue.stepCount';
+  // A step finer than the spacing between two doubles at this magnitude cannot
+  // describe a finer domain: the values would not be Lower + k × Step.
+  if (step < doubleSpacing(lower) || step < doubleSpacing(upper)) return 'opt.issue.stepBelowPrecision';
+  if (!latticeIsRepresentable(lower, upper, step, steps)) return 'opt.issue.stepBelowPrecision';
+  return null;
 }
 
 export interface DiscreteAxis {
@@ -83,16 +222,22 @@ export interface DiscreteAxis {
 export function discreteAxis(lower: number, upper: number, step: number, limit = MAX_AXIS_POINTS): DiscreteAxis {
   const steps = discreteStepCount(lower, upper, step);
   if (steps < 0) return { values: [], count: 0, steps: 0, truncated: false, lower, step };
+  // A lattice whose consecutive values would collapse onto one another is not
+  // a list of allowed values; an empty axis says so instead of repeating one.
+  if (!latticeIsRepresentable(lower, upper, step, steps)) return { values: [], count: 0, steps: 0, truncated: false, lower, step };
   const count = steps + 1;
+  const distinct = (values: number[]): boolean => values.every((value, index) => index === 0 || value > values[index - 1]);
   if (count <= limit) {
     const values: number[] = [];
     for (let k = 0; k <= steps; k += 1) values.push(discreteValueAt(lower, step, k));
+    if (!distinct(values)) return { values: [], count: 0, steps: 0, truncated: false, lower, step };
     return { values, count, steps, truncated: false, lower, step };
   }
   const stride = Math.ceil(steps / Math.max(1, limit - 1));
   const values: number[] = [];
   for (let k = 0; k < steps; k += stride) values.push(discreteValueAt(lower, step, k));
   values.push(discreteValueAt(lower, step, steps));
+  if (!distinct(values)) return { values: [], count: 0, steps: 0, truncated: false, lower, step };
   return { values, count, steps, truncated: true, lower, step };
 }
 
@@ -117,12 +262,14 @@ export function nearestStepValue(lower: number, upper: number, step: number, val
   const k = Math.round(ratio);
   const clamped = Math.min(steps, Math.max(0, k));
   const snapped = discreteValueAt(lower, step, clamped);
-  const tolerance = DOMAIN_EPS * Math.max(1, Math.abs(ratio));
+  // On-step is an absolute question at the lattice's own resolution: a value
+  // 0.3 of a step away is off the lattice whatever the offset is.
+  const onStep = Math.abs(snapped - value) <= latticeSlack(value, snapped) && k >= 0 && k <= steps;
   return {
     value: snapped,
     k: clamped,
-    inside: value >= lower - DOMAIN_EPS * Math.max(1, Math.abs(lower)) && value <= upper + DOMAIN_EPS * Math.max(1, Math.abs(upper)),
-    onStep: Math.abs(ratio - k) <= tolerance && k >= 0 && k <= steps,
+    inside: value >= lower - relativeSlack(lower) && value <= upper + relativeSlack(upper),
+    onStep,
   };
 }
 
@@ -131,7 +278,7 @@ export function isOnStep(lower: number, upper: number, step: number, value: numb
   if (!Number.isFinite(value)) return false;
   const snapped = nearestStepValue(lower, upper, step, value);
   if (!snapped.inside || !snapped.onStep) return false;
-  return Math.abs(snapped.value - value) <= DOMAIN_EPS * Math.max(1, Math.abs(value));
+  return Math.abs(snapped.value - value) <= latticeSlack(value, snapped.value);
 }
 
 export interface FactorAxis {
@@ -178,17 +325,25 @@ export function factorAxisSize(factor: FactorSettings, continuousPoints = 21): n
   return Math.max(2, Math.round(continuousPoints));
 }
 
-/** Problems with a factor definition itself (i18n keys). */
+/**
+ * Every problem with a factor definition itself (i18n keys).
+ *
+ * A domain a reader could not search is reported here, once, so the optimiser
+ * and the window state the same reason instead of discovering it mid-search.
+ */
 export function factorIssues(factor: FactorSettings): string[] {
   const issues: string[] = [];
+  const hasRange = Number.isFinite(factor.lower) && Number.isFinite(factor.upper) && factor.upper > factor.lower;
   if (factor.kind === 'categorical') {
     if (!factor.levels.length) issues.push('opt.issue.levelMissing');
   } else {
     if (factor.kind === 'discrete' && (!(factor.step > 0) || !Number.isFinite(factor.step))) issues.push('opt.issue.factorStep');
     // A fixed factor carries no range: only its fixed value is used, and that
     // value is checked against the limits below.
-    if (!factor.fixed && (!Number.isFinite(factor.lower) || !Number.isFinite(factor.upper) || !(factor.upper > factor.lower))) {
-      issues.push('opt.issue.factorRange');
+    if (!factor.fixed && !hasRange) issues.push('opt.issue.factorRange');
+    if (factor.kind === 'discrete' && factor.step > 0 && Number.isFinite(factor.step) && hasRange) {
+      const domain = discreteDomainIssue(factor.lower, factor.upper, factor.step);
+      if (domain) issues.push(domain);
     }
   }
   if (factor.fixed) {
@@ -197,14 +352,48 @@ export function factorIssues(factor: FactorSettings): string[] {
     } else {
       const value = Number(factor.fixedValue);
       if (!Number.isFinite(value)) issues.push('opt.issue.fixedOffStep');
-      else if (value < factor.lower - DOMAIN_EPS * Math.max(1, Math.abs(factor.lower)) || value > factor.upper + DOMAIN_EPS * Math.max(1, Math.abs(factor.upper))) {
+      else if (value < factor.lower - relativeSlack(factor.lower) || value > factor.upper + relativeSlack(factor.upper)) {
         issues.push('opt.issue.fixedOutside');
-      } else if (factor.kind === 'discrete' && !isOnStep(factor.lower, factor.upper, factor.step, value)) {
+      } else if (factor.kind === 'discrete' && hasRange && !isOnStep(factor.lower, factor.upper, factor.step, value)) {
         issues.push('opt.issue.fixedOffStep');
       }
     }
   }
   return [...new Set(issues)];
+}
+
+/**
+ * Duplicate factor definitions in one problem.
+ *
+ * Two entries with the same name would be merged into one search axis by a
+ * `Set`, so the reader would quietly search neither of the ranges they typed.
+ * A stored model whose predictors repeat a name has the same problem one level
+ * deeper: every coefficient label would resolve to the first of them.
+ */
+export function duplicateFactorNames(factors: FactorSettings[]): string[] {
+  const seen = new Set<string>();
+  const duplicates: string[] = [];
+  factors.forEach((factor) => {
+    const key = factor.name.trim();
+    if (seen.has(key)) duplicates.push(key);
+    else seen.add(key);
+  });
+  return duplicates;
+}
+
+/** Predictor names a stored model repeats (empty when its identifiers are unique). */
+export function duplicatePredictorNames(predictors: { name: string; id?: string }[]): string[] {
+  const byName = new Set<string>();
+  const byId = new Set<string>();
+  const duplicates: string[] = [];
+  predictors.forEach((predictor) => {
+    const name = predictor.name.trim();
+    const id = predictor.id?.trim();
+    if (byName.has(name) || (id ? byId.has(id) : false)) duplicates.push(name);
+    byName.add(name);
+    if (id) byId.add(id);
+  });
+  return [...new Set(duplicates)];
 }
 
 /** Is one candidate value allowed for this factor? (i18n key or null) */
@@ -215,7 +404,14 @@ export function validateFactorValue(factor: FactorSettings, value: number | stri
   }
   const numeric = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numeric)) return 'opt.issue.valueMissing';
-  const slack = DOMAIN_EPS * Math.max(1, Math.abs(factor.lower), Math.abs(factor.upper));
+  if (factor.kind === 'discrete' && factor.step > 0 && Number.isFinite(factor.step)
+    && Number.isFinite(factor.lower) && Number.isFinite(factor.upper) && factor.upper > factor.lower) {
+    // The domain itself comes first: a lattice that cannot be searched is not
+    // made searchable by picking a value on it.
+    const domain = discreteDomainIssue(factor.lower, factor.upper, factor.step);
+    if (domain) return domain;
+  }
+  const slack = relativeSlack(factor.lower, factor.upper);
   if (numeric < factor.lower - slack || numeric > factor.upper + slack) return 'opt.issue.valueOutside';
   if (factor.kind === 'discrete' && !isOnStep(factor.lower, factor.upper, factor.step, numeric)) return 'opt.issue.valueOffStep';
   return null;

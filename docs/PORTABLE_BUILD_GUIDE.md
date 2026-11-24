@@ -4,6 +4,7 @@
 > **산출물**: `dist-portable/sigrun-portable.html` (단일 파일) · `dist-portable/sigrun-portable.zip` (같은 파일 + 안내문)
 > **명령**: `npm run build:portable`
 > **검증**: `tools/e2e_portable_offline.cjs` — 실제 `file://` URL, 네트워크 차단 상태에서 **63 / 63 PASS**
+> **재현성**: 같은 커밋 + 같은 `SOURCE_DATE_EPOCH` → 같은 ZIP (SHA-256 동일). 빌드 정보는 `dist-portable/build-info.json`
 
 ---
 
@@ -31,14 +32,26 @@ npm run build:portable        # → dist-portable/
 
 ```
 dist-portable/
-  sigrun-portable.html        1.21 MB — 애플리케이션 전체 (JS·CSS·아이콘 인라인)
-  sigrun-portable.zip         359 kB  — 위 파일 + README.txt
-  README.txt                  배포용 안내문
-  build-info.json             빌드 시각·크기·SHA-256·Vite/Node 버전
+  sigrun-portable.html        1 241.8 kB — 애플리케이션 전체 (JS·CSS·아이콘 인라인)
+  sigrun-portable.zip         361.7 kB  — HTML + README.txt + build-info.json
+  README.txt                  배포용 안내문 (빌드 시각·버전·해시 포함)
+  build-info.json             name·version·phase·commit·builtAt·zipTimestamp·bytes·sha256·zip·tools
   _raw/                       중간 산출물 (인라인 전, 커밋하지 않음)
 ```
 
-`dist-portable/`는 `.gitignore`에 있다(빌드 산출물은 저장소에 넣지 않는다). 배포용 사본은 `work/pkpilot0018/sigrun-portable.zip`에도 만들어진다(`PORTABLE_RELEASE_DIR`로 경로 변경 가능).
+`dist-portable/`는 `.gitignore`에 있다(빌드 산출물은 저장소에 넣지 않는다).
+
+### 2.1 재현 가능한 ZIP
+
+- `SOURCE_DATE_EPOCH`(초)를 주면 그 시각을 ZIP 엔트리·README·manifest의 기준 시각으로 쓴다. 없으면 빌드 시각.
+- ZIP은 DOS 날짜만 저장하므로 `1980-01-01` … `2107-12-31`로 클램프하고, 초 단위로 자른다. 같은 커밋·같은 epoch면 **바이트 단위로 같은 ZIP**이 나온다.
+- 엔트리 권한 바이트(`0o644 << 16`)를 고정해 플랫폼 차이를 없앴다.
+- 로컬 실측: `SOURCE_DATE_EPOCH=1764000000 npm run build:portable` 두 번 → SHA-256 `54293e4d…2334` 동일.
+
+### 2.2 배포용 사본
+
+`PORTABLE_RELEASE_DIR`를 지정했을 때만 그 폴더에 ZIP 사본을 만든다(기본값 없음 — 저장소 위치를 가정하지 않는다).
+`README.txt`와 `build-info.json`이 `commit` 필드를 갖는 이유는, 사본만 보고도 어느 소스에서 나왔는지 확인하기 위해서다(저장소 밖에서 빌드하면 `unknown`).
 
 ---
 
@@ -56,15 +69,15 @@ dist-portable/
 | `modulePreload` | `false` | 모듈 프리로드 링크를 만들지 않는다 |
 | `build.target` | `'es2020'` | 사내 Edge/Chrome 구버전까지 여유 |
 
-### 3.2 `tools/build_portable.mjs` (5단계)
+### 3.2 `tools/build_portable.mjs` (6단계)
 
 1. 위 설정으로 `vite build` → `dist-portable/_raw/{portable.html,sigrun.js,sigrun.css}`
 2. `sigrun.css`를 `<style>`로, `sigrun.js`를 `<script>`로 **인라인**한다.
    - Vite는 엔트리 스크립트를 `<head>`로 올린다. 클래식 스크립트는 `defer`가 없으므로 `<head>`에 두면 `#root`가 생기기 전에 실행되어 `createRoot`가 실패한다(React #299). 그래서 인라인 스크립트는 **`</body>` 바로 앞**에 넣는다.
    - 번들·CSS에 리터럴 `</script>`/`</style>`이 있으면 파일이 깨지므로, 있으면 **빌드를 실패시킨다**(현재 0건).
 3. 파비콘을 `data:image/svg+xml;base64,…`로 `<head>`에 넣는다.
-4. `README.txt`(사용 안내)를 쓴다.
-5. `python3 zipfile`로 ZIP을 만든다(샌드박스에 `zip` 바이너리가 없고, 파이썬 표준 라이브러리만으로 충분하다).
+4. `README.txt`(사용 안내)와 `build-info.json`(빌드 manifest)을 쓴다.
+5. `python3 zipfile`로 ZIP을 만든다(샌드박스에 `zip` 바이너리가 없고, 파이썬 표준 라이브러리만으로 충분하다). 엔트리 시각은 `SOURCE_DATE_EPOCH` 기반이다.
 
 ### 3.3 인라인 후 자동 검사
 

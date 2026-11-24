@@ -3,7 +3,7 @@
 
    Local:  BASE=http://127.0.0.1:4190/PKPilot0018/ node tools/e2e_phase3_3c.cjs
    Live:   BASE=https://hyangdan2.github.io/PKPilot0018/ node tools/e2e_phase3_3c.cjs
-   Screens: OUT=/workspace/work/pkpilot0018
+   Screens: OUT=<release folder>
 */
 const fs = require('fs');
 const path = require('path');
@@ -70,28 +70,12 @@ function purpleShare(buffer) {
   return hits / (png.width * png.height);
 }
 
-function loadPlaywright() {
-  const candidates = [
-    process.env.PLAYWRIGHT_PATH,
-    '/workspace/pkpilot0014/node_modules/playwright',
-    '/workspace/visna-sol/node_modules/playwright',
-    '/workspace/repos/PKPilot0015/node_modules/playwright',
-    'playwright',
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    try { return require(candidate); } catch { /* try the next install */ }
-  }
-  throw new Error('playwright is not installed in any known location');
-}
-const { chromium } = loadPlaywright();
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 
 const BASE = process.env.BASE || 'http://127.0.0.1:4190/PKPilot0018/';
 const SERVE = process.env.SERVE !== '0';
 let ACTIVE_BASE = BASE;
-const OUT = process.env.OUT || '/workspace/work/pkpilot0018';
-const SHELL = process.env.CHROME_PATH || '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
-const LIBS = process.env.CHROME_LIBS || '/workspace/work/chrome-libs/usr/lib/x86_64-linux-gnu:/workspace/work/chrome-libs/lib/x86_64-linux-gnu';
-const BROWSER_ENV = { ...process.env, LD_LIBRARY_PATH: LIBS };
+const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -105,8 +89,8 @@ function check(name, ok, detail = '') {
 function launchArgs() {
   return {
     headless: true,
-    executablePath: SHELL,
-    env: BROWSER_ENV,
+    executablePath: CHROME,
+    env: browserEnv,
     args: ['--single-process', '--no-zygote', '--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   };
 }

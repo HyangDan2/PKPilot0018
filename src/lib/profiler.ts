@@ -34,6 +34,7 @@ import {
   discreteAxis,
   holdingValue,
   normaliseFactorValue,
+  relativeSlack,
   validateFactorValue,
 } from './factorDomain';
 
@@ -51,6 +52,8 @@ export interface ProfileCurve {
   /** Y limits to draw (finite only). */
   yMin: number;
   yMax: number;
+  /** Why curve points could not be evaluated (i18n keys, unique). */
+  issues: string[];
 }
 
 export interface ProfileRow {
@@ -98,7 +101,7 @@ export function curveAxis(factor: FactorSettings, resolution: number): (number |
 }
 
 function emptyCurve(current: number | null): ProfileCurve {
-  return { xs: [], mean: [], ci: null, pi: null, current, yMin: Number.NaN, yMax: Number.NaN };
+  return { xs: [], mean: [], ci: null, pi: null, current, yMin: Number.NaN, yMax: Number.NaN, issues: [] };
 }
 
 /**
@@ -159,12 +162,14 @@ export function profileCurves(
       const piHi: number[] = [];
       let hasCi = false;
       let hasPi = false;
+      const curveIssues = new Set<string>();
       axis.forEach((value, index) => {
         // Every axis value is resolved through the same policy as the current
         // condition, so an illegal lattice point cannot slip into a curve.
         const resolvedValue = resolvePoint([factor], { [factor.name]: value }).point[factor.name];
         const candidate = { ...resolved.point, [factor.name]: resolvedValue };
         const evaluation = adapter.evaluate(candidate, alpha);
+        evaluation.issues.forEach((code) => curveIssues.add(code));
         xs.push(typeof value === 'number' ? value : numericAxis[index]);
         mean.push(evaluation.value === null ? Number.NaN : evaluation.value);
         if (evaluation.ci) {
@@ -195,6 +200,7 @@ export function profileCurves(
         current: typeof raw === 'number' ? raw : (typeof raw === 'string' ? xs[Math.max(0, factor.levels.indexOf(raw))] ?? null : null),
         yMin: finite.length ? Math.min(...finite) : Number.NaN,
         yMax: finite.length ? Math.max(...finite) : Number.NaN,
+        issues: [...curveIssues],
       };
     });
     let extrapolated = false;
@@ -202,17 +208,21 @@ export function profileCurves(
       const value = resolved.point[factor.name];
       if (typeof value !== 'number') return;
       const range = adapter.fittedRange(factor.name);
-      if (range && (value < range[0] - 1e-9 * Math.max(1, Math.abs(range[0])) || value > range[1] + 1e-9 * Math.max(1, Math.abs(range[1])))) extrapolated = true;
+      if (range && (value < range[0] - relativeSlack(range[0]) || value > range[1] + relativeSlack(range[1]))) extrapolated = true;
     });
     const anyCi = curves.some((curve) => curve.ci !== null);
     const anyPi = curves.some((curve) => curve.pi !== null);
+    // The row states what the current condition could not answer, with the same
+    // codes the optimiser and the Model Manager return for the same point.
+    const rowIssues = new Set<string>(prediction?.issues ?? []);
+    curves.forEach((curve) => curve.issues.forEach((code) => rowIssues.add(code)));
     rows.push({
       modelId: model.id,
       responseName: model.response.name,
       curves,
       prediction,
       blocked: false,
-      issues: [],
+      issues: [...rowIssues],
       interval: { ci: anyCi, pi: anyPi },
       extrapolated,
     });

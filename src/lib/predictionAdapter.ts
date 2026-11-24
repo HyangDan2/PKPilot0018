@@ -9,10 +9,13 @@
      two models with different codings are each evaluated in their own space at
      the same actual condition.
    · It parses a coefficient label once (per model) and then multiplies the
-     term out per point — the same arithmetic as `predictStoredModel`, which is
-     the Model Manager / contour / surface path. `crossCheck` compares the two
-     point for point so the two paths cannot drift apart silently, and QA-W-19
-     / QA-W-20 assert the same equality from outside the app.
+     term out per point, and hands the weights to `sumDesignRow` — the same
+     arithmetic `predictStoredModel` (Model Manager / contour / surface), the
+     compiled surface evaluator and the optimiser use. A non-finite weight is an
+     error here exactly as it is there; nothing is skipped to make a number.
+     `crossCheck` compares the two paths point for point — value, interval and
+     issue list — so they cannot drift apart silently, and QA-W-19 / QA-W-20
+     assert the same equality from outside the app.
    · It separates what the model can answer by asking `intervalStatus` — the
      same rule the Model Manager and the overlay use: a confidence interval
      needs a usable covariance and residual df; a prediction interval
@@ -28,8 +31,11 @@ import {
   covarianceStatus,
   designFromActual,
   intervalStatus,
+  intervalIssues as intervalIssueList,
   parseCoefficientLabel,
   predictStoredModel,
+  quadraticForm,
+  sumDesignRow,
   type ParsedToken,
   type PredictionResult,
 } from './modelPredictor';
@@ -104,10 +110,12 @@ function buildAdapter(model: StoredModel): PredictionAdapter {
   const mse = model.residual?.mse;
   const supportsCi = intervals.ci && Boolean(matrix && df);
   const supportsPi = supportsCi && intervals.pi;
-  /** Interval problems that are real defects rather than an absent quantity. */
-  const intervalIssues = intervals.ci
-    ? []
-    : intervals.reasons.filter((reason) => !['model.covariance.missing', 'model.df.missing', 'model.mse.missing'].includes(reason));
+  /**
+   * Interval remarks, from the shared basis rules — a missing covariance or df
+   * is the absence of a quantity (not repeated), a missing mse, a rank-deficient
+   * fit or an unusable covariance is stated, exactly as the Model Manager does.
+   */
+  const intervalIssues = intervalIssueList(model);
 
   const variable = (name: string): ModelVariable | undefined => byName.get(name);
 
@@ -173,54 +181,38 @@ function buildAdapter(model: StoredModel): PredictionAdapter {
     } catch (error) {
       return { value: null, se: null, ci: null, pi: null, nonEstimable: [], issues: [error instanceof Error ? error.message : 'model.predictFailed'] };
     }
-    const nonEstimable: string[] = [];
-    let fit = 0;
-    for (let index = 0; index < terms.length; index += 1) {
-      const weight = weights[index];
-      if (!Number.isFinite(weight) || weight === 0) continue;
-      const term = terms[index];
-      if (!term.estimable) {
-        if (!nonEstimable.includes(term.label)) nonEstimable.push(term.label);
-        continue;
-      }
-      fit += weight * term.value;
+    const summed = sumDesignRow(model, weights);
+    if (summed.value === null) {
+      return {
+        value: null,
+        se: null,
+        ci: null,
+        pi: null,
+        nonEstimable: summed.nonEstimable,
+        issues: summed.issues.length ? summed.issues : intervalIssues,
+      };
     }
-    if (nonEstimable.length) {
-      return { value: null, se: null, ci: null, pi: null, nonEstimable, issues: [] };
-    }
-    if (!Number.isFinite(fit)) {
-      return { value: null, se: null, ci: null, pi: null, nonEstimable: [], issues: ['model.value.nonFinite'] };
-    }
+    const fit = summed.value;
     let se: number | null = null;
     let ci: [number, number] | null = null;
     let pi: [number, number] | null = null;
     if (supportsCi && matrix && df) {
-      let variance = 0;
-      for (let i = 0; i < weights.length; i += 1) {
-        const wi = weights[i];
-        if (!Number.isFinite(wi) || wi === 0) continue;
-        const row = matrix[i];
-        if (!row) continue;
-        for (let j = 0; j < weights.length; j += 1) {
-          const entry = row[j];
-          if (!Number.isFinite(entry)) continue;
-          variance += wi * weights[j] * entry;
-        }
+      // The same positive-definiteness distinction as the Model Manager: an
+      // overflowing product is non-finite, not a negative variance.
+      const form = quadraticForm(matrix, weights);
+      if (!form.ok) {
+        return { value: null, se: null, ci: null, pi: null, nonEstimable: [], issues: [...intervalIssues, form.reason] };
       }
-      if (variance >= 0 && Number.isFinite(variance)) {
-        se = Math.sqrt(variance);
-        const half = tInv(1 - Math.min(0.999, Math.max(1e-6, alpha)) / 2, df);
-        const ciHalf = half * se;
-        if (Number.isFinite(ciHalf)) ci = [fit - ciHalf, fit + ciHalf];
-        if (supportsPi) {
-          const piHalf = half * Math.sqrt(variance + Math.max(0, mse as number));
-          if (Number.isFinite(piHalf)) pi = [fit - piHalf, fit + piHalf];
-        }
-      } else {
-        return { value: fit, se: null, ci: null, pi: null, nonEstimable: [], issues: ['model.covariance.negativeVariance'] };
+      se = Math.sqrt(form.value);
+      const half = tInv(1 - Math.min(0.999, Math.max(1e-6, alpha)) / 2, df);
+      const ciHalf = half * se;
+      if (Number.isFinite(ciHalf)) ci = [fit - ciHalf, fit + ciHalf];
+      if (supportsPi) {
+        const piHalf = half * Math.sqrt(form.value + Math.max(0, mse as number));
+        if (Number.isFinite(piHalf)) pi = [fit - piHalf, fit + piHalf];
       }
     }
-    return { value: fit, se, ci, pi, nonEstimable, issues: intervalIssues };
+    return { value: fit, se, ci, pi, nonEstimable: [], issues: intervalIssues };
   };
 
   return {
@@ -265,31 +257,78 @@ export function createPredictionAdapter(model: StoredModel): PredictionAdapter {
 /**
  * Compare the adapter with the Model Manager path at one point.
  *
- * This is the guard that keeps the two paths one engine: any term, coding,
- * contrast or interval difference shows up as a non-zero delta. A test asserts
- * zero (1e-12 relative) over random points; the QA harness does the same from
- * Python's side of the fence.
+ * This is the guard that keeps the two paths one engine. Its scope is what the
+ * two paths can disagree about, so a match here is a claim about all of it:
+ *
+ * · `value`, `se`, `ci` (half-width) and `pi` — the numbers themselves;
+ * · `issues` — how many issue codes one list has that the other does not, so a
+ *   path that refuses a point for a different reason is caught even when both
+ *   values are null;
+ * · `consistent` — the single answer, with a 1e-12 relative tolerance, and
+ *   `parallel` — the prediction interval both sides state, or null when either
+ *   is silent (a silent PI beside a stated one is a difference, not a match).
  */
 export interface CrossCheck {
   value: number | null;
   se: number | null;
   ciHalf: number | null;
   pi: [number, number] | null;
-  delta: { value: number; se: number; pi: number };
+  delta: { value: number; se: number; ci: number; pi: number; issues: number };
+  parallel: [number, number] | null;
+  consistent: boolean;
   issues: string[];
+}
+
+/** Absolute difference of two optional numbers; both absent counts as zero. */
+function numberDelta(a: number | null, b: number | null): number {
+  if (a === null || b === null) return a === b ? 0 : Number.POSITIVE_INFINITY;
+  const difference = Math.abs(a - b);
+  return Number.isFinite(difference) ? difference : Number.POSITIVE_INFINITY;
+}
+
+function intervalDelta(a: [number, number] | null, b: [number, number] | null): number {
+  if (a === null || b === null) return a === b ? 0 : Number.POSITIVE_INFINITY;
+  return Math.max(numberDelta(a[0], b[0]), numberDelta(a[1], b[1]));
+}
+
+/** How many issue codes one list has that the other does not. */
+function issueDelta(a: string[], b: string[]): number {
+  const left = new Set(a);
+  const right = new Set(b);
+  let count = 0;
+  left.forEach((code) => { if (!right.has(code)) count += 1; });
+  right.forEach((code) => { if (!left.has(code)) count += 1; });
+  return count;
 }
 
 export function crossCheck(model: StoredModel, point: ActualPoint, alpha = 0.05): CrossCheck {
   const adapter = createPredictionAdapter(model);
   const mine = adapter.evaluate(point, alpha);
   const shared: PredictionResult = predictStoredModel(model, point, { mode: 'actual', alpha });
-  const delta = {
-    value: mine.value === null || shared.value === null ? (mine.value === shared.value ? 0 : Number.POSITIVE_INFINITY) : Math.abs(mine.value - shared.value),
-    se: mine.se === null || shared.se === null ? (mine.se === shared.se ? 0 : Number.POSITIVE_INFINITY) : Math.abs(mine.se - shared.se),
-    pi: mine.pi === null || shared.pi === null
-      ? (mine.pi === shared.pi ? 0 : Number.POSITIVE_INFINITY)
-      : Math.max(Math.abs(mine.pi[0] - shared.pi[0]), Math.abs(mine.pi[1] - shared.pi[1])),
-  };
+  const scale = Math.max(1, Math.abs(mine.value ?? 0), Math.abs(shared.value ?? 0));
+  const tolerance = 1e-12 * scale;
   const ciHalf = mine.ci && mine.value !== null ? Math.abs((mine.ci[1] - mine.ci[0]) / 2) : null;
-  return { value: mine.value, se: mine.se, ciHalf, pi: mine.pi, delta, issues: mine.issues };
+  const delta = {
+    value: numberDelta(mine.value, shared.value),
+    se: numberDelta(mine.se, shared.se),
+    ci: 0,
+    pi: intervalDelta(mine.pi, shared.pi),
+    issues: issueDelta(mine.issues, shared.issues),
+  };
+  const consistent = delta.value <= tolerance
+    && delta.se <= tolerance
+    && delta.pi <= tolerance
+    && delta.issues === 0
+    && (mine.value === null) === (shared.value === null)
+    && (mine.pi === null) === (shared.pi === null);
+  return {
+    value: mine.value,
+    se: mine.se,
+    ciHalf,
+    pi: mine.pi,
+    delta,
+    parallel: mine.pi !== null && shared.pi !== null ? shared.pi : null,
+    consistent,
+    issues: mine.issues,
+  };
 }

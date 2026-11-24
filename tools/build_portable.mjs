@@ -19,14 +19,21 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildManifest, readCommit, releaseDirectory, resolveBuildDate } from './build_manifest.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'dist-portable');
 const RAW = path.join(OUT, '_raw');
 const HTML_NAME = 'sigrun-portable.html';
 const ZIP_NAME = 'sigrun-portable.zip';
-/* The release folder the task reports against, outside the repository. */
-const RELEASE_DIR = process.env.PORTABLE_RELEASE_DIR || '/workspace/work/pkpilot0018';
+const INFO_NAME = 'build-info.json';
+/* An optional copy for a release folder: asked for by name, never assumed. */
+const RELEASE_DIR = releaseDirectory(process.env, ROOT);
+const PACKAGE = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+/* One clock for the whole build, so the README, the manifest and the ZIP agree
+   and SOURCE_DATE_EPOCH makes two builds of one commit identical. */
+const BUILT_AT = resolveBuildDate(process.env, new Date());
+const ZIP_DATE = BUILT_AT.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 function step(text) {
   console.log(`── ${text}`);
@@ -40,7 +47,7 @@ function assert(condition, message) {
 }
 
 /* 1 ── bundle ------------------------------------------------------------ */
-step('1/5 vite build (portable config)');
+step('1/6 vite build (portable config)');
 const vite = path.join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
 assert(fs.existsSync(vite), 'vite is not installed (node_modules/vite is missing)');
 execFileSync(process.execPath, [vite, 'build', '--config', 'vite.portable.config.ts'], {
@@ -57,7 +64,7 @@ assert(fs.existsSync(rawJs), 'sigrun.js was not produced');
 assert(fs.existsSync(rawCss), 'sigrun.css was not produced');
 
 /* 2 ── inline ------------------------------------------------------------- */
-step('2/5 inline the bundle and the stylesheet');
+step('2/6 inline the bundle and the stylesheet');
 let html = fs.readFileSync(rawHtml, 'utf8');
 const js = fs.readFileSync(rawJs, 'utf8');
 const css = fs.readFileSync(rawCss, 'utf8');
@@ -82,7 +89,7 @@ assert(html.includes('</body>'), 'portable.html has no </body> to close');
 html = html.replace('</body>', () => `<script>\n${js}\n</script>\n  </body>`);
 
 /* 3 ── icon ---------------------------------------------------------------- */
-step('3/5 embed the icon');
+step('3/6 embed the icon');
 const svgPath = path.join(ROOT, 'public', 'favicon.svg');
 if (fs.existsSync(svgPath)) {
   const svg = fs.readFileSync(svgPath, 'utf8');
@@ -112,7 +119,7 @@ const sha = createHash('sha256').update(fs.readFileSync(htmlPath)).digest('hex')
 console.log(`   ${HTML_NAME}  ${(bytes / 1024).toFixed(1)} kB  sha256 ${sha.slice(0, 16)}…`);
 
 /* 4 ── release copies ------------------------------------------------------ */
-step('4/5 release copies');
+step('4/6 release copies');
 const readme = `Sigrún — Portable Build (HD2Lab)
 ================================
 
@@ -153,7 +160,8 @@ Notes
 
 Build information
 -----------------
-generated   ${new Date().toISOString()}
+version     ${PACKAGE.version}
+generated   ${BUILT_AT.toISOString()}
 size        ${bytes} bytes
 sha256      ${sha}
 
@@ -162,24 +170,50 @@ sha256      ${sha}
 const readmePath = path.join(OUT, 'README.txt');
 fs.writeFileSync(readmePath, readme, 'utf8');
 
-/* 5 ── zip ---------------------------------------------------------------- */
-step('5/5 zip');
+/* 5 ── manifest ----------------------------------------------------------- */
+step('5/6 build manifest');
+const info = buildManifest({
+  name: 'HD2Lab Sigrún',
+  version: PACKAGE.version,
+  phase: 'Phase 3',
+  commit: readCommit(ROOT),
+  builtAt: BUILT_AT,
+  zipTimestamp: ZIP_DATE,
+  file: HTML_NAME,
+  bytes,
+  sha256: sha,
+  jsBytes: Buffer.byteLength(js),
+  cssBytes: Buffer.byteLength(css),
+  format: 'iife/single-file',
+  tools: {
+    node: process.version,
+    vite: JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules', 'vite', 'package.json'), 'utf8')).version,
+  },
+});
+fs.writeFileSync(path.join(OUT, INFO_NAME), JSON.stringify(info, null, 2) + '\n', 'utf8');
+
+/* 6 ── zip ---------------------------------------------------------------- */
+step('6/6 zip');
 const zipPath = path.join(OUT, ZIP_NAME);
 execFileSync(
   'python3',
   [
     '-c',
     `import sys, zipfile, os
-src, out = sys.argv[1], sys.argv[2]
+src, out, stamp = sys.argv[1], sys.argv[2], sys.argv[3]
+year, month, day = (int(part) for part in stamp[:10].split('-'))
+hour, minute, second = (int(part) for part in stamp[11:19].split(':'))
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
-    for name, arc in ((os.path.join(src, '${HTML_NAME}'), 'sigrun-portable/${HTML_NAME}'),
-                      (os.path.join(src, 'README.txt'), 'sigrun-portable/README.txt')):
-        info = zipfile.ZipInfo(arc, (2026, 11, 24, 0, 0, 0))
-        info.compress_type = zipfile.ZIP_DEFLATED
-        z.writestr(info, open(name, 'rb').read())
+    for name in ('${HTML_NAME}', 'README.txt', '${INFO_NAME}'):
+        entry = zipfile.ZipInfo('sigrun-portable/' + name, (year, month, day, hour, minute, second))
+        entry.compress_type = zipfile.ZIP_DEFLATED
+        # A fixed attribute byte keeps the archive identical between runs.
+        entry.external_attr = 0o644 << 16
+        z.writestr(entry, open(os.path.join(src, name), 'rb').read())
 `,
     OUT,
     zipPath,
+    ZIP_DATE,
   ],
   { cwd: ROOT, stdio: 'inherit' },
 );
@@ -187,26 +221,17 @@ with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
 const zipBytes = fs.statSync(zipPath).size;
 const zipSha = createHash('sha256').update(fs.readFileSync(zipPath)).digest('hex');
 
-/* The report folder is outside the repository; keep a copy whose name the task
-   report can point at beside the live screenshots. */
-fs.mkdirSync(RELEASE_DIR, { recursive: true });
-const releaseZip = path.join(RELEASE_DIR, ZIP_NAME);
-fs.copyFileSync(zipPath, releaseZip);
+/* The manifest now knows what the archive weighs: write both again. */
+info.zip = { file: ZIP_NAME, bytes: zipBytes, sha256: zipSha };
+fs.writeFileSync(path.join(OUT, INFO_NAME), JSON.stringify(info, null, 2) + '\n', 'utf8');
 
-const info = {
-  builtAt: new Date().toISOString(),
-  file: HTML_NAME,
-  bytes,
-  sha256: sha,
-  zip: { file: ZIP_NAME, bytes: zipBytes, sha256: zipSha },
-  jsBytes: Buffer.byteLength(js),
-  cssBytes: Buffer.byteLength(css),
-  format: 'iife/single-file',
-  node: process.version,
-  vite: JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules', 'vite', 'package.json'), 'utf8')).version,
-};
-fs.writeFileSync(path.join(OUT, 'build-info.json'), JSON.stringify(info, null, 2) + '\n', 'utf8');
+if (RELEASE_DIR) {
+  fs.mkdirSync(RELEASE_DIR, { recursive: true });
+  const releaseZip = path.join(RELEASE_DIR, ZIP_NAME);
+  fs.copyFileSync(zipPath, releaseZip);
+  console.log(`   ${releaseZip}`);
+}
 
-console.log(`   ${ZIP_NAME}  ${(zipBytes / 1024).toFixed(1)} kB  sha256 ${zipSha.slice(0, 16)}…`);
-console.log(`   ${releaseZip}`);
+console.log(`   ${ZIP_NAME}  ${(zipBytes / 1024).toFixed(1)} kB  sha256 ${zipSha.slice(0, 16)}…  stamp ${ZIP_DATE}`);
+console.log(`   ${INFO_NAME}  version ${info.version}  commit ${info.commit}`);
 console.log('portable build complete');

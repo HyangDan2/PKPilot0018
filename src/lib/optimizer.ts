@@ -49,6 +49,8 @@ import {
   withinLimits,
 } from './desirability';
 import {
+  duplicateFactorNames,
+  duplicatePredictorNames,
   factorAxisSize,
   factorAxisValues,
   factorIssues,
@@ -56,8 +58,8 @@ import {
   levelIntersection,
   nearestStepValue,
   rangeIntersection,
+  relativeSlack,
   validateFactorValue,
-  DOMAIN_EPS,
 } from './factorDomain';
 import {
   DEFAULT_OPTIMIZER_SETTINGS,
@@ -235,6 +237,10 @@ export function buildProblem(
   const warnings: string[] = [];
   const byId = new Map(models.map((model) => [model.id, model]));
 
+  /* identifiers: a name used twice is not a domain, it is two of them */
+  const duplicatedFactors = duplicateFactorNames(factors);
+  if (duplicatedFactors.length) issues.push('opt.issue.factorDuplicate');
+
   /* responses */
   if (!responses.length) issues.push('opt.issue.noResponse');
   const seen = new Map<string, number>();
@@ -265,6 +271,12 @@ export function buildProblem(
 
   /* adapters */
   const adapters = chosen.map((entry) => createPredictionAdapter(entry.model));
+  // Two predictors with one name would resolve every coefficient label to the
+  // first of them, so the model is not one model: refuse it rather than search
+  // a column the reader cannot name.
+  if (adapters.some((adapter) => duplicatePredictorNames(adapter.model.predictors).length > 0)) {
+    issues.push('opt.issue.factorDuplicate');
+  }
   // A rank-deficient model cannot be optimised: probing it would report a value
   // wherever the unidentified columns happen to weigh zero and nothing
   // elsewhere, so the whole surface is an artefact of the solver.
@@ -312,12 +324,29 @@ export function buildProblem(
       const intersection = rangeIntersection(ranges);
       if (ranges.length && !intersection) issues.push('opt.issue.rangeIntersection');
       fitted = intersection ?? (ranges.length === 1 ? ranges[0] : null);
-      if (fitted && !factor.fixed) {
-        const outside = factor.lower < fitted[0] - DOMAIN_EPS * Math.max(1, Math.abs(fitted[0]))
-          || factor.upper > fitted[1] + DOMAIN_EPS * Math.max(1, Math.abs(fitted[1]));
+      if (fitted) {
         const allowed = factor.allowExtrapolation === true || allowExtrapolation;
-        if (outside && !allowed) issues.push('opt.issue.extrapolationNotAllowed');
-        if (outside && allowed && !warnings.includes('opt.warn.extrapolation')) warnings.push('opt.warn.extrapolation');
+        if (factor.fixed) {
+          // A fixed factor is not a free pass out of the fitted region: the
+          // model is being asked a question its data did not cover, whichever
+          // way the reader set the value.
+          const value = Number(factor.fixedValue);
+          // A value already outside the factor's own limits is refused as that
+          // (`opt.issue.fixedOutside`); the fitted-region check is for a value
+          // the limits allow but the models' data does not cover.
+          const withinLimits = Number.isFinite(value)
+            && value >= factor.lower - relativeSlack(factor.lower)
+            && value <= factor.upper + relativeSlack(factor.upper);
+          const outside = withinLimits
+            && (value < fitted[0] - relativeSlack(fitted[0]) || value > fitted[1] + relativeSlack(fitted[1]));
+          if (outside && !allowed) issues.push('opt.issue.fixedExtrapolation');
+          if (outside && allowed && !warnings.includes('opt.warn.extrapolation')) warnings.push('opt.warn.extrapolation');
+        } else {
+          const outside = factor.lower < fitted[0] - relativeSlack(fitted[0])
+            || factor.upper > fitted[1] + relativeSlack(fitted[1]);
+          if (outside && !allowed) issues.push('opt.issue.extrapolationNotAllowed');
+          if (outside && allowed && !warnings.includes('opt.warn.extrapolation')) warnings.push('opt.warn.extrapolation');
+        }
       }
     }
 
@@ -397,11 +426,11 @@ export function resolvePoint(factors: FactorSettings[], point: ActualPoint): Res
       // Snapping clamps the integer index into the domain, so the result is an
       // allowed value inside the range even when the input was outside it.
       const value = nearestStepValue(factor.lower, factor.upper, factor.step, clamped).value;
-      if (Math.abs(value - numeric) > DOMAIN_EPS * Math.max(1, Math.abs(numeric))) snapped.push(factor.name);
+      if (Math.abs(value - numeric) > relativeSlack(numeric)) snapped.push(factor.name);
       out[factor.name] = value;
       return;
     }
-    if (Math.abs(clamped - numeric) > DOMAIN_EPS * Math.max(1, Math.abs(numeric))) snapped.push(factor.name);
+    if (Math.abs(clamped - numeric) > relativeSlack(numeric)) snapped.push(factor.name);
     out[factor.name] = clamped;
   });
   return { point: out, issues, snapped };
@@ -469,7 +498,7 @@ export function scorePoint(
       const value = point[factor.name];
       if (typeof value !== 'number') return;
       const range = adapter.fittedRange(factor.name);
-      if (range && (value < range[0] - 1e-9 * Math.max(1, Math.abs(range[0])) || value > range[1] + 1e-9 * Math.max(1, Math.abs(range[1])))) extrapolated = true;
+      if (range && (value < range[0] - relativeSlack(range[0]) || value > range[1] + relativeSlack(range[1]))) extrapolated = true;
     });
   });
   const settingsOut: ActualPoint = {};
@@ -532,6 +561,8 @@ type StopReason = 'complete' | 'budget' | 'time' | 'cancel';
 
 interface SearchState {
   best: Scored | null;
+  /** Why the most recent candidate could not be evaluated (empty when it could). */
+  refusalIssues: string[];
   pool: Scored[];
   evaluations: number;
   iterations: number;
@@ -579,6 +610,11 @@ function* evaluateAt(
   }
   state.evaluations += 1;
   const scored = scorePoint(problem.adapters, problem.factors, problem.responses, point, { alpha: settings.alpha, origin });
+  if (!scored.usable) {
+    // Keep the reason beside the search: "no evaluable point" on its own does
+    // not tell a reader that the model refused a non-finite prediction.
+    state.refusalIssues = [...new Set(scored.solution.responses.flatMap((entry) => entry.issues))];
+  }
   if (scored.usable) {
     if (!state.best || better(scored, state.best)) state.best = scored;
     state.pool = keepPool(state.pool, scored, settings.topN);
@@ -660,15 +696,40 @@ function* walkLattice(
   yield* walk(0, {});
 }
 
-function stepVector(factors: CompiledFactor[], settings: OptimizerSettings): Record<string, number> {
+/**
+ * The first local-search step per free factor.
+ *
+ * A continuous factor starts at a quarter of its range (never below the
+ * tolerance). A discrete factor starts at a whole number of its declared steps:
+ * halving `span × tolerance` on its own would put the probes between lattice
+ * points, and a probe the domain then snaps is a probe the search did not make.
+ */
+export function localSteps(factors: (FactorSettings & { fixed: boolean })[], settings: { tolerance: number }): Record<string, number> {
   const steps: Record<string, number> = {};
   factors.forEach((factor) => {
     if (factor.fixed || factor.kind === 'categorical') return;
     const span = factor.upper - factor.lower;
-    const base = factor.kind === 'discrete' && factor.step > 0 ? factor.step : span / 4;
-    steps[factor.name] = Math.max(base, span * settings.tolerance);
+    if (factor.kind === 'discrete' && factor.step > 0) {
+      const target = Math.max(factor.step, span * settings.tolerance);
+      const multiple = Math.max(1, Math.round(target / factor.step));
+      steps[factor.name] = multiple * factor.step;
+      return;
+    }
+    steps[factor.name] = Math.max(span / 4, span * settings.tolerance);
   });
   return steps;
+}
+
+const stepVector = localSteps;
+
+/** Half of a local step, kept on the discrete lattice (0 when it cannot shrink). */
+function halveStep(factor: { kind: string; step: number }, step: number): number {
+  if (factor.kind === 'discrete' && factor.step > 0) {
+    const multiple = Math.max(1, Math.round(step / factor.step));
+    if (multiple <= 1) return 0;
+    return Math.max(1, Math.round(multiple / 2)) * factor.step;
+  }
+  return step / 2;
 }
 
 function* refine(
@@ -727,9 +788,11 @@ function* refine(
       let anyAbove = false;
       free.forEach((factor) => {
         const span = factor.upper - factor.lower;
-        const next = steps[factor.name] / 2;
+        const next = halveStep(factor, steps[factor.name]);
         steps[factor.name] = next;
-        if (next > span * settings.tolerance) anyAbove = true;
+        // A discrete step that reached one lattice step has nothing finer to
+        // search: that is convergence, not a reason to keep halving.
+        if (next > 0 && next > span * settings.tolerance) anyAbove = true;
       });
       improved = anyAbove;
       if (!anyAbove) converged = true;
@@ -876,6 +939,7 @@ function finish(
     basins: state.basins,
   };
   const warnings = [...problem.warnings];
+  const issues: string[] = best && best.usable ? [] : [...state.refusalIssues];
   let status: OptimizerStatus;
   if (!best || !best.usable) {
     status = 'invalid';
@@ -910,7 +974,7 @@ function finish(
     recommended: Boolean(best && best.usable && best.solution.compliantAll && status !== 'invalid'),
     search: report,
     warnings: [...new Set(warnings)],
-    issues: [],
+    issues,
     responseIssues: problem.responseIssues,
   };
 }
@@ -936,6 +1000,7 @@ export function optimize(
   const method = resolveMethod(problem, settings);
   const state: SearchState = {
     best: null,
+    refusalIssues: [],
     pool: [],
     evaluations: 0,
     iterations: 0,
@@ -976,6 +1041,7 @@ export async function optimizeAsync(
   const method = resolveMethod(problem, settings);
   const state: SearchState = {
     best: null,
+    refusalIssues: [],
     pool: [],
     evaluations: 0,
     iterations: 0,

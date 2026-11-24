@@ -1,23 +1,17 @@
 /* Stage 3E — live screenshots from GitHub Pages (not a test, just pictures). */
 const path = require('path');
 const fs = require('fs');
-let chromium;
-for (const candidate of ['/workspace/pkpilot0014/node_modules/playwright', 'playwright']) {
-  try { chromium = require(candidate).chromium; break; } catch { /* next */ }
-}
-if (!chromium) throw new Error('playwright missing');
+const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');
 
 const BASE = process.env.BASE || 'https://hyangdan2.github.io/PKPilot0018/';
-const OUT = process.env.OUT || '/workspace/work/pkpilot0018';
-const SHELL = '/workspace/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell';
-const LIBS = '/workspace/work/chrome-libs/usr/lib/x86_64-linux-gnu:/workspace/work/chrome-libs/lib/x86_64-linux-gnu';
+const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {
   const browser = await chromium.launch({
     headless: true,
-    executablePath: SHELL,
-    env: { ...process.env, LD_LIBRARY_PATH: LIBS },
+    executablePath: CHROME,
+    env: browserEnv,
     args: ['--single-process', '--no-zygote', '--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   });
   try {

@@ -62,6 +62,9 @@
 
 ## 4. 검증 결과 (Stage 3E 시점, `main` = `e43d46f` + Stage 3E 브랜치)
 
+> **Stage 3E 교정 리뷰(F-01 … F-15) 반영 후 수치는 [docs/PHASE3_3E_CORRECTIVE_QA.md](PHASE3_3E_CORRECTIVE_QA.md) §1이 최신이다.**
+> 아래 표는 교정 이전(기준선 `924721b`)의 기록이며, 이후 `npm test` 1 049건 · 빌드 산출물 해시가 바뀌었다.
+
 | 항목 | 결과 |
 | --- | --- |
 | `npx tsc --noEmit` | **0 errors** |
