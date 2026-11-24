@@ -53,12 +53,18 @@ interface Props {
   }) => void;
 }
 
+/** A stored number as a person reads it: 160.10000000000002 → 160.1. */
+function displayNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '';
+  return String(Number(value.toPrecision(8)));
+}
+
 function numberInput(value: number | null, onChange: (next: number | null) => void, extra: { testid?: string; placeholder?: string } = {}) {
   return (
     <input
       className="text-input num-input"
       inputMode="decimal"
-      value={value === null ? '' : String(value)}
+      value={displayNumber(value)}
       placeholder={extra.placeholder ?? ''}
       data-testid={extra.testid}
       onChange={(event) => {

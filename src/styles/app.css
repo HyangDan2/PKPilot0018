@@ -1994,6 +1994,7 @@ kbd {
 .prof-axis { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-secondary); }
 .prof-answer { display: flex; flex-direction: column; gap: 3px; justify-content: center; }
 .prof-answer-value { font-family: var(--mono); font-size: 13px; font-weight: 650; }
+.prof-answer .mono-note { white-space: nowrap; }
 .prof-desirability { display: flex; justify-content: space-between; gap: 6px; font-size: 10px; color: var(--text-secondary); }
 .prof-desirability b { font-family: var(--mono); font-size: 11px; color: var(--text); }
 .prof-empty { font-size: 9.5px; color: var(--text-secondary); opacity: 0.7; padding: 18px 0; text-align: center; }
