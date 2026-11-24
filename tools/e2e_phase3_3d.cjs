@@ -575,6 +575,7 @@ async function axisMin(card) {
     if (local) local.server.close();
   }
 
+  if (local) local.server.close();
   fs.writeFileSync(path.join(OUT, 'phase3-3d-report.json'), JSON.stringify({ base: ACTIVE_BASE, checks: results }, null, 1));
   const failed = results.filter((result) => !result.ok).length;
   console.log(`\n${results.length - failed}/${results.length} checks passed`);

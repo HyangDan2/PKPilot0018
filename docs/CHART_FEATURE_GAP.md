@@ -1,4 +1,4 @@
-# Sigrún ↔ Minitab · OriginLab 차트 기능 격차 감사 (Phase 1 → Stage 3D)
+# Sigrún ↔ Minitab · OriginLab 차트 기능 격차 감사 (Phase 1 → Stage 3E)
 
 > **대상**: `HD2Lab Sigrún` — 브라우저에서만 도는 통계·품질 워크스페이스 (`repos/PKPilot0018`)
 > **기준 커밋**: `ee1dafe` 위 Phase 1 차트 엔진 작업 (`src/lib/chartConfig.ts`, `chartStyles.ts`, `contour.ts`, `charts.ts`, `doe.ts`, `stats.ts`)
@@ -6,6 +6,21 @@
 > **감사 방법**: 각 대화상자 항목을 실제 심볼과 1:1로 대조하고, 공식 도움말 링크를 행마다 붙였다. 모든 `SUPPORTED` 행은 `tests/chart-config.test.ts`, `tests/contour-geometry.test.ts`, `tests/rsm-model.test.ts`, `tests/regression-bands.test.ts` 와 Stage 3D의 `tests/axis-advanced.test.ts`, `tests/contour-styles.test.ts`, `tests/error-bars.test.ts`, `tests/graph-layout.test.ts` 중 하나 이상이 검증한다. 인용한 심볼이 `src/`에 실제로 있는지는 `tests/gap-doc.test.ts`가 매 실행마다 확인한다.
 > **분류**: `SUPPORTED` 구현·검증됨 / `PARTIAL` 일부만 / `MISSING` 없음 / `DIFFERENT` 다른 방식 / `UNKNOWN` 미확인
 > **공수**: S 0.5일 이하 · M 1–2일 · L 3일 이상
+
+## 검증 스냅샷 (2026-11-24, Stage 3E — 릴리스 자격 확인)
+
+| 항목 | 결과 |
+| --- | --- |
+| `npx tsc --noEmit` | 0 errors |
+| `npm test` | **1 001 / 1 001 PASS** (44 파일) |
+| `npm run qa:stats` | **225 / 225 PASS** · FAIL 0 · REVIEW 0 · UNVERIFIED 0 · ERROR 0 |
+| `npm run build` | 성공 — `dist/assets/index-I4-C1lpF.js` 1 196 430 B (라이브와 바이트 동일) |
+| `npm run build:portable` | 성공 — 단일 HTML 1 265 202 B · ZIP 367 915 B |
+| Portable `file://` 오프라인 | `tools/e2e_portable_offline.cjs` **63 / 63 PASS**, 네트워크 시도 0건 |
+| Phase 1/2/3 브라우저 회귀 | `tools/run_e2e_suite.cjs` — stage1 77 · stage2 37 · stage3 176 · ui_compact 63 · followup(svg 39) · chart_axes 6 · chart_upgrade 34 · 3A 29 · 3B 41 · 3B교정 13 · 3C 24 · 3D 49 = **549 PASS / 0 FAIL** |
+| 라이브 스모크 | 3D **49 / 49**, 3C **24 / 24** (`BASE=https://hyangdan2.github.io/PKPilot0018/ SERVE=0`) |
+| 감사 집계 | **Stage 3E는 차트 옵션을 새로 추가하지 않았다**(릴리스 자격 확인 단계). §1 요약·§2~9 표의 분류는 Stage 3D 그대로이며 `tests/gap-doc.test.ts` 6건이 유지된다 |
+| 총괄 | `docs/PHASE3_UPGRADE_REPORT.md` (성능·한계·배포 정보) |
 
 ## 검증 스냅샷 (2026-11-24, Stage 3D)
 

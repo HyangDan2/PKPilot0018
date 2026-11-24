@@ -7,12 +7,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:portable": "node tools/build_portable.mjs",
     "preview": "vite preview --port 4178 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "qa:stats": "bash qa/run.sh",
-    "qa:cases": "python3 qa/build_cases.py"
+    "qa:cases": "python3 qa/build_cases.py",
+    "qa:perf": "node tools/perf_qa_3e.cjs",
+    "qa:portable": "node tools/e2e_portable_offline.cjs"
   },
   "dependencies": {
     "react": "^19.0.0",

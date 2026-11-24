@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Sigrún — HD2Lab Statistical Workspace (Portable)</title>
+    <meta
+      name="description"
+      content="Sigrún portable build: the whole statistical workspace in one HTML file, computed locally with no network and no install."
+    />
+    <meta name="author" content="HD2Lab" />
+    <meta name="theme-color" content="#FAFAFD" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        var saved = JSON.parse(localStorage.getItem('sigrun.settings.v1') || 'null');
+        if (saved && saved.theme) document.documentElement.dataset.theme = saved.theme;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Sigrún needs JavaScript to run its statistical engine in your browser.</noscript>
+    <!-- Kept at the end of <body>: the portable build turns this into a classic
+         script, and a classic script in <head> would run before #root exists. -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

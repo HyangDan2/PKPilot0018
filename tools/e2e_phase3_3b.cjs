@@ -182,6 +182,12 @@ async function writeAutosave(page, state) {
   }), state);
 }
 
+/** Which block to run. SECTION unset (or 'all') runs every block, which is
+ *  what CI-style runs do; the sandbox's single-process browser needs one
+ *  Chromium launch per shell call, so the Stage 3E run splits them. */
+const ONLY = process.env.SECTION || 'all';
+const pick = (letter) => ONLY === 'all' || ONLY === letter;
+
 (async () => {
   let local = null;
   if (SERVE) {
@@ -189,7 +195,7 @@ async function writeAutosave(page, state) {
     ACTIVE_BASE = `http://127.0.0.1:${local.port}/PKPilot0018/`;
   }
 
-  /* ── A. WebGL context: the interactive surface ─────────────────────── */
+  if (pick('A')) /* ── A. WebGL context: the interactive surface ─────────────────────── */
   {
     const browser = await chromium.launch(launchArgs('webgl'));
     try {
@@ -297,7 +303,7 @@ async function writeAutosave(page, state) {
     }
   }
 
-  /* ── B. No WebGL: the automatic static projection ──────────────────── */
+  if (pick('B')) /* ── B. No WebGL: the automatic static projection ──────────────────── */
   {
     const browser = await chromium.launch(launchArgs('fallback'));
     try {
@@ -324,7 +330,7 @@ async function writeAutosave(page, state) {
     }
   }
 
-  /* ── C. Overlaid contour from two stored models ────────────────────── */
+  if (pick('C')) /* ── C. Overlaid contour from two stored models ────────────────────── */
   {
     const browser = await chromium.launch(launchArgs('fallback'));
     try {
@@ -402,7 +408,7 @@ async function writeAutosave(page, state) {
     }
   }
 
-  /* ── D. A model without covariance disables the interval bases ─────── */
+  if (pick('D')) /* ── D. A model without covariance disables the interval bases ─────── */
   {
     const browser = await chromium.launch(launchArgs('fallback'));
     try {
@@ -446,7 +452,7 @@ async function writeAutosave(page, state) {
     }
   }
 
-  /* ── E. Mobile layout: the 3D view fits a 390 px screen ───────────── */
+  if (pick('E')) /* ── E. Mobile layout: the 3D view fits a 390 px screen ───────────── */
   {
     const browser = await chromium.launch(launchArgs('fallback'));
     try {
@@ -468,5 +474,8 @@ async function writeAutosave(page, state) {
 
   const failed = results.filter((entry) => !entry.ok);
   console.log(`\n${results.length - failed.length} / ${results.length} PASS`);
-  fs.writeFileSync(path.join(OUT, 'phase3-3b-report.json'), JSON.stringify({ base: ACTIVE_BASE, results }, null, 1));
+  /* The in-process server would otherwise keep the event loop alive and make
+     a finished run look like a hang to whatever started it. */
+  if (local) local.server.close();
+  fs.writeFileSync(path.join(OUT, ONLY === 'all' ? 'phase3-3b-report.json' : `phase3-3b-report-${ONLY}.json`), JSON.stringify({ base: ACTIVE_BASE, section: ONLY, results }, null, 1));
 })();
