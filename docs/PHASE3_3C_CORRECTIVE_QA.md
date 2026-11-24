@@ -15,7 +15,8 @@
 | Stage 3A E2E (`tools/e2e_phase3_3a.cjs`) | **29 / 29 PASS** |
 | Stage 3B E2E (`tools/e2e_phase3_3b.cjs`) | **41 / 41 PASS** |
 | Stage 3B 교정 E2E (`tools/e2e_phase3_3b_corrective.cjs`) | **13 / 13 PASS** |
-| Stage 3C E2E (`tools/e2e_phase3_3c.cjs`) | **24 / 24 PASS** |
+| Stage 3C E2E (`tools/e2e_phase3_3c.cjs`, 로컬 dist) | **24 / 24 PASS** |
+| Stage 3C E2E (라이브 GitHub Pages) | **24 / 24 PASS** — `BASE=https://hyangdan2.github.io/PKPilot0018/ SERVE=0` |
 | Stage 3D E2E (`tools/e2e_phase3_3d.cjs`) | **49 / 49 PASS** |
 | 성능 QA (`tools/bench_optimizer.ts`, `tests/perf-optimizer.test.ts`) | 8절 |
 
@@ -210,10 +211,26 @@ BASE=https://hyangdan2.github.io/PKPilot0018/ SERVE=0 node tools/e2e_phase3_3c.c
 
 `qa/_run/*`, `qa/adapters/sigrun/.build/*`는 실행 산출물이며 커밋하지 않는다(보고서 `qa/reports/latest.*`만 커밋).
 
-## 9. 남은 확인
+## 9. 머지·CI·라이브 스모크
 
-- 라이브 GitHub Pages 스모크은 이 PR 머지 후 `Deploy Sigrún to GitHub Pages` 워크플로 success 뒤에 수행한다(결과는 후속 커밋으로 이 문서에 기록).
-- 브리프가 요구한 항목 중 실기기(모바일) 수동 확인은 Stage 3C 범위에서 390 px 뷰포트 E2E(3A·3B·3D)로 대체했다.
+| 항목 | 결과 |
+| --- | --- |
+| PR | **#23** — `fix/phase3c-corrective-qa` → `main` 스쿼시 머지 |
+| PR CI | `Statistics QA (independent reference)` **success** (1 m 1 s, run `45368710813`) |
+| main CI | `Statistics QA` **success** · `Deploy Sigrún to GitHub Pages` **success** (run `45368985279` · `45368985418`) |
+| 라이브 스모크 | `https://hyangdan2.github.io/PKPilot0018/` 에서 Stage 3C E2E **24 / 24 PASS** (최적화 상태 배지 `local-converged`, 종합 만족도 1.0000, 대안 5개, 프로파일러 곡선·구간·최적화·저장, 등고선 회귀, 페이지 오류 0) |
+| 원격 브랜치 | 머지 후 삭제를 시도했으나 이 환경의 자격증명 정책(HTTP 403)으로 원격 브랜치 `fix/phase3c-corrective-qa`가 남아 있다 — 저장소 소유자가 직접 삭제하면 된다 |
+
+브리프가 요구한 항목 중 실기기(모바일) 수동 확인은 Stage 3C 범위에서 390 px 뷰포트 E2E(Stage 3A·3B·3D)로 대체했다.
+
+## 10. 최종 커밋
+
+| 항목 | 값 |
+| --- | --- |
+| 최종 커밋 SHA (main) | `816f34c280ed129e609f615f6144ba7961abb1be` |
+| PR | #23 |
+| 기준 커밋 | `c827471be2` |
+| rebase 기준 | `origin/main` `afe696f` (Phase 3B `fca4e6f` + Stage 3D `22d0e30`·#20·#21 포함) |
 
 ## 10. 최종 커밋
 
