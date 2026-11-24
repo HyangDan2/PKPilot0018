@@ -56,7 +56,9 @@ export interface SurfaceDrawInput {
 export function renderSurfacePicture(input: SurfaceDrawInput): string {
   const { chart, config, style, width, height } = input;
   const extent = surfaceExtent({ xs: chart.xs, ys: chart.ys, z: chart.z });
-  const barReserve = config.colorbar ? 64 : 0;
+  // Same rule as the interactive view: a narrow frame reserves a column, a
+  // wide one keeps the box centred and sets the bar beside it.
+  const barReserve = config.colorbar && width < 640 ? 64 : 0;
   const paintWidth = width - barReserve;
   const finite = chart.z.reduce((count, row) => count + row.reduce((sum, value) => (Number.isFinite(value) ? sum + 1 : sum), 0), 0);
   const body = finite === 0 ? '' : surfaceSvgBody({
@@ -78,7 +80,8 @@ export function renderSurfacePicture(input: SurfaceDrawInput): string {
     out = `<text x="${paintWidth / 2}" y="${height / 2}" text-anchor="middle" font-family="${style.mono}" font-size="9.5" fill="${style.label}">No finite surface to draw</text>`;
   }
   if (config.colorbar) {
-    out += surfaceColorbarSvg(config, style, paintWidth + 22, height * 0.12, height * 0.62, extent.zMin, extent.zMax, input.zLabel ?? chart.zLabel ?? '', config.colormap);
+    const barX = Math.min(paintWidth - 46, paintWidth / 2 + 250);
+    out += surfaceColorbarSvg(config, style, barX, height * 0.14, height * 0.6, extent.zMin, extent.zMax, input.zLabel ?? chart.zLabel ?? '', config.colormap);
   }
   if (input.notice) {
     const textWidth = 8 + input.notice.length * 4.4;

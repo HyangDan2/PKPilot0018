@@ -356,9 +356,7 @@ async function writeAutosave(page, state) {
       check('the overlaid plot draws per-response regions', (svg.match(/overlay-region/g) || []).length >= 2);
       check('the feasible area ratio is printed on the plot', svg.includes('feasible-ratio'));
       check('the grid approximation note is printed', svg.includes('overlaid-grid-note'));
-      await focusResults(page);
-      await card.screenshot({ path: path.join(OUT, 'phase3-3b-overlaid.png') });
-      await page.screenshot({ path: path.join(OUT, 'phase3-3b-overlaid-full.png') });
+
 
       /* the drawer edits a response specification and the region narrows */
       await openDrawer(page);
@@ -370,6 +368,8 @@ async function writeAutosave(page, state) {
       // leaves a real feasible window instead of an empty one.
       await page.fill('input[aria-label="Yield (%) LSL"]', '78');
       await page.fill('input[aria-label="Yield (%) USL"]', '82');
+      await page.fill('input[aria-label="Speed (rpm) LSL"]', '48');
+      await page.fill('input[aria-label="Speed (rpm) USL"]', '55');
       await page.waitForTimeout(500);
       const basisOptions = await page.locator('[data-testid=cd-feasible-basis] option').count();
       check('the interval bases are offered when every model carries a covariance', basisOptions === 3, String(basisOptions));
@@ -377,6 +377,11 @@ async function writeAutosave(page, state) {
       await page.waitForTimeout(1200);
       const ratioAfter = await page.locator('[data-testid=out-card]').last().locator('[data-chart-role=feasible-ratio]').first().textContent();
       check('a specification edit recomputes the feasible region', Boolean(ratioBefore) && Boolean(ratioAfter) && ratioBefore !== ratioAfter, `${ratioBefore} → ${ratioAfter}`);
+      // The deliverable screenshot shows the judged state: both spec windows
+      // set, limit lines drawn, the joint region bounded.
+      await focusResults(page);
+      await card.screenshot({ path: path.join(OUT, 'phase3-3b-overlaid.png') });
+      await page.screenshot({ path: path.join(OUT, 'phase3-3b-overlaid-full.png') });
       const appliedSvg = await page.locator('[data-testid=out-card]').last().locator('.chart-canvas svg').first().innerHTML();
       check('the applied spec lines reach the plot', appliedSvg.includes('spec-line'));
       /* the confidence basis narrows the same region */

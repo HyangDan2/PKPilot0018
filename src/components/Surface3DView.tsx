@@ -129,8 +129,11 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
   }), [resolved]);
 
   const extent = useMemo(() => surfaceExtent({ xs: chart.xs, ys: chart.ys, z: chart.z }), [chart.xs, chart.ys, chart.z]);
-  const barWidth = view.colorbar ? 60 : 0;
+  // A narrow card cannot spare a column for the colourbar; a wide one can keep
+  // the box centred and put the bar beside it instead of at the far edge.
+  const barWidth = view.colorbar && width < 640 ? 60 : 0;
   const paintWidth = Math.max(180, width - barWidth);
+  const barX = Math.min(paintWidth - 46, paintWidth / 2 + 250);
   const paintHeight = Math.max(150, height - 6);
 
   /* ── WebGL setup ─────────────────────────────────────────────────────── */
@@ -273,7 +276,7 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
   }, [renderer, view, style, paintWidth, paintHeight, chart]);
 
   const colorbar = useMemo(() => (renderer === 'webgl' && view.colorbar
-    ? surfaceColorbarSvg(view, style, paintWidth + 20, paintHeight * 0.12, paintHeight * 0.62, extent.zMin, extent.zMax, chart.zLabel ?? '', view.colormap)
+    ? surfaceColorbarSvg(view, style, barX, paintHeight * 0.14, paintHeight * 0.6, extent.zMin, extent.zMax, chart.zLabel ?? '', view.colormap)
     : ''), [view, style, paintWidth, paintHeight, extent, chart.zLabel, renderer]);
 
   /* ── interaction ─────────────────────────────────────────────────────── */
@@ -380,7 +383,7 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
       data-azimuth={view.camera.azimuth.toFixed(1)}
       data-elevation={view.camera.elevation.toFixed(1)}
       data-zoom={view.camera.zoom.toFixed(3)}
-      style={{ width: '100%', position: 'relative' }}
+      style={{ width: paintWidth, marginInline: 'auto', position: 'relative' }}
     >
       <div
         ref={stageRef}
