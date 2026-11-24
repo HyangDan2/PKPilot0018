@@ -1,5 +1,7 @@
 # Sigrún Phase 3 — Stage 3C 보고서 (3D Surface 수정 · 다중 반응 최적화 · 예측 프로파일러)
 
+> **현행화 안내(2026-11-24)**: 이 문서는 최초 Stage 3C 납품 기록이다. 이후 교정 QA에서 최적화 상태 어휘가 5종(`optimal`·`best-found`·`no-feasible`·`invalid`·`limit`)에서 7종(`global-optimal`·`local-converged`·`best-found`·`limit`·`feasible-not-found`·`infeasible`·`invalid`)으로 바뀌었고, 예측 구간(PI)은 잔차분산이 있을 때만 제공되며, 이산 인자는 `Lower + k × Step`만 허용한다. 최신 동작과 수치는 [PHASE3_3C_CORRECTIVE_QA.md](PHASE3_3C_CORRECTIVE_QA.md)를 따른다.
+
 > **저장소**: `HyangDan2/PKPilot0018` · 브랜치 `feat/chart-engine-phase3-3c` → PR #15 (스쿼시 머지) · 후속 `fix/optimizer-input-display` → PR #16
 > **배포**: GitHub Pages (`https://hyangdan2.github.io/PKPilot0018/`) — Deploy 워크플로 success
 > **일자**: 2026-11-24
