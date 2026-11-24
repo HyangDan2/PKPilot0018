@@ -17,7 +17,7 @@
 | `npm run build` | 성공 (201 modules, gzip JS 262.55 kB, 외부 CDN 없음) |
 | 콘투어 벤치마크 | 41: 4.7–8.5 ms · **101: 19.7–30.2 ms** · 201: 33.9–50.7 ms · 401: 92.7–100.9 ms (5회 중앙값, 560×300, filled-lines 10밴드) / 출력 57,935 · 135,063 · 263,130 · 519,965 B |
 | 브라우저 실측 (E2E) | 41: 521 ms · 101: 482 ms · 201: 555 ms · **401: 702 ms** (드로어에서 해상도 전환 후 SVG 재생성, Playwright 4190 포트) |
-| Phase 2 E2E | `tools/e2e_chart_upgrade.cjs` **35 / 35 PASS** (데스크톱 1440×900 + 모바일 390×844) |
+| Phase 2 E2E | `tools/e2e_chart_upgrade.cjs` **36 / 36 PASS** (데스크톱 1440×900 + 모바일 390×844, 기준선 빌드 없이 34) |
 | 기존 E2E 회귀 | `e2e_chart_axes.cjs` 6/6 · `e2e_stage3.cjs` 176/176 PASS |
 
 벤치마크 재현: `PATH="/workspace/node/bin:$PATH" node_modules/.bin/vite-node tools/contour_benchmark.ts` (560×300 SVG, filled-lines 10밴드, 1회 워밍업 + 5회 중앙값).
@@ -242,6 +242,6 @@ Phase 2는 엔진 심볼을 UI에 연결하고, 내보내기와 검증을 마쳤
 | 확대·전체화면 뷰어 | `ChartViewer` | E2E `chart_zoom.png` |
 | SVG/PNG 내보내기(DPI·물리 크기·배경·제목/범례) | `chartSvgDocument()`, `svgToPngWithConfig()` | `tests/chart-export.test.ts` 9건, E2E 1890×1181 / 3780×2362 |
 | 스타일 복사/붙여넣기·전체 적용 | `packChartStyle()`, `applyStylePack()` | `tests/chart-drawer.test.ts` |
-| 재실행 시 차트 설정 보존 | `chartConfigMemory` (`App.tsx`) | 수동 검증(카드별 kind/index 매칭) |
+| 재실행 시 차트 설정 보존 | `chartConfigMemory` (`App.tsx`) | E2E `a re-run keeps the chart style` (Dark 프리셋이 재실행 카드에 유지) |
 
 **남은 항목**: 3D Surface/Wireframe(§5), 축 분리, 다중 응답 오버레이, 수준별 개별 색·라벨, 주석·도형, 자유 레이아웃은 Phase 3 이후다. 드로어는 이들 자리를 비워 두지 않고, 해당 차트 종류에서만 관련 탭을 노출한다.

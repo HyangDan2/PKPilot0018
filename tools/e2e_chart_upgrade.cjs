@@ -243,6 +243,15 @@ async function clippedTexts(page) {
     check('the dark preset is applied to the chart', styled === 'dark', String(styled));
     await shotElement(page, page.locator('[data-testid=out-card] .chart-card').last(), 'style_presets_applied.png');
 
+    // A re-run keeps the chart configuration the card already has.
+    await page.click('[data-testid=card-rerun]');
+    await page.waitForSelector('[data-testid=analysis-dialog]');
+    await page.click('[data-testid=dialog-ok]');
+    await page.waitForSelector('[data-testid=analysis-dialog]', { state: 'detached', timeout: 20000 });
+    await page.waitForTimeout(700);
+    const rerunStyle = await page.locator('[data-testid=chart-frame]').last().locator('svg.chart-svg').getAttribute('data-chart-style');
+    check('a re-run keeps the chart style the card was given', rerunStyle === 'dark', String(rerunStyle));
+
     // Restore the professional default for the boxplot summary shot.
     await frame(page, 0).hover();
     await frame(page, 0).locator('[data-testid=chart-edit]').click();

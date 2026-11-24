@@ -151,7 +151,7 @@ Remaining gaps are listed in the same document and in section 9 below.
 | `npm test` | 661 / 661 PASS |
 | `npm run qa:stats` | 156 / 156 PASS, 0 FAIL |
 | `npm run build` | clean offline build, 201 modules, no CDN |
-| Phase 2 E2E `tools/e2e_chart_upgrade.cjs` | 35 / 35 PASS on desktop 1440 × 900 and mobile 390 × 844 |
+| Phase 2 E2E `tools/e2e_chart_upgrade.cjs` | 36 / 36 PASS on desktop 1440 × 900 and mobile 390 × 844 (34 checks when the optional `ee1dafe` baseline build is not served) |
 | Regression E2E `tools/e2e_chart_axes.cjs` | 6 / 6 PASS |
 | Regression E2E `tools/e2e_stage3.cjs` | 176 / 176 PASS |
 
@@ -194,7 +194,7 @@ Known limits recorded during verification:
 | Branch | `main` (Phase 2 merged from `feat/chart-engine-phase1`) |
 | Workflows | `Deploy` and `qa-stats` — both `completed / success` on the merge commit |
 | Phase 2 merge commit | `9a00f7f` |
-| Live smoke | 33 / 33 checks against the published site (desktop and mobile) |
+| Live smoke | 34 / 34 checks against the published site (desktop and mobile) |
 
 Verification commands:
 
