@@ -5,7 +5,7 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { Column, ColType, ProjectFile, Settings, OutputDoc, StoredModelFileEntry, Worksheet } from '../types';
-import type { CustomChartStyle } from './chartStyles';
+import { CHART_STYLE_IDS, type CustomChartStyle } from './chartStyles';
 import { parseStoredModels, type StoredModel } from './modelStore';
 
 import { basisAvailability } from './feasible';
@@ -155,15 +155,124 @@ function worksheetProblem(value: unknown): string | null {
   return null;
 }
 
-/** Why one stored model cannot be restored (null when it can). */
+const isPlainObject = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/** A model variable's own schema: a name, a kind, and a usable coding. */
+function variableProblem(value: unknown, code: string): boolean {
+  if (!isPlainObject(value)) return true;
+  if (typeof value.name !== 'string' || !value.name.trim()) return true;
+  if (value.kind !== 'numeric' && value.kind !== 'categorical') return true;
+  if (value.coding !== undefined && value.coding !== null) {
+    if (!isPlainObject(value.coding)) return true;
+    const coding = value.coding;
+    if (coding.mode !== 'coded' && coding.mode !== 'actual') return true;
+    if (!Number.isFinite(coding.center) || !Number.isFinite(coding.halfRange)) return true;
+  }
+  if (value.kind === 'categorical' && value.levels !== undefined) {
+    if (!Array.isArray(value.levels) || value.levels.some((level) => typeof level !== 'string')) return true;
+  }
+  void code;
+  return false;
+}
+
+/**
+ * Why one stored model cannot be restored (null when it can).
+ *
+ * The record is checked down to its own schema — variables, coefficients and
+ * the covariance shape — because a tolerant reader that dropped a damaged
+ * coefficient (or a whole model) would change what the model predicts without
+ * saying so, and the reader would be using a different model than the file
+ * states.
+ */
 function modelProblem(value: unknown): string | null {
-  const entry = value as Record<string, unknown> | null;
-  if (!entry || typeof entry !== 'object') return 'model';
-  if (entry.format !== 'sigrun-model') return 'model.format';
-  if (typeof entry.id !== 'string' || !entry.id) return 'model.id';
-  if (!Array.isArray(entry.predictors)) return 'model.predictors';
-  if (!Array.isArray(entry.coefficients)) return 'model.coefficients';
-  if (!entry.response || typeof entry.response !== 'object') return 'model.response';
+  if (!isPlainObject(value)) return 'model';
+  if (value.format !== 'sigrun-model') return 'model.format';
+  if (value.version !== 1) return 'model.version';
+  if (typeof value.id !== 'string' || !value.id) return 'model.id';
+  if (typeof value.name !== 'string') return 'model.name';
+  if (variableProblem(value.response, 'model.response')) return 'model.response';
+  if (!Array.isArray(value.predictors) || value.predictors.length === 0) return 'model.predictors';
+  if (value.predictors.some((predictor) => variableProblem(predictor, 'model.predictor'))) return 'model.predictor';
+  const names = new Set<string>();
+  for (const predictor of value.predictors as { name: string; id?: string }[]) {
+    const key = predictor.name.trim();
+    if (names.has(key)) return 'model.predictorDuplicate';
+    names.add(key);
+  }
+  if (!Array.isArray(value.coefficients) || value.coefficients.length === 0) return 'model.coefficients';
+  const labels = new Set<string>();
+  for (const coefficient of value.coefficients as unknown[]) {
+    if (!isPlainObject(coefficient)) return 'model.coefficient';
+    if (typeof coefficient.label !== 'string' || !coefficient.label) return 'model.coefficient.label';
+    if (typeof coefficient.value !== 'number' || !Number.isFinite(coefficient.value)) return 'model.coefficient.value';
+    if (typeof coefficient.estimable !== 'boolean') return 'model.coefficient.estimable';
+    if (labels.has(coefficient.label)) return 'model.coefficient.label';
+    labels.add(coefficient.label);
+  }
+  const size = (value.coefficients as unknown[]).length;
+  if (value.covariance !== undefined && value.covariance !== null) {
+    if (!Array.isArray(value.covariance) || value.covariance.length !== size) return 'model.covariance';
+    for (const row of value.covariance as unknown[]) {
+      if (!Array.isArray(row) || row.length !== size) return 'model.covariance';
+      if (row.some((entry) => typeof entry !== 'number' || !Number.isFinite(entry))) return 'model.covariance';
+    }
+  }
+  if (value.residual !== undefined && value.residual !== null) {
+    if (!isPlainObject(value.residual)) return 'model.residual';
+    const df = value.residual.df;
+    if (df !== undefined && (typeof df !== 'number' || !Number.isFinite(df))) return 'model.residual';
+  }
+  if (value.factorBounds !== undefined && value.factorBounds !== null) {
+    if (!isPlainObject(value.factorBounds)) return 'model.factorBounds';
+    for (const bound of Object.values(value.factorBounds)) {
+      if (!isPlainObject(bound) || !Number.isFinite(bound.min) || !Number.isFinite(bound.max)) return 'model.factorBounds';
+    }
+  }
+  return null;
+}
+
+/** Why one output card cannot be restored (null when it can). */
+function outputProblem(value: unknown): string | null {
+  if (!isPlainObject(value)) return 'output';
+  if (typeof value.id !== 'string' || !value.id) return 'output.id';
+  if (typeof value.titleKey !== 'string') return 'output.titleKey';
+  if (!Array.isArray(value.blocks)) return 'output.blocks';
+  for (const block of value.blocks as unknown[]) {
+    if (!isPlainObject(block) || typeof block.type !== 'string' || !block.type) return 'output.block';
+    if (block.type === 'chart') {
+      const chart = block.chart;
+      if (!isPlainObject(chart) || typeof chart.kind !== 'string' || !chart.kind) return 'output.chart';
+      if (chart.kind === 'overlaid' && chart.models !== undefined && !Array.isArray(chart.models)) return 'output.chart';
+    }
+  }
+  return null;
+}
+
+/** Why one figure layout cannot be restored (null when it can). */
+function figureProblem(value: unknown): string | null {
+  if (!isPlainObject(value)) return 'figure';
+  if (value.format !== 'sigrun-layout') return 'figure.format';
+  if (value.version !== 1) return 'figure.version';
+  if (!isPlainObject(value.page)) return 'figure.page';
+  const page = value.page;
+  if (typeof page.preset !== 'string') return 'figure.page';
+  if (!Number.isFinite(page.widthMm) || !Number.isFinite(page.heightMm) || !Number.isFinite(page.marginMm)) return 'figure.page';
+  if (!Array.isArray(value.panels)) return 'figure.panels';
+  for (const panel of value.panels as unknown[]) {
+    if (!isPlainObject(panel)) return 'figure.panel';
+    if (typeof panel.id !== 'string' || !panel.id) return 'figure.panel';
+    if (typeof panel.kind !== 'string' || !panel.kind) return 'figure.panel';
+  }
+  return null;
+}
+
+/** Why one custom chart style cannot be restored (null when it can). */
+function styleProblem(value: unknown): string | null {
+  if (!isPlainObject(value)) return 'style';
+  if (typeof value.id !== 'string' || !value.id) return 'style.id';
+  if (typeof value.name !== 'string' || !value.name) return 'style.name';
+  if (typeof value.base !== 'string' || !(CHART_STYLE_IDS as string[]).includes(value.base)) return 'style.base';
+  if (value.overrides !== undefined && !isPlainObject(value.overrides)) return 'style.overrides';
   return null;
 }
 
@@ -217,9 +326,46 @@ export function parseProject(text: string): ProjectState {
   if (!file.worksheets.length) throw new Error('file.error');
   const problems = file.worksheets.map((sheet) => worksheetProblem(sheet));
   if (problems.some(Boolean)) throw new Error('file.worksheetCorrupt');
+  // Two sheets with one id would be one sheet after the restore: the reader's
+  // second dataset would replace the first without a word.
+  const sheetIds = new Set<string>();
+  for (const sheet of file.worksheets as Worksheet[]) {
+    if (sheetIds.has(sheet.id)) throw new Error('file.worksheetDuplicate');
+    sheetIds.add(sheet.id);
+  }
+
   const rawModels = file.models === undefined ? [] : file.models;
   if (!Array.isArray(rawModels)) throw new Error('file.modelCorrupt');
   if (rawModels.some((entry) => modelProblem(entry) !== null)) throw new Error('file.modelCorrupt');
+  const modelIds = new Set<string>();
+  for (const entry of rawModels as { id: string }[]) {
+    if (modelIds.has(entry.id)) throw new Error('file.modelDuplicate');
+    modelIds.add(entry.id);
+  }
+
+  const rawOutputs = file.outputs === undefined ? [] : file.outputs;
+  if (!Array.isArray(rawOutputs)) throw new Error('file.outputCorrupt');
+  if (rawOutputs.some((entry) => outputProblem(entry) !== null)) throw new Error('file.outputCorrupt');
+  const outputIds = new Set<string>();
+  for (const entry of rawOutputs as { id: string }[]) {
+    if (outputIds.has(entry.id)) throw new Error('file.outputDuplicate');
+    outputIds.add(entry.id);
+  }
+
+  const rawStyles = file.customChartStyles === undefined ? [] : file.customChartStyles;
+  if (!Array.isArray(rawStyles)) throw new Error('file.styleCorrupt');
+  if ((rawStyles as unknown[]).some((entry) => styleProblem(entry) !== null)) throw new Error('file.styleCorrupt');
+  const styleIds = new Set<string>();
+  for (const entry of rawStyles as CustomChartStyle[]) {
+    if (styleIds.has(entry.id)) throw new Error('file.styleDuplicate');
+    styleIds.add(entry.id);
+  }
+
+  // A figure is validated, never filtered: dropping a damaged layout would
+  // leave the reader with a project that opens and silently lacks a page.
+  const rawFigures = file.figures === undefined ? [] : file.figures;
+  if (!Array.isArray(rawFigures)) throw new Error('file.figureCorrupt');
+  if ((rawFigures as unknown[]).some((entry) => figureProblem(entry) !== null)) throw new Error('file.figureCorrupt');
 
   const worksheets = (file.worksheets as Worksheet[]).map(migrateWorksheet);
   const activeSheetId = worksheets.some((ws) => ws.id === file.activeSheetId) ? (file.activeSheetId as string) : worksheets[0].id;
@@ -233,10 +379,10 @@ export function parseProject(text: string): ProjectState {
     worksheets,
     activeSheetId,
     settings,
-    outputs: Array.isArray(file.outputs) ? file.outputs.map(restoreOutput) : [],
-    ...(Array.isArray(file.customChartStyles) ? { customChartStyles: file.customChartStyles } : {}),
+    outputs: (rawOutputs as OutputDoc[]).map(restoreOutput),
+    ...(rawStyles.length ? { customChartStyles: rawStyles as CustomChartStyle[] } : {}),
     models: parseStoredModels(rawModels),
-    ...(Array.isArray(file.figures) ? { figures: (file.figures as unknown as LayoutDoc[]).filter((entry) => Boolean(entry) && entry.format === 'sigrun-layout') } : {}),
+    ...(rawFigures.length ? { figures: rawFigures as unknown as LayoutDoc[] } : {}),
   };
 }
 

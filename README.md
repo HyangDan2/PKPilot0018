@@ -80,9 +80,9 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 ```bash
 npm ci             # exact lockfile: the build and the E2E suites depend only on it
 npm run dev        # http://localhost:5178
-npm test           # 1 049 unit tests (45 files: statistics, SPC, charts and their guards,
+npm test           # 1 075 unit tests (46 files: statistics, SPC, charts and their guards,
                    # model store, surface, optimizer, profiler, graph layout, project files, i18n,
-                   # QA regressions and the Phase 3E corrective suite)
+                   # QA regressions and the Phase 3E corrective suites, Round 1 and Round 2)
 npm run qa:stats   # independent reference QA → qa/reports/latest.html
 npm run typecheck  # tsc --noEmit
 npm run build      # production bundle in dist/

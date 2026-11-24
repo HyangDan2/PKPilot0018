@@ -60,11 +60,32 @@ export function relativeSlack(...values: number[]): number {
   return DOMAIN_EPS * magnitude;
 }
 
-/** The slack allowed when asking whether a value is one of the lattice's numbers. */
-export function latticeSlack(...values: number[]): number {
-  let magnitude = 1;
-  for (const value of values) if (Number.isFinite(value)) magnitude = Math.max(magnitude, Math.abs(value));
-  return LATTICE_EPS * magnitude;
+/** How far from a lattice value a double may sit because of its own arithmetic. */
+const LATTICE_ULPS = 4;
+
+/**
+ * The slack allowed when asking whether a value is one of the lattice's numbers.
+ *
+ * Two quantities decide it, and the offset is neither of them:
+ *
+ *  · the resolution of the double at this magnitude — the rounding of the
+ *    arithmetic that produced the value, a few ULPs at most;
+ *  · the step itself — a relative share of one step, and never more than a
+ *    quarter of it, so the test can never reach a neighbouring lattice value.
+ *
+ * A tolerance proportional to the offset alone (1e-12 · 1e8 = 1e-4) is a whole
+ * step at 1e8 with Step = 1e-4, and it accepted a value 0.3 of a step away.
+ */
+export function latticeTolerance(lower: number, upper: number, step: number, value: number): number {
+  if (!Number.isFinite(step) || step === 0) return 0;
+  const spacing = Math.max(
+    doubleSpacing(value),
+    Number.isFinite(lower) ? doubleSpacing(lower) : 0,
+    Number.isFinite(upper) ? doubleSpacing(upper) : 0,
+  );
+  const fromDoubles = LATTICE_ULPS * (Number.isFinite(spacing) ? spacing : 0);
+  const fromStep = Math.abs(step) * LATTICE_EPS;
+  return Math.min(Math.abs(step) / 4, Math.max(fromDoubles, fromStep));
 }
 
 /** A decimal number split into an exact integer and a power of ten. */
@@ -173,9 +194,14 @@ export function doubleSpacing(value: number): number {
 export function latticeIsRepresentable(lower: number, upper: number, step: number, steps = discreteStepCount(lower, upper, step)): boolean {
   if (steps < 0) return false;
   const first = discreteValueAt(lower, step, 0);
+  if (!Number.isFinite(first)) return false;
+  // A range shorter than one step has exactly one allowed value (Lower). That
+  // is a complete lattice, not a degenerate one: there is no second value to
+  // compare it with, and there is nothing for it to collide with.
+  if (steps === 0) return Number.isFinite(lower) && Number.isFinite(upper);
   const second = discreteValueAt(lower, step, 1);
   const last = discreteValueAt(lower, step, steps);
-  if (!Number.isFinite(first) || !Number.isFinite(second) || !Number.isFinite(last)) return false;
+  if (!Number.isFinite(second) || !Number.isFinite(last)) return false;
   return second > first && last >= second;
 }
 
@@ -264,7 +290,7 @@ export function nearestStepValue(lower: number, upper: number, step: number, val
   const snapped = discreteValueAt(lower, step, clamped);
   // On-step is an absolute question at the lattice's own resolution: a value
   // 0.3 of a step away is off the lattice whatever the offset is.
-  const onStep = Math.abs(snapped - value) <= latticeSlack(value, snapped) && k >= 0 && k <= steps;
+  const onStep = Math.abs(snapped - value) <= latticeTolerance(lower, upper, step, value) && k >= 0 && k <= steps;
   return {
     value: snapped,
     k: clamped,
@@ -277,8 +303,7 @@ export function nearestStepValue(lower: number, upper: number, step: number, val
 export function isOnStep(lower: number, upper: number, step: number, value: number): boolean {
   if (!Number.isFinite(value)) return false;
   const snapped = nearestStepValue(lower, upper, step, value);
-  if (!snapped.inside || !snapped.onStep) return false;
-  return Math.abs(snapped.value - value) <= latticeSlack(value, snapped.value);
+  return snapped.inside && snapped.onStep;
 }
 
 export interface FactorAxis {

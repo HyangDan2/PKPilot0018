@@ -29,6 +29,8 @@ export interface PredictionResult {
   value: number | null;
   /** Standard error of the fitted mean, when the model carries a covariance. */
   se: number | null;
+  /** 95 % (or `alpha`) confidence interval for the fitted mean. */
+  ci: [number, number] | null;
   /** 95 % (or `alpha`) prediction interval for one future observation. */
   pi: [number, number] | null;
   /** Coefficient labels the row depends on that are not identifiable. */
@@ -235,6 +237,35 @@ export function sumDesignRow(model: StoredModel, weights: number[]): DesignSum {
  * a defect, so it is not repeated as an issue; a missing mse, a rank-deficient
  * fit or a covariance that fails its checks is stated — by every path alike.
  */
+/**
+ * The interval was asked for and could not be computed, while the mean is a
+ * number. It is deliberately not `model.value.nonFinite`: the value is finite,
+ * and a reader who sees that code beside a number would rightly distrust both.
+ */
+export const INTERVAL_NON_FINITE = 'model.interval.nonFinite';
+
+/**
+ * Is this code about the interval rather than about the mean?
+ *
+ * Every path answers two questions — ŷ, and the band around it — and they can
+ * fail independently. This is the one place that says which codes belong to
+ * the second question, so the optimiser does not call a mean unusable because
+ * its confidence band overflowed, and the Model Manager does not hide ŷ behind
+ * an interval remark.
+ */
+export function isIntervalIssue(code: string): boolean {
+  return code.startsWith('model.covariance.')
+    || code.startsWith('model.interval.')
+    || code.startsWith('model.mse.')
+    || code === 'model.df.missing'
+    || code === 'model.rankDeficient';
+}
+
+/** The codes that stop the MEAN itself (everything that is not interval-only). */
+export function meanIssues(issues: string[]): string[] {
+  return issues.filter((code) => !isIntervalIssue(code));
+}
+
 export function intervalIssues(model: StoredModel): string[] {
   return intervalStatus(model).reasons.filter((reason) => reason !== 'model.covariance.missing' && reason !== 'model.df.missing');
 }
@@ -271,16 +302,19 @@ export interface PredictionOptions {
  */
 export function predictStoredModel(model: StoredModel, point: PredictionPoint, options: PredictionOptions = {}): PredictionResult {
   const issues: string[] = [];
+  const refused = (codes: string[], nonEstimable: string[] = []): PredictionResult => ({
+    value: null, se: null, ci: null, pi: null, nonEstimable, issues: codes,
+  });
   let design: DesignRow;
   try {
     design = designRow(model, point, options.mode ?? 'actual');
   } catch (error) {
-    if (error instanceof ModelInputError) return { value: null, se: null, pi: null, nonEstimable: [], issues: [error.code] };
-    return { value: null, se: null, pi: null, nonEstimable: [], issues: ['model.predictFailed'] };
+    if (error instanceof ModelInputError) return refused([error.code]);
+    return refused(['model.predictFailed']);
   }
   const summed = sumDesignRow(model, design.values);
   if (summed.value === null) {
-    return { value: null, se: null, pi: null, nonEstimable: summed.nonEstimable, issues: [...issues, ...summed.issues] };
+    return refused([...issues, ...summed.issues], summed.nonEstimable);
   }
   const fit = summed.value;
   // Intervals: covariance and df gate a confidence interval, mse additionally
@@ -288,25 +322,30 @@ export function predictStoredModel(model: StoredModel, point: PredictionPoint, o
   const covarianceCheck = covarianceStatus(model);
   const intervals = intervalStatus(model);
   let se: number | null = null;
+  let ci: [number, number] | null = null;
   let pi: [number, number] | null = null;
   issues.push(...intervalIssues(model));
   if (intervals.ci) {
     const variance = quadraticForm(covarianceCheck.matrix as number[][], design.values);
     if (!variance.ok) {
+      // ŷ stays: it is a number, and only the band around it is unavailable.
       issues.push(variance.reason);
     } else {
+      const alpha = Math.min(0.999, Math.max(1e-6, options.alpha ?? 0.05));
+      const df = model.residual?.df as number;
       se = Math.sqrt(variance.value);
+      const ciHalf = tInv(1 - alpha / 2, df) * se;
+      if (Number.isFinite(ciHalf)) ci = [fit - ciHalf, fit + ciHalf];
+      else issues.push(INTERVAL_NON_FINITE);
       if (intervals.pi) {
-        const alpha = Math.min(0.999, Math.max(1e-6, options.alpha ?? 0.05));
         const mse = model.residual?.mse as number;
-        const df = model.residual?.df as number;
         const half = tInv(1 - alpha / 2, df) * Math.sqrt(variance.value + mse);
         if (Number.isFinite(half)) pi = [fit - half, fit + half];
-        else issues.push('model.value.nonFinite');
+        else issues.push(INTERVAL_NON_FINITE);
       }
     }
   }
-  return { value: fit, se, pi, nonEstimable: [], issues };
+  return { value: fit, se, ci, pi, nonEstimable: [], issues };
 }
 
 /* ── covariance and interval conditions ──────────────────────────────── */
@@ -448,7 +487,7 @@ export function quadraticForm(covariance: number[][], weights: number[]): Quadra
       scale += Math.abs(term);
     }
   }
-  if (!Number.isFinite(sum)) return { ok: false, value: Number.NaN, reason: 'model.value.nonFinite' };
+  if (!Number.isFinite(sum)) return { ok: false, value: Number.NaN, reason: INTERVAL_NON_FINITE };
   const tolerance = Math.max(NEGATIVE_VARIANCE_TOLERANCE, PSD_RELATIVE_TOLERANCE * Math.max(scale, 1));
   if (sum < -tolerance) return { ok: false, value: Number.NaN, reason: 'model.covariance.negativeVariance' };
   return { ok: true, value: Math.max(0, sum), reason: '' };
@@ -706,10 +745,13 @@ export function compileSurfaceEvaluator(
         issues.push(form.reason);
       } else {
         se = Math.sqrt(form.value);
-        ciHalf = Number.isFinite(se) ? tInv(1 - alpha / 2, df as number) * se : null;
+        const wideCi = tInv(1 - alpha / 2, df as number) * se;
+        if (Number.isFinite(wideCi)) ciHalf = wideCi;
+        else issues.push(INTERVAL_NON_FINITE);
         if (intervals.pi && typeof mse === 'number') {
           const half = tInv(1 - alpha / 2, df as number) * Math.sqrt(form.value + mse);
-          piHalf = Number.isFinite(half) ? half : null;
+          if (Number.isFinite(half)) piHalf = half;
+          else issues.push(INTERVAL_NON_FINITE);
         }
       }
     }
