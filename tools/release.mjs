@@ -265,6 +265,25 @@ async function commandBuild() {
   for (const line of sums) console.log(line);
 }
 
+/* A bundle stays valid while nothing it was built from has changed. Docs and
+   CI files may commit after the build; a change to any build input may not.
+   package.json is not a build input here (scripts and description do not reach
+   the bundle); its version is checked against build-info.json separately. */
+const BUILD_INPUTS = [
+  'src', 'public', 'index.html', 'portable.html',
+  'package-lock.json', 'tsconfig.json',
+  'vite.config.ts', 'vite.portable.config.ts',
+  'tools/product_plugin.ts', 'tools/build_portable.mjs', 'tools/build_manifest.mjs',
+];
+function sourceTreeMatches(commit) {
+  try {
+    execFileSync('git', ['diff', '--quiet', commit, 'HEAD', '--', ...BUILD_INPUTS], { cwd: ROOT, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /* ── verify ────────────────────────────────────────────────────────────── */
 
 function expectedNames() {
@@ -320,7 +339,10 @@ async function commandVerify(repro) {
   if (JSON.stringify(info).includes(sha256(path.join(RELEASE_DIR, 'build-info.json')))) problem('build-info.json contains its own hash');
   if (info.version !== PACKAGE.version) problem(`build-info version ${info.version} ≠ package ${PACKAGE.version}`);
   if (!info.commit || info.commit === 'unknown') problem('build-info has no commit');
-  else if (info.commit !== readCommit(ROOT)) problem(`build-info commit ${info.commit} ≠ HEAD ${readCommit(ROOT)}`);
+  else if (info.commit !== readCommit(ROOT)) {
+    if (sourceTreeMatches(info.commit)) console.log(`built at ${info.commit}, before HEAD ${readCommit(ROOT)} — build inputs unchanged`);
+    else problem(`build-info commit ${info.commit} ≠ HEAD ${readCommit(ROOT)} and the build inputs changed since`);
+  }
   if (!info.release || info.release !== RELEASE_ID) problem(`build-info release ${info.release} ≠ ${RELEASE_ID}`);
 
   step('VERSION.txt');

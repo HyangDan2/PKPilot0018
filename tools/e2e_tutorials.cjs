@@ -293,6 +293,10 @@ async function runTutorial(page, tutorialId) {
       throw new Error(`step ${step} did not advance after ${action}: ${await stepStatus(page)} :: toast=${toast} :: message=${message}`);
     }
     await handleAction(page, action);
+    if (process.env.SHOT_MATCH && new RegExp(process.env.SHOT_MATCH).test(action)) {
+      await wait(page, 500);
+      await shot(page, `step-${tutorialId}-${action}`);
+    }
     await wait(page, 400);
     let next = await currentStepId(page);
     if (next === step) {

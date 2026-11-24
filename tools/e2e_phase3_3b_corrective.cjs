@@ -135,7 +135,8 @@ function startStaticServer() {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port })));
 }
 
-/** The app's own autosave store, read and rewritten to seed a test state. */
+/** Since WO-01 the autosave record is a revision envelope; the project is its
+ *  payload. A copy written before the envelope is returned as it stands. */
 async function readAutosave(page) {
   return page.evaluate(() => new Promise((resolve) => {
     const request = indexedDB.open('sigrun-workspace', 1);
@@ -144,7 +145,12 @@ async function readAutosave(page) {
       const db = request.result;
       const tx = db.transaction('workspace', 'readonly');
       const get = tx.objectStore('workspace').get('current');
-      get.onsuccess = () => { db.close(); resolve(get.result ? JSON.parse(get.result) : null); };
+      get.onsuccess = () => {
+        db.close();
+        if (!get.result) { resolve(null); return; }
+        const parsed = JSON.parse(get.result);
+        resolve(parsed && parsed.format === 'sigrun-autosave' && 'payload' in parsed ? parsed.payload : parsed);
+      };
       get.onerror = () => { db.close(); resolve(null); };
     };
     request.onerror = () => resolve(null);
@@ -158,7 +164,8 @@ async function writeAutosave(page, state) {
     request.onsuccess = () => {
       const db = request.result;
       const tx = db.transaction('workspace', 'readwrite');
-      tx.objectStore('workspace').put(JSON.stringify(next), 'current');
+      const envelope = { format: 'sigrun-autosave', revision: Date.now(), savedAt: new Date().toISOString(), payload: next };
+      tx.objectStore('workspace').put(JSON.stringify(envelope), 'current');
       tx.oncomplete = () => { db.close(); resolve(true); };
       tx.onerror = () => { db.close(); resolve(false); };
     };
