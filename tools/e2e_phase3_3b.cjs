@@ -114,6 +114,16 @@ async function openModelManager(page) {
   await page.waitForTimeout(250);
 }
 
+/** Give the output panel most of the window (View ▸ Panel layout ▸ Results). */
+async function focusResults(page) {
+  await page.click('[data-testid=menu-view]');
+  await page.waitForTimeout(120);
+  await page.getByRole('menuitem', { name: /Panel layout/ }).hover();
+  await page.waitForTimeout(200);
+  await page.click('[data-testid=menu-item-layoutResults]');
+  await page.waitForTimeout(600);
+}
+
 async function openDrawer(page, cardIndex = -1) {
   const card = cardIndex < 0 ? page.locator('[data-testid=out-card]').last() : page.locator('[data-testid=out-card]').nth(cardIndex);
   await card.scrollIntoViewIfNeeded();
@@ -183,7 +193,9 @@ async function writeAutosave(page, state) {
   {
     const browser = await chromium.launch(launchArgs('webgl'));
     try {
-      const { page, errors } = await openPage(browser);
+      // A taller window gives the output panel room for the whole card, so the
+      // element screenshot is not overlapped by the worksheet below it.
+      const { page, errors } = await openPage(browser, { viewport: { width: 1440, height: 1200 } });
       await runRegression(page, 'C4');
       await saveLastModel(page);
       await openModelManager(page);
@@ -266,7 +278,11 @@ async function writeAutosave(page, state) {
       await page.click('[data-testid=cd-apply]');
       await page.waitForTimeout(700);
       check('the drawer applies the 3D settings to the card', (await page.locator('[data-testid=surface3d]').getAttribute('data-projection')) === 'orthographic');
-      await page.screenshot({ path: path.join(OUT, 'phase3-3b-surface.png') });
+      // The card itself, not the viewport, with the output panel given the room
+      // a reader would give it before reading a 3D chart.
+      await focusResults(page);
+      await page.locator('[data-testid=out-card]').last().screenshot({ path: path.join(OUT, 'phase3-3b-surface.png') });
+      await page.screenshot({ path: path.join(OUT, 'phase3-3b-surface-full.png') });
 
       /* export still produces a picture (static projection path) */
       const png = page.locator('[data-testid=out-card]').last().locator('[data-testid=card-png]');
@@ -312,7 +328,7 @@ async function writeAutosave(page, state) {
   {
     const browser = await chromium.launch(launchArgs('fallback'));
     try {
-      const { page, errors } = await openPage(browser);
+      const { page, errors } = await openPage(browser, { viewport: { width: 1440, height: 1200 } });
       await runRegression(page, 'C4');
       await saveLastModel(page);
       await runRegression(page, 'C3');
@@ -340,7 +356,9 @@ async function writeAutosave(page, state) {
       check('the overlaid plot draws per-response regions', (svg.match(/overlay-region/g) || []).length >= 2);
       check('the feasible area ratio is printed on the plot', svg.includes('feasible-ratio'));
       check('the grid approximation note is printed', svg.includes('overlaid-grid-note'));
-      await page.screenshot({ path: path.join(OUT, 'phase3-3b-overlaid.png') });
+      await focusResults(page);
+      await card.screenshot({ path: path.join(OUT, 'phase3-3b-overlaid.png') });
+      await page.screenshot({ path: path.join(OUT, 'phase3-3b-overlaid-full.png') });
 
       /* the drawer edits a response specification and the region narrows */
       await openDrawer(page);
@@ -383,7 +401,7 @@ async function writeAutosave(page, state) {
   {
     const browser = await chromium.launch(launchArgs('fallback'));
     try {
-      const { page, errors } = await openPage(browser);
+      const { page, errors } = await openPage(browser, { viewport: { width: 1440, height: 1200 } });
       await runRegression(page, 'C4');
       await saveLastModel(page);
       await runRegression(page, 'C3');

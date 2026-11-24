@@ -95,6 +95,8 @@ export interface ProjectedPoint {
 }
 
 const CAMERA_DISTANCE = 4.2;
+/** How much of the half-viewport one world unit covers (shared by both projections). */
+const VIEW_SCALE = 0.8;
 
 const sub = (a: [number, number, number], b: [number, number, number]): [number, number, number] => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a: [number, number, number], b: [number, number, number]): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -137,7 +139,7 @@ export function cameraBasis(
   if (Math.hypot(right[0], right[1], right[2]) < 1e-9) right = [1, 0, 0];
   right = normalize(right);
   const up = normalize(cross(right, forward));
-  const unit = (Math.min(width, height) / 2) * 0.9 * camera.zoom;
+  const unit = (Math.min(width, height) / 2) * 0.95 * camera.zoom;
   return { eye, right, up, forward, distance, unit, width, height };
 }
 
@@ -156,14 +158,14 @@ export function projectPoint(
   const centerY = basis.height / 2 - camera.panY * basis.height * 0.5;
   if (projection === 'orthographic') {
     return {
-      x: centerX + cx * 0.55 * basis.unit,
-      y: centerY - cy * 0.55 * basis.unit,
+      x: centerX + cx * VIEW_SCALE * basis.unit,
+      y: centerY - cy * VIEW_SCALE * basis.unit,
       depth: cz,
       visible: true,
     };
   }
   if (cz <= 0.05) return { x: centerX, y: centerY, depth: cz, visible: false };
-  const scale = (0.55 * CAMERA_DISTANCE) / cz;
+  const scale = (VIEW_SCALE * CAMERA_DISTANCE) / cz;
   return { x: centerX + cx * scale * basis.unit, y: centerY - cy * scale * basis.unit, depth: cz, visible: true };
 }
 
@@ -188,15 +190,15 @@ export function cameraMatrix(
   const panY = camera.panY;
   if (projection === 'orthographic') {
     const rows = [
-      [sx * 0.55 * right[0], sx * 0.55 * right[1], sx * 0.55 * right[2], -sx * 0.55 * dot(right, eye) + panX],
-      [sy * 0.55 * up[0], sy * 0.55 * up[1], sy * 0.55 * up[2], -sy * 0.55 * dot(up, eye) + panY],
+      [sx * VIEW_SCALE * right[0], sx * VIEW_SCALE * right[1], sx * VIEW_SCALE * right[2], -sx * VIEW_SCALE * dot(right, eye) + panX],
+      [sy * VIEW_SCALE * up[0], sy * VIEW_SCALE * up[1], sy * VIEW_SCALE * up[2], -sy * VIEW_SCALE * dot(up, eye) + panY],
       // z_ndc = c·depth + d, monotonic over the box: the depth test orders faces.
       [0.3 * forward[0], 0.3 * forward[1], 0.3 * forward[2], -0.3 * dot(forward, eye) - 1],
       [0, 0, 0, 1],
     ];
     return toColumnMajor(rows);
   }
-  const k = 0.55 * CAMERA_DISTANCE;
+  const k = VIEW_SCALE * CAMERA_DISTANCE;
   // Near / far in world units; z_ndc = a + b / depth keeps the depth buffer
   // monotonic in exactly the range the box occupies.
   const near = 0.5;
@@ -632,15 +634,27 @@ export function surfaceSvgBody(input: SurfacePaintInput): string {
       const b = project(to);
       out += `<path d="M${f1(a.x)} ${f1(a.y)}L${f1(b.x)} ${f1(b.y)}"/>`;
     });
-    out += '</g>';
+    // Floor grid at the tick positions: without it a flat surface has no depth cue.
+    out += `<g opacity="0.35">`;
+    ticksOf(input.xRange ?? [grid.xs[0], grid.xs[grid.xs.length - 1]], 4).forEach((tick) => {
+      const a = project([tick.t, -1, box.z[0]]);
+      const b = project([tick.t, 1, box.z[0]]);
+      out += `<path d="M${f1(a.x)} ${f1(a.y)}L${f1(b.x)} ${f1(b.y)}"/>`;
+    });
+    ticksOf(input.yRange ?? [grid.ys[0], grid.ys[grid.ys.length - 1]], 4).forEach((tick) => {
+      const a = project([-1, tick.t, box.z[0]]);
+      const b = project([1, tick.t, box.z[0]]);
+      out += `<path d="M${f1(a.x)} ${f1(a.y)}L${f1(b.x)} ${f1(b.y)}"/>`;
+    });
+    out += '</g></g>';
     const xRange = input.xRange ?? [grid.xs[0], grid.xs[grid.xs.length - 1]];
     const yRange = input.yRange ?? [grid.ys[0], grid.ys[grid.ys.length - 1]];
     out += `<g data-chart-role="surface-axis-labels" font-family="${style.mono}" font-size="7.4" fill="${style.label}">`;
-    ticksOf(xRange, 5).forEach((tick) => {
+    ticksOf(xRange, 4).forEach((tick) => {
       const p = project([tick.t, -1, box.z[0]]);
       out += `<text x="${f1(p.x)}" y="${f1(p.y + 10)}" text-anchor="middle">${escapeText(tick.label)}</text>`;
     });
-    ticksOf(yRange, 5).forEach((tick) => {
+    ticksOf(yRange, 4).forEach((tick) => {
       const p = project([1, tick.t, box.z[0]]);
       out += `<text x="${f1(p.x + 5)}" y="${f1(p.y + 3)}" text-anchor="start">${escapeText(tick.label)}</text>`;
     });
@@ -648,11 +662,11 @@ export function surfaceSvgBody(input: SurfacePaintInput): string {
       const p = project([1, -1, box.z[0] + (box.z[1] - box.z[0]) * tick.t]);
       out += `<text x="${f1(p.x + 5)}" y="${f1(p.y + 3)}" text-anchor="start">${escapeText(tick.label)}</text>`;
     });
-    const xTitlePoint = project([0, -1.18, box.z[0]]);
-    const yTitlePoint = project([1.18, 0, box.z[0]]);
+    const xTitlePoint = project([0, -1.22, box.z[0] - 0.02]);
+    const yTitlePoint = project([1.22, 0, box.z[0] - 0.02]);
     const zTitlePoint = project([1, -1, box.z[1] + 0.12]);
-    out += `<text x="${f1(xTitlePoint.x)}" y="${f1(xTitlePoint.y + 6)}" text-anchor="middle" font-size="8.6">${escapeText(input.xLabel)}</text>`;
-    out += `<text x="${f1(yTitlePoint.x + 8)}" y="${f1(yTitlePoint.y)}" text-anchor="start" font-size="8.6">${escapeText(input.yLabel)}</text>`;
+    out += `<text x="${f1(xTitlePoint.x)}" y="${f1(xTitlePoint.y + 11)}" text-anchor="middle" font-size="8.6">${escapeText(input.xLabel)}</text>`;
+    out += `<text x="${f1(yTitlePoint.x + 9)}" y="${f1(yTitlePoint.y + 2)}" text-anchor="start" font-size="8.6">${escapeText(input.yLabel)}</text>`;
     out += `<text x="${f1(zTitlePoint.x + 4)}" y="${f1(zTitlePoint.y - 4)}" text-anchor="start" font-size="8.6">${escapeText(input.zLabel)}</text>`;
     out += '</g>';
   }

@@ -68,6 +68,8 @@ export interface SurfaceGlDrawOptions {
 
 export interface SurfaceGlRenderer {
   draw(options: SurfaceGlDrawOptions): void;
+  /** Re-upload a new mesh into the same context (a new grid, a new style). */
+  setGeometry(geometry: SurfaceGeometry): boolean;
   resize(width: number, height: number, dpr: number): void;
   dispose(): void;
   /** True while the context is alive and usable. */
@@ -96,6 +98,9 @@ export function createSurfaceGl(canvas: HTMLCanvasElement, geometry: SurfaceGeom
   }
   if (!gl) return null;
   const context = gl;
+  // A canvas keeps ONE context for its lifetime: if the previous renderer lost
+  // it, this canvas can never draw again and the caller must fall back.
+  if (context.isContextLost?.()) return null;
   const vertex = compile(context, context.VERTEX_SHADER, VERTEX_SHADER);
   const fragment = compile(context, context.FRAGMENT_SHADER, FRAGMENT_SHADER);
   const program = context.createProgram();
@@ -106,6 +111,17 @@ export function createSurfaceGl(canvas: HTMLCanvasElement, geometry: SurfaceGeom
   if (!context.getProgramParameter(program, context.LINK_STATUS)) return null;
   context.useProgram(program);
 
+  // WebGL 1 indices are 16-bit unless OES_element_index_uint is present. A
+  // 401×401 grid has 160 801 vertices, so the extension decides whether this
+  // canvas can draw the mesh at all; without it the caller falls back to the
+  // static projection instead of showing an empty box.
+  const uintIndices = context.getExtension('OES_element_index_uint');
+  const indexType = uintIndices ? context.UNSIGNED_INT : context.UNSIGNED_SHORT;
+  const vertexCount = geometry.vertices.length / 9;
+  if (!uintIndices && vertexCount > 65535) return null;
+  const triangleIndexData = uintIndices ? geometry.indices : Uint16Array.from(geometry.indices);
+  const lineIndexData = uintIndices ? geometry.lines : Uint16Array.from(geometry.lines);
+
   const positionBuffer = context.createBuffer();
   const indexBuffer = context.createBuffer();
   const lineBuffer = context.createBuffer();
@@ -114,9 +130,9 @@ export function createSurfaceGl(canvas: HTMLCanvasElement, geometry: SurfaceGeom
   context.bindBuffer(context.ARRAY_BUFFER, positionBuffer);
   context.bufferData(context.ARRAY_BUFFER, geometry.vertices, context.STATIC_DRAW);
   context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, indexBuffer);
-  context.bufferData(context.ELEMENT_ARRAY_BUFFER, geometry.indices, context.STATIC_DRAW);
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER, triangleIndexData, context.STATIC_DRAW);
   context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, lineBuffer);
-  context.bufferData(context.ELEMENT_ARRAY_BUFFER, geometry.lines, context.STATIC_DRAW);
+  context.bufferData(context.ELEMENT_ARRAY_BUFFER, lineIndexData, context.STATIC_DRAW);
   context.bindBuffer(context.ARRAY_BUFFER, floorBuffer);
 
   const aPos = context.getAttribLocation(program, 'aPos');
@@ -130,6 +146,8 @@ export function createSurfaceGl(canvas: HTMLCanvasElement, geometry: SurfaceGeom
   const uFlat = context.getUniformLocation(program, 'uFlat');
   const uFlatColor = context.getUniformLocation(program, 'uFlatColor');
   let alive = true;
+  let triangleCount = geometry.indices.length;
+  let lineCount = geometry.lines.length;
   let width = 1;
   let height = 1;
   let dpr = 1;
@@ -160,19 +178,19 @@ export function createSurfaceGl(canvas: HTMLCanvasElement, geometry: SurfaceGeom
     context.uniform1f(uAmbient, options.ambient);
     context.uniform1f(uDiffuse, options.diffuse);
     bindVertexBuffer();
-    if (options.renderMode !== 'wireframe' && geometry.indices.length) {
+    if (options.renderMode !== 'wireframe' && triangleCount) {
       context.uniform1f(uFlat, 0);
       context.uniform1f(uOpacity, options.opacity);
       context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      context.drawElements(context.TRIANGLES, geometry.indices.length, context.UNSIGNED_INT, 0);
+      context.drawElements(context.TRIANGLES, triangleCount, indexType, 0);
     }
-    if (options.renderMode !== 'surface' && geometry.lines.length) {
+    if (options.renderMode !== 'surface' && lineCount) {
       context.uniform1f(uFlat, 1);
       context.uniform3fv(uFlatColor, options.meshColor);
       context.uniform1f(uOpacity, options.renderMode === 'wireframe' ? 0.85 : 0.45);
       context.lineWidth(options.meshWidth);
       context.bindBuffer(context.ELEMENT_ARRAY_BUFFER, lineBuffer);
-      context.drawElements(context.LINES, geometry.lines.length, context.UNSIGNED_INT, 0);
+      context.drawElements(context.LINES, lineCount, indexType, 0);
     }
     if (options.floorLines && options.floorLines.length) {
       // Floor lines come as raw world-space pairs: they are rebuilt when the
@@ -195,6 +213,23 @@ export function createSurfaceGl(canvas: HTMLCanvasElement, geometry: SurfaceGeom
 
   return {
     draw,
+    setGeometry(next: SurfaceGeometry) {
+      if (!alive) return false;
+      const nextVertexCount = next.vertices.length / 9;
+      if (!uintIndices && nextVertexCount > 65535) return false;
+      const upload = (target: WebGLBuffer, data: ArrayBufferView) => {
+        context.bindBuffer(context.ARRAY_BUFFER, target);
+        context.bufferData(context.ARRAY_BUFFER, data, context.STATIC_DRAW);
+      };
+      // The buffers were created as ARRAY_BUFFER targets, so they are uploaded
+      // as raw data and bound as element arrays at draw time.
+      upload(positionBuffer, next.vertices);
+      upload(indexBuffer, uintIndices ? next.indices : Uint16Array.from(next.indices));
+      upload(lineBuffer, uintIndices ? next.lines : Uint16Array.from(next.lines));
+      triangleCount = next.indices.length;
+      lineCount = next.lines.length;
+      return true;
+    },
     resize(nextWidth: number, nextHeight: number, nextDpr: number) {
       width = Math.max(1, Math.round(nextWidth * nextDpr));
       height = Math.max(1, Math.round(nextHeight * nextDpr));
@@ -215,8 +250,10 @@ export function createSurfaceGl(canvas: HTMLCanvasElement, geometry: SurfaceGeom
         context.deleteProgram(program);
         context.deleteShader(vertex);
         context.deleteShader(fragment);
-        const lose = context.getExtension('WEBGL_lose_context');
-        lose?.loseContext();
+        // The context itself is NOT lost here: the same canvas is reused when
+        // new geometry arrives (a resolution change, a new grid), and a lost
+        // context cannot be revived, so releasing it would turn the next
+        // render into a silent fallback.
       } catch {
         /* a lost context is already gone */
       }
