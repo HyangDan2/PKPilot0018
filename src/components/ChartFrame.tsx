@@ -128,7 +128,7 @@ export function ChartCanvas({ chart, config, maxWidth = CHART_MAX_WIDTH, onChart
   if (chart.kind === 'surface3d') {
     const surface = { ...defaultSurfaceViewConfig(), ...((config ?? chart.config)?.surface ?? {}) };
     const wanted = (config ?? chart.config)?.appearance?.height ?? 0;
-    const height = wanted > 140 ? Math.round(wanted) : 340;
+    const height = wanted > 140 ? Math.round(wanted) : 380;
     const commit = (camera: SurfaceCameraConfig, projection?: SurfaceProjection) => {
       if (!onChartChange) return;
       const base = config ?? chart.config ?? {};

@@ -46,8 +46,18 @@ interface Props {
 
 type Renderer = 'webgl' | 'static';
 
-/** Is WebGL usable here? A test hook and `?webgl=off` force the fallback. */
+/**
+ * Is WebGL usable here? A test hook and `?webgl=off` force the fallback.
+ *
+ * The answer is cached: a browser has a small budget of live WebGL contexts,
+ * and probing once per mounted surface (plus one real context for the drawing)
+ * would exhaust it after a handful of card re-applies — the very moment the
+ * reader would see the picture drop to the static projection for no reason.
+ */
+let webglSupport: boolean | null = null;
+
 export function webglAvailable(): boolean {
+  if (webglSupport !== null) return webglSupport;
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   const scope = window as unknown as { __SIGRUN_DISABLE_WEBGL__?: boolean };
   if (scope.__SIGRUN_DISABLE_WEBGL__) return false;
@@ -60,10 +70,10 @@ export function webglAvailable(): boolean {
   try {
     const probe = document.createElement('canvas');
     const context = probe.getContext('webgl') ?? probe.getContext('experimental-webgl');
-    if (!context) return false;
-    (context as WebGLRenderingContext).getExtension('WEBGL_lose_context')?.loseContext();
-    return true;
+    webglSupport = Boolean(context);
+    return webglSupport;
   } catch {
+    webglSupport = false;
     return false;
   }
 }
@@ -124,6 +134,10 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
   const paintHeight = Math.max(150, height - 6);
 
   /* ── WebGL setup ─────────────────────────────────────────────────────── */
+  // One context per canvas, created once. A new grid (a resolution change, a
+  // new factor pair) re-uploads the buffers instead of building a second
+  // context: browsers cap the number of live contexts, and a card that is
+  // re-applied a few times would otherwise exhaust them and silently fall back.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
@@ -157,7 +171,28 @@ export function Surface3DView({ lang, chart, config, width, height, onViewChange
       glRef.current = null;
       geometryRef.current = null;
     };
-    // The grid and the surface style decide the mesh; the camera is applied per draw.
+    // Mount only: geometry changes are handled by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const rendererGl = glRef.current;
+    if (!rendererGl) return;
+    const geometry = buildSurfaceGeometry({ xs: chart.xs, ys: chart.ys, z: chart.z }, {
+      colormap: view.colormap,
+      zScale: view.zScale,
+      meshDensity: view.meshDensity,
+      includeLines: view.renderMode !== 'surface',
+    });
+    if (!rendererGl.setGeometry(geometry)) {
+      rendererGl.dispose();
+      glRef.current = null;
+      setRenderer('static');
+      return;
+    }
+    geometryRef.current = geometry;
+    draw();
+    // `draw` is stable per frame; including it would re-upload on every camera move.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chart.xs, chart.ys, chart.z, view.colormap, view.zScale, view.meshDensity, view.renderMode]);
 

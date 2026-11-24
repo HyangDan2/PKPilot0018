@@ -380,7 +380,7 @@ const DEFAULT_HEIGHTS: Record<ChartSpec['kind'], number> = {
   pareto: 270,
   capability: 300,
   interval: 240,
-  surface3d: 340,
+  surface3d: 380,
   overlaid: 320,
 };
 

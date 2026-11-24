@@ -202,7 +202,7 @@ export function overlaidLegendSvg(input: {
 }): string {
   const { chart, box, style, labels } = input;
   const rows = chart.responses.length + 2;
-  const width = Math.min(box.w - 8, 250);
+  const width = Math.min(box.w - 8, 300);
   const height = 14 + rows * 12;
   const x = box.x + box.w - width - 4;
   const y = box.y + 4;
@@ -219,7 +219,7 @@ export function overlaidLegendSvg(input: {
   });
   const feasibleY = y + 12 + chart.responses.length * 12;
   out += `<rect x="${(x + 6).toFixed(1)}" y="${(feasibleY - 4).toFixed(1)}" width="18" height="8" fill="#22c55e" opacity="0.35" stroke="#15803d" stroke-width="0.8"/>`;
-  out += `<text x="${(x + 29).toFixed(1)}" y="${(feasibleY + 3).toFixed(1)}" font-family="${style.mono}" font-size="7.6" fill="${style.ink}">${escapeXml(`${labels.feasible}  ${(input.chart.feasible?.areaRatio ?? 0) * 100}%`)}</text>`;
+  out += `<text x="${(x + 29).toFixed(1)}" y="${(feasibleY + 3).toFixed(1)}" font-family="${style.mono}" font-size="7.6" fill="${style.ink}">${escapeXml(`${labels.feasible}  ${(((input.chart.feasible?.areaRatio ?? 0) * 100)).toFixed(1)}%`)}</text>`;
   out += `<text x="${(x + 6).toFixed(1)}" y="${(feasibleY + 15).toFixed(1)}" font-family="${style.mono}" font-size="7" fill="${style.label}">${escapeXml(`${labels.basis}: ${input.basisLabel}`)}</text>`;
   out += '</g>';
   return out;
