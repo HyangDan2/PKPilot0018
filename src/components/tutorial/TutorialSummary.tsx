@@ -43,6 +43,17 @@ export function TutorialSummary({ lang, tutorial, summary, onReview, onRestart, 
         <div className="mono-note">{t(lang, 'tut.summaryKicker')}</div>
         <h2>{tutorialText(lang, tutorial.titleKey)}</h2>
         <p>{tutorialText(lang, tutorial.descriptionKey)}</p>
+        {/* WO-TQA-10: finishing by skipping is not the same as finishing the practice. */}
+        <p
+          className={`tut-completion${summary.completion === 'skipped' ? ' warn' : ''}`}
+          data-testid="tut-completion"
+          data-completion={summary.completion}
+        >
+          {summary.completion === 'verified' && t(lang, 'tut.completionVerified')}
+          {summary.completion === 'manual' && t(lang, 'tut.completionManual')}
+          {summary.completion === 'skipped' && t(lang, 'tut.completionSkipped')}
+          {summary.completion === 'unfinished' && t(lang, 'tut.completionUnfinished')}
+        </p>
       </header>
 
       <div className="tut-summary-stats">

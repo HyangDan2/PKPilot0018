@@ -7,6 +7,7 @@ import {
   TUTORIALS, TUTORIAL_CATEGORY_LABEL, TUTORIAL_DIFFICULTY_LABEL, totalStepCount,
 } from '../../tutorials/registry';
 import type { TutorialCategory, TutorialDifficulty, TutorialProgress } from '../../tutorials/types';
+import { completionKind } from '../../tutorials/tutorialEngine';
 import { findSample } from '../../samples/registry';
 import { IconX } from '../Icons';
 
@@ -94,7 +95,11 @@ export function TutorialLibrary({ lang, progressMap, activeTutorialId, onClose, 
                       <div className="tut-card-head">
                         <h4>{tutorialText(lang, tutorial.titleKey)}</h4>
                         {tutorial.flagship && <span className="badge ok">{t(lang, 'tut.flagship')}</span>}
-                        {progress?.status === 'completed' && <span className="badge">{t(lang, 'tut.completed')}</span>}
+                        {progress && completionKind(tutorial, progress) !== 'unfinished' && (
+                          <span className={`badge${completionKind(tutorial, progress) === 'skipped' ? ' warn' : ''}`} data-testid={`tut-card-state-${tutorial.id}`}>
+                            {completionKind(tutorial, progress) === 'skipped' ? t(lang, 'tut.skippedEnding') : t(lang, 'tut.completed')}
+                          </span>
+                        )}
                       </div>
                       <p className="tut-card-desc">{tutorialText(lang, tutorial.descriptionKey)}</p>
                       <div className="tut-card-meta">

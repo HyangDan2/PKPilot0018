@@ -87,7 +87,8 @@ export const START_TUTORIAL: RawTutorial = {
       action: { action: 'open-analysis', analysisId: 'desc', presetId: 'preset-desc-thickness' },
       helpId: 'descriptive-statistics',
       completion: 'validated',
-      validation: { kind: 'analysis-output', analysisId: 'desc' },
+      // WO-TQA-04: the run is judged on its input columns and its filled slots, not on its title.
+      validation: { kind: 'analysis-output', analysisId: 'desc', presetId: 'preset-desc-thickness' },
     },
     {
       id: 'read-help',

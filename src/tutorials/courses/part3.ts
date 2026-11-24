@@ -404,7 +404,14 @@ export const FLAGSHIP_TUTORIAL: RawTutorial = {
       },
       helpId: 'rsm-fitting',
       completion: 'validated',
-      validation: { kind: 'analysis-output', analysisId: 'rsmanalyze', minCount: 4, requireModel: true },
+      validation: {
+        kind: 'analysis-output',
+        analysisId: 'rsmanalyze',
+        minCount: 4,
+        requireModel: true,
+        // Four fits on the same coded factors; any other columns are a different analysis (WO-TQA-04).
+        columns: ['LED Current (coded)', 'Optical Distance (coded)', 'Diffuser Haze (coded)'],
+      },
     },
     {
       id: 'store-models',
@@ -528,7 +535,7 @@ export const FLAGSHIP_TUTORIAL: RawTutorial = {
       action: { action: 'open-profiler' },
       helpId: 'prediction-profiler',
       completion: 'validated',
-      validation: { kind: 'profiler-check', atOptimizerPoint: true, consistent: true },
+      validation: { kind: 'profiler-check', atOptimizerPoint: true, consistent: true, requireSaved: true },
     },
     {
       id: 'layout',

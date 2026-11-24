@@ -299,8 +299,18 @@ export function saveCustomStyle(style: CustomChartStyle): CustomChartStyle[] {
   return list;
 }
 
-export function deleteCustomStyle(id: string): CustomChartStyle[] {
-  const list = loadCustomStyles().filter((entry) => entry.id !== id);
+/** Put a whole list back, as a practice session's restore needs (WO-TQA-02). */
+export function writeCustomStyles(list: CustomChartStyle[]): void {
+  const store = storage();
+  if (!store) return;
+  try {
+    store.setItem(CUSTOM_STYLE_STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    /* a blocked store leaves the styles as they were */
+  }
+}
+
+export function deleteCustomStyle(id: string): CustomChartStyle[] {  const list = loadCustomStyles().filter((entry) => entry.id !== id);
   const store = storage();
   if (store) {
     try {

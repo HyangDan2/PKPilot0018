@@ -76,7 +76,13 @@ async function openLibrary(page) {
 async function startTutorial(page, tutorialId, { keepLibrary = false } = {}) {
   savedCards.clear();
   await openLibrary(page);
-  await page.click(`[data-testid=tut-start-${tutorialId}]`);
+  const start = page.locator(`[data-testid=tut-start-${tutorialId}]`);
+  if (await start.count()) {
+    await start.click();
+  } else {
+    // An unfinished lesson offers resume/restart; restart opens the start prompt.
+    await page.click(`[data-testid=tut-restart-${tutorialId}]`);
+  }
   await page.waitForSelector('[data-testid=tutorial-start-dialog]', { timeout: 8000 });
   await page.click('[data-testid=tutorial-start-isolated]');
   await page.waitForSelector('[data-testid=tutorial-dock]', { timeout: 8000 });
@@ -357,6 +363,10 @@ async function main() {
   await shot(page, '01-tutorial-library');
   await page.click('[data-testid=tutorial-library-close]');
 
+  // WO-TQA-13: the status bar states the build's own stage.
+  const statusbar = await page.locator('.statusbar').innerText();
+  record('status bar states the build stage', /PHASE 3/.test(statusbar) && !/PHASE 1/.test(statusbar), statusbar.split('\n').pop());
+
   await page.click('[data-testid=sample-button]');
   await page.click('[data-testid=sample-library-open]');
   await page.waitForSelector('[data-testid=sample-library]', { timeout: 8000 });
@@ -384,6 +394,9 @@ async function main() {
         record('flagship summary states the confirmation experiment', /confirmation|확인 실험/i.test(summary), '');
         const optimizer = await page.locator('[data-testid=tut-summary-optimizer]').count();
         record('flagship summary reports the optimiser result', optimizer === 1, '');
+        // WO-TQA-10: a lesson finished without skips is reported as its own outcome.
+        const completion = await page.locator('[data-testid=tut-completion]').getAttribute('data-completion');
+        record('flagship summary states how the practice ended', completion === 'verified', String(completion));
         await page.click('[data-testid=tut-review]');
         await wait(page, 400);
         const reopened = (await page.locator('[data-testid=tutorial-step]').count()) === 1
@@ -437,6 +450,43 @@ async function main() {
     status: document.querySelector('[data-testid=workspace]')?.getAttribute('data-layout'),
   }));
   record('original project restored unchanged', JSON.stringify(before) === JSON.stringify(after), `${JSON.stringify(before)} → ${JSON.stringify(after)}`);
+
+  // WO-TQA-07: a second kept practice must not overwrite the first.
+  await startTutorial(page, 'tutorial-start-001');
+  await exitPractice(page, 'keep');
+  await wait(page, 600);
+  await startTutorial(page, 'tutorial-normality-001');
+  await exitPractice(page, 'keep');
+  await wait(page, 600);
+  await openLibrary(page);
+  const keptOne = await page.locator('[data-testid=tut-resume-tutorial-start-001]').count();
+  const keptTwo = await page.locator('[data-testid=tut-resume-tutorial-normality-001]').count();
+  record('two practice projects are kept side by side', keptOne === 1 && keptTwo === 1, `start=${keptOne} normality=${keptTwo}`);
+  // WO-TQA-08: the older practice resumes with its project and its evidence.
+  await page.click('[data-testid=tut-resume-tutorial-start-001]');
+  await wait(page, 900);
+  const resumedDock = await page.locator('[data-testid=tutorial-dock]').count();
+  const resumedPractice = (await page.evaluate(() => [...document.querySelectorAll('.ws-tab')].map((element) => (element.textContent || '').replace('×', '').trim()))).some((tab) => tab.startsWith('Practice ·'));
+  const resumedSession = await page.locator('[data-testid=tut-session-id]').count();
+  record('the kept practice resumes with its project and session', resumedDock === 1 && resumedPractice && resumedSession === 1, `dock=${resumedDock} practiceTab=${resumedPractice} session=${resumedSession}`);
+  if (await page.locator('[data-testid=tutorial-library]').count()) await page.click('[data-testid=tutorial-library-close]');
+  await exitPractice(page, 'keep');
+  await wait(page, 700);
+
+  // WO-TQA-10: skipping every step lands on a summary that says so.
+  await startTutorial(page, 'tutorial-spc-001');
+  for (let index = 0; index < 14; index += 1) {
+    if (await page.locator('[data-testid=tutorial-summary]').count()) break;
+    const skip = page.locator('[data-testid=tut-skip]');
+    if (!(await skip.count())) break;
+    await skip.click();
+    await wait(page, 250);
+  }
+  const skippedEnding = await page.locator('[data-testid=tut-completion]').getAttribute('data-completion').catch(() => null);
+  record('a skipped-through lesson is not reported as a completed practice', skippedEnding === 'skipped', String(skippedEnding));
+  await shot(page, '07-skipped-summary');
+  await exitPractice(page, 'discard');
+  await wait(page, 700);
 
   // Mobile: bottom sheet, workspace still reachable.
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, acceptDownloads: true, isMobile: true });

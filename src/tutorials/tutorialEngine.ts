@@ -51,6 +51,22 @@ export function isTutorialComplete(tutorial: Tutorial, progress: TutorialProgres
 }
 
 /**
+ * How a lesson ended. "Every step done" is not one thing: a lesson finished by
+ * skipping steps was not practised, and a lesson finished with self-checked
+ * steps was not machine-verified (WO-TQA-10).
+ */
+export type CompletionKind = 'unfinished' | 'verified' | 'manual' | 'skipped';
+
+export function completionKind(tutorial: Tutorial, progress: TutorialProgress): CompletionKind {
+  const statuses = tutorial.steps.map((step) => progress.steps[step.id]?.status ?? 'NOT_STARTED');
+  const done = statuses.every((status) => status === 'COMPLETED' || status === 'SKIPPED');
+  if (!done) return 'unfinished';
+  if (statuses.some((status) => status === 'SKIPPED')) return 'skipped';
+  const selfChecked = tutorial.steps.some((step) => step.completion === 'manual' && progress.steps[step.id]?.status === 'COMPLETED');
+  return selfChecked ? 'manual' : 'verified';
+}
+
+/**
  * Re-evaluate every validated step against the workspace. A step that used to
  * pass but no longer matches its rule goes back to IN_PROGRESS (or FAILED when
  * the state contradicts the rule): completion is never restored from storage
@@ -159,6 +175,8 @@ export interface TutorialSummaryData {
   manual: number;
   skipped: number;
   failed: number;
+  /** verified = all machine-checked; manual = self-checked steps; skipped = ended with skips. */
+  completion: CompletionKind;
   durationMs: number;
   sampleIds: string[];
   analyses: string[];
@@ -189,6 +207,7 @@ export function tutorialSummary(tutorial: Tutorial, progress: TutorialProgress, 
     manual,
     skipped,
     failed,
+    completion: completionKind(tutorial, progress),
     durationMs,
     sampleIds: tutorial.sampleIds.filter((id) => facts.events.some((event) => event.type === 'sample-loaded' && event.payload.sampleId === id)),
     analyses,
