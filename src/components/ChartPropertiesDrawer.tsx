@@ -339,7 +339,17 @@ export function ChartPropertiesDrawer({
               <Group title={tLabel('cd.section.size')}>
                 <NumberField label={tLabel('cd.sizeWidth')} value={draft.appearance?.width} min={260} step={10} onChange={(value) => patch((config) => { config.appearance = { ...(config.appearance ?? {}), width: value ?? 560 }; })} />
                 <NumberField label={tLabel('cd.sizeHeight')} value={draft.appearance?.height || null} min={120} step={10} onChange={(value) => patch((config) => { config.appearance = { ...(config.appearance ?? {}), height: value ?? 0 }; })} />
-                <NumberField label={tLabel('cd.aspect')} value={draft.appearance?.aspectRatio} step={0.1} onChange={(value) => patch((config) => { config.appearance = { ...(config.appearance ?? {}), aspectRatio: value ?? 1.6 }; })} />
+                <NumberField
+                  label={tLabel('cd.aspect')}
+                  value={draft.appearance?.aspectRatio}
+                  step={0.1}
+                  onChange={(value) => patch((config) => {
+                    // Choosing an aspect ratio sets the height that realises it.
+                    const ratio = value && value > 0.2 ? value : 1.6;
+                    const width = config.appearance?.width ?? 560;
+                    config.appearance = { ...(config.appearance ?? {}), aspectRatio: ratio, height: Math.round(width / ratio) };
+                  })}
+                />
                 <div className="cd-margins">
                   {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
                     <label key={side} className="cd-mini">
