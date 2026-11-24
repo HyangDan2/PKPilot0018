@@ -24,6 +24,7 @@ import {
   suggestResponseLimits,
 } from '../lib/optimizer';
 import { responseLimits } from '../lib/desirability';
+import type { TutorialOptimizerSpec } from '../tutorials/types';
 
 /* ─────────────────────────────────────────────────────────────────────────
    The response optimiser window (WO-05).
@@ -41,6 +42,10 @@ import { responseLimits } from '../lib/desirability';
 interface Props {
   lang: Lang;
   models: StoredModel[];
+  /** Goals and limits a tutorial stated; the reader can still change every field. */
+  initial?: TutorialOptimizerSpec | null;
+  /** Receives every completed search, so a tutorial can validate the real result. */
+  onResult?: (payload: { result: OptimizerResult; responses: ResponseSettings[]; factors: FactorSettings[]; models: StoredModel[] }) => void;
   onClose: () => void;
   /** Hand the result to the workspace as an output card. */
   onInsert: (payload: { result: OptimizerResult; responses: ResponseSettings[]; factors: FactorSettings[]; models: StoredModel[] }) => void;
@@ -85,13 +90,24 @@ function statusTone(status: OptimizerResult['status']): 'ok' | 'warn' | 'bad' | 
   return 'muted';
 }
 
-export function ResponseOptimizer({ lang, models, onClose, onInsert, onProfiler }: Props) {
+export function ResponseOptimizer({ lang, models, initial, onResult, onClose, onInsert, onProfiler }: Props) {
   const factorNames = useMemo(() => sharedFactorNames(models), [models]);
   const initialFactors = useMemo(() => factorNames.map((name) => defaultFactorSettings(models, name)), [models, factorNames]);
-  const initialResponses = useMemo(
-    () => suggestResponseLimits(models, models.map((model) => defaultResponseSettings(model)), initialFactors),
-    [models, initialFactors],
-  );
+  const initialResponses = useMemo(() => {
+    const base = suggestResponseLimits(models, models.map((model) => defaultResponseSettings(model)), initialFactors);
+    if (!initial) return base;
+    return base.map((response) => {
+      const spec = initial.responses.find((entry) => entry.response === response.name);
+      if (!spec) return response;
+      return {
+        ...response,
+        goal: spec.goal,
+        ...(spec.lower !== undefined ? { lower: spec.lower } : {}),
+        ...(spec.upper !== undefined ? { upper: spec.upper } : {}),
+        ...(spec.target !== undefined ? { target: spec.target } : {}),
+      };
+    });
+  }, [models, initialFactors, initial]);
   const [responses, setResponses] = useState<ResponseSettings[]>(initialResponses);
   const [factors, setFactors] = useState<FactorSettings[]>(initialFactors);
   const [settings, setSettings] = useState<OptimizerSettings>(DEFAULT_OPTIMIZER_SETTINGS);
@@ -125,7 +141,10 @@ export function ResponseOptimizer({ lang, models, onClose, onInsert, onProfiler 
     void (async () => {
       try {
         const next = await optimizeAsync(models, responses, factors, options);
-        if (runToken.current === token) setResult(next);
+        if (runToken.current === token) {
+          setResult(next);
+          onResult?.({ result: next, responses, factors, models });
+        }
       } catch (error) {
         if (runToken.current !== token) return;
         setResult({

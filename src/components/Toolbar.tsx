@@ -14,6 +14,8 @@ interface Props {
   workspaceLayout: WorkspaceLayout;
   onWorkspaceLayout: (id: WorkspaceLayout) => void;
   onSample: (id: string) => void;
+  onSampleLibrary: () => void;
+  onLearn: () => void;
   onAnalysis: (id: string) => void;
   onNewSheet: () => void;
   onRerun: () => void;
@@ -23,7 +25,7 @@ interface Props {
 interface Anchor { left: number; top: number; width: number }
 
 export function Toolbar({
-  lang, sheetName, sheetColumns, canRerun, workspaceLayout, onWorkspaceLayout, onSample, onAnalysis, onNewSheet, onRerun, onExportCsv,
+  lang, sheetName, sheetColumns, canRerun, workspaceLayout, onWorkspaceLayout, onSample, onSampleLibrary, onLearn, onAnalysis, onNewSheet, onRerun, onExportCsv,
 }: Props) {
   const [sampleOpen, setSampleOpen] = useState(false);
   const [anchor, setAnchor] = useState<Anchor>({ left: 0, top: 0, width: 280 });
@@ -105,9 +107,23 @@ export function Toolbar({
               <span className="mi-label">{t(lang, ds.nameKey)}</span>
             </button>
           ))}
+          <span className="menu-sep" />
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => { setSampleOpen(false); onSampleLibrary(); }}
+            data-testid="sample-library-open"
+          >
+            <span className="mi-label">{t(lang, 'sample.library')}</span>
+          </button>
         </div>,
         document.body,
       )}
+
+      <button type="button" className="tool-btn accent" onClick={onLearn} data-testid="learn-sigrun">
+        <IconLayers size={15} /><span>{t(lang, 'tut.learn')}</span>
+      </button>
 
       <span className="tool-sep" />
 

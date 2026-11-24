@@ -9,6 +9,8 @@ interface Props {
   lang: Lang;
   initial: 'help' | 'about';
   onClose: () => void;
+  onOpenCenter?: () => void;
+  onOpenTutorials?: () => void;
 }
 
 const SHORTCUTS: { keys: string; label: string }[] = [
@@ -28,7 +30,7 @@ const SHORTCUTS: { keys: string; label: string }[] = [
   { keys: 'Esc', label: 'help.k.escape' },
 ];
 
-export function HelpModal({ lang, initial, onClose }: Props) {
+export function HelpModal({ lang, initial, onClose, onOpenCenter, onOpenTutorials }: Props) {
   const [tab, setTab] = useState<'help' | 'about'>(initial);
 
   useEffect(() => {
@@ -69,6 +71,14 @@ export function HelpModal({ lang, initial, onClose }: Props) {
               <section className="help-sec">
                 <h4>{t(lang, 'help.data')}</h4>
                 <p>{t(lang, 'help.dataText')}</p>
+              </section>
+              <section className="help-sec">
+                <h4>{t(lang, 'help.center')}</h4>
+                <p>{t(lang, 'help.centerShort')}</p>
+                <div className="help-practice-actions">
+                  {onOpenCenter && <button type="button" className="btn tiny" onClick={onOpenCenter} data-testid="help-open-center">{t(lang, 'help.openCenter')}</button>}
+                  {onOpenTutorials && <button type="button" className="btn tiny" onClick={onOpenTutorials} data-testid="help-open-tutorials">{t(lang, 'tut.openLibrary')}</button>}
+                </div>
               </section>
               <section className="help-sec">
                 <h4>{t(lang, 'help.shortcuts')}</h4>

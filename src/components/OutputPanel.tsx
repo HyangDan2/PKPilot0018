@@ -21,7 +21,7 @@ import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ChartFrame, ChartViewer, type ChartEditRequest } from './ChartFrame';
 import { selectionCompatible } from '../lib/chartInteraction';
 import { ChartPropertiesDrawer, type ChartDrawerTab } from './ChartPropertiesDrawer';
-import { IconChevronDown, IconCopy, IconDownload, IconPrinter, IconRerun, IconTrash, IconX } from './Icons';
+import { IconChevronDown, IconCopy, IconDownload, IconModel, IconPrinter, IconRerun, IconTrash, IconX } from './Icons';
 
 interface Props {
   lang: Lang;
@@ -685,6 +685,18 @@ export function OutputPanel({
               </div>
             </div>
             <div className="out-tools" onClick={(event) => event.stopPropagation()}>
+              {output.model && (
+                <button
+                  type="button"
+                  className="card-save-model"
+                  onClick={() => onSaveModel(output)}
+                  title={t(lang, 'outctx.saveModel')}
+                  aria-label={t(lang, 'outctx.saveModel')}
+                  data-testid="card-save-model"
+                >
+                  <IconModel size={14} />
+                </button>
+              )}
               <button type="button" onClick={() => onRerun(output)} title={t(lang, 'card.rerun')} aria-label={t(lang, 'card.rerun')} data-testid="card-rerun">
                 <IconRerun size={14} />
               </button>
