@@ -164,9 +164,15 @@ node tools/e2e_portable_offline.cjs → 63 / 63 PASS
 
 ## 6. 배포
 
-- PR: (머지 후 기입) · 머지 커밋: (기입)
-- GitHub Pages: https://hyangdan2.github.io/PKPilot0018/ — 번들 해시와 라이브 확인 결과는 머지 후 이 절에 기록한다.
-- Portable ZIP 사본: `/workspace/work/pkpilot0018/sigrun-portable.zip`
+| 항목 | 값 |
+| --- | --- |
+| PR (교정) | [#27](https://github.com/HyangDan2/PKPilot0018/pull/27) → 스쿼시 머지 `6a98126` · 원격 브랜치 삭제 |
+| PR (About 문구) | [#28](https://github.com/HyangDan2/PKPilot0018/pull/28) → 스쿼시 머지 `c6f2cc3` · 원격 브랜치 삭제 |
+| CI (`main` push) | `Deploy Sigrún to GitHub Pages` run `45391228708` **success** · `Statistics QA` run `45391228596` **success** (문구 PR은 `45392274024` / `45392274254`) |
+| GitHub Pages | https://hyangdan2.github.io/PKPilot0018/ — 라이브 번들 `assets/index-BUFOxC7B.js` (= `main` 로컬 빌드와 동일) |
+| 라이브 스모크 | Stage 3C E2E를 라이브에 실행 **24 / 24 PASS** (`BASE=https://hyangdan2.github.io/PKPilot0018/ SERVE=0`) |
+| About 라이브 확인 | `시그룬 v1.0.0 · Phase 3 · 2026` 표시, 본문이 현재 기능을 서술 — `work/pkpilot0018/phase3-3e-about-version.png` |
+| Portable ZIP 사본 | `/workspace/work/pkpilot0018/sigrun-portable.zip` — 커밋 `c6f2cc3`, 361.8 kB, sha256 `c20c9e40…cae8`, `build-info.json` 동봉 |
 
 ## 7. 한계와 미확인 (UNVERIFIED)
 
