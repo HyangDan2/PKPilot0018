@@ -41,7 +41,7 @@ import { makeWorksheet } from '../../../src/lib/datasets';
 import { defaultValues, findAnalysis, type RunContext } from '../../../src/lib/analyses';
 import { boxplotStats, histogramBins, histogramCurve } from '../../../src/lib/charts';
 import { createStoredModel, draftFromRsmPayload, type ModelVariable, type StoredModel, type StoredModelDraft } from '../../../src/lib/modelStore';
-import { modelSurface, predictStoredModel } from '../../../src/lib/modelPredictor';
+import { axisActualValue, compileSurfaceEvaluator, designFromActual, modelSurface, predictStoredModel } from '../../../src/lib/modelPredictor';
 import { buildRsmModel } from '../../../src/lib/doe';
 import { buildModelSurface } from '../../../src/lib/chartConfigOps';
 import { buildOverlaid, type ResponseSpec } from '../../../src/lib/feasible';
@@ -234,6 +234,56 @@ function centrePoint(model: StoredModel): Record<string, number> {
       : 0;
   });
   return point;
+}
+
+
+/** Decode a JSON-safe special number marker ({__special: 'NaN'}) back to a number. */
+function decodeSpecial(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(decodeSpecial);
+  if (value && typeof value === 'object' && '__special' in (value as Record<string, unknown>)) {
+    const marker = (value as Record<string, unknown>).__special;
+    if (marker === 'NaN') return Number.NaN;
+    if (marker === 'Infinity') return Number.POSITIVE_INFINITY;
+    if (marker === '-Infinity') return Number.NEGATIVE_INFINITY;
+    return null;
+  }
+  return value;
+}
+
+/** Build a StoredModel from a case's record (no fitting involved). */
+function storedFromJson(spec: Record<string, any>): StoredModel {
+  return {
+    format: 'sigrun-model',
+    version: 1,
+    id: String(spec.id),
+    name: String(spec.name),
+    kind: 'rsm',
+    createdAt: '2026-11-24T00:00:00.000Z',
+    updatedAt: '2026-11-24T00:00:00.000Z',
+    response: { id: 'R', name: String(spec.response ?? spec.name), kind: 'numeric' },
+    predictors: (spec.predictors as Record<string, any>[]).map((predictor) => ({
+      id: String(predictor.id ?? ''),
+      name: String(predictor.name),
+      kind: predictor.kind === 'categorical' ? 'categorical' : 'numeric',
+      ...(predictor.unit ? { unit: String(predictor.unit) } : {}),
+      ...(predictor.coding ? { coding: predictor.coding } : {}),
+      ...(predictor.levels ? { levels: predictor.levels } : {}),
+    })),
+    terms: [],
+    coefficients: (spec.coefficients as Record<string, any>[]).map((coefficient) => ({
+      label: String(coefficient.label),
+      value: Number(coefficient.value),
+      estimable: coefficient.estimable !== false,
+    })),
+    covariance: (decodeSpecial(spec.covariance ?? null) as number[][] | null),
+    residual: spec.residual ?? null,
+    dof: spec.dof ?? null,
+    factorBounds: spec.factorBounds ?? null,
+    categoricalLevels: null,
+    training: null,
+    diagnostics: {},
+    source: {},
+  };
 }
 
 const alt = (v: unknown): Alt => (v === 'less' || v === 'greater' ? v : 'two-sided');
@@ -895,6 +945,136 @@ const ops: Record<string, Op> = {
     bag.put('y_max', result.ys[result.ys.length - 1]);
   },
 
+  /**
+   * QA-V (corrective): an overlay from explicit stored-model records.
+   *
+   * The models arrive as JSON (coding, coefficients, covariance, bounds) so
+   * the case can state exactly the defect it probes — a missing covariance, a
+   * different centre, an aliased term — which no single fitted dataset can.
+   * Every number below is produced by the SHIPPED engine.
+   */
+  overlay(bag, _ds, args) {
+    const models = (args.models as Record<string, any>[]).map((entry) => storedFromJson(entry));
+    const responses = (args.responses as { name: string; lsl: number | null; usl: number | null; target: number | null }[] | undefined) ?? [];
+    const specs: ResponseSpec[] = models.map((model, index) => ({
+      model,
+      modelId: model.id,
+      lsl: responses[index]?.lsl ?? null,
+      usl: responses[index]?.usl ?? null,
+      target: responses[index]?.target ?? null,
+    }));
+    const result = buildOverlaid(models, specs, {
+      xName: args.xName,
+      yName: args.yName,
+      holdings: args.holdings,
+      xRange: args.xRange,
+      yRange: args.yRange,
+      resolution: args.resolution ?? 21,
+      mode: args.mode ?? 'actual',
+      referenceModelId: args.referenceModelId,
+      basis: args.basis ?? 'mean',
+      alpha: args.alpha ?? 0.05,
+    });
+    bag.put('feasible_nodes', result.feasibleNodes);
+    bag.put('total_nodes', result.totalNodes);
+    bag.put('node_ratio', result.nodeRatio);
+    bag.put('area_ratio', result.areaRatio);
+    bag.put('narrow', result.narrowWarning ? 1 : 0);
+    bag.put('convergence_node_delta', result.convergence.nodeDelta);
+    bag.put('convergence_area_delta', result.convergence.areaDelta);
+    bag.put('convergence_neighbor_count', result.convergence.neighborCount);
+    bag.put('convergence_direction', result.convergence.direction);
+    bag.put('self_compare', result.convergence.neighborCount === result.convergence.count ? 1 : 0);
+    bag.put('interval_blocked', result.intervalBlocked.join(','));
+    result.responses.forEach((response, index) => bag.put(`response_${index}_node_ratio`, response.nodeRatio));
+    const probes = (args.probes ?? []) as [number, number][];
+    bag.put('probe_feasible', probes.map(([i, j]) => (result.feasible[j]?.[i] === 1 ? 1 : 0)).join(','));
+    probes.forEach(([i, j], index) => {
+      result.responses.forEach((response, r) => {
+        const value = response.z[j]?.[i];
+        bag.put(`z_${r}[${index}]`, value ?? null);
+        bag.put(`zname:${response.name}[${index}]`, value ?? null);
+      });
+    });
+    bag.put('extrapolated', result.extrapolated ? 1 : 0);
+    bag.put('extrapolation_count', result.extrapolation.details.length);
+    bag.put('extrapolation_details', result.extrapolation.details
+      .map((entry) => `${entry.model}|${entry.factor}|${entry.kind}`)
+      .sort()
+      .join(','));
+    bag.put('x_min', result.xs[0]);
+    bag.put('x_max', result.xs[result.xs.length - 1]);
+    bag.put('y_min', result.ys[0]);
+    bag.put('y_max', result.ys[result.ys.length - 1]);
+  },
+
+  /**
+   * QA-V: evaluate the same probes twice on ONE evaluator, in reverse order
+   * first. A prediction that remembers a neighbour's state shows here as
+   * `z_order` differing from `z_reverse`.
+   */
+  overlay_order(bag, _ds, args) {
+    const models = (args.models as Record<string, any>[]).map((entry) => storedFromJson(entry));
+    const responses = (args.responses as { name: string; lsl: number | null; usl: number | null; target: number | null }[] | undefined) ?? [];
+    const specs: ResponseSpec[] = models.map((model, index) => ({
+      model,
+      modelId: model.id,
+      lsl: responses[index]?.lsl ?? null,
+      usl: responses[index]?.usl ?? null,
+      target: responses[index]?.target ?? null,
+    }));
+    const mode = (args.mode ?? 'actual') as 'actual' | 'coded';
+    const result = buildOverlaid(models, specs, {
+      xName: args.xName,
+      yName: args.yName,
+      holdings: args.holdings,
+      xRange: args.xRange,
+      yRange: args.yRange,
+      resolution: args.resolution ?? 21,
+      mode,
+      basis: args.basis ?? 'mean',
+      alpha: args.alpha ?? 0.05,
+    });
+    const model = models[0];
+    const refXPredictor = models[0].predictors.find((predictor) => predictor.name === args.xName);
+    const refYPredictor = models[0].predictors.find((predictor) => predictor.name === args.yName);
+    const xPredictor = model.predictors.find((predictor) => predictor.name === args.xName) as ModelVariable;
+    const yPredictor = model.predictors.find((predictor) => predictor.name === args.yName) as ModelVariable;
+    const holdings: Record<string, number> = {};
+    model.predictors.forEach((predictor) => {
+      if (predictor.name === args.xName || predictor.name === args.yName) return;
+      const given = (args.holdings as Record<string, number> | undefined)?.[predictor.name];
+      if (given === undefined) { holdings[predictor.name] = predictor.coding?.center ?? 0; return; }
+      holdings[predictor.name] = mode === 'actual' || !refXPredictor
+        ? given
+        : axisActualValue(refXPredictor, given, 'coded');
+    });
+    const evaluator = compileSurfaceEvaluator(model, { xName: args.xName, yName: args.yName, holdings, mode: 'actual' });
+    const probes = (args.probes ?? []) as [number, number][];
+    const node = ([i, j]: [number, number]) => {
+      const xActual = refXPredictor ? axisActualValue(refXPredictor, result.xs[i], mode) : result.xs[i];
+      const yActual = refYPredictor ? axisActualValue(refYPredictor, result.ys[j], mode) : result.ys[j];
+      return [designFromActual(xPredictor, xActual), designFromActual(yPredictor, yActual)] as [number, number];
+    };
+    const during: (number | null)[] = new Array(probes.length).fill(null);
+    for (let k = probes.length - 1; k >= 0; k -= 1) {
+      const [x, y] = node(probes[k]);
+      const value = evaluator.value(x, y);
+      during[k] = Number.isFinite(value) ? value : null;
+    }
+    const after = probes.map((probe) => {
+      const [x, y] = node(probe);
+      const value = evaluator.value(x, y);
+      return Number.isFinite(value) ? value : null;
+    });
+    const same = during.every((value, index) => value === after[index]);
+    bag.put('order_identical', same ? 1 : 0);
+    bag.put('probe_feasible', probes.map(([i, j]) => (result.feasible[j]?.[i] === 1 ? 1 : 0)).join(','));
+    bag.put('node_ratio', result.nodeRatio);
+    after.forEach((value, index) => bag.put(`z_order[${index}]`, value));
+    during.forEach((value, index) => bag.put(`z_reverse[${index}]`, value));
+  },
+
   power(bag, ds, args) {
     const spec: PowerSpec = {
       method: args.method as PowerMethod,
@@ -1235,6 +1415,7 @@ const ops: Record<string, Op> = {
 
   modelpredict(bag, _ds, args) {
     const model = modelFromSpec(args.model as Record<string, unknown>);
+
     const points = (args.points as { mode?: 'actual' | 'coded'; values: Record<string, number | string> }[]) ?? [];
     let refused = 0;
     points.forEach((point, index) => {

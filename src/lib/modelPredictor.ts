@@ -73,19 +73,47 @@ function predictorNamed(model: StoredModel, name: string): ModelVariable | undef
     ?? model.predictors.find((predictor) => predictor.id && predictor.id === name);
 }
 
+/** True when a coding transform can be inverted at all. */
+function usableCoding(predictor: ModelVariable): boolean {
+  const coding = predictor.coding;
+  return Boolean(coding) && Number.isFinite(coding?.center) && Number.isFinite(coding?.halfRange) && coding?.halfRange !== 0;
+}
+
 /** The coded/actual conversion for one numeric predictor. */
 export function toDesignValue(predictor: ModelVariable, value: number, mode: InputMode): number {
   const coding = predictor.coding;
   if (!coding) return value;
+  if (!Number.isFinite(value)) throw new ModelInputError('model.valueMissing', { variable: predictor.name });
   if (coding.mode === 'coded') {
     // Coefficients read coded units.
     if (mode === 'coded') return value;
-    if (!coding.halfRange) throw new ModelInputError('model.coding', { variable: predictor.name });
+    if (!usableCoding(predictor)) throw new ModelInputError('model.coding', { variable: predictor.name });
     return (value - coding.center) / coding.halfRange;
   }
   // Coefficients read the measured value.
   if (mode === 'actual') return value;
+  if (!usableCoding(predictor)) throw new ModelInputError('model.coding', { variable: predictor.name });
   return coding.center + coding.halfRange * value;
+}
+
+/**
+ * The actual (physical) value an axis position stands for.
+ *
+ * This is the one place where the two unit systems meet: an axis is drawn in
+ * `mode` units of the reference model, while every model transforms the SAME
+ * physical value with its own coding. Going through actual units is what keeps
+ * two models with different centres and half ranges in one coordinate system.
+ */
+export function axisActualValue(predictor: ModelVariable, value: number, mode: InputMode): number {
+  if (mode === 'actual') return value;
+  const coding = predictor.coding;
+  if (!coding || !Number.isFinite(coding.center) || !Number.isFinite(coding.halfRange)) return value;
+  return coding.center + coding.halfRange * value;
+}
+
+/** A measured value in the units the coefficients read. */
+export function designFromActual(predictor: ModelVariable, actual: number): number {
+  return toDesignValue(predictor, actual, 'actual');
 }
 
 /** The actual-unit value that corresponds to a coded one (for display). */
@@ -204,41 +232,194 @@ export function predictStoredModel(model: StoredModel, point: PredictionPoint, o
   }
   const nonEstimable: string[] = [];
   let fit = 0;
+  let invalid: string | null = null;
   model.coefficients.forEach((coefficient, index) => {
+    if (invalid) return;
     const weight = design.values[index];
-    if (!Number.isFinite(weight) || weight === 0) return;
-    if (!coefficient.estimable || !Number.isFinite(coefficient.value)) {
-      nonEstimable.push(coefficient.label);
-      return;
-    }
+    // A non-finite weight is an overflow or a broken transform. Skipping the
+    // term would return the rest of the sum as if it were the prediction, so
+    // the whole point is refused instead.
+    if (!Number.isFinite(weight)) { invalid = 'model.value.nonFinite'; return; }
+    if (weight === 0) return;
+    if (!coefficient.estimable) { nonEstimable.push(coefficient.label); return; }
+    if (!Number.isFinite(coefficient.value)) { invalid = 'model.coefficient.nonFinite'; return; }
     fit += weight * coefficient.value;
   });
+  if (invalid) return { value: null, se: null, pi: null, nonEstimable: [], issues: [...issues, invalid] };
+  if (!Number.isFinite(fit)) return { value: null, se: null, pi: null, nonEstimable: [], issues: [...issues, 'model.value.nonFinite'] };
   if (nonEstimable.length) {
     return { value: null, se: null, pi: null, nonEstimable, issues };
   }
+  // Intervals: covariance and df gate a confidence interval, mse additionally
+  // gates a prediction interval. A missing quantity is named, never filled in.
+  const covarianceCheck = covarianceStatus(model);
+  const intervals = intervalStatus(model);
   let se: number | null = null;
   let pi: [number, number] | null = null;
-  const covariance = model.covariance;
-  const df = model.residual?.df;
-  if (covariance && covariance.length === model.coefficients.length && df && df > 0) {
-    let variance = 0;
-    for (let i = 0; i < design.values.length; i += 1) {
-      for (let j = 0; j < design.values.length; j += 1) {
-        const entry = covariance[i]?.[j];
-        if (!Number.isFinite(entry)) continue;
-        variance += design.values[i] * design.values[j] * (entry as number);
+  if (!intervals.ci) {
+    issues.push(...intervals.reasons.filter((reason) => reason !== 'model.covariance.missing' && reason !== 'model.df.missing'));
+  } else {
+    const variance = quadraticForm(covarianceCheck.matrix as number[][], design.values);
+    if (!variance.ok) {
+      issues.push(variance.reason);
+    } else {
+      se = Math.sqrt(variance.value);
+      if (intervals.pi) {
+        const alpha = Math.min(0.999, Math.max(1e-6, options.alpha ?? 0.05));
+        const mse = model.residual?.mse as number;
+        const df = model.residual?.df as number;
+        const half = tInv(1 - alpha / 2, df) * Math.sqrt(variance.value + mse);
+        if (Number.isFinite(half)) pi = [fit - half, fit + half];
+        else issues.push('model.value.nonFinite');
       }
-    }
-    if (variance >= 0 && Number.isFinite(variance)) {
-      se = Math.sqrt(variance);
-      const alpha = Math.min(0.999, Math.max(1e-6, options.alpha ?? 0.05));
-      const mse = model.residual?.mse ?? 0;
-      const t = tInv(1 - alpha / 2, df);
-      const half = t * Math.sqrt(variance + Math.max(0, mse));
-      if (Number.isFinite(half)) pi = [fit - half, fit + half];
     }
   }
   return { value: fit, se, pi, nonEstimable, issues };
+}
+
+/* ── covariance and interval conditions ──────────────────────────────── */
+
+export interface CovarianceStatus {
+  ok: boolean;
+  /** Why the matrix cannot carry a variance, when it cannot. */
+  reasons: string[];
+  /** The matrix when it passed every check, else null. */
+  matrix: number[][] | null;
+}
+
+/** Absolute floor for a negative variance that is only rounding noise. */
+const NEGATIVE_VARIANCE_TOLERANCE = 1e-12;
+/**
+ * Relative tolerance for the same judgement.
+ *
+ * A covariance stored as mse·(X'X)⁻¹ can carry a tiny negative eigenvalue from
+ * the inversion itself (the QA-J regression model has −2e-8 on a 0.86 diagonal,
+ * i.e. 2e-8 relative). That is rounding, not an invalid matrix; a matrix whose
+ * eigenvalues are genuinely negative is far below this bound and is refused.
+ */
+const PSD_RELATIVE_TOLERANCE = 1e-7;
+
+function symmetricTolerance(value: number): number {
+  return 1e-9 * (1 + Math.abs(value));
+}
+
+function choleskyPasses(matrix: number[][]): boolean {
+  const n = matrix.length;
+  const lower: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
+  let scale = 0;
+  for (let i = 0; i < n; i += 1) scale = Math.max(scale, Math.abs(matrix[i][i]));
+  const tolerance = Math.max(NEGATIVE_VARIANCE_TOLERANCE, PSD_RELATIVE_TOLERANCE * Math.max(1, scale));
+  for (let i = 0; i < n; i += 1) {
+    for (let j = 0; j <= i; j += 1) {
+      let sum = matrix[i][j];
+      for (let k = 0; k < j; k += 1) sum -= lower[i][k] * lower[j][k];
+      if (i === j) {
+        if (sum < -tolerance) return false;
+        lower[i][i] = Math.sqrt(Math.max(0, sum));
+      } else if (lower[j][j] > 0) {
+        lower[i][j] = sum / lower[j][j];
+      } else if (Math.abs(sum) > tolerance) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Is this covariance usable as the variance of a linear combination?
+ *
+ * Size, finiteness, symmetry and positive semi-definiteness are checked; a
+ * matrix that fails any of them cannot turn into a standard error, and the
+ * caller is told which check failed instead of receiving a smaller number.
+ */
+export function covarianceStatus(model: StoredModel): CovarianceStatus {
+  const size = model.coefficients.length;
+  const covariance = model.covariance;
+  if (!covariance) return { ok: false, reasons: ['model.covariance.missing'], matrix: null };
+  if (!Array.isArray(covariance) || covariance.length !== size) return { ok: false, reasons: ['model.covariance.size'], matrix: null };
+  const reasons = new Set<string>();
+  for (let i = 0; i < size; i += 1) {
+    const row = covariance[i];
+    if (!Array.isArray(row) || row.length !== size) { reasons.add('model.covariance.size'); break; }
+    for (let j = 0; j < size; j += 1) {
+      const value = row[j];
+      if (!Number.isFinite(value)) { reasons.add('model.covariance.nonFinite'); continue; }
+      if (i !== j) {
+        const mirror = covariance[j]?.[i];
+        if (!Number.isFinite(mirror) || Math.abs(value - (mirror as number)) > symmetricTolerance(value)) reasons.add('model.covariance.asymmetric');
+      } else if (value < -Math.max(NEGATIVE_VARIANCE_TOLERANCE, PSD_RELATIVE_TOLERANCE * Math.max(1, Math.abs(value)))) {
+        reasons.add('model.covariance.negativeVariance');
+      }
+    }
+  }
+  if (reasons.size) return { ok: false, reasons: [...reasons], matrix: null };
+  if (!choleskyPasses(covariance)) return { ok: false, reasons: ['model.covariance.notPsd'], matrix: null };
+  return { ok: true, reasons: [], matrix: covariance };
+}
+
+/** True when a coefficient is unidentified: the fit is rank-deficient. */
+export function isRankDeficient(model: StoredModel): boolean {
+  if (model.coefficients.some((coefficient) => !coefficient.estimable)) return true;
+  const rank = model.dof?.rank;
+  return typeof rank === 'number' && Number.isFinite(rank) && rank < model.coefficients.length;
+}
+
+export interface IntervalStatus {
+  /** A confidence interval on the mean is defined. */
+  ci: boolean;
+  /** A prediction interval for one future observation is defined. */
+  pi: boolean;
+  reasons: string[];
+}
+
+/**
+ * What each basis needs, in one place.
+ *
+ * CI: a usable covariance and df > 0 on an identified fit.
+ * PI: the same, plus a finite residual variance (`mse`). A missing mse is a
+ * missing quantity — substituting 0 would understate the interval by exactly
+ * the residual variance.
+ */
+export function intervalStatus(model: StoredModel): IntervalStatus {
+  const reasons: string[] = [];
+  const covariance = covarianceStatus(model);
+  if (!covariance.ok) reasons.push(...covariance.reasons);
+  if (isRankDeficient(model)) reasons.push('model.rankDeficient');
+  const df = model.residual?.df;
+  if (!(typeof df === 'number' && Number.isFinite(df) && df > 0)) reasons.push('model.df.missing');
+  const ci = reasons.length === 0;
+  const mse = model.residual?.mse;
+  const mseOk = typeof mse === 'number' && Number.isFinite(mse) && mse >= 0;
+  const pi = ci && mseOk;
+  const all = ci && !mseOk ? [...reasons, 'model.mse.missing'] : reasons;
+  return { ci, pi, reasons: [...new Set(all)] };
+}
+
+interface QuadraticForm {
+  ok: boolean;
+  value: number;
+  reason: string;
+}
+
+/** w'Σw with the documented negative-variance distinction. */
+function quadraticForm(covariance: number[][], weights: number[]): QuadraticForm {
+  let sum = 0;
+  let scale = 0;
+  for (let i = 0; i < weights.length; i += 1) {
+    if (!Number.isFinite(weights[i])) return { ok: false, value: Number.NaN, reason: 'model.value.nonFinite' };
+    for (let j = 0; j < weights.length; j += 1) {
+      const entry = covariance[i]?.[j];
+      if (!Number.isFinite(entry)) return { ok: false, value: Number.NaN, reason: 'model.covariance.nonFinite' };
+      const term = weights[i] * weights[j] * (entry as number);
+      sum += term;
+      scale += Math.abs(term);
+    }
+  }
+  if (!Number.isFinite(sum)) return { ok: false, value: Number.NaN, reason: 'model.value.nonFinite' };
+  const tolerance = Math.max(NEGATIVE_VARIANCE_TOLERANCE, PSD_RELATIVE_TOLERANCE * Math.max(scale, 1));
+  if (sum < -tolerance) return { ok: false, value: Number.NaN, reason: 'model.covariance.negativeVariance' };
+  return { ok: true, value: Math.max(0, sum), reason: '' };
 }
 
 /** ŷ for every row of a table (predictor name → values). */
@@ -271,22 +452,26 @@ export interface ModelSurface {
   nonEstimable: string[];
 }
 
+/**
+ * The display range of one factor, in `mode` units.
+ *
+ * `factorBounds` are stored in ACTUAL units (see StoredModel). The coded display
+ * therefore maps them through the model's own coding; it never reinterprets a
+ * bound as if it were already coded, which used to shrink or grow the range a
+ * second time depending on the coding mode.
+ */
 export function factorDisplayRange(model: StoredModel, predictor: ModelVariable, mode: InputMode): [number, number] {
   const bound = model.factorBounds?.[predictor.name];
   const coding = predictor.coding;
-  if (!bound) {
-    if (coding) return mode === coding.mode ? [coding.center - coding.halfRange, coding.center + coding.halfRange] : [-1, 1];
+  if (!bound || !Number.isFinite(bound.min) || !Number.isFinite(bound.max)) {
+    if (coding && usableCoding(predictor)) {
+      const actual: [number, number] = [coding.center - coding.halfRange, coding.center + coding.halfRange];
+      return mode === 'actual' ? actual : [(actual[0] - coding.center) / coding.halfRange, (actual[1] - coding.center) / coding.halfRange];
+    }
     return [-1, 1];
   }
-  if (mode === 'actual') {
-    return coding?.mode === 'coded' ? [
-      coding.center + coding.halfRange * bound.min,
-      coding.center + coding.halfRange * bound.max,
-    ] : [bound.min, bound.max];
-  }
-  // Coded display: normalise whatever the bounds are in.
-  if (!coding) return [bound.min, bound.max];
-  if (coding.mode === 'coded') return [bound.min, bound.max];
+  if (mode === 'actual') return [bound.min, bound.max];
+  if (!coding || !usableCoding(predictor)) return [bound.min, bound.max];
   return [(bound.min - coding.center) / coding.halfRange, (bound.max - coding.center) / coding.halfRange];
 }
 
@@ -352,22 +537,43 @@ export function modelSurface(model: StoredModel, options: SurfaceOptions): Model
  * powers — the same arithmetic, in the same order per term, so it can be
  * cross-checked against `modelSurface` node for node.
  */
+export interface NodeEvaluation {
+  /** ŷ, or null when this point cannot be estimated. */
+  value: number | null;
+  /** Terms this point leans on that are not identified (empty when estimable). */
+  nonEstimable: string[];
+  /** Standard error of the mean at this point, or null. */
+  se: number | null;
+  ciHalf: number | null;
+  piHalf: number | null;
+  /** Structural problems of this point (overflow, unusable covariance, …). */
+  issues: string[];
+}
+
 export interface CompiledSurfaceEvaluator {
   xName: string;
   yName: string;
   /** Design-space (coded / contrast) values the non-axis factors are held at. */
   resolvedHoldings: PredictionPoint;
-  /** Predictions that lean on an unidentified column, if any. */
+  /** Coefficient labels that are not identified in this fit (a model fact). */
   nonEstimable: string[];
-  /** ŷ at design-space (x, y) values. */
+  /** What each interval basis can answer for this model, and why not. */
+  intervalStatus: IntervalStatus;
+  /**
+   * Every quantity of one point in one call. Nothing is remembered between
+   * calls: the same (x, y) always returns the same node, whatever order the
+   * grid is walked in.
+   */
+  evaluate(xCoded: number, yCoded: number, withVariance?: boolean): NodeEvaluation;
+  /** ŷ at design-space (x, y) values, NaN when this point is not estimable. */
   value(xCoded: number, yCoded: number): number;
-  /** Standard error of the fitted mean, or null without a covariance. */
+  /** Standard error of the fitted mean, or null without a usable covariance. */
   se(xCoded: number, yCoded: number): number | null;
   /** 1 − α/2 t half-width for a confidence interval on the mean. */
   ciHalf(xCoded: number, yCoded: number): number | null;
   /** 1 − α/2 t half-width for a prediction interval (needs df and mse). */
   piHalf(xCoded: number, yCoded: number): number | null;
-  /** True when the covariance/df needed for intervals is present. */
+  /** True when a confidence interval on the mean is defined. */
   hasInterval: boolean;
 }
 
@@ -434,64 +640,85 @@ export function compileSurfaceEvaluator(
     });
     terms.push({ label: coefficient.label, value: coefficient.value, estimable: coefficient.estimable, constantPart, xPower, yPower });
   });
-  const covariance = model.covariance && model.covariance.length === model.coefficients.length ? model.covariance : null;
-  const df = model.residual?.df && model.residual.df > 0 ? model.residual.df : null;
-  const mse = model.residual?.mse ?? 0;
+  const covarianceCheck = covarianceStatus(model);
+  const intervals = intervalStatus(model);
+  const df = model.residual?.df as number | undefined;
+  const mse = model.residual?.mse;
   const alpha = Math.min(0.999, Math.max(1e-6, options.alpha ?? 0.05));
   const weight = (term: CompiledTerm, x: number, y: number): number => term.constantPart
     * (term.xPower === 0 ? 1 : x ** term.xPower)
     * (term.yPower === 0 ? 1 : y ** term.yPower);
-  const nonEstimable: string[] = [];
-  const value = (x: number, y: number): number => {
+  const nonEstimable = model.coefficients.filter((coefficient) => !coefficient.estimable).map((coefficient) => coefficient.label);
+  const evaluate = (x: number, y: number, withVariance = true): NodeEvaluation => {
+    const issues: string[] = [];
+    const weights = new Array<number>(terms.length);
+    for (let i = 0; i < terms.length; i += 1) {
+      const w = weight(terms[i], x, y);
+      if (!Number.isFinite(w)) {
+        return { value: null, nonEstimable: [], se: null, ciHalf: null, piHalf: null, issues: ['model.value.nonFinite'] };
+      }
+      weights[i] = w;
+    }
     let fit = 0;
-    for (const term of terms) {
-      const w = weight(term, x, y);
-      if (!Number.isFinite(w) || w === 0) continue;
-      if (!term.estimable || !Number.isFinite(term.value)) {
-        if (!nonEstimable.includes(term.label)) nonEstimable.push(term.label);
-        continue;
+    const leaning: string[] = [];
+    for (let i = 0; i < terms.length; i += 1) {
+      const w = weights[i];
+      if (w === 0) continue;
+      const term = terms[i];
+      if (!term.estimable) { leaning.push(term.label); continue; }
+      if (!Number.isFinite(term.value)) {
+        return { value: null, nonEstimable: [], se: null, ciHalf: null, piHalf: null, issues: ['model.coefficient.nonFinite'] };
       }
       fit += w * term.value;
     }
-    return nonEstimable.length ? Number.NaN : fit;
-  };
-  const variance = (x: number, y: number): number | null => {
-    if (!covariance) return null;
-    const row = terms.map((term) => weight(term, x, y));
-    let sum = 0;
-    for (let i = 0; i < row.length; i += 1) {
-      if (!Number.isFinite(row[i]) || row[i] === 0) continue;
-      for (let j = 0; j < row.length; j += 1) {
-        const entry = covariance[i]?.[j];
-        if (!Number.isFinite(entry)) continue;
-        sum += row[i] * row[j] * (entry as number);
-      }
+    if (!Number.isFinite(fit)) {
+      return { value: null, nonEstimable: [], se: null, ciHalf: null, piHalf: null, issues: ['model.value.nonFinite'] };
     }
-    return sum >= 0 && Number.isFinite(sum) ? sum : null;
+    if (leaning.length) {
+      return { value: null, nonEstimable: [...new Set(leaning)], se: null, ciHalf: null, piHalf: null, issues };
+    }
+    let se: number | null = null;
+    let ciHalf: number | null = null;
+    let piHalf: number | null = null;
+    if (!withVariance) return { value: fit, nonEstimable: [], se, ciHalf, piHalf, issues };
+    if (intervals.ci) {
+      const form = quadraticForm(covarianceCheck.matrix as number[][], weights);
+      if (!form.ok) {
+        issues.push(form.reason);
+      } else {
+        se = Math.sqrt(form.value);
+        ciHalf = Number.isFinite(se) ? tInv(1 - alpha / 2, df as number) * se : null;
+        if (intervals.pi && typeof mse === 'number') {
+          const half = tInv(1 - alpha / 2, df as number) * Math.sqrt(form.value + mse);
+          piHalf = Number.isFinite(half) ? half : null;
+        }
+      }
+    } else if (!covarianceCheck.ok && covarianceCheck.reasons.some((reason) => reason !== 'model.covariance.missing')) {
+      issues.push(...covarianceCheck.reasons);
+    }
+    return { value: fit, nonEstimable: [], se, ciHalf, piHalf, issues };
   };
   return {
     xName: xPredictor.name,
     yName: yPredictor.name,
     resolvedHoldings,
     nonEstimable,
-    value,
+    intervalStatus: intervals,
+    evaluate,
+    value(x, y) {
+      const node = evaluate(x, y);
+      return node.value === null ? Number.NaN : node.value;
+    },
     se(x, y) {
-      const v = variance(x, y);
-      return v === null ? null : Math.sqrt(v);
+      return evaluate(x, y).se;
     },
     ciHalf(x, y) {
-      const v = variance(x, y);
-      if (v === null || df === null) return null;
-      const half = tInv(1 - alpha / 2, df) * Math.sqrt(v);
-      return Number.isFinite(half) ? half : null;
+      return evaluate(x, y).ciHalf;
     },
     piHalf(x, y) {
-      const v = variance(x, y);
-      if (v === null || df === null) return null;
-      const half = tInv(1 - alpha / 2, df) * Math.sqrt(v + Math.max(0, mse));
-      return Number.isFinite(half) ? half : null;
+      return evaluate(x, y).piHalf;
     },
-    hasInterval: Boolean(covariance && df),
+    hasInterval: intervals.ci,
   };
 }
 

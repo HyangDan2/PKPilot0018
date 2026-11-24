@@ -34,7 +34,7 @@ import {
   uniqueModelName,
   type StoredModel,
 } from './lib/modelStore';
-import { modelSurface } from './lib/modelPredictor';
+import { modelSurface, toActualValue } from './lib/modelPredictor';
 import { buildModelSurface, buildOverlaidChart, numericFactors } from './lib/chartConfigOps';
 import { commonNumericFactors, OVERLAY_COLORS, OVERLAY_DASHES } from './lib/feasible';
 import { surfaceResolutionPoints } from './lib/surface3d';
@@ -1237,9 +1237,13 @@ export default function App() {
         alpha: 0.05,
         specs,
       });
+      // Design levels are coded; the card is drawn in actual units, so every
+      // dot is placed on the same physical coordinate as the surface.
+      const predictX = models[0].predictors.find((predictor) => predictor.name === shared.factors[0].name);
+      const predictY = models[0].predictors.find((predictor) => predictor.name === shared.factors[1].name);
       const points = (models[0].design?.points ?? []).slice(0, 400).map((point) => ({
-        x: point.levels[shared.factors[0].name] ?? Number.NaN,
-        y: point.levels[shared.factors[1].name] ?? Number.NaN,
+        x: predictX ? toActualValue(predictX, point.levels[shared.factors[0].name] ?? Number.NaN, 'coded') : Number.NaN,
+        y: predictY ? toActualValue(predictY, point.levels[shared.factors[1].name] ?? Number.NaN, 'coded') : Number.NaN,
         z: point.y ?? undefined,
         kind: 'design' as const,
       })).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
@@ -1277,14 +1281,21 @@ export default function App() {
                 totalNodes: result.totalNodes,
                 basis: 'mean',
                 convergenceDelta: result.convergenceDelta,
+                nodeConvergenceDelta: result.convergence.nodeDelta,
+                areaConvergenceDelta: result.convergence.areaDelta,
+                convergenceNeighborCount: result.convergence.neighborCount,
+                convergenceDirection: result.convergence.direction,
                 perResponse: result.responses.map((response) => ({
                   name: response.name,
                   areaRatio: response.areaRatio,
                   nodeRatio: response.nodeRatio,
                 })),
                 intervalBlocked: result.intervalBlocked,
+                intervalBlockReasons: result.intervalBlockReasons,
+                ...(result.rangeWarning ? { rangeWarning: result.rangeWarning } : {}),
               },
               extrapolated: result.extrapolated,
+              extrapolationDetails: result.extrapolation.details,
               title: `${models.map((model) => model.response.name).join(' / ')}`,
               config: {
                 rsm: { xFactorIndex: 0, yFactorIndex: 1, unitMode: 'actual' },

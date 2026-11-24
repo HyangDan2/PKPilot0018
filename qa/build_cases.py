@@ -804,6 +804,337 @@ V.append(case(
      f("probe_feasible", kind="string"), f("area_ratio")],
     note="만족 격자점 0 → narrow=1 경고. 면적비 0.",
 ))
+
+# ── QA-V (corrective): overlays from explicit stored models ──────────────
+# Each model record states its coding, covariance, residual block and bounds,
+# so a case can probe one defect exactly. The reference engine (numpy) rebuilds
+# the design rows and the masks independently of src/lib.
+import re as _re
+
+
+def _ov_names(coefficients):
+    names = []
+    for coefficient in coefficients:
+        label = coefficient["label"]
+        if label == "Constant":
+            continue
+        for part in label.split("×"):
+            base = _re.sub(r"\[.*\]$", "", part).replace("²", "").replace("³", "")
+            if base not in names:
+                names.append(base)
+    return names
+
+
+def ov_model(mid, coefficients, coding, name=None, bounds=None, covariance="default",
+             residual=None, ids=None, units=None, levels=None):
+    name = name or mid
+    predictor_names = _ov_names(coefficients)
+    predictors = []
+    for variable in predictor_names:
+        entry = {"id": (ids or {}).get(variable, variable), "name": variable}
+        if levels and variable in levels:
+            entry["kind"] = "categorical"
+            entry["levels"] = levels[variable]
+        else:
+            entry["kind"] = "numeric"
+            entry["coding"] = coding[variable]
+        if units and variable in units:
+            entry["unit"] = units[variable]
+        predictors.append(entry)
+    size = len(coefficients)
+    cov = ([[0.04 if i == j else 0.0 for j in range(size)] for i in range(size)]
+           if covariance == "default" else covariance)
+    box = {variable: [-1.0, 1.0] for variable in predictor_names}
+    for variable, pair in (bounds or {}).items():
+        box[variable] = list(pair)
+    return {
+        "id": mid,
+        "name": name,
+        "response": name,
+        "predictors": predictors,
+        "coefficients": [{"label": c["label"], "value": c["value"], "estimable": c.get("estimable", True)}
+                         for c in coefficients],
+        "covariance": cov,
+        "residual": residual if residual is not None else {"mse": 0.5, "df": 10},
+        "dof": {"rank": size},
+        "factorBounds": {variable: {"min": pair[0], "max": pair[1]} for variable, pair in box.items()},
+    }
+
+
+def ov_responses(*pairs):
+    """[(name, lsl, usl)] → the spec list the op takes."""
+    return [{"name": name, "lsl": lsl, "usl": usl, "target": None} for name, lsl, usl in pairs]
+
+
+UNIT3 = {v: {"mode": "coded", "center": 0.0, "halfRange": 1.0} for v in ("A", "B", "C")}
+BASE1 = ov_model(
+    "Y1",
+    [{"label": "Constant", "value": 10.0}, {"label": "A", "value": 2.0}, {"label": "B", "value": 1.0},
+     {"label": "C", "value": 0.5}, {"label": "A²", "value": 0.5}, {"label": "B²", "value": 0.0},
+     {"label": "A×B", "value": 0.0}],
+    UNIT3,
+)
+SHIFTED = ov_model(
+    "Y2",
+    [{"label": "Constant", "value": 5.0}, {"label": "A", "value": 1.0}, {"label": "B", "value": -1.0}],
+    {"A": {"mode": "coded", "center": 2.0, "halfRange": 0.5}, "B": UNIT3["B"], "C": UNIT3["C"]},
+)
+PROBES5 = [[0, 0], [10, 10], [20, 20], [4, 16], [16, 4]]
+
+V.append(case(
+    "QA-V-07", "두 모형의 중심·Half Range가 다름 — 같은 실제 좌표에서 각자 코딩", "overlay",
+    args={
+        "models": [BASE1, SHIFTED], "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+        "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 21,
+        "responses": ov_responses(("Y1", 8.0, 12.0), ("Y2", -6.0, -2.0)), "probes": PROBES5,
+    },
+    fields=[f("node_ratio", "feasible_area"), f("area_ratio", "feasible_area"),
+            f("feasible_nodes", "grid_count"), f("total_nodes"), f("probe_feasible", kind="string"),
+            f("extrapolated"), f("extrapolation_details", kind="string")]
+    + [f(f"z_{r}[{i}]") for r in (0, 1) for i in range(5)],
+    note=("F-01: 모형2의 A 코딩은 중심 2·Half Range 0.5다. 실제 좌표 −1은 모형2의 설계 좌표 −6이므로, "
+          "모형1의 코딩으로 평가하면 예측이 전혀 다른 값이 된다. 기준은 같은 실제 좌표에서 각 모형의 "
+          "코딩으로 설계행렬을 다시 만든 numpy 계산이다."),
+))
+V.append(case(
+    "QA-V-08", "Actual 코딩 모형과 Coded 코딩 모형 혼합", "overlay",
+    args={
+        "models": [
+            ov_model("Actual", [{"label": "Constant", "value": 8.0}, {"label": "A", "value": 0.5},
+                                {"label": "B", "value": 0.25}, {"label": "A×B", "value": 0.1}],
+                     {"A": {"mode": "actual", "center": 0.0, "halfRange": 1.0},
+                      "B": {"mode": "actual", "center": 0.0, "halfRange": 1.0}},
+                     bounds={"A": [-2, 2], "B": [-1, 1]}),
+            ov_model("Coded", [{"label": "Constant", "value": 3.0}, {"label": "A", "value": 2.0},
+                               {"label": "B", "value": 1.0}, {"label": "A²", "value": 0.2}],
+                     {"A": {"mode": "coded", "center": 10.0, "halfRange": 2.0}, "B": UNIT3["B"]},
+                     bounds={"A": [-2, 2], "B": [-1, 1]}),
+        ],
+        "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+        "xRange": [-2, 2], "yRange": [-1, 1], "resolution": 21,
+        "responses": ov_responses(("Actual", 0.0, 20.0), ("Coded", 0.0, 20.0)),
+        "probes": PROBES5,
+    },
+    fields=[f("node_ratio", "feasible_area"), f("feasible_nodes", "grid_count"),
+            f("probe_feasible", kind="string")]
+    + [f(f"z_{r}[{i}]") for r in (0, 1) for i in range(5)],
+    note=("F-01: 한 모형은 계수가 실제 단위를, 다른 모형은 코딩 단위를 읽는다. 실제 좌표를 한 번 정하고 "
+          "각 모형이 자기 변환을 적용해야 두 예측이 같은 그림 위에 놓인다."),
+))
+CONFLICT = ov_model("Y2", [{"label": "Constant", "value": 5.0}, {"label": "A", "value": 1.0},
+                           {"label": "B", "value": -1.0}], UNIT3, ids={"A": "C9"})
+V.append(case(
+    "QA-V-09", "같은 이름·다른 열 ID 인자", "overlay",
+    args={"models": [BASE1, CONFLICT], "xName": "A", "yName": "B", "mode": "actual",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("Y1", 8.0, 12.0), ("Y2", -6.0, -2.0))},
+    fields=[], expect="feasible.factor.conflict",
+    note="F-08: 이름이 같아도 서로 다른 열을 가리키면 같은 요인이 아니다. 두 엔진 모두 거부해야 한다.",
+))
+V.append(case(
+    "QA-V-10", "모형별 실험 범위 불일치 — 모형2만 범위를 벗어남", "overlay",
+    args={"models": [BASE1, ov_model(
+              "Y2", [{"label": "Constant", "value": 5.0}, {"label": "A", "value": 1.0},
+                     {"label": "B", "value": -1.0}],
+              {"A": {"mode": "coded", "center": 0.0, "halfRange": 1.0}, "B": UNIT3["B"]},
+              bounds={"A": [0.2, 1.0], "B": [-1, 1]})],
+          "xName": "A", "yName": "B", "mode": "actual",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("Y1", 8.0, 12.0), ("Y2", -6.0, -2.0)),
+          "probes": [[0, 0], [5, 5], [10, 10], [2, 8], [8, 2]]},
+    fields=[f("extrapolated"), f("extrapolation_count"), f("extrapolation_details", kind="string"),
+            f("node_ratio", "feasible_area"), f("probe_feasible", kind="string")],
+    note=("F-05: models[0]만 검사하면 놓친다. 모형2의 A 실험 범위는 0.2~1인데 −1까지 그렸으므로 "
+          "외삽 상세에 Y2|A|axis가 들어가야 한다."),
+))
+V.append(case(
+    "QA-V-11", "Holding Value 외삽 — C를 2로 고정", "overlay",
+    args={"models": [BASE1, ov_model(
+              "Y2", [{"label": "Constant", "value": 5.0}, {"label": "A", "value": 1.0},
+                     {"label": "B", "value": -1.0}, {"label": "C", "value": 0.0}],
+              UNIT3, bounds={"A": [-1, 1], "B": [-1, 1], "C": [-0.5, 0.5]})],
+          "xName": "A", "yName": "B", "mode": "actual", "holdings": {"C": 2},
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("Y1", 8.0, 12.0), ("Y2", -6.0, -2.0)),
+          "probes": [[0, 0], [5, 5], [10, 10], [2, 8], [8, 2]]},
+    fields=[f("extrapolated"), f("extrapolation_count"), f("extrapolation_details", kind="string"),
+            f("node_ratio", "feasible_area"), f("probe_feasible", kind="string")]
+    + [f(f"z_{r}[{i}]") for r in (0, 1) for i in range(5)],
+    note=("F-05: 축뿐 아니라 고정값도 각 모형의 실험 범위와 대조한다. 홀드값 2는 두 모형의 C 범위를 "
+          "모두 벗어나고, 예측값도 C=2에서 계산되어야 한다."),
+))
+NOCOV = ov_model("Y2", [{"label": "Constant", "value": 5.0}, {"label": "A", "value": 1.0},
+                        {"label": "B", "value": -1.0}], UNIT3, covariance=None)
+V.append(case(
+    "QA-V-12", "공분산 누락 + 신뢰구간 기준 → 구조화 오류", "overlay",
+    args={"models": [BASE1, NOCOV], "xName": "A", "yName": "B", "mode": "actual", "basis": "confidence",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("Y1", 8.0, 12.0), ("Y2", -6.0, -2.0))},
+    fields=[], expect="feasible.basisUnsupported",
+    note="F-02: 평균으로 조용히 되돌아가지 않고, 지원 불가 모형을 밝힌 구조화 오류를 내야 한다.",
+))
+NOMSE = ov_model("Y2", [{"label": "Constant", "value": 5.0}, {"label": "A", "value": 1.0},
+                        {"label": "B", "value": -1.0}], UNIT3, residual={"df": 10})
+V.append(case(
+    "QA-V-13a", "mse 누락 + 신뢰구간 기준 — 신뢰구간은 계산된다", "overlay",
+    args={"models": [BASE1, NOMSE], "xName": "A", "yName": "B", "mode": "actual", "basis": "confidence",
+          "alpha": 0.05, "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 21,
+          "responses": ov_responses(("Y1", 11.0, 14.0), ("Y2", -4.0, -1.0)), "probes": PROBES5},
+    fields=[f("node_ratio", "feasible_area"), f("area_ratio", "feasible_area"),
+            f("feasible_nodes", "grid_count"), f("interval_blocked", kind="string"),
+            f("probe_feasible", kind="string")],
+    note=("F-07: 신뢰구간은 공분산과 df>0만 필요하다. mse는 예측구간에만 필요하므로 여기서는 "
+          "막히지 않아야 한다(interval_blocked 빈 문자열)."),
+))
+V.append(case(
+    "QA-V-13b", "mse 누락 + 예측구간 기준 → 구조화 오류", "overlay",
+    args={"models": [BASE1, NOMSE], "xName": "A", "yName": "B", "mode": "actual", "basis": "prediction",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("Y1", 8.0, 12.0), ("Y2", -6.0, -2.0))},
+    fields=[], expect="feasible.basisUnsupported",
+    note="F-07: mse를 0으로 대체하면 예측구간이 잔차분산만큼 좁아진다. 누락은 오류로 다룬다.",
+))
+BROKEN = [
+    ov_model("NaN", [{"label": "Constant", "value": 10.0}, {"label": "A", "value": 1.0}, {"label": "B", "value": 0.0}],
+             UNIT3, covariance=[[0.04, {"__special": "NaN"}, 0.0], [0.0, 0.04, 0.0], [0.0, 0.0, 0.04]]),
+    ov_model("Asym", [{"label": "Constant", "value": 12.0}, {"label": "A", "value": 1.0}, {"label": "B", "value": 0.0}],
+             UNIT3, covariance=[[0.04, 0.01, 0.0], [0.03, 0.04, 0.0], [0.0, 0.0, 0.04]]),
+    ov_model("Size", [{"label": "Constant", "value": 14.0}, {"label": "A", "value": 1.0}, {"label": "B", "value": 0.0}],
+             UNIT3, covariance=[[0.04, 0.0], [0.0, 0.04]]),
+    ov_model("Negative", [{"label": "Constant", "value": 16.0}, {"label": "A", "value": 1.0}, {"label": "B", "value": 0.0}],
+             UNIT3, covariance=[[-0.5, 0.0, 0.0], [0.0, 0.04, 0.0], [0.0, 0.0, 0.04]]),
+]
+V.append(case(
+    "QA-V-14a", "비정상 공분산 4종 + 평균 기준 — 예측값은 영향받지 않음", "overlay",
+    args={"models": BROKEN, "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("NaN", 0.0, 100.0), ("Asym", 0.0, 100.0), ("Size", 0.0, 100.0), ("Negative", 0.0, 100.0)),
+          "probes": [[0, 0], [5, 5], [10, 10]]},
+    fields=[f("node_ratio", "feasible_area"), f("feasible_nodes", "grid_count"),
+            f("interval_blocked", kind="string")]
+    + [f(f"z_{r}[{i}]") for r in range(4) for i in range(3)],
+    note=("F-04: NaN·비대칭·크기 불일치·음수 분산 공분산은 구간을 막지만 평균 예측값은 계수로만 "
+          "정해진다. 네 모형 모두 interval_blocked에 이름이 올라야 한다."),
+))
+V.append(case(
+    "QA-V-14b", "비정상 공분산 + 신뢰구간 기준 → 구조화 오류", "overlay",
+    args={"models": BROKEN[:2], "xName": "A", "yName": "B", "mode": "actual", "basis": "confidence",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("NaN", 0.0, 100.0), ("Asym", 0.0, 100.0))},
+    fields=[], expect="feasible.basisUnsupported",
+    note="F-04/F-02: 쓸 수 없는 공분산을 건너뛰고 부분 분산으로 신뢰구간을 만들지 않는다.",
+))
+ALIAS = ov_model("Aliased", [{"label": "Constant", "value": 5.0}, {"label": "A", "value": 2.0},
+                             {"label": "B", "value": 0.0}, {"label": "A²", "value": 3.0, "estimable": False}], UNIT3)
+HEALTHY = ov_model("Healthy", [{"label": "Constant", "value": 4.0}, {"label": "A", "value": 1.0},
+                               {"label": "B", "value": 1.0}], UNIT3)
+V.append(case(
+    "QA-V-15", "Rank-deficient 모형 — 별칭 항을 타는 점만 NaN", "overlay",
+    args={"models": [ALIAS, HEALTHY], "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("Aliased", 0.0, 100.0), ("Healthy", 0.0, 100.0)),
+          "probes": [[0, 0], [5, 5], [10, 10], [2, 8]]},
+    fields=[f("node_ratio", "feasible_area"), f("feasible_nodes", "grid_count"),
+            f("probe_feasible", kind="string")]
+    + [f(f"z_{r}[{i}]") for r in (0, 1) for i in range(4)],
+    note=("F-03: 별칭 계수의 가중치가 0인 격자점(A=0)은 추정 가능하고, 나머지는 NaN이다. "
+          "한 점의 상태가 다음 점으로 번지면 z[0] 이후가 전부 NaN이 된다."),
+))
+V.append(case(
+    "QA-V-16", "예측 순서 변경 — 같은 평가기에서 역순 후 정방향", "overlay_order",
+    args={"models": [ALIAS, HEALTHY], "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 21,
+          "responses": ov_responses(("Aliased", 0.0, 100.0), ("Healthy", 0.0, 100.0)),
+          "probes": [[0, 0], [20, 20], [10, 10], [4, 16]]},
+    fields=[f("order_identical"), f("probe_feasible", kind="string"), f("node_ratio", "feasible_area")]
+    + [f(f"z_order[{i}]") for i in range(4)] + [f(f"z_reverse[{i}]") for i in range(4)],
+    note=("F-03: 별칭 점(양 끝)을 먼저 평가한 뒤 중심을 평가해도 값이 같아야 한다. 기준은 순서와 "
+          "무관하게 같은 해석값을 낸다."),
+))
+V.append(case(
+    "QA-V-17", "NaN/Infinity 입력과 다항식 오버플로 — 0으로 대체하지 않음", "overlay",
+    args={"models": [
+              ov_model("Overflow", [{"label": "Constant", "value": 1.0}, {"label": "A", "value": 1.0},
+                                    {"label": "B", "value": 0.0}, {"label": "A³", "value": 1.0}], UNIT3,
+                       bounds={"A": [-1e200, 1e200], "B": [-1, 1]}),
+              HEALTHY],
+          "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+          "xRange": [-1e150, 1e150], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("Overflow", 0.0, 1e300), ("Healthy", 0.0, 1e300)),
+          "probes": [[0, 0], [5, 5], [10, 10]]},
+    fields=[f("node_ratio", "feasible_area"), f("feasible_nodes", "grid_count"),
+            f("probe_feasible", kind="string")]
+    + [f(f"z_{r}[{i}]") for r in (0, 1) for i in range(3)],
+    note=("F-04: A³이 1e150에서 넘쳐도 부분합을 정상값으로 돌려주면 안 된다. 넘친 점은 NaN이고 "
+          "만족으로 세지 않는다(A=0 열 11점만 유한)."),
+))
+V.append(case(
+    "QA-V-18", "잘못된 규격 범위(LSL > USL) → 구조화 오류", "overlay",
+    args={"models": [BASE1, SHIFTED], "xName": "A", "yName": "B", "mode": "actual",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": ov_responses(("Y1", 20.0, 10.0), ("Y2", -6.0, -2.0))},
+    fields=[], expect="feasible.spec.invalid",
+    note="F-08: 뒤집힌 규격은 만족 영역 0이 아니라 오류다.",
+))
+V.append(case(
+    "QA-V-19", "Ultra(401) 해상도 수렴성 — 201과 비교", "overlay",
+    args={"models": [BASE1, SHIFTED], "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 401,
+          "responses": ov_responses(("Y1", 9.0, 11.5), ("Y2", -5.0, -3.0)),
+          "probes": [[0, 0], [200, 200], [400, 400]]},
+    fields=[f("convergence_neighbor_count"), f("convergence_direction", kind="string"),
+            f("self_compare"), f("node_ratio", "feasible_area"),
+            f("convergence_node_delta", "convergence_delta"), f("probe_feasible", kind="string")]
+    + [f(f"z_{r}[{i}]") for r in (0, 1) for i in range(3)],
+    note=("F-06: Ultra에서 401을 자기 자신과 비교하면 수렴도가 항상 0이다. 이웃은 201×201이며, "
+          "자기 비교(self_compare)는 0이어야 한다."),
+))
+BOWL = ov_model("Bowl", [{"label": "Constant", "value": 10.02}, {"label": "A", "value": -0.4},
+                         {"label": "B", "value": -0.4}, {"label": "A²", "value": 4.0},
+                         {"label": "B²", "value": 4.0}], UNIT3)
+BOWL_RESP = ov_responses(("Bowl", 10.0, 10.0002))
+V.append(case(
+    "QA-V-20a", "격자점 사이의 좁은 만족 영역 — 11×11에서 0점", "overlay",
+    args={"models": [BOWL, HEALTHY], "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 11,
+          "responses": BOWL_RESP + ov_responses(("Healthy", 0.0, 100.0)),
+          "probes": [[0, 0], [5, 5], [10, 10]]},
+    fields=[f("feasible_nodes"), f("node_ratio"), f("narrow"), f("probe_feasible", kind="string"),
+            f("z_0[1]"), f("z_0[2]")],
+    note=("F-06/만족영역: 영역은 (0.05, 0.05) 반경 0.005로 11×11 격자점 사이에 있다. 0점 → narrow=1. "
+          "이 한계를 QA-V-20b(101×101)와 대조한다."),
+))
+V.append(case(
+    "QA-V-20b", "같은 좁은 만족 영역 — 101×101에서는 검출", "overlay",
+    args={"models": [BOWL, HEALTHY], "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 101,
+          "responses": BOWL_RESP + ov_responses(("Healthy", 0.0, 100.0)),
+          "probes": [[50, 50], [45, 45], [55, 55]]},
+    fields=[f("feasible_nodes", "grid_count"), f("node_ratio", "feasible_area"), f("narrow"),
+            f("probe_feasible", kind="string"), f("z_0[0]")],
+    note="F-06: 해상도를 올리면 같은 영역이 나타난다 — 작은 면적비의 한계를 수치로 보인다.",
+))
+V.append(case(
+    "QA-V-21a", "모형 배열 순서 [Y1, Y2] — 응답 이름 기준 예측", "overlay",
+    args={"models": [BASE1, SHIFTED], "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 21,
+          "responses": ov_responses(("Y1", 8.0, 12.0), ("Y2", -6.0, -2.0)), "probes": PROBES5},
+    fields=[f("node_ratio", "feasible_area"), f("feasible_nodes", "grid_count"),
+            f("probe_feasible", kind="string")]
+    + [f(f"zname:Y{i}[{k}]") for i in (1, 2) for k in range(5)],
+    note="F-01: 배열 순서가 예측과 만족 영역을 바꾸면 안 된다. QA-V-21b는 같은 두 모형을 반대로 놓는다.",
+))
+V.append(case(
+    "QA-V-21b", "모형 배열 순서 [Y2, Y1] — 같은 값이어야 함", "overlay",
+    args={"models": [SHIFTED, BASE1], "xName": "A", "yName": "B", "mode": "actual", "basis": "mean",
+          "xRange": [-1, 1], "yRange": [-1, 1], "resolution": 21,
+          "responses": ov_responses(("Y2", -6.0, -2.0), ("Y1", 8.0, 12.0)), "probes": PROBES5},
+    fields=[f("node_ratio", "feasible_area"), f("feasible_nodes", "grid_count"),
+            f("probe_feasible", kind="string")]
+    + [f(f"zname:Y{i}[{k}]") for i in (1, 2) for k in range(5)],
+    note="F-01: 21a와 같은 필드·같은 기준값. 순서 의존 결함이 있으면 한쪽이 어긋난다.",
+))
+
 areas["QA-V-stage3b-surface.json"] = ("QA-V", V)
 
 # ════════════════════════════════════════════════════════════════════════

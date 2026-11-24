@@ -5,26 +5,35 @@
    specification, and the points where every specification holds at once form
    the feasible region.
 
-   Three rules shape the numbers this module reports:
+   Rules that shape the numbers this module reports:
 
+   · One physical coordinate system. The grid is drawn in the display units of
+     a named reference model, converted to actual (measured) units once, and
+     each model then transforms that same physical value with ITS OWN coding
+     (centre, half range, coded/actual). A model is never fed another model's
+     coded values.
+   · No silent substitution. An interval basis a model cannot answer is a
+     structured error naming the model and the reason, never a quiet fall back
+     to the mean. A non-finite weight, coefficient or covariance entry makes the
+     point or the interval invalid instead of dropping a term.
    · The satisfied area is measured from the same marching-squares geometry the
      2-D contour draws, over the same grid, so "Feasible Area Ratio" and the
-     tinted region on the plot cannot tell different stories. The value is a
-     GRID APPROXIMATION — `convergenceDelta` states how much it moves when the
-     grid is refined, and the UI says so.
-   · A response whose model carries no covariance cannot answer an interval
-     basis. That response is named in `intervalBlocked` and the option is
-     disabled in the UI instead of being silently calculated from the mean.
-   · Factors must be comparable: the same predictor name, the same column id and
-     the same unit. A unit mismatch is reported, never papered over.
+     tinted region cannot tell different stories. Convergence compares the
+     answer with a DIFFERENT grid, and node convergence and area convergence are
+     reported apart.
+   · Extrapolation is judged for every model and every factor (both axes and
+     the held values), against that model's own experimental bounds.
    ───────────────────────────────────────────────────────────────────────── */
 
 import type { OverlaidResponseData } from '../types';
 import type { FeasibleBasis } from './chartConfig';
 import { bandPolygons, polygonArea } from './contour';
 import {
+  ModelInputError,
+  axisActualValue,
   compileSurfaceEvaluator,
-  toDesignValue,
+  designFromActual,
+  intervalStatus,
   type CompiledSurfaceEvaluator,
   type InputMode,
 } from './modelPredictor';
@@ -34,8 +43,14 @@ import type { ModelVariable, StoredModel } from './modelStore';
 export const OVERLAY_COLORS = ['#7c5cd6', '#1f8a70', '#c2410c', '#1d4ed8', '#a21caf', '#0f766e'];
 export const OVERLAY_DASHES = ['', '6 3', '2 2', '9 3 3 3', '4 2', '1 3'];
 
+/** The engine's own limits; the UI asks for less than this. */
+export const MIN_GRID = 11;
+export const MAX_GRID = 401;
+
 export interface ResponseSpec {
   model: StoredModel;
+  /** When present, the model it must belong to (guards a mis-zipped list). */
+  modelId?: string;
   lsl: number | null;
   usl: number | null;
   target: number | null;
@@ -44,13 +59,41 @@ export interface ResponseSpec {
 export interface OverlaidOptions {
   xName: string;
   yName: string;
+  /** Held values for factors off both axes, in the display units of `mode`. */
   holdings?: Record<string, number | string>;
   xRange: [number, number];
   yRange: [number, number];
   resolution: number;
   mode?: InputMode;
+  /** Model whose coding defines the display units (`mode`); models[0] by default. */
+  referenceModelId?: string;
   basis?: FeasibleBasis;
   alpha?: number;
+}
+
+/** One factor of one model that lies outside that model's experimental range. */
+export interface ExtrapolationDetail {
+  model: string;
+  factor: string;
+  kind: 'axis' | 'holding';
+  /** Actual-unit interval the axis was drawn over (axis) … */
+  from?: number;
+  to?: number;
+  /** … or the actual value the factor was held at (holding). */
+  value?: number;
+  bound: { min: number; max: number };
+}
+
+/** How settled the grid answer is: two DIFFERENT grids, and their gap. */
+export interface ConvergenceReport {
+  /** |nodeRatio(grid) − nodeRatio(neighbour)|. */
+  nodeDelta: number;
+  /** |areaRatio(grid) − areaRatio(neighbour)|. */
+  areaDelta: number;
+  count: number;
+  neighborCount: number;
+  /** `refined` when the neighbour is finer, `coarsened` at Ultra (401 → 201). */
+  direction: 'refined' | 'coarsened';
 }
 
 export interface OverlaidResult {
@@ -65,12 +108,16 @@ export interface OverlaidResult {
   nodeRatio: number;
   /** Share of the region's area that is feasible, from the drawn geometry. */
   areaRatio: number;
-  /** |nodeRatio(2× grid) − nodeRatio(grid)|: how settled the answer is. */
+  /** |nodeRatio(neighbour) − nodeRatio(grid)| — kept for existing callers. */
   convergenceDelta: number;
-  /** Responses whose model cannot answer the interval basis at all. */
+  convergence: ConvergenceReport;
+  /** Responses whose model cannot answer a confidence interval at all. */
   intervalBlocked: string[];
-  /** True when at least one axis span reaches beyond the fitted region. */
+  /** Why each of those models is blocked. */
+  intervalBlockReasons: { model: string; reasons: string[] }[];
+  /** True when some model × factor reaches beyond that model's runs. */
   extrapolated: boolean;
+  extrapolation: { details: ExtrapolationDetail[] };
   /** Set when no node is feasible — a narrow region may have been missed. */
   narrowWarning: boolean;
 }
@@ -126,43 +173,165 @@ export function commonNumericFactors(models: StoredModel[]): CommonFactorReport 
   return { factors, problems };
 }
 
-/** True when every model can state an interval at all. */
-export function intervalAvailability(models: StoredModel[]): { ok: boolean; blocked: string[] } {
+/** True when every model can state a confidence interval at all. */
+export function intervalAvailability(models: StoredModel[]): {
+  ok: boolean;
+  blocked: string[];
+  details?: { model: string; reasons: string[] }[];
+} {
+  const details = models
+    .map((model) => ({ model: model.name, reasons: intervalStatus(model).ci ? [] : intervalStatus(model).reasons }))
+    .filter((entry) => entry.reasons.length > 0);
+  return {
+    ok: details.length === 0,
+    blocked: details.map((entry) => entry.model),
+    ...(details.length ? { details } : {}),
+  };
+}
+
+/** Which models can answer one basis, and why they cannot. */
+export function basisAvailability(models: StoredModel[], basis: FeasibleBasis): {
+  ok: boolean;
+  blocked: { model: string; reasons: string[] }[];
+} {
+  if (basis === 'mean') return { ok: true, blocked: [] };
   const blocked = models
-    .filter((model) => !model.covariance || !model.residual?.df || model.residual.df <= 0)
-    .map((model) => model.name);
+    .map((model) => {
+      const status = intervalStatus(model);
+      const available = basis === 'confidence' ? status.ci : status.pi;
+      const reasons = available ? [] : status.reasons;
+      return { model: model.name, reasons };
+    })
+    .filter((entry) => entry.reasons.length > 0);
   return { ok: blocked.length === 0, blocked };
 }
 
-function numericPredictor(model: StoredModel, name: string): ModelVariable {
-  const predictor = model.predictors.find((entry) => entry.name === name || (entry.id && entry.id === name));
-  if (!predictor) throw new Error('model.structure.surface');
-  if (predictor.kind !== 'numeric') throw new Error('model.surface.numericOnly');
-  return predictor;
+/* ── input validation (F-08) ─────────────────────────────────────────── */
+
+export interface ValidationProblem {
+  code: string;
+  detail?: Record<string, unknown>;
 }
 
-/** Node-by-node satisfaction for one response, on a grid of design values. */
-function satisfyAt(
-  evaluator: CompiledSurfaceEvaluator,
-  xCoded: number,
-  yCoded: number,
-  spec: ResponseSpec,
-  basis: FeasibleBasis,
-): boolean {
-  const value = evaluator.value(xCoded, yCoded);
-  if (!Number.isFinite(value)) return false;
-  let lo = value;
-  let hi = value;
-  if (basis !== 'mean') {
-    const half = basis === 'confidence' ? evaluator.ciHalf(xCoded, yCoded) : evaluator.piHalf(xCoded, yCoded);
-    if (half == null) return false;
-    lo = value - half;
-    hi = value + half;
-  }
-  if (spec.lsl != null && lo < spec.lsl) return false;
-  if (spec.usl != null && hi > spec.usl) return false;
-  return true;
+function fail(problems: ValidationProblem[]): void {
+  if (!problems.length) return;
+  throw new ModelInputError(problems[0].code, {
+    problems,
+    ...(problems[0].detail ?? {}),
+  });
 }
+
+function numericPredictorOrNull(model: StoredModel, name: string): ModelVariable | null {
+  return model.predictors.find((predictor) => predictor.name === name || (predictor.id && predictor.id === name)) ?? null;
+}
+
+function isFiniteRange(range: unknown): range is [number, number] {
+  return Array.isArray(range) && range.length === 2
+    && Number.isFinite(range[0]) && Number.isFinite(range[1]) && range[0] < range[1];
+}
+
+/**
+ * Everything the engine refuses to guess.
+ *
+ * Returned as a list so a caller (and the QA) can see all of it; `buildOverlaid`
+ * raises the first code with the whole list in its detail.
+ */
+export function validateOverlaidInput(models: StoredModel[], specs: ResponseSpec[], options: OverlaidOptions): ValidationProblem[] {
+  const problems: ValidationProblem[] = [];
+  if (!Array.isArray(models) || models.length < 2) problems.push({ code: 'feasible.minModels', detail: { models: models?.length ?? 0 } });
+  if (!Array.isArray(specs) || specs.length !== models.length) {
+    problems.push({ code: 'feasible.specMismatch', detail: { models: models.length, specs: specs?.length ?? 0 } });
+  } else {
+    specs.forEach((spec, index) => {
+      if (!spec || spec.model !== models[index]) {
+        if (!spec || spec.modelId !== models[index].id) {
+          problems.push({ code: 'feasible.specMismatch', detail: { index, model: models[index]?.name } });
+        }
+      }
+    });
+  }
+  const ids = models.map((model) => model.id);
+  if (new Set(ids).size !== ids.length) problems.push({ code: 'feasible.model.duplicate', detail: { ids } });
+  const responses = models.map((model) => model.response.name);
+  if (new Set(responses).size !== responses.length) problems.push({ code: 'feasible.response.duplicate', detail: { responses } });
+
+  if (options.xName === options.yName) problems.push({ code: 'feasible.factor.axis.duplicate', detail: { factor: options.xName } });
+
+  const shared = models.length >= 2 ? commonNumericFactors(models) : { factors: [], problems: [] };
+  const axisNames = [options.xName, options.yName];
+  axisNames.forEach((name) => {
+    const missingIn = models.filter((model) => {
+      const predictor = numericPredictorOrNull(model, name);
+      return !predictor || predictor.kind !== 'numeric';
+    });
+    if (missingIn.length) {
+      problems.push({ code: 'feasible.factor.missing', detail: { factor: name, models: missingIn.map((model) => model.name) } });
+      return;
+    }
+    if (!shared.factors.some((factor) => factor.name === name)) {
+      const conflict = shared.problems.find((problem) => problem.startsWith(`${name}:`));
+      problems.push(conflict
+        ? { code: 'feasible.factor.conflict', detail: { factor: name, conflict } }
+        : { code: 'feasible.factor.missing', detail: { factor: name } });
+    }
+  });
+
+  if (!isFiniteRange(options.xRange)) problems.push({ code: 'feasible.range.invalid', detail: { axis: 'x', range: options.xRange } });
+  if (!isFiniteRange(options.yRange)) problems.push({ code: 'feasible.range.invalid', detail: { axis: 'y', range: options.yRange } });
+
+  const resolution = options.resolution;
+  if (!(typeof resolution === 'number' && Number.isInteger(resolution) && resolution >= MIN_GRID && resolution <= MAX_GRID)) {
+    problems.push({ code: 'feasible.resolution.invalid', detail: { resolution, allowed: [MIN_GRID, MAX_GRID] } });
+  }
+
+  specs.forEach((spec, index) => {
+    if (!spec) return;
+    const named = models[index]?.name ?? `#${index}`;
+    const limits = [spec.lsl, spec.usl, spec.target];
+    if (limits.some((value) => value != null && !Number.isFinite(value))) {
+      problems.push({ code: 'feasible.spec.invalid', detail: { model: named, reason: 'nonFinite' } });
+      return;
+    }
+    if (spec.lsl != null && spec.usl != null && spec.lsl > spec.usl) {
+      problems.push({ code: 'feasible.spec.invalid', detail: { model: named, reason: 'lslAboveUsl', lsl: spec.lsl, usl: spec.usl } });
+    }
+  });
+
+  const holdings = options.holdings ?? {};
+  Object.entries(holdings).forEach(([name, value]) => {
+    models.forEach((model) => {
+      const predictor = model.predictors.find((entry) => entry.name === name);
+      if (!predictor) return;
+      if (predictor.kind === 'categorical') {
+        const levels = predictor.levels ?? [];
+        if (levels.length && !levels.includes(String(value))) {
+          problems.push({ code: 'feasible.holding.invalid', detail: { model: model.name, factor: name, value, levels } });
+        }
+        return;
+      }
+      if (!Number.isFinite(typeof value === 'number' ? value : Number(value))) {
+        problems.push({ code: 'feasible.holding.invalid', detail: { model: model.name, factor: name, value, reason: 'nonFinite' } });
+      }
+    });
+  });
+
+  const basis = options.basis ?? 'mean';
+  if (basis !== 'mean' && basis !== 'confidence' && basis !== 'prediction') {
+    problems.push({ code: 'feasible.basis.invalid', detail: { basis } });
+  }
+  const mode = options.mode ?? 'actual';
+  if (mode !== 'actual' && mode !== 'coded') problems.push({ code: 'feasible.mode.invalid', detail: { mode } });
+  const alpha = options.alpha ?? 0.05;
+  if (!(typeof alpha === 'number' && Number.isFinite(alpha) && alpha > 0 && alpha < 1)) {
+    problems.push({ code: 'feasible.alpha.invalid', detail: { alpha } });
+  }
+  if (options.referenceModelId && !models.some((model) => model.id === options.referenceModelId)) {
+    problems.push({ code: 'feasible.reference.missing', detail: { modelId: options.referenceModelId } });
+  }
+  return problems;
+}
+
+/* ── geometry helpers ────────────────────────────────────────────────── */
 
 /** The area a 0/1 mask covers, from the same band geometry the plot fills. */
 export function maskAreaRatio(xs: number[], ys: number[], mask: number[][]): number {
@@ -175,53 +344,88 @@ export function maskAreaRatio(xs: number[], ys: number[], mask: number[][]): num
   return Math.min(1, area / (width * height));
 }
 
+interface GridEntry {
+  evaluator: CompiledSurfaceEvaluator;
+  spec: ResponseSpec;
+  /** Design-space coordinates of the shared physical grid, per node index. */
+  xDesign: number[];
+  yDesign: number[];
+}
+
 interface GridComputation {
   xs: number[];
   ys: number[];
   masks: number[][][];
-  values: number[][][];
+  values: number[][][] | null;
   feasible: number[][];
   feasibleNodes: number;
   nodeRatio: number;
+  areaRatio: number;
+  nonEstimable: string[][];
 }
 
 function computeGrid(
-  evaluators: { evaluator: CompiledSurfaceEvaluator; spec: ResponseSpec }[],
-  xAxis: { predictor: ModelVariable; range: [number, number] },
-  yAxis: { predictor: ModelVariable; range: [number, number] },
-  resolution: number,
-  mode: InputMode,
+  entries: GridEntry[],
+  xs: number[],
+  ys: number[],
   basis: FeasibleBasis,
+  storeValues: boolean,
 ): GridComputation {
-  const count = Math.max(11, Math.min(401, Math.round(resolution)));
-  const xs = Array.from({ length: count }, (_, i) => xAxis.range[0] + ((xAxis.range[1] - xAxis.range[0]) * i) / (count - 1));
-  const ys = Array.from({ length: count }, (_, i) => yAxis.range[0] + ((yAxis.range[1] - yAxis.range[0]) * i) / (count - 1));
-  const xCoded = xs.map((value) => toDesignValue(xAxis.predictor, value, mode));
-  const yCoded = ys.map((value) => toDesignValue(yAxis.predictor, value, mode));
-  const masks: number[][][] = evaluators.map(() => []);
-  const values: number[][][] = evaluators.map(() => []);
+  const count = xs.length;
+  const masks: number[][][] = entries.map(() => []);
+  const values: number[][][] | null = storeValues ? entries.map(() => []) : null;
+  const nonEstimable: Set<string>[] = entries.map(() => new Set<string>());
   const feasible: number[][] = [];
   let feasibleNodes = 0;
   for (let j = 0; j < count; j += 1) {
-    const rowFeasible: number[] = [];
-    evaluators.forEach((entry, index) => {
+    entries.forEach((entry, index) => {
       const maskRow: number[] = [];
-      const valueRow: number[] = [];
+      const valueRow: number[] | null = storeValues ? [] : null;
       for (let i = 0; i < count; i += 1) {
-        valueRow.push(entry.evaluator.value(xCoded[i], yCoded[j]));
-        maskRow.push(satisfyAt(entry.evaluator, xCoded[i], yCoded[j], entry.spec, basis) ? 1 : 0);
+        const node = entry.evaluator.evaluate(entry.xDesign[i], entry.yDesign[j], basis !== 'mean');
+        node.nonEstimable.forEach((label) => nonEstimable[index].add(label));
+        let ok = false;
+        if (node.value !== null) {
+          let lo = node.value;
+          let hi = node.value;
+          if (basis !== 'mean') {
+            const half = basis === 'confidence' ? node.ciHalf : node.piHalf;
+            if (half != null) {
+              lo = node.value - half;
+              hi = node.value + half;
+              ok = true;
+            }
+          } else {
+            ok = true;
+          }
+          if (ok && entry.spec.lsl != null && lo < entry.spec.lsl) ok = false;
+          if (ok && entry.spec.usl != null && hi > entry.spec.usl) ok = false;
+        }
+        maskRow.push(ok ? 1 : 0);
+        if (valueRow) valueRow.push(node.value === null ? Number.NaN : node.value);
       }
       masks[index].push(maskRow);
-      values[index].push(valueRow);
+      if (values && valueRow) values[index].push(valueRow);
     });
+    const rowFeasible: number[] = [];
     for (let i = 0; i < count; i += 1) {
-      const ok = evaluators.every((_, index) => masks[index][j][i] === 1);
+      const ok = masks.every((mask) => mask[j][i] === 1);
       rowFeasible.push(ok ? 1 : 0);
       if (ok) feasibleNodes += 1;
     }
     feasible.push(rowFeasible);
   }
-  return { xs, ys, masks, values, feasible, feasibleNodes, nodeRatio: feasibleNodes / (count * count) };
+  return {
+    xs,
+    ys,
+    masks,
+    values,
+    feasible,
+    feasibleNodes,
+    nodeRatio: feasibleNodes / (count * count),
+    areaRatio: maskAreaRatio(xs, ys, feasible),
+    nonEstimable: nonEstimable.map((set) => [...set].sort()),
+  };
 }
 
 /** Response statistics for the legend (min/max of the finite predictions). */
@@ -238,44 +442,92 @@ function extentOfGrid(z: number[][]): { min: number; max: number } {
   return Number.isFinite(min) ? { min, max } : { min: 0, max: 0 };
 }
 
+function linspace(range: [number, number], count: number): number[] {
+  return Array.from({ length: count }, (_, i) => range[0] + ((range[1] - range[0]) * i) / (count - 1));
+}
+
+/* ── the overlay ─────────────────────────────────────────────────────── */
+
 /**
  * Build the overlaid contour: every response on one grid, the joint feasible
  * region, and the area ratios with their convergence statement.
  */
 export function buildOverlaid(models: StoredModel[], specs: ResponseSpec[], options: OverlaidOptions): OverlaidResult {
-  if (models.length !== specs.length) throw new Error('feasible.mismatch');
+  fail(validateOverlaidInput(models, specs, options));
   const basis = options.basis ?? 'mean';
   const mode = options.mode ?? 'actual';
   const alpha = options.alpha ?? 0.05;
-  const xAxis = { predictor: numericPredictor(models[0], options.xName), range: options.xRange };
-  const yAxis = { predictor: numericPredictor(models[0], options.yName), range: options.yRange };
-  const evaluators = models.map((model, index) => ({
-    model,
-    spec: specs[index],
-    evaluator: compileSurfaceEvaluator(model, {
-      xName: options.xName,
-      yName: options.yName,
-      holdings: options.holdings,
-      mode,
-      alpha,
-    }),
-  }));
-  const interval = intervalAvailability(models);
-  const effectiveBasis: FeasibleBasis = basis !== 'mean' && !interval.ok ? 'mean' : basis;
-  const grid = computeGrid(
-    evaluators.map((entry) => ({ evaluator: entry.evaluator, spec: entry.spec })),
-    xAxis,
-    yAxis,
-    options.resolution,
-    mode,
-    effectiveBasis,
-  );
-  const responses: OverlaidResponseData[] = evaluators.map((entry, index) => {
-    const z = grid.values[index];
+  const reference = (options.referenceModelId && models.find((model) => model.id === options.referenceModelId)) || models[0];
+  const xRef = numericPredictorOrNull(reference, options.xName) as ModelVariable;
+  const yRef = numericPredictorOrNull(reference, options.yName) as ModelVariable;
+  if (!xRef || !yRef) throw new ModelInputError('feasible.factor.missing', { factor: !xRef ? options.xName : options.yName });
+  if (basis !== 'mean') {
+    const availability = basisAvailability(models, basis);
+    if (!availability.ok) throw new ModelInputError('feasible.basisUnsupported', { basis, blocked: availability.blocked });
+  }
+
+  const count = Math.round(options.resolution);
+  const holdingActual = (name: string, value: number): number => {
+    const ref = numericPredictorOrNull(reference, name);
+    if (mode === 'actual' || !ref?.coding) return value;
+    return axisActualValue(ref, value, 'coded');
+  };
+  // The display grid and every model's design coordinates for it. Rebuilt for
+  // each resolution: a design array belongs to the grid that produced it.
+  const entriesFor = (rangeX: [number, number], rangeY: [number, number], size: number) => {
+    const xs = linspace(rangeX, size);
+    const ys = linspace(rangeY, size);
+    const xActual = xs.map((value) => axisActualValue(xRef, value, mode));
+    const yActual = ys.map((value) => axisActualValue(yRef, value, mode));
+    const entries: GridEntry[] = models.map((model, index) => {
+      const xPredictor = numericPredictorOrNull(model, options.xName) as ModelVariable;
+      const yPredictor = numericPredictorOrNull(model, options.yName) as ModelVariable;
+      const holdings: Record<string, number | string> = {};
+      model.predictors.forEach((predictor) => {
+        if (predictor.name === xPredictor.name || predictor.name === yPredictor.name) return;
+        const given = options.holdings?.[predictor.name];
+        if (predictor.kind === 'categorical') {
+          holdings[predictor.name] = given === undefined || given === null ? (predictor.levels?.[0] ?? '') : String(given);
+          return;
+        }
+        // Held values arrive in display units; each model is fed actual units
+        // and applies its own coding, so the physical point is shared.
+        holdings[predictor.name] = given === undefined || given === null
+          ? (predictor.coding?.center ?? 0)
+          : holdingActual(predictor.name, Number(given));
+      });
+      const evaluator = compileSurfaceEvaluator(model, {
+        xName: xPredictor.name,
+        yName: yPredictor.name,
+        holdings,
+        mode: 'actual',
+        alpha,
+      });
+      return {
+        evaluator,
+        spec: specs[index],
+        xDesign: xActual.map((value) => designFromActual(xPredictor, value)),
+        yDesign: yActual.map((value) => designFromActual(yPredictor, value)),
+      };
+    });
+    return { xs, ys, xActual, yActual, entries };
+  };
+  const mainGrid = entriesFor(options.xRange, options.yRange, count);
+  const xs = mainGrid.xs;
+  const ys = mainGrid.ys;
+  const entries = mainGrid.entries;
+  const grid = computeGrid(entries, xs, ys, basis, true);
+  const neighborCount = count >= MAX_GRID ? Math.max(MIN_GRID, Math.round(count / 2)) : Math.min(MAX_GRID, count * 2);
+  const neighborGrid = entriesFor(options.xRange, options.yRange, neighborCount);
+  const neighbor = computeGrid(neighborGrid.entries, neighborGrid.xs, neighborGrid.ys, basis, false);
+  const direction: ConvergenceReport['direction'] = neighborCount < count ? 'coarsened' : 'refined';
+
+  const responses: OverlaidResponseData[] = entries.map((entry, index) => {
+    const z = (grid.values as number[][][])[index];
     const mask = grid.masks[index];
     const extent = extentOfGrid(z);
     return {
-      name: entry.model.response.name,
+      name: entry.spec.model.response.name,
       lsl: entry.spec.lsl,
       usl: entry.spec.usl,
       target: entry.spec.target,
@@ -287,40 +539,106 @@ export function buildOverlaid(models: StoredModel[], specs: ResponseSpec[], opti
       nodeRatio: mask.flat().reduce((sum, value) => sum + value, 0) / (mask.length * mask[0].length),
       zMin: extent.min,
       zMax: extent.max,
-      ...(entry.evaluator.nonEstimable.length ? { nonEstimable: [...entry.evaluator.nonEstimable] } : {}),
+      ...(grid.nonEstimable[index].length ? { nonEstimable: grid.nonEstimable[index] } : {}),
     };
   });
-  // Convergence: the same judgement on a grid twice as fine (capped at Ultra).
-  const fineResolution = Math.min(401, Math.max(21, Math.round(options.resolution) * 2));
-  const fine = computeGrid(
-    evaluators.map((entry) => ({ evaluator: entry.evaluator, spec: entry.spec })),
-    xAxis,
-    yAxis,
-    fineResolution,
-    mode,
-    effectiveBasis,
-  );
-  // Outside the fitted region is a warning, not a correction: the overlay may
-  // legitimately be explored there, but the figure must say so.
-  const boundX = models[0].factorBounds?.[xAxis.predictor.name];
-  const boundY = models[0].factorBounds?.[yAxis.predictor.name];
-  const outside = (range: [number, number], bound: { min: number; max: number } | undefined) => Boolean(
-    bound && (Math.min(range[0], range[1]) < bound.min - 1e-9 || Math.max(range[0], range[1]) > bound.max + 1e-9),
-  );
-  const feasibleNodes = grid.feasibleNodes;
+
+  const availability = intervalAvailability(models);
+  const extrapolation = extrapolationOf(models, options, mainGrid.xActual, mainGrid.yActual, holdingActual);
   const totalNodes = grid.xs.length * grid.ys.length;
+
   return {
     xs: grid.xs,
     ys: grid.ys,
     responses,
     feasible: grid.feasible,
-    feasibleNodes,
+    feasibleNodes: grid.feasibleNodes,
     totalNodes,
-    nodeRatio: feasibleNodes / totalNodes,
-    areaRatio: maskAreaRatio(grid.xs, grid.ys, grid.feasible),
-    convergenceDelta: Math.abs(fine.nodeRatio - grid.nodeRatio),
-    intervalBlocked: interval.blocked,
-    extrapolated: outside(options.xRange, boundX) || outside(options.yRange, boundY),
-    narrowWarning: feasibleNodes === 0,
+    nodeRatio: grid.feasibleNodes / totalNodes,
+    areaRatio: grid.areaRatio,
+    convergenceDelta: Math.abs(neighbor.nodeRatio - grid.nodeRatio),
+    convergence: {
+      nodeDelta: Math.abs(neighbor.nodeRatio - grid.nodeRatio),
+      areaDelta: Math.abs(neighbor.areaRatio - grid.areaRatio),
+      count,
+      neighborCount,
+      direction,
+    },
+    intervalBlocked: availability.blocked,
+    intervalBlockReasons: availability.details ?? [],
+    extrapolated: extrapolation.details.length > 0,
+    extrapolation,
+    narrowWarning: grid.feasibleNodes === 0,
   };
+}
+
+/** Every model × every factor outside that model's own experimental range. */
+function extrapolationOf(
+  models: StoredModel[],
+  options: OverlaidOptions,
+  xActual: number[],
+  yActual: number[],
+  holdingActual: (name: string, value: number) => number,
+): { details: ExtrapolationDetail[] } {
+  const details: ExtrapolationDetail[] = [];
+  const tolerance = (bound: { min: number; max: number }) => 1e-9 * Math.max(1, Math.abs(bound.min), Math.abs(bound.max));
+  const outside = (bound: { min: number; max: number } | undefined, lo: number, hi: number): boolean => Boolean(
+    bound && Number.isFinite(bound.min) && Number.isFinite(bound.max)
+    && (lo < bound.min - tolerance(bound) || hi > bound.max + tolerance(bound)),
+  );
+  const xLo = Math.min(xActual[0], xActual[xActual.length - 1]);
+  const xHi = Math.max(xActual[0], xActual[xActual.length - 1]);
+  const yLo = Math.min(yActual[0], yActual[yActual.length - 1]);
+  const yHi = Math.max(yActual[0], yActual[yActual.length - 1]);
+  models.forEach((model) => {
+    const xBound = model.factorBounds?.[options.xName];
+    const yBound = model.factorBounds?.[options.yName];
+    if (xBound && outside(xBound, xLo, xHi)) {
+      details.push({ model: model.name, factor: options.xName, kind: 'axis', from: xLo, to: xHi, bound: { ...xBound } });
+    }
+    if (yBound && outside(yBound, yLo, yHi)) {
+      details.push({ model: model.name, factor: options.yName, kind: 'axis', from: yLo, to: yHi, bound: { ...yBound } });
+    }
+    model.predictors.forEach((predictor) => {
+      if (predictor.kind !== 'numeric') return;
+      if (predictor.name === options.xName || predictor.name === options.yName) return;
+      const bound = model.factorBounds?.[predictor.name];
+      if (!bound) return;
+      const given = options.holdings?.[predictor.name];
+      const value = given === undefined || given === null ? (predictor.coding?.center ?? 0) : holdingActual(predictor.name, Number(given));
+      if (outside(bound, value, value)) {
+        details.push({ model: model.name, factor: predictor.name, kind: 'holding', value, bound: { ...bound } });
+      }
+    });
+  });
+  return { details };
+}
+
+/**
+ * The display range shared by every model: the intersection of their
+ * experimental bounds. An empty intersection keeps the first model's range and
+ * says so, instead of drawing a region no model was fitted for.
+ */
+export function sharedDisplayRange(
+  models: StoredModel[],
+  name: string,
+  mode: InputMode,
+): { range: [number, number] | null; warning?: string } {
+  const bounds = models
+    .map((model) => model.factorBounds?.[name])
+    .filter((bound): bound is { min: number; max: number } => Boolean(bound) && Number.isFinite(bound?.min) && Number.isFinite(bound?.max));
+  if (!bounds.length || bounds.length !== models.length) return { range: null };
+  const lo = Math.max(...bounds.map((bound) => bound.min));
+  const hi = Math.min(...bounds.map((bound) => bound.max));
+  if (!(lo < hi)) return { range: null, warning: `feasible.range.noIntersection:${name}` };
+  const reference = models[0];
+  const predictor = reference.predictors.find((entry) => entry.name === name);
+  if (!predictor) return { range: [lo, hi] };
+  const toDisplay = (value: number) => {
+    if (mode === 'actual') return value;
+    const coding = predictor.coding;
+    if (!coding || !Number.isFinite(coding.center) || !Number.isFinite(coding.halfRange) || coding.halfRange === 0) return value;
+    return (value - coding.center) / coding.halfRange;
+  };
+  return { range: [toDisplay(lo), toDisplay(hi)] };
 }

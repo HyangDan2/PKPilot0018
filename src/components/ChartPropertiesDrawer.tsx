@@ -1710,9 +1710,16 @@ export function ChartPropertiesDrawer({
                 {intervalBlocked.length > 0 && (
                   <div className="cd-warn" data-testid="cd-feasible-interval-blocked">
                     <b>{tLabel('cd.feasible.intervalDisabled')}</b>
-                    <span>{intervalBlocked.join(', ')}</span>
+                    <span>
+                      {(overlaidChart?.feasible?.intervalBlockReasons?.length
+                        ? overlaidChart.feasible.intervalBlockReasons.map((entry) => tLabel('cd.feasible.blockedReason')
+                          .replace('{model}', entry.model)
+                          .replace('{reasons}', entry.reasons.map((reason) => t(lang, reason)).join(', ')))
+                        : [intervalBlocked.join(', ')]).join(' / ')}
+                    </span>
                   </div>
                 )}
+                <small className="cd-hint">{tLabel('cd.feasible.pointwiseNote')}</small>
                 <NumberField label={tLabel('cd.feasible.alpha')} value={feasibleCfg.alpha} min={0.001} max={0.5} step={0.005} onChange={(value) => patch((config) => { config.feasible = { ...(config.feasible ?? {}), alpha: value ?? 0.05 }; })} />
                 <SelectField<ContourResolution>
                   label={tLabel('cd.resolution')}
@@ -1737,15 +1744,76 @@ export function ChartPropertiesDrawer({
               </Group>
 
               <Group title={tLabel('cd.section.feasibleResult')}>
+                {overlaidChart.feasible?.error && (
+                  <div className="cd-warn" data-testid="cd-feasible-error" data-code={overlaidChart.feasible.error.code}>
+                    <b>{tLabel('cd.feasible.error')}</b>
+                    <span>{t(lang, overlaidChart.feasible.error.code)}</span>
+                    {Boolean(overlaidChart.feasible.error.blocked?.length) && (
+                      <span>
+                        {tLabel('cd.feasible.errorBlocked')}: {overlaidChart.feasible.error.blocked?.map((entry) => tLabel('cd.feasible.blockedReason')
+                          .replace('{model}', entry.model)
+                          .replace('{reasons}', entry.reasons.map((reason) => t(lang, reason)).join(', '))).join(' / ')}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="cd-facts" data-testid="cd-feasible-facts">
                   <div><span>{tLabel('cd.feasible.areaRatio')}</span><b>{((overlaidChart.feasible?.areaRatio ?? 0) * 100).toFixed(1)}%</b></div>
                   <div><span>{tLabel('cd.feasible.nodeRatio')}</span><b>{((overlaidChart.feasible?.nodeRatio ?? 0) * 100).toFixed(1)}%</b></div>
                   <div><span>{tLabel('cd.feasible.nodes')}</span><b>{overlaidChart.feasible?.feasibleNodes ?? 0} / {overlaidChart.feasible?.totalNodes ?? 0}</b></div>
-                  <div><span>{tLabel('cd.feasible.convergence')}</span><b>{((overlaidChart.feasible?.convergenceDelta ?? 0) * 100).toFixed(2)}%</b></div>
+                  <div>
+                    <span>{tLabel('cd.feasible.nodeConvergence')}</span>
+                    <b data-testid="cd-feasible-node-convergence">
+                      {((overlaidChart.feasible?.nodeConvergenceDelta ?? overlaidChart.feasible?.convergenceDelta ?? 0) * 100).toFixed(2)}%
+                    </b>
+                  </div>
+                  <div>
+                    <span>{tLabel('cd.feasible.areaConvergence')}</span>
+                    <b data-testid="cd-feasible-area-convergence">
+                      {((overlaidChart.feasible?.areaConvergenceDelta ?? 0) * 100).toFixed(2)}%
+                    </b>
+                  </div>
+                  {Boolean(overlaidChart.feasible?.convergenceNeighborCount) && (
+                    <div>
+                      <span>{tLabel('cd.feasible.convergence')}</span>
+                      <b data-testid="cd-feasible-convergence-pair">
+                        {tLabel('cd.feasible.convergencePair')
+                          .replace(/\{n\}/g, String(overlaidChart.feasible?.convergenceNeighborCount ?? ''))
+                          .replace('{direction}', tLabel(overlaidChart.feasible?.convergenceDirection === 'coarsened' ? 'cd.feasible.coarsened' : 'cd.feasible.refined'))}
+                      </b>
+                    </div>
+                  )}
                 </div>
                 <small className="cd-hint">{tLabel('cd.feasible.gridNote')}</small>
+                <small className="cd-hint">{tLabel('cd.feasible.limitNote')}</small>
                 {(overlaidChart.feasible?.feasibleNodes ?? 0) === 0 && (
                   <div className="cd-warn" data-testid="cd-feasible-narrow">{tLabel('cd.feasible.narrow')}</div>
+                )}
+                {overlaidChart.feasible?.rangeWarning && (
+                  <div className="cd-warn" data-testid="cd-feasible-range-warning">
+                    {(() => {
+                      const code = overlaidChart.feasible?.rangeWarning ?? '';
+                      const factor = code.split(':')[1] ?? '';
+                      return tLabel('cd.feasible.rangeWarning').replace('{factor}', factor);
+                    })()}
+                  </div>
+                )}
+                {overlaidChart.extrapolated && (
+                  <div className="cd-warn" data-testid="cd-feasible-extrapolated">
+                    <b>{tLabel('cd.feasible.extrapolated')}</b>
+                    {(overlaidChart.extrapolationDetails ?? []).map((entry, index) => (
+                      <span key={`${entry.model}-${entry.factor}-${index}`}>
+                        {tLabel('cd.feasible.extrapolatedItem')
+                          .replace('{model}', entry.model)
+                          .replace('{factor}', entry.factor)
+                          .replace('{kind}', tLabel(entry.kind === 'holding' ? 'cd.feasible.extrapolatedHolding' : 'cd.feasible.extrapolatedAxis'))
+                          .replace('{used}', entry.kind === 'holding'
+                            ? String(entry.value ?? '')
+                            : `${Number(entry.from ?? 0).toFixed(3)} … ${Number(entry.to ?? 0).toFixed(3)}`)
+                          .replace('{bound}', `${entry.bound.min} … ${entry.bound.max}`)}
+                      </span>
+                    ))}
+                  </div>
                 )}
                 {overlaidChart.responses.map((response) => (
                   <small key={response.name} className="cd-hint">

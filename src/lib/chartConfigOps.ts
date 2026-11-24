@@ -13,9 +13,9 @@ import type { ChartConfig, ContourConfig, RsmViewConfig } from './chartConfig';
 import { defaultChartConfig, mergeChartConfig } from './chartConfig';
 import { resolutionPoints } from './contour';
 import { rsmPredictSurface, type RsmModelPayload, type RsmSurface } from './doe';
-import { axisDesignValue, compileSurfaceEvaluator, factorDisplayRange, toActualValue, type InputMode } from './modelPredictor';
+import { ModelInputError, axisActualValue, axisDesignValue, compileSurfaceEvaluator, factorDisplayRange, toActualValue, type InputMode } from './modelPredictor';
 import type { StoredModel } from './modelStore';
-import { buildOverlaid, commonNumericFactors, OVERLAY_COLORS, OVERLAY_DASHES, type OverlaidResult } from './feasible';
+import { buildOverlaid, commonNumericFactors, sharedDisplayRange, OVERLAY_COLORS, OVERLAY_DASHES, type OverlaidResult } from './feasible';
 import { surfaceResolutionPoints } from './surface3d';
 
 /** A fully populated config for a chart (an old chart's sparse config included). */
@@ -378,12 +378,16 @@ export function buildModelSurface(model: StoredModel, options: SurfaceSliceOptio
   const ys = Array.from({ length: resolution }, (_, i) => yRange[0] + ((yRange[1] - yRange[0]) * i) / (resolution - 1));
   const xCoded = xs.map((value) => axisDesignValue(xPredictor, value, options.unitMode));
   const yCoded = ys.map((value) => axisDesignValue(yPredictor, value, options.unitMode));
-  const z: number[][] = ys.map((_, j) => xs.map((__, i) => evaluator.value(xCoded[i], yCoded[j])));
+  const nonEstimableTerms = new Set<string>();
+  const z: number[][] = ys.map((_, j) => xs.map((__, i) => {
+    const node = evaluator.evaluate(xCoded[i], yCoded[j]);
+    node.nonEstimable.forEach((label) => nonEstimableTerms.add(label));
+    return node.value === null ? Number.NaN : node.value;
+  }));
+  // Stored design levels are coded; they are drawn in the unit the reader chose.
   const display = (predictor: StoredModel['predictors'][number], codedValue: number | undefined) => {
     const coded = codedValue ?? 0;
-    return predictor.coding?.mode === 'coded'
-      ? toActualValue(predictor, coded, 'coded')
-      : toActualValue(predictor, coded, 'coded');
+    return options.unitMode === 'coded' ? coded : toActualValue(predictor, coded, 'coded');
   };
   const points: ModelSurfaceBuild['points'] = [];
   model.design?.points?.forEach((run) => {
@@ -409,18 +413,13 @@ export function buildModelSurface(model: StoredModel, options: SurfaceSliceOptio
       label: 'Optimal',
     });
   }
-  const xBound = model.factorBounds?.[xPredictor.name];
-  const yBound = model.factorBounds?.[yPredictor.name];
-  const toActual = (value: number, predictor: StoredModel['predictors'][number]) => (predictor.coding?.mode === 'coded'
-    ? predictor.coding.center + predictor.coding.halfRange * value
-    : value);
+  // `factorBounds` are stored in ACTUAL units; a range drawn in coded units is
+  // converted through the model's own coding before it is compared with them.
   const outside = (range: [number, number], bound: { min: number; max: number } | undefined, predictor: StoredModel['predictors'][number]) => {
-    if (!bound) return false;
-    const boundLo = toActual(bound.min, predictor);
-    const boundHi = toActual(bound.max, predictor);
-    const lo = Math.min(range[0], range[1]);
-    const hi = Math.max(range[0], range[1]);
-    return lo < Math.min(boundLo, boundHi) - 1e-9 || hi > Math.max(boundLo, boundHi) + 1e-9;
+    if (!bound || !Number.isFinite(bound.min) || !Number.isFinite(bound.max)) return false;
+    const lo = Math.min(axisActualValue(predictor, range[0], options.unitMode), axisActualValue(predictor, range[1], options.unitMode));
+    const hi = Math.max(axisActualValue(predictor, range[0], options.unitMode), axisActualValue(predictor, range[1], options.unitMode));
+    return lo < bound.min - 1e-9 || hi > bound.max + 1e-9;
   };
   return {
     xs,
@@ -431,8 +430,9 @@ export function buildModelSurface(model: StoredModel, options: SurfaceSliceOptio
     xRange,
     yRange,
     points: points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)),
-    nonEstimable: [...evaluator.nonEstimable],
-    extrapolated: outside(xRange, xBound, xPredictor) || outside(yRange, yBound, yPredictor) || Boolean(model.stationary && model.stationary.kind && false),
+    nonEstimable: [...nonEstimableTerms],
+    extrapolated: outside(xRange, model.factorBounds?.[xPredictor.name], xPredictor)
+      || outside(yRange, model.factorBounds?.[yPredictor.name], yPredictor),
   };
 }
 
@@ -497,53 +497,68 @@ export interface OverlaidSliceOptions {
 }
 
 /** Evaluate every model on one grid and keep the specs the chart already had. */
-export function buildOverlaidChart(models: StoredModel[], options: OverlaidSliceOptions): OverlaidResult & { xName: string; yName: string; xRange: [number, number]; yRange: [number, number] } {
-  const factors = commonNumericFactors(models).factors;
+export function buildOverlaidChart(
+  models: StoredModel[],
+  options: OverlaidSliceOptions,
+): OverlaidResult & { xName: string; yName: string; xRange: [number, number]; yRange: [number, number]; rangeWarning?: string } {
+  const shared = commonNumericFactors(models);
+  const factors = shared.factors;
   const xFactor = factors.find((factor) => factor.name === options.xName) ?? factors[0];
   const yFactor = factors.find((factor) => factor.name === options.yName && factor.name !== xFactor?.name) ?? factors[1];
-  if (!xFactor || !yFactor) throw new Error('feasible.noCommonFactor');
+  if (!xFactor || !yFactor) throw new ModelInputError('feasible.factor.missing', { x: options.xName, y: options.yName, problems: shared.problems });
   const xIndex = factors.indexOf(xFactor);
   const yIndex = factors.indexOf(yFactor);
   const holdings: Record<string, number> = {};
   factors.forEach((factor, index) => {
     if (index === xIndex || index === yIndex) return;
     const given = options.holdings?.[index];
-    holdings[factor.name] = given !== undefined && Number.isFinite(given) ? given : 0;
+    // An axis-free factor is held where the models were coded around unless the
+    // reader said otherwise: 0 in coded units, the centre in actual units.
+    holdings[factor.name] = given !== undefined && Number.isFinite(given)
+      ? given
+      : (options.unitMode === 'coded' ? 0 : (factor.variables[0]?.predictor.coding?.center ?? 0));
   });
+  let rangeWarning: string | undefined;
   const rangeOf = (index: number): [number, number] => {
+    const factor = factors[index];
     const range = options.factorRanges?.[index];
     if (range && Number.isFinite(range.min) && Number.isFinite(range.max) && range.max > range.min) return [range.min, range.max];
-    const predictor = factors[index]?.variables[0]?.predictor;
-    const model = models[0];
-    return predictor ? factorDisplayRange(model, predictor, options.unitMode) : [-1, 1];
+    // Default: the part of the factor every model was actually run over.
+    const sharedRange = factor ? sharedDisplayRange(models, factor.name, options.unitMode) : { range: null };
+    if ('warning' in sharedRange && sharedRange.warning) rangeWarning = sharedRange.warning;
+    if (sharedRange.range) return sharedRange.range;
+    const predictor = factor?.variables[0]?.predictor;
+    return predictor ? factorDisplayRange(models[0], predictor, options.unitMode) : [-1, 1];
   };
-  const specs = models.map((model) => {
-    const spec = options.specs.find((entry) => entry.name === model.response.name);
+  // Specs line up with the models by position when they describe every model;
+  // otherwise they are matched by response name and a duplicate is refused.
+  const specFor = (model: StoredModel, index: number) => {
+    const entry = options.specs.length === models.length
+      ? options.specs[index]
+      : options.specs.find((candidate) => candidate.name === model.response.name);
     return {
       model,
-      lsl: spec?.lsl ?? null,
-      usl: spec?.usl ?? null,
-      target: spec?.target ?? null,
+      lsl: entry?.lsl ?? null,
+      usl: entry?.usl ?? null,
+      target: entry?.target ?? null,
     };
-  });
+  };
+  const specs = models.map((model, index) => specFor(model, index));
+  const xRange = rangeOf(xIndex);
+  const yRange = rangeOf(yIndex);
   const result = buildOverlaid(models, specs, {
     xName: xFactor.name,
     yName: yFactor.name,
     holdings,
-    xRange: rangeOf(xIndex),
-    yRange: rangeOf(yIndex),
+    xRange,
+    yRange,
     resolution: options.resolution,
     mode: options.unitMode,
+    referenceModelId: models[0].id,
     basis: options.basis,
     alpha: options.alpha,
   });
-  return {
-    ...result,
-    xName: xFactor.name,
-    yName: yFactor.name,
-    xRange: rangeOf(xIndex),
-    yRange: rangeOf(yIndex),
-  };
+  return { ...result, xName: xFactor.name, yName: yFactor.name, xRange, yRange, ...(rangeWarning ? { rangeWarning } : {}) };
 }
 
 /** Recompute an overlaid contour from the models and the drawer's options. */
@@ -595,12 +610,39 @@ export function materializeOverlaid<T extends ChartSpec>(chart: T, config?: Char
         totalNodes: result.totalNodes,
         basis: feasible.basis ?? 'mean',
         convergenceDelta: result.convergenceDelta,
+        nodeConvergenceDelta: result.convergence.nodeDelta,
+        areaConvergenceDelta: result.convergence.areaDelta,
+        convergenceNeighborCount: result.convergence.neighborCount,
+        convergenceDirection: result.convergence.direction,
         perResponse: result.responses.map((response) => ({ name: response.name, areaRatio: response.areaRatio, nodeRatio: response.nodeRatio })),
         intervalBlocked: result.intervalBlocked,
+        intervalBlockReasons: result.intervalBlockReasons,
+        ...(result.rangeWarning ? { rangeWarning: result.rangeWarning } : {}),
       },
       extrapolated: result.extrapolated,
+      extrapolationDetails: result.extrapolation.details,
     };
-  } catch {
+  } catch (error) {
+    // A refused basis (or any other structured input error) is kept on the
+    // card: the drawer shows it and the region is not replaced by a mean-based
+    // picture nobody asked for.
+    if (error instanceof ModelInputError) {
+      return {
+        ...chart,
+        feasible: {
+          mask: [],
+          areaRatio: 0,
+          nodeRatio: 0,
+          feasibleNodes: 0,
+          totalNodes: 0,
+          basis: feasible.basis ?? 'mean',
+          convergenceDelta: 0,
+          perResponse: [],
+          intervalBlocked: chart.feasible?.intervalBlocked ?? [],
+          error: { code: error.code, blocked: (error.detail as { blocked?: { model: string; reasons: string[] }[] })?.blocked ?? [] },
+        },
+      };
+    }
     return chart;
   }
 }
