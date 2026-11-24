@@ -34,7 +34,7 @@ import {
   discreteAxis,
   holdingValue,
   normaliseFactorValue,
-  relativeSlack,
+  rangeSlack,
   validateFactorValue,
 } from './factorDomain';
 
@@ -208,7 +208,7 @@ export function profileCurves(
       const value = resolved.point[factor.name];
       if (typeof value !== 'number') return;
       const range = adapter.fittedRange(factor.name);
-      if (range && (value < range[0] - relativeSlack(range[0]) || value > range[1] + relativeSlack(range[1]))) extrapolated = true;
+      if (range && (value < range[0] - rangeSlack(range[0], range[1], value) || value > range[1] + rangeSlack(range[0], range[1], value))) extrapolated = true;
     });
     const anyCi = curves.some((curve) => curve.ci !== null);
     const anyPi = curves.some((curve) => curve.pi !== null);

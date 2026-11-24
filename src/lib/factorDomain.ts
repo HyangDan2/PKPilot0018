@@ -48,11 +48,36 @@ export const MAX_SAFE_MAGNITUDE = Number.MAX_SAFE_INTEGER;
 export const MAX_AXIS_POINTS = 20001;
 
 /**
- * The absolute slack the range policy allows around a value.
+ * The slack allowed around a range's limits (WO-FINAL-001 · F-REL-04).
  *
- * One place, one number: a limit check compares with this, never with a
- * hard-coded epsilon of its own, so the optimiser and the profiler agree about
- * what "inside the range" means at every magnitude.
+ * A bounds question is answered at the resolution the numbers themselves can
+ * carry — a few ULPs at this magnitude — plus a tiny share of the range's own
+ * width. It is deliberately NOT proportional to the offset alone: at 1e8 the
+ * spacing of adjacent doubles is ≈1.5e-8, so a 0.001-wide range still refuses
+ * a value 0.05 past Upper, while an endpoint that one arithmetic step rounded
+ * by an ULP is still the endpoint.
+ *
+ * `width / 1e12` absorbs the rounding of building a range (upper − lower) at
+ * any magnitude; it never exceeds a meaningful fraction of the range itself.
+ */
+export function rangeSlack(lower: number, upper: number, value = 0, ulps = 4): number {
+  const magnitude = Math.max(
+    Math.abs(Number.isFinite(lower) ? lower : 0),
+    Math.abs(Number.isFinite(upper) ? upper : 0),
+    Math.abs(Number.isFinite(value) ? value : 0),
+  );
+  const spacing = doubleSpacing(magnitude);
+  const fromUlps = Number.isFinite(spacing) ? ulps * spacing : 0;
+  const width = Number.isFinite(upper - lower) ? Math.abs(upper - lower) : 0;
+  return Math.max(fromUlps, width * 1e-12);
+}
+
+/**
+ * The slack allowed when asking whether a typed input changed when it was
+ * snapped or clamped.
+ *
+ * This is a note in the report ("the value was moved"), not a bounds verdict:
+ * every range question uses {@link rangeSlack}.
  */
 export function relativeSlack(...values: number[]): number {
   let magnitude = 1;
@@ -294,7 +319,7 @@ export function nearestStepValue(lower: number, upper: number, step: number, val
   return {
     value: snapped,
     k: clamped,
-    inside: value >= lower - relativeSlack(lower) && value <= upper + relativeSlack(upper),
+    inside: value >= lower - rangeSlack(lower, upper, value) && value <= upper + rangeSlack(lower, upper, value),
     onStep,
   };
 }
@@ -377,7 +402,7 @@ export function factorIssues(factor: FactorSettings): string[] {
     } else {
       const value = Number(factor.fixedValue);
       if (!Number.isFinite(value)) issues.push('opt.issue.fixedOffStep');
-      else if (value < factor.lower - relativeSlack(factor.lower) || value > factor.upper + relativeSlack(factor.upper)) {
+      else if (value < factor.lower - rangeSlack(factor.lower, factor.upper, value) || value > factor.upper + rangeSlack(factor.lower, factor.upper, value)) {
         issues.push('opt.issue.fixedOutside');
       } else if (factor.kind === 'discrete' && hasRange && !isOnStep(factor.lower, factor.upper, factor.step, value)) {
         issues.push('opt.issue.fixedOffStep');
@@ -436,7 +461,7 @@ export function validateFactorValue(factor: FactorSettings, value: number | stri
     const domain = discreteDomainIssue(factor.lower, factor.upper, factor.step);
     if (domain) return domain;
   }
-  const slack = relativeSlack(factor.lower, factor.upper);
+  const slack = rangeSlack(factor.lower, factor.upper, numeric);
   if (numeric < factor.lower - slack || numeric > factor.upper + slack) return 'opt.issue.valueOutside';
   if (factor.kind === 'discrete' && !isOnStep(factor.lower, factor.upper, factor.step, numeric)) return 'opt.issue.valueOffStep';
   return null;
@@ -448,7 +473,10 @@ export function rangeIntersection(ranges: [number, number][]): [number, number] 
   if (!usable.length) return null;
   const lower = Math.max(...usable.map(([a]) => a));
   const upper = Math.min(...usable.map(([, b]) => b));
-  const slack = DOMAIN_EPS * Math.max(1, Math.abs(lower), Math.abs(upper));
+  // Two ranges that do not touch have no intersection, however narrow they are
+  // and however large the offset they sit at (F-REL-04). The slack is the
+  // rounding of the doubles, not a share of the offset.
+  const slack = rangeSlack(lower, upper);
   return upper >= lower - slack ? [lower, upper] : null;
 }
 

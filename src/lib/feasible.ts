@@ -38,6 +38,7 @@ import {
   type InputMode,
 } from './modelPredictor';
 import type { ModelVariable, StoredModel } from './modelStore';
+import { rangeSlack } from './factorDomain';
 
 /** The colours responses take, in order; a design-system cycle, not a palette. */
 export const OVERLAY_COLORS = ['#7c5cd6', '#1f8a70', '#c2410c', '#1d4ed8', '#a21caf', '#0f766e'];
@@ -581,11 +582,14 @@ function extrapolationOf(
   holdingActual: (name: string, value: number) => number,
 ): { details: ExtrapolationDetail[] } {
   const details: ExtrapolationDetail[] = [];
-  const tolerance = (bound: { min: number; max: number }) => 1e-9 * Math.max(1, Math.abs(bound.min), Math.abs(bound.max));
-  const outside = (bound: { min: number; max: number } | undefined, lo: number, hi: number): boolean => Boolean(
-    bound && Number.isFinite(bound.min) && Number.isFinite(bound.max)
-    && (lo < bound.min - tolerance(bound) || hi > bound.max + tolerance(bound)),
-  );
+  // The allowance is the doubles' own rounding at this magnitude plus a tiny
+  // share of the range's width — never a share of the offset (F-REL-04). A
+  // narrow range at 1e8 must still flag an axis drawn 0.05 beyond it.
+  const outside = (bound: { min: number; max: number } | undefined, lo: number, hi: number): boolean => {
+    if (!bound || !Number.isFinite(bound.min) || !Number.isFinite(bound.max)) return false;
+    const slack = rangeSlack(bound.min, bound.max, Math.max(Math.abs(lo), Math.abs(hi)));
+    return lo < bound.min - slack || hi > bound.max + slack;
+  };
   const xLo = Math.min(xActual[0], xActual[xActual.length - 1]);
   const xHi = Math.max(xActual[0], xActual[xActual.length - 1]);
   const yLo = Math.min(yActual[0], yActual[yActual.length - 1]);

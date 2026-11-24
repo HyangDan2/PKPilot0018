@@ -1,0 +1,145 @@
+(node:69515) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69540) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v3.2.7 /Users/jaehyukshim/QoderWS/PKPilot0018
+
+(node:69544) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69545) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69543) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69547) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69546) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69549) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69548) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/release-numerical.test.ts (13 tests | 6 failed) 22ms
+   × WO-02 F-REL-04 · a narrow range at a large offset > refuses a value 0.05 beyond a 0.001-wide range that sits at 1e8 5ms
+     → expected null to be 'opt.issue.valueOutside' // Object.is equality
+   ✓ WO-02 F-REL-04 · a narrow range at a large offset > accepts the endpoints and the middle of the same range 0ms
+   × WO-02 F-REL-04 · a narrow range at a large offset > answers OUTSIDE (not merely off-step) for a discrete range as well 2ms
+     → expected 'opt.issue.valueOffStep' to be 'opt.issue.valueOutside' // Object.is equality
+   × WO-02 F-REL-04 · a narrow range at a large offset > does not call two disjoint narrow ranges an intersection 1ms
+     → expected [ 100000000.05, 100000000.001 ] to be null
+   × WO-02 · fitted ranges with no real intersection > reports the empty intersection instead of a searchable range 2ms
+     → expected [] to include 'opt.issue.rangeIntersection'
+   × WO-02 · fixed values are validated like every other value > refuses a fixed value outside the narrow range at 1e8 0ms
+     → expected [] to include 'opt.issue.fixedOutside'
+   × WO-02 · fixed values are validated like every other value > refuses a fixed value the limits allow but the model never saw 0ms
+     → expected [] to include 'opt.issue.fixedExtrapolation'
+   ✓ WO-02 · discrete lattice boundaries > accepts the last step below Upper and refuses Upper off the lattice 0ms
+   ✓ WO-02 · discrete lattice boundaries > rejects NaN, Infinity, a reversed range and a non-positive step 0ms
+   ✓ WO-02 · discrete lattice boundaries > never returns an off-lattice solution as an optimum 2ms
+   ✓ WO-02 · one physical condition, one verdict > flags a contour range beyond the data the same way the surface does 1ms
+   ✓ WO-02 · one physical condition, one verdict > flags the same condition in the profiler and the optimiser condition check 1ms
+   ✓ WO-02 · one physical condition, one verdict > the overlaid contour marks the same out-of-range axis 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/release-numerical.test.ts > WO-02 F-REL-04 · a narrow range at a large offset > refuses a value 0.05 beyond a 0.001-wide range that sits at 1e8
+AssertionError: expected null to be 'opt.issue.valueOutside' // Object.is equality
+
+[32m- Expected:[39m 
+"opt.issue.valueOutside"
+
+[31m+ Received:[39m 
+null
+
+ ❯ tests/release-numerical.test.ts:115:52
+    113|   it('refuses a value 0.05 beyond a 0.001-wide range that sits at 1e8'…
+    114|     const settings = factor({ kind: 'continuous', lower: NARROW_LOWER,…
+    115|     expect(validateFactorValue(settings, OUTSIDE)).toBe('opt.issue.val…
+       |                                                    ^
+    116|     expect(validateFactorValue(settings, NARROW_UPPER + 0.0005)).toBe(…
+    117|     expect(validateFactorValue(settings, NARROW_LOWER - 0.0005)).toBe(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/release-numerical.test.ts > WO-02 F-REL-04 · a narrow range at a large offset > answers OUTSIDE (not merely off-step) for a discrete range as well
+AssertionError: expected 'opt.issue.valueOffStep' to be 'opt.issue.valueOutside' // Object.is equality
+
+Expected: [32m"opt.issue.valueO[7mutside[27m"[39m
+Received: [31m"opt.issue.valueO[7mffStep[27m"[39m
+
+ ❯ tests/release-numerical.test.ts:131:52
+    129|   it('answers OUTSIDE (not merely off-step) for a discrete range as we…
+    130|     const settings = factor({ kind: 'discrete', lower: NARROW_LOWER, u…
+    131|     expect(validateFactorValue(settings, OUTSIDE)).toBe('opt.issue.val…
+       |                                                    ^
+    132|     expect(isOnStep(NARROW_LOWER, NARROW_UPPER, 0.0001, OUTSIDE)).toBe…
+    133|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/release-numerical.test.ts > WO-02 F-REL-04 · a narrow range at a large offset > does not call two disjoint narrow ranges an intersection
+AssertionError: expected [ 100000000.05, 100000000.001 ] to be null
+
+[32m- Expected:[39m 
+null
+
+[31m+ Received:[39m 
+[
+  100000000.05,
+  100000000.001,
+]
+
+ ❯ tests/release-numerical.test.ts:136:94
+    134| 
+    135|   it('does not call two disjoint narrow ranges an intersection', () =>…
+    136|     expect(rangeIntersection([[NARROW_LOWER, NARROW_UPPER], [OFFSET + …
+       |                                                                                              ^
+    137|     const overlap = rangeIntersection([[NARROW_LOWER, NARROW_UPPER], […
+    138|     expect(overlap?.[0]).toBe(OFFSET + 0.0005);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/release-numerical.test.ts > WO-02 · fitted ranges with no real intersection > reports the empty intersection instead of a searchable range
+AssertionError: expected [] to include 'opt.issue.rangeIntersection'
+ ❯ tests/release-numerical.test.ts:155:28
+    153|       { allowExtrapolation: true },
+    154|     );
+    155|     expect(problem.issues).toContain('opt.issue.rangeIntersection');
+       |                            ^
+    156|   });
+    157| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/release-numerical.test.ts > WO-02 · fixed values are validated like every other value > refuses a fixed value outside the narrow range at 1e8
+AssertionError: expected [] to include 'opt.issue.fixedOutside'
+ ❯ tests/release-numerical.test.ts:164:32
+    162|   it('refuses a fixed value outside the narrow range at 1e8', () => {
+    163|     const held = factor({ lower: NARROW_LOWER, upper: NARROW_UPPER, fi…
+    164|     expect(factorIssues(held)).toContain('opt.issue.fixedOutside');
+       |                                ^
+    165|   });
+    166| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/release-numerical.test.ts > WO-02 · fixed values are validated like every other value > refuses a fixed value the limits allow but the model never saw
+AssertionError: expected [] to include 'opt.issue.fixedExtrapolation'
+ ❯ tests/release-numerical.test.ts:175:28
+    173|       { allowExtrapolation: false },
+    174|     );
+    175|     expect(problem.issues).toContain('opt.issue.fixedExtrapolation');
+       |                            ^
+    176|   });
+    177| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 7 passed (13)
+   Start at  01:24:46
+   Duration  691ms (transform 147ms, setup 0ms, collect 185ms, tests 22ms, environment 144ms, prepare 52ms)
+
+(node:69558) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)

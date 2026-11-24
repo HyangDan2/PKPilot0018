@@ -59,6 +59,7 @@ import {
   levelIntersection,
   nearestStepValue,
   rangeIntersection,
+  rangeSlack,
   relativeSlack,
   validateFactorValue,
 } from './factorDomain';
@@ -336,15 +337,15 @@ export function buildProblem(
           // (`opt.issue.fixedOutside`); the fitted-region check is for a value
           // the limits allow but the models' data does not cover.
           const withinLimits = Number.isFinite(value)
-            && value >= factor.lower - relativeSlack(factor.lower)
-            && value <= factor.upper + relativeSlack(factor.upper);
+            && value >= factor.lower - rangeSlack(factor.lower, factor.upper, value)
+            && value <= factor.upper + rangeSlack(factor.lower, factor.upper, value);
           const outside = withinLimits
-            && (value < fitted[0] - relativeSlack(fitted[0]) || value > fitted[1] + relativeSlack(fitted[1]));
+            && (value < fitted[0] - rangeSlack(fitted[0], fitted[1], value) || value > fitted[1] + rangeSlack(fitted[0], fitted[1], value));
           if (outside && !allowed) issues.push('opt.issue.fixedExtrapolation');
           if (outside && allowed && !warnings.includes('opt.warn.extrapolation')) warnings.push('opt.warn.extrapolation');
         } else {
-          const outside = factor.lower < fitted[0] - relativeSlack(fitted[0])
-            || factor.upper > fitted[1] + relativeSlack(fitted[1]);
+          const outside = factor.lower < fitted[0] - rangeSlack(fitted[0], fitted[1], factor.lower)
+            || factor.upper > fitted[1] + rangeSlack(fitted[0], fitted[1], factor.upper);
           if (outside && !allowed) issues.push('opt.issue.extrapolationNotAllowed');
           if (outside && allowed && !warnings.includes('opt.warn.extrapolation')) warnings.push('opt.warn.extrapolation');
         }
@@ -427,11 +428,11 @@ export function resolvePoint(factors: FactorSettings[], point: ActualPoint): Res
       // Snapping clamps the integer index into the domain, so the result is an
       // allowed value inside the range even when the input was outside it.
       const value = nearestStepValue(factor.lower, factor.upper, factor.step, clamped).value;
-      if (Math.abs(value - numeric) > relativeSlack(numeric)) snapped.push(factor.name);
+      if (Math.abs(value - numeric) > rangeSlack(factor.lower, factor.upper, numeric)) snapped.push(factor.name);
       out[factor.name] = value;
       return;
     }
-    if (Math.abs(clamped - numeric) > relativeSlack(numeric)) snapped.push(factor.name);
+    if (Math.abs(clamped - numeric) > rangeSlack(factor.lower, factor.upper, numeric)) snapped.push(factor.name);
     out[factor.name] = clamped;
   });
   return { point: out, issues, snapped };
@@ -910,7 +911,12 @@ function finish(
   method: Exclude<OptimizerSettings['method'], 'auto'>,
   started: number,
 ): OptimizerResult {
-  const solutions = state.pool.length ? state.pool : state.best ? [state.best] : [];
+  // A solution outside its own factor domain is not a solution (F-REL-04):
+  // every candidate passed `candidateIssues` when it was scored, and the pool
+  // is checked once more before it is handed back.
+  const eligible = (state.pool.length ? state.pool : state.best ? [state.best] : [])
+    .filter((entry) => entry.usable && candidateIssues(problem.factors, entry.solution.settings).length === 0);
+  const solutions = eligible;
   const best = solutions[0] ?? null;
   const allDiscrete = problem.factors.every((factor) => factor.fixed || factor.kind !== 'continuous');
   // A search that used exactly its whole evaluation budget did not finish; say
