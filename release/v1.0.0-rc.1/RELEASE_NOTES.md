@@ -1,6 +1,6 @@
 # Sigrún v1.0.0-rc.1 — Release Notes
 
-Build: 1.0.0 · v1.0.0-rc.1 · commit 44ceacf
+Build: 1.0.0 · v1.0.0-rc.1 · commit 973f2d7
 
 Sigrún is a pure-browser statistical and quality workspace. This release is the
 Phase 3 final stabilization and enterprise-readiness build (WO-FINAL-001, corrected under WO-FINAL-002). It

@@ -3,7 +3,7 @@ Sigrún v1.0.0-rc.1 — read me
 
 version   1.0.0
 release   v1.0.0-rc.1
-build     44ceacf
+build     973f2d7
 
 What is in this folder
 ----------------------
