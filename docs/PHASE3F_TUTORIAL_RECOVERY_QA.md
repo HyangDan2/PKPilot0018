@@ -10,11 +10,12 @@
 | --- | --- |
 | `npm run qa:tutorials` | **29 / 29 PASS** |
 | 실행된 튜토리얼 | **13 / 13 완료** |
+| `npm test` | **1,329 / 1,329 PASS** · FAIL 0 · SKIP 0 |
 | `ONLY=tutorial-doe-reduction-001 npm run qa:tutorials` | **13 / 13 PASS** |
 | `npm run qa:tutorials:portable` | **8 / 8 PASS** |
 | `npm run qa:guard` | **10 / 10 PASS** |
 | `node tools/e2e_phase3f.cjs` | **11 / 11 PASS** |
-| `node tools/run_e2e_suite.cjs` | **13 / 13 suites clean · 560 PASS · 0 FAIL** |
+| `node tools/run_e2e_suite.cjs` | **14 / 14 suites clean · 595 PASS · 0 FAIL** |
 | 브라우저 콘솔 오류 | **0** |
 | Portable HTML 외부 요청 | **0** |
 
@@ -116,8 +117,8 @@ Portable HTML은 새 서버 API나 CDN을 추가하지 않는다.
 
 | 검사 | 결과 |
 | --- | --- |
-| `npx vitest run tests/tutorial-force-exit.test.ts` | **21 / 21 PASS** |
-| `npm run qa:force-exit` (`tools/e2e_force_exit.cjs`) | **33 / 33 PASS** |
+| `npx vitest run tests/tutorial-force-exit.test.ts` | **26 / 26 PASS** |
+| `npm run qa:force-exit` (`tools/e2e_force_exit.cjs`) | **35 / 35 PASS** |
 | `npm run qa:tutorials` (회귀) | **29 / 29 PASS** |
 | `npm run qa:guard` (회귀) | **10 / 10 PASS** |
 | `npm run qa:tutorials:portable` (회귀) | **8 / 8 PASS** |
@@ -134,11 +135,11 @@ Portable HTML은 새 서버 API나 CDN을 추가하지 않는다.
 | 새로고침 | 원본 프로젝트 유지 · 세션이 되살아나지 않음 |
 | 시작이 오토세이브를 기다리는 동안 강제 종료 | 시작 대화상자에 강제 종료 버튼 · 종료 후 수업이 뒤늦게 열리지 않음 · 원본 무변경 · 기록 없음 |
 | 시작 중 취소 | 시작 중단 · 수업이 뒤늦게 열리지 않음 · 원본 무변경 |
-| 보관한 실습을 다시 열어 강제 종료 | 검증된 복원 후 원본 백업 삭제(`sigrun.tutorials.original.v1` 슬롯 0) · 원본 복원 |
+| 보관한 실습을 다시 열어 강제 종료 | 검증된 복원 후 원본 백업 삭제(`sigrun.tutorials.original.v1` 슬롯 0) · 보관 실습 슬롯 삭제(`sigrun.tutorials.practice.v2` 슬롯 0) · 원본 복원 |
 
-이번 검증에서 찾아 고친 세 결함은 `docs/PHASE3F_IMPLEMENTATION_REPORT.md` 6절에 적었다. 시작 중 탈출구가 없던 문제(상태 기계의 `ABORT_START` 미연결), 보관 실패 화면이 종료 대화상자 뒤에 열리던 문제, 강제 종료가 검증 후에도 원본 백업을 지우지 않던 문제다.
+이번 검증에서 찾아 고친 네 결함은 `docs/PHASE3F_IMPLEMENTATION_REPORT.md` 6절에 적었다. 시작 중 탈출구가 없던 문제(상태 기계의 `ABORT_START` 미연결), 보관 실패 화면이 종료 대화상자 뒤에 열리던 문제, 강제 종료가 검증 후에도 원본 백업을 지우지 않던 문제, 강제 종료가 재개한 실습의 보관 슬롯을 남기던 문제다.
 
-남은 설계 질문 하나를 기록해 둔다. 이전에 **보관(Save & Exit)** 했던 실습을 다시 열고 강제 종료하면, 그 실습 슬롯(`sigrun.tutorials.practice.v2`)은 남지만 진행 기록이 지워져 라이브러리에서 다시 열 수 없는 상태가 된다(2026-11-25 브라우저 확인: `slots=1`, 라이브러리 `start=1 · resume=0`). 독자가 명시적으로 보관한 데이터를 강제 종료가 삭제하지는 않았지만, 보이지 않게 남는 상태이므로 3F-B에서 “보관 목록에서 계속 열 수 있게 한다” 또는 “강제 종료는 보관분도 함께 정리한다” 중 하나로 결정해야 한다.
+마지막 결함은 3F-A에서 남긴 설계 질문에 대한 결정이다. 보관한 실습을 다시 열고 강제 종료하면 슬롯은 남지만 진행 기록이 지워져 라이브러리에서 다시 열 수 없는 상태가 됐다(`slots=1`, `start=1 · resume=0`). 강제 종료는 세션을 끝내는 명령이므로, 검증된 복원 뒤에 그 실습의 슬롯도 정리한다. 복원이나 영구 저장을 증명하지 못하면 이전과 같이 슬롯과 백업을 모두 남겨 복구 화면으로 보낸다.
 
 ## 8. 한계와 주장하지 않는 것
 

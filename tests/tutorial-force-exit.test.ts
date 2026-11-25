@@ -246,6 +246,72 @@ describe('a forced exit at any step of any lesson', () => {
   });
 });
 
+describe('a forced exit and the kept practice copy', () => {
+  const save = (store: TutorialProgressStore, sessionId: string, projectId: string, tutorialId = tutorial.id) => store.savePracticeSlot({
+    tutorialId,
+    tutorialVersion: tutorial.version,
+    sessionId,
+    projectId,
+    json: JSON.stringify({ worksheets: [], activeSheetId: '' }),
+    savedAt: '2026-11-25T10:00:00.000Z',
+  });
+
+  it('removes the copy of the practice that was resumed and force-exited', () => {
+    const storage = new MemoryStorage();
+    const store = new TutorialProgressStore(storage);
+    expect(save(store, 'session-kept', 'practice-kept').ok).toBe(true);
+
+    const removed = store.removePracticeSlotsForPractice('practice-kept', 'session-kept');
+
+    expect(removed).toBe(1);
+    expect(store.loadPracticeSlot(tutorial.id, 'session-kept')).toBeNull();
+    expect(store.listPracticeSlots()).toEqual([]);
+  });
+
+  it('finds the slot by its session when a legacy slot carries no project id', () => {
+    const storage = new MemoryStorage();
+    const store = new TutorialProgressStore(storage);
+    save(store, 'session-legacy', '');
+
+    expect(store.removePracticeSlotsForPractice('practice-anything', 'session-legacy')).toBe(1);
+    expect(store.listPracticeSlots()).toEqual([]);
+  });
+
+  it('never removes another lesson’s kept practice', () => {
+    const storage = new MemoryStorage();
+    const store = new TutorialProgressStore(storage);
+    const other = TUTORIALS[1];
+    save(store, 'session-mine', 'practice-mine');
+    expect(save(store, 'session-other', 'practice-other', other.id).ok).toBe(true);
+
+    store.removePracticeSlotsForPractice('practice-mine', 'session-mine');
+
+    expect(store.loadPracticeSlot(tutorial.id, 'session-mine')).toBeNull();
+    expect(store.loadPracticeSlot(other.id, 'session-other')?.projectId).toBe('practice-other');
+  });
+
+  it('removes nothing when no slot belongs to this practice', () => {
+    const storage = new MemoryStorage();
+    const store = new TutorialProgressStore(storage);
+    save(store, 'session-kept', 'practice-kept');
+
+    expect(store.removePracticeSlotsForPractice('practice-fresh', 'session-fresh')).toBe(0);
+    expect(store.loadPracticeSlot(tutorial.id, 'session-kept')?.projectId).toBe('practice-kept');
+  });
+
+  it('keeps the copy when the store refuses the removal', () => {
+    const storage = new MemoryStorage();
+    const store = new TutorialProgressStore(storage);
+    save(store, 'session-kept', 'practice-kept');
+    storage.failWrites = true;
+
+    expect(store.removePracticeSlotsForPractice('practice-kept', 'session-kept')).toBe(0);
+    storage.failWrites = false;
+    // The reader can still reach the practice; nothing was silently dropped.
+    expect(new TutorialProgressStore(storage).loadPracticeSlot(tutorial.id, 'session-kept')?.projectId).toBe('practice-kept');
+  });
+});
+
 describe('a reload after an exit', () => {
   const guard = (savedAt: string, fingerprint = 'own-project') => ({ savedAt, fingerprint });
 

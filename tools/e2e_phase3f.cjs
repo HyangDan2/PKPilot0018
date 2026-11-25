@@ -103,6 +103,17 @@ async function bodyText(page) {
   return page.locator('body').innerText();
 }
 
+/**
+ * A screenshot of a full result page. The software rasteriser behind the
+ * headless shell can take tens of seconds to paint the first frame of a large
+ * table-and-chart page; the default 30 s is not a verdict on the page, so give
+ * it room and settle one frame first.
+ */
+async function shot(page, name) {
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(1)))));
+  await page.screenshot({ path: path.join(OUT, name), timeout: 90000 });
+}
+
 /** Load a sample, fill response/factors, set the model order, optionally edit the model. */
 async function fillFactorial(page, response, factors, order, edit) {
   await pick(page, 'response', [response]);
@@ -144,7 +155,7 @@ async function fillFactorial(page, response, factors, order, edit) {
       text.includes('1.85') && text.includes('0.207'), 'F 1.85 · p 0.207');
     check('the pooled term leaves the fitted model formula',
       text.includes('Model formula: Y = β0 + A + B + C + A×B + A×C + A×B×C'), 'A×B×C retained, B×C removed');
-    await page.screenshot({ path: path.join(OUT, 'phase3f-pooling.png') });
+    await shot(page, 'phase3f-pooling.png');
 
     /* ── B. hierarchy: strict refuses, auto adds the parents ─────── */
     await openAnalysis(page, 'doeanalyze');
@@ -175,7 +186,7 @@ async function fillFactorial(page, response, factors, order, edit) {
     });
     await run(page);
     text = await bodyText(page);
-    await page.screenshot({ path: path.join(OUT, 'phase3f-lenth.png') });
+    await shot(page, 'phase3f-lenth.png');
     check('Lenth PSE is reported with its margin of error',
       text.includes('PSE 2.1') && text.includes('ME 9.036'), 'PSE 2.1 · ME 9.036');
     check('the saturated fit says why t-tests are unavailable', text.includes('Error DF is 0'));
@@ -189,7 +200,7 @@ async function fillFactorial(page, response, factors, order, edit) {
     text = await bodyText(page);
     check('the unbalanced study keeps Type I and Type III sums apart',
       text.includes('82.083') && text.includes('68.511'), 'Machine 82.083 / 68.511');
-    await page.screenshot({ path: path.join(OUT, 'phase3f-hierarchy-glm.png') });
+    await shot(page, 'phase3f-hierarchy-glm.png');
 
     /* ── E. the reduction lesson is listed ───────────────────────── */
     await page.click('[data-testid=learn-sigrun]');

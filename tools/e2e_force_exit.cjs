@@ -307,6 +307,11 @@ async function main() {
   await page.waitForSelector('[data-testid=tutorial-exit-dialog]', { timeout: 8000 });
   await page.click('[data-testid=tutorial-exit-keep]');
   await page.waitForTimeout(1200);
+  const slotsKept = await page.evaluate(() => {
+    const raw = localStorage.getItem('sigrun.tutorials.practice.v2');
+    return raw ? Object.keys(JSON.parse(raw).slots || {}).length : 0;
+  });
+  check('keeping the practice stores exactly one copy', slotsKept === 1, `slots=${slotsKept}`);
   await openLibrary(page);
   const keptResume = page.locator(`[data-testid=tut-resume-${LESSON}]`);
   const keptCount = await keptResume.count();
@@ -326,6 +331,11 @@ async function main() {
     return raw ? Object.keys(JSON.parse(raw).slots || {}).length : 0;
   });
   check('a verified restore removes the guarded backup', guardsAfter === 0, `guards=${guardsAfter}`);
+  const slotsAfter = await page.evaluate(() => {
+    const raw = localStorage.getItem('sigrun.tutorials.practice.v2');
+    return raw ? Object.keys(JSON.parse(raw).slots || {}).length : 0;
+  });
+  check('a forced exit removes the kept copy of the reopened practice', slotsAfter === 0, `slots=${slotsAfter}`);
   check('the resumed practice force-exits back to the own project', JSON.stringify(await workspace(page)) === JSON.stringify(own), JSON.stringify(await workspace(page)));
 
   check('no console errors in the normal path', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));

@@ -878,30 +878,33 @@ function BlockView({
   }
   if (block.type === 'chartgrid') {
     return (
-      <div className="chart-grid">
-        {block.charts.map((item, i) => {
-          const target: ChartTarget = { outputId, blockIndex, chartIndex: i };
-          const chart = chartForFrame(target, item.chart);
-          return (
-            <div className="chart-card" key={i}>
-              <h5>{resolveLabel(lang, item.title)}</h5>
-              <ChartFrame
-                lang={lang}
-                chart={chart}
-                config={previewFor(target)}
-                onChartChange={(next) => onChartChange(target, next)}
-                onEdit={(request) => onEdit(target, request)}
-                onMenu={(event) => onMenu(event, target)}
-                onView={(mode) => onView(target, mode)}
-                onCopyPng={() => onCopyPng(target, chart)}
-                onExport={() => onExport(target, chart)}
-                highlightRows={selection && selectionCompatible(selection.source, chart.source) ? selection.rows : undefined}
-                onSelectRows={onSelectRows}
-                onExportSelection={onExportSelection}
-              />
-            </div>
-          );
-        })}
+      <div>
+        {block.caption && <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--text-secondary)' }}>{resolveLabel(lang, block.caption)}</p>}
+        <div className="chart-grid">
+          {block.charts.map((item, i) => {
+            const target: ChartTarget = { outputId, blockIndex, chartIndex: i };
+            const chart = chartForFrame(target, item.chart);
+            return (
+              <div className="chart-card" key={i}>
+                <h5>{resolveLabel(lang, item.title)}</h5>
+                <ChartFrame
+                  lang={lang}
+                  chart={chart}
+                  config={previewFor(target)}
+                  onChartChange={(next) => onChartChange(target, next)}
+                  onEdit={(request) => onEdit(target, request)}
+                  onMenu={(event) => onMenu(event, target)}
+                  onView={(mode) => onView(target, mode)}
+                  onCopyPng={() => onCopyPng(target, chart)}
+                  onExport={() => onExport(target, chart)}
+                  highlightRows={selection && selectionCompatible(selection.source, chart.source) ? selection.rows : undefined}
+                  onSelectRows={onSelectRows}
+                  onExportSelection={onExportSelection}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }

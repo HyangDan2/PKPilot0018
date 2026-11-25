@@ -20,6 +20,14 @@ export function fmtInt(x: number): string {
   return Number.isFinite(x) ? Math.round(x).toLocaleString('en-US') : '*';
 }
 
+/**
+ * A ratio shown as a percentage. A ratio the fit cannot define (R²(adj) of a
+ * saturated model, R²(pred) without PRESS) is a dash — never "NaN%".
+ */
+export function fmtPct(x: number, digits = 2): string {
+  return Number.isFinite(x) ? `${(x * 100).toFixed(digits)}%` : '—';
+}
+
 export function fmtTime(ts: number): string {
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;

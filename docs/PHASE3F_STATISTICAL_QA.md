@@ -14,6 +14,7 @@
 | QA-3F 영역 최대 절대 오차 | **1.99e-11** |
 | 참조 환경 | Python 3.12.16 · NumPy 2.5.4 · SciPy 1.18.1 · statsmodels 0.15.0 · pandas 3.1.1 · patsy 1.0.3 |
 | 어댑터 환경 | Node 22.23.4 · `src/lib`의 배포 TypeScript를 esbuild로 번들 |
+| 재검증 (2026-11-25, Linux) | **250 / 250 PASS** · Node 22.16.0 · Python 3.12.16 · 최대 절대 오차 1.99e-11 |
 | 산출물 | `qa/cases/QA-3F-model-control.json`, `qa/reports/latest.json`, `qa/reports/latest.html` |
 
 QA-3F는 기존 225건을 대체하지 않고 25건을 추가했다. 전체 250건을 같은 요청 파일로 배포 어댑터와 참조 엔진에 보내 비교했다.
@@ -105,7 +106,7 @@ p           = 1 − F_CDF(F_partial, df1, df2)
 - `no-reduction`
 - `no-error-df`
 
-비교표의 MSE·S·R²adj·R²pred가 정의되지 않으면 0으로 대체하지 않고 `notInferable`, `pressUnavailable`, `missing` 사유를 붙인다.
+비교표의 MSE·S·R²adj·R²pred가 정의되지 않으면 0으로 대체하지 않고 `notInferable`, `pressUnavailable`, `missing` 사유를 붙인다. 분석 출력의 모형 요약표도 같은 규칙을 따른다. 포화 적합의 R²adj는 `NaN%`가 아니라 `—`로 표시하고, 저장 모형 관리자의 진단 열도 유한하지 않은 값을 `—`로 읽는다.
 
 ### 5.3 Lenth
 
@@ -142,7 +143,7 @@ active    = |effect| >= 2.5 × s0
 | Lenth 활성 효과 | A만 활성 |
 | 불균형 GLM n / dfe / rank / SSE | 24 / 18 / 6 / 3.1932 |
 | DOE 효과 A / B / C | 8.8998 / 6.2961 / −4.3147 |
-| 포화 DOE | DFE 0, S·R²adj는 NaN으로 비교 대상에서 정의 불가 |
+| 포화 DOE | DFE 0, S·R²adj는 NaN으로 비교 대상에서 정의 불가 (화면은 `—`로 표시) |
 
 화면 샘플과 QA 데이터셋은 생성기와 시드가 다르므로 같은 현상을 보여 주지만 수치가 반드시 같지는 않다. 두 수치를 혼용하지 않았다.
 

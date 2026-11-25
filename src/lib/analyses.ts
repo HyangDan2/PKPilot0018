@@ -11,7 +11,7 @@ import { evaluateFormula } from './calc';
 import { histogramBins } from './charts';
 import { fCdf, normalInv, normalPdf, tInv } from './dist';
 import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, buildRsmModel, ccdDesign, designWorksheet, factorialDesign, rsmPredictSurface } from './doe';
-import { fmt, fmtInt, fmtP } from './format';
+import { fmt, fmtInt, fmtP, fmtPct } from './format';
 import { gageRR, type GrrRow } from './gagerr';
 import { cellMeans, fitGlm, type GlmResult, type ModelFactor, type ModelTerm } from './glm';
 import { t } from './i18n';
@@ -680,9 +680,9 @@ function runRegression(ctx: RunContext): RunResult {
   }
   const modelRows: (string | number)[][] = [
     ['S', fmt(result.s)],
-    ['R²', `${(result.r2 * 100).toFixed(2)}%`],
-    ['R²(adj)', `${(result.r2adj * 100).toFixed(2)}%`],
-    ['R²(pred)', `${(result.r2pred * 100).toFixed(2)}%`],
+    ['R²', fmtPct(result.r2)],
+    ['R²(adj)', fmtPct(result.r2adj)],
+    ['R²(pred)', fmtPct(result.r2pred)],
     ['N', fmtInt(result.n)],
   ];
   const coefRows = result.coefficients.map((c) => [c.term, fmt(c.coef), fmt(c.se), fmt(c.t), fmtP(c.p), Number.isFinite(c.vif) ? fmt(c.vif, 2) : '—']);
@@ -818,7 +818,7 @@ function runPolyRegression(ctx: RunContext): RunResult {
       type: 'table',
       title: tableTitle('res.modelSummary'),
       headers: ['@th.statistic', '@th.value'],
-      rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
+      rows: [['S', fmt(glm.s)], ['R²', fmtPct(glm.r2)], ['R²(adj)', fmtPct(glm.r2adj)], ['N', fmtInt(glm.n)]],
       align: ['l', 'r'],
     },
     { type: 'table', title: tableTitle('res.coefficients'), headers: ['@th.term', '@th.coef', '@th.seCoef', '@th.t', '@th.p'], rows: coefRows, align: ['l', 'r', 'r', 'r', 'r'] },
@@ -2646,9 +2646,10 @@ function modelControlBlocks(
       title: tableTitle('res.poolingChecks'),
       headers: ['@th.statistic', '@th.value'],
       rows: [
-        ['DFE expected / actual', `${fmtInt(pooling.checks.expectedDfe)} / ${fmtInt(pooling.checks.actualDfe)}`],
-        ['SSE expected / actual', `${fmt(pooling.checks.expectedSs)} / ${fmt(pooling.checks.actualSs)}`],
-        ['Additive', pooling.checks.additive ? '✓' : '—'],
+        [t(lang, 'res.poolingDfe'), `${fmtInt(pooling.checks.expectedDfe)} / ${fmtInt(pooling.checks.actualDfe)}`],
+        [t(lang, 'res.poolingSse'), `${fmt(pooling.checks.expectedSs)} / ${fmt(pooling.checks.actualSs)}`],
+        [t(lang, 'res.poolingSameRows'), pooling.checks.sameRows ? '✓' : '—'],
+        [t(lang, 'res.poolingAdditiveRow'), pooling.checks.additive ? '✓' : '—'],
       ],
       align: ['l', 'r'],
     });
@@ -2911,8 +2912,8 @@ function runGlm(ctx: RunContext): RunResult {
       headers: ['@th.statistic', '@th.value'],
       rows: [
         ['S', fmt(glm.s)],
-        ['R²', `${(glm.r2 * 100).toFixed(2)}%`],
-        ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`],
+        ['R²', fmtPct(glm.r2)],
+        ['R²(adj)', fmtPct(glm.r2adj)],
         ['N', fmtInt(glm.n)],
       ],
       align: ['l', 'r'],
@@ -3133,7 +3134,7 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
         type: 'table',
         title: tableTitle('res.modelSummary'),
         headers: ['@th.statistic', '@th.value'],
-        rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
+        rows: [['S', fmt(glm.s)], ['R²', fmtPct(glm.r2)], ['R²(adj)', fmtPct(glm.r2adj)], ['N', fmtInt(glm.n)]],
         align: ['l', 'r'],
       },
       ...modelControlBlocks(lang, {
@@ -3251,7 +3252,7 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
       type: 'table',
       title: tableTitle('res.modelSummary'),
       headers: ['@th.statistic', '@th.value'],
-      rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
+      rows: [['S', fmt(glm.s)], ['R²', fmtPct(glm.r2)], ['R²(adj)', fmtPct(glm.r2adj)], ['N', fmtInt(glm.n)]],
       align: ['l', 'r'],
     },
     { type: 'table', title: tableTitle('res.coefficients'), headers: ['@th.term', '@th.coef', '@th.seCoef', '@th.t', '@th.p'], rows: coefRows, align: ['l', 'r', 'r', 'r', 'r'] },

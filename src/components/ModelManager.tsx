@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Lang, Worksheet } from '../types';
 import { t } from '../lib/i18n';
-import { fmt, fmtInt } from '../lib/format';
+import { fmt, fmtInt, fmtPct } from '../lib/format';
 import {
   checkCompatibility,
   modelSurface,
@@ -237,6 +237,11 @@ export function ModelManager({
                     <div className="mm-fact"><span>{t(lang, 'model.fact.predictors')}</span><b>{selected.predictors.map((p) => p.name).join(', ')}</b></div>
                     <div className="mm-fact"><span>{t(lang, 'model.fact.terms')}</span><b>{fmtInt(selected.terms.length + 1)}</b></div>
                     <div className="mm-fact"><span>{t(lang, 'model.fact.dfe')}</span><b>{selected.residual?.df != null ? fmtInt(selected.residual.df) : t(lang, 'model.na')}</b></div>
+                    {/* The fit quality the reader chose the model on (WO-3F-08). */}
+                    <div className="mm-fact"><span>{t(lang, 'model.cmp.r2')}</span><b data-testid="mm-r2">{fmtPct(selected.diagnostics.r2 ?? NaN)}</b></div>
+                    <div className="mm-fact"><span>{t(lang, 'model.cmp.r2adj')}</span><b data-testid="mm-r2adj">{fmtPct(selected.diagnostics.r2adj ?? NaN)}</b></div>
+                    <div className="mm-fact"><span>{t(lang, 'model.cmp.r2pred')}</span><b data-testid="mm-r2pred">{fmtPct(selected.diagnostics.r2pred ?? NaN)}</b></div>
+                    <div className="mm-fact"><span>{t(lang, 'model.cmp.s')}</span><b data-testid="mm-s">{Number.isFinite(selected.diagnostics.s) ? fmt(selected.diagnostics.s, 4) : t(lang, 'model.na')}</b></div>
                     <div className="mm-fact"><span>{t(lang, 'model.fact.covariance')}</span><b>{selected.covariance ? t(lang, 'model.cmp.available') : t(lang, 'model.cmp.unavailable')}</b></div>
                     <div className="mm-fact"><span>{t(lang, 'model.fact.training')}</span><b>{selected.training ? `${selected.training.sheetName ?? '—'} · ${fmtInt(selected.training.rows)}` : t(lang, 'model.na')}</b></div>
                     <div className="mm-fact"><span>{t(lang, 'model.fact.hierarchy')}</span><b data-testid="mm-hierarchy">{selected.control ? t(lang, `model.hierarchy.${selected.control.hierarchy}`) : t(lang, 'model.na')}</b></div>

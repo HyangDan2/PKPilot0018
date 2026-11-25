@@ -142,14 +142,15 @@ PATH=/tmp/pk18-qa312/bin:$PATH npm run qa:stats
 - macOS 기본 붙여넣기를 `ControlOrMeta+V`로 처리
 - macOS 다중 선택의 Control-click이 문맥 메뉴를 여는 문제를 Meta+click으로 회피
 
-WO-3F-01 검증(3F-A)에서 강제 종료 경로의 두 구멍을 추가로 막았다.
+WO-3F-01 검증(3F-A)에서 강제 종료 경로의 네 구멍을 추가로 막았다.
 
 - **STARTING 중에는 탈출구가 없었다.** 시작은 남은 오토세이브를 기다리는 동안 `STARTING`에 머무는데, 그 구간에는 세션 레코드가 아직 없어 패널·라이브러리 어느 쪽에도 강제 종료가 없었고 시작 대화상자의 취소는 대화상자만 닫아 곧 수업이 열렸다. 상태 기계의 `ABORT_START`를 실제로 연결해, 시작 대화상자에 강제 종료를 두고 취소·배경 클릭도 시작을 중단하도록 했다. 중단은 세대 토큰을 올려 뒤늦은 시작 결과를 차단하고, 그 시작이 스스로 만든 원본 사본만 회수한다(작업 공간은 아직 바뀌지 않았으므로 복원할 것이 없다). 시작 중에는 라이브러리에도 강제 종료를 노출한다.
 - **실습 보관 실패가 보이지 않았다.** 종료 대화상자에서 보관을 눌러 저장이 거부되면 저장 실패 대화상자가 종료 대화상자 뒤에 열려 재시도·내보내기·강제 종료에 닿을 수 없었다. 보관 실패 시 종료 대화상자를 닫아 실패 화면을 유일한 표면으로 만든다.
 
 - **강제 종료가 원본 백업을 남겼다.** 복원과 영구 저장 검증을 마친 뒤에도 원본 사본을 지우지 않아, 강제 종료마다 독자 프로젝트 전문이 저장소에 쌓였다. 다른 종료 경로와 동일하게 검증된 뒤에만 백업을 제거한다. 검증에 실패하면 이전과 같이 백업을 유지하고 복구 화면을 연다.
+- **보관한 실습을 다시 열어 강제 종료하면 보관 슬롯이 남았다.** 재개한 실습은 저장된 사본을 읽어 오지만, 강제 종료는 진행 기록만 지우고 `sigrun.tutorials.practice.v2`의 슬롯을 남겼다. 라이브러리에서 다시 열 수 없는 보이지 않는 사본이 저장소에 남으므로, 검증된 복원 뒤에 이번 실습의 슬롯(프로젝트 ID 또는 세션 ID가 일치하는 항목)만 함께 제거한다. 다른 실습의 보관 슬롯은 건드리지 않는다.
 
-검증은 `tests/tutorial-force-exit.test.ts`(21개)와 `tools/e2e_force_exit.cjs`(33개 검사, `npm run qa:force-exit`)에 있다. 모든 강의·모든 단계에서의 종료, 최소화 종료, 패널 닫힘 종료, 저장 실패 종료, 시작 중 종료·취소, 새로고침 복구, 종료 후 재시작을 포함한다.
+검증은 `tests/tutorial-force-exit.test.ts`(26개)와 `tools/e2e_force_exit.cjs`(35개 검사, `npm run qa:force-exit`)에 있다. 모든 강의·모든 단계에서의 종료, 최소화 종료, 패널 닫힘 종료, 저장 실패 종료, 시작 중 종료·취소, 새로고침 복구, 종료 후 재시작을 포함한다.
 
 Portable HTML은 `file://`에서 13개 강의·26개 도움말 문서·분석 실행을 외부 요청 없이 검증한다. 저장소가 차단되면 진행 저장 실패를 숨기지 않는다. 상세 결과는 `docs/PHASE3F_TUTORIAL_RECOVERY_QA.md`에 기록했다.
 
@@ -171,7 +172,7 @@ Portable HTML은 `file://`에서 13개 강의·26개 도움말 문서·분석 �
 | 검사 | 결과 |
 | --- | --- |
 | `npm run typecheck` | PASS · 0 errors |
-| `npm test` | **1,323 / 1,323 PASS** |
+| `npm test` | **1,329 / 1,329 PASS** · 65 files · FAIL 0 · SKIP 0 |
 | `npm run qa:stats` | **250 / 250 PASS** |
 | `npm run build` | PASS · 외부 CDN/API 없음 |
 | `npm run build:portable` | PASS |
@@ -179,19 +180,20 @@ Portable HTML은 `file://`에서 13개 강의·26개 도움말 문서·분석 �
 | 10단계 강의 단독 실행 | **13 / 13 PASS** |
 | `npm run qa:tutorials:portable` | **8 / 8 PASS** |
 | `npm run qa:guard` | **10 / 10 PASS** |
-| `npm run qa:force-exit` | **33 / 33 PASS** (신규) |
+| `npm run qa:force-exit` | **35 / 35 PASS** (신규) |
 | `npm run qa:network` | **13 / 13 PASS** · web·portable·enterprise 외부 요청 0 |
 | `node tools/e2e_phase3f.cjs` | **11 / 11 PASS** |
-| `node tools/run_e2e_suite.cjs` | **13 / 13 suites clean · 560 PASS · 0 FAIL** |
+| `node tools/run_e2e_suite.cjs` | **14 / 14 suites clean · 595 PASS · 0 FAIL** |
 | `node tools/verify_audit.mjs` | PASS · 0 errors |
+| `npm run qa:phase3f:shots` | 데스크톱·390px 스크린샷 14장 · 페이지 오류 0 |
 
 ### 8.2 최종 산출물
 
-- 호스팅 빌드: `dist/assets/index-D2BYKQrT.js`, `dist/assets/index-Mp7rP2EX.css`
-- Portable HTML: SHA-256 `7bb258de61ed2461…`, ZIP SHA-256 `7e7d3cdf543d4f2f…`, 빌드 시각 `2026-11-25T02:50:38Z`
+- 호스팅 빌드: `dist/assets/index-BUCDTT3z.js`, `dist/assets/index-Mp7rP2EX.css`
+- Portable HTML: `dist-portable/sigrun-portable.html` · `npm run build:portable` PASS (CI는 `release:build`로 커밋 시각 고정 재빌드)
 - `qa/reports/latest.json`, `qa/reports/latest.html` — 통계 QA 상세
 - `docs/audit/` — 기능 매트릭스·QA 범위·Phase 4 백로그·대시보드
-- `/Users/jaehyukshim/QoderWS/phase3f-artifacts-20261125/` — 브라우저 스크린샷·스위트 로그·요약 JSON
+- `artifacts/phase3f-qa-shots/` — Model Terms Editor·풀링/비교·효과 그림·Model Manager·Lenth의 데스크톱/390px 스크린샷 14장 (`npm run qa:phase3f:shots`, 로컬 산출물·gitignore)
 - `dist/` — GitHub Pages용 빌드
 - `dist-portable/sigrun-portable.html` — 단일 파일 Portable HTML
 

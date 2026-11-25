@@ -13,6 +13,7 @@
      Floating panel sizes ....... sigrun.floatSizes.v1
      Workspace layout ........... sigrun.workspace.v2
      Custom chart styles ........ sigrun.chartStyles.v1
+     Model term settings ........ sigrun.modelSettings.v1
      Tutorial progress .......... sigrun.tutorials.progress.v1
      Practice slot (v2/v1) ...... sigrun.tutorials.practice.v2 / .v1
      Original-project guard ..... sigrun.tutorials.original.v1
@@ -32,6 +33,7 @@ export const STORAGE_KEY = {
   floatSizes: 'sigrun.floatSizes.v1',
   workspace: 'sigrun.workspace.v2',
   chartStyles: 'sigrun.chartStyles.v1',
+  modelSettings: 'sigrun.modelSettings.v1',
   tutorialProgress: 'sigrun.tutorials.progress.v1',
   tutorialPractice: 'sigrun.tutorials.practice.v2',
   tutorialPracticeV1: 'sigrun.tutorials.practice.v1',

@@ -2444,6 +2444,9 @@ export default function App() {
     const mode = practice?.mode ?? null;
     const originalId = practiceOriginalId.current;
     const sessionId = session?.sessionId ?? null;
+    // A practice the reader kept earlier and reopened carries a stored copy; the
+    // forced exit removes it together with the session once the restore is proven.
+    const practiceId = practice?.id ?? null;
     const snapshot = practiceSnapshot.current;
     // A start that never got as far as replacing the workspace left its own
     // guard behind and nothing else; that copy goes with it (WO-3F-01).
@@ -2483,6 +2486,12 @@ export default function App() {
       // other exit paths do. Keeping it would leave a full copy of the reader's
       // project in the store after every forced exit (WO-3F-01).
       if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
+      // The kept copy of this practice goes too: the session is over, so a slot
+      // left behind would be a stored practice the library can no longer resume
+      // (WO-3F-01 follow-up). Only this practice's slots are named.
+      if (mode === 'isolated' && (practiceId || sessionId)) {
+        TUTORIAL_STORE.removePracticeSlotsForPractice(practiceId, sessionId);
+      }
     }
     setTutorialPhase((phase) => nextPhase(phase, { type: 'EXITED' }));
     toast(t(lang, session ? 'tut.forceExited' : 'tut.startAborted'));

@@ -69,6 +69,9 @@ describe('model-control practice samples (WO-3F-09)', () => {
 
     const pooled = table(result, '@res.errorPooling');
     expect(pooled[0][0]).toBe('B×C');
+    const checks = table(result, '@res.poolingChecks');
+    expect(checks.map((row) => row[0])).toEqual(['DFE expected / actual', 'SSE expected / actual', 'Same rows', 'Additive']);
+    expect(checks.find((row) => row[0] === 'Additive')?.[1]).toBe('✓');
     expect(result.blocks.some((block) => block.type === 'text' && block.lines.some((line) => line === 'Model formula: Y = β0 + A + B + C + A×B + A×C + A×B×C'))).toBe(true);
   });
 
@@ -80,6 +83,14 @@ describe('model-control practice samples (WO-3F-09)', () => {
     const caption = result.blocks.find((block) => block.type === 'text' && block.lines.some((line) => line.startsWith('PSE ')));
     expect(caption && caption.type === 'text' ? caption.lines.join(' ') : '').toContain('PSE 2.1 · ME 9.036');
     expect(result.blocks.some((block) => block.type === 'text' && block.lines.some((line) => line.includes('Error DF is 0')))).toBe(true);
+  });
+
+  it('shows an undefined R²(adj) as a dash, never as NaN%', () => {
+    const { result } = runPreset('preset-doeanalyze-unreplicated');
+    const summary = Object.fromEntries(table(result, '@res.modelSummary').map((row) => [row[0], row[1]]));
+    // With error df 0 the adjusted R² has no value; the table must say so.
+    expect(summary['R²(adj)']).toBe('—');
+    expect(JSON.stringify(result.blocks)).not.toContain('NaN');
   });
 
   it('separates Type I and Type III sums of squares in the unbalanced study', () => {

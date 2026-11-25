@@ -3,6 +3,7 @@
    stored selection keeps its meaning when the UI language changes. */
 
 import type { HierarchyMode } from './modelTerms';
+import { STORAGE_KEY, namespacedKey } from '../config/storageNamespace';
 
 export interface ModelSettings {
   terms: string[];
@@ -12,7 +13,8 @@ export interface ModelSettings {
   order?: number;
 }
 
-const SETTINGS_KEY = 'sigrun.modelSettings.v1';
+export const MODEL_SETTINGS_KEY = namespacedKey(STORAGE_KEY.modelSettings);
+const SETTINGS_KEY = MODEL_SETTINGS_KEY;
 
 type SettingsMap = Record<string, ModelSettings>;
 

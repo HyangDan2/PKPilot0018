@@ -338,6 +338,31 @@ export class TutorialProgressStore {
     }
   }
 
+  /**
+   * Remove every kept copy of one practice: the slots written under its project
+   * id and the slot of its session (WO-3F-01). A practice that was kept and
+   * later resumed carries both; removing them together means a forced exit
+   * leaves no copy the reader can no longer reach. Other practices stay.
+   */
+  removePracticeSlotsForPractice(projectId: string | null, sessionId?: string | null): number {
+    if (!this.storage) return 0;
+    try {
+      const storage = this.storage;
+      const slots = this.readSlots();
+      const doomed = Object.values(slots).filter((slot) => (
+        (projectId && slot.projectId === projectId)
+        || (sessionId && slot.sessionId === sessionId)
+      ));
+      if (!doomed.length) return 0;
+      doomed.forEach((slot) => { delete slots[slot.slotId]; });
+      storage.setItem(TUTORIAL_PRACTICE_KEY, JSON.stringify({ version: 2, slots }));
+      return doomed.length;
+    } catch {
+      /* a failed removal leaves the slot; another exit can discard it */
+      return 0;
+    }
+  }
+
   /** A slot written by the previous build is read, then superseded by its next save. */
   private readLegacySlot(tutorialId: string): PracticeSlot | null {
     if (!this.storage) return null;
