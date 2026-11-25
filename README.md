@@ -21,6 +21,14 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 **Phase 3E corrective review (F-01 … F-15):** [docs/PHASE3_3E_CORRECTIVE_QA.md](docs/PHASE3_3E_CORRECTIVE_QA.md) — non-finite predictions refused by every path, decimal-exact discrete lattices and safe-integer/precision limits, fixed-factor extrapolation, project schema versioning and damaged-file refusal, lattice-consistent local steps, duplicate factor identifiers, machine-independent tooling with `npm ci`, reproducible ZIP timestamps and a build manifest. Before/after measurements are in the report's §2.
 
+## Independence, trademarks and limitations
+
+Sigrún is an independently developed statistical and quality engineering application based on publicly available statistical and mathematical methods. Third-party product names, including Minitab, are used solely to identify products in factual comparisons; their trademarks belong to their respective owners. Sigrún is not affiliated with, endorsed by, or sponsored by those vendors.
+
+Public documentation is referenced for feature identification, not as a license to reproduce proprietary material. Access to a reference URL does not establish permission to reuse its contents. Numerical equivalence, compatibility, or certification by any third-party product is not claimed. Third-party components remain subject to their respective licenses and notices.
+
+The software is provided "as is," without warranties to the extent permitted by applicable law. Independently validate analytical results before relying on them for critical engineering, regulatory, safety, or business decisions.
+
 ## What is inside
 
 | Area | Capability |
