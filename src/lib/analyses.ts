@@ -48,7 +48,11 @@ import {
   type Alt,
 } from './stats';
 
-export type SlotKind = 'vars' | 'col' | 'num' | 'text' | 'select' | 'check';
+import { fitWithPooling, saturatedReport, type PoolingResult, type SaturatedReport } from './errorPooling';
+import { buildRsmCatalog, buildTermCatalog, resolveModelSelection, termId, type HierarchyMode, type HierarchyResult, type TermCatalog } from './modelTerms';
+import { saveModelSettings } from './modelSettings';
+
+export type SlotKind = 'vars' | 'col' | 'num' | 'text' | 'select' | 'check' | 'model';
 export type SlotGroup = 'main' | 'options' | 'graphs';
 
 export interface SlotDef {
@@ -2408,6 +2412,117 @@ function levelsOf(factor: ModelFactor, levels: Record<string, string[]>): string
   return unique.map((v) => String(v));
 }
 
+/**
+ * The term catalog a run can build from the dialog's current factors. The
+ * editor and the run functions share it, so the terms offered in the UI are
+ * exactly the terms the engine can fit.
+ */
+export function analysisTermCatalog(id: string, sheet: Worksheet, values: Record<string, unknown>): TermCatalog | null {
+  if (id !== 'glm' && id !== 'doeanalyze' && id !== 'rsmanalyze') return null;
+  const columns = refList(values, 'factors').map((ref) => findColumn(sheet, ref)).filter((col): col is Column => Boolean(col));
+  if (!columns.length) return null;
+  const factors = columns.map(factorFromColumn);
+  if (id === 'rsmanalyze') return buildRsmCatalog(factors);
+  const order = id === 'doeanalyze' ? Math.max(1, Math.min(3, Math.round(num(values.order, 2)))) : 2;
+  return buildTermCatalog(factors, order);
+}
+
+/** The selection a run executes: hierarchy applied, strict violations refused. */
+export function runModelSelection(id: string, sheet: Worksheet, values: Record<string, unknown>) {
+  const catalog = analysisTermCatalog(id, sheet, values);
+  if (!catalog) throw new Error('res.needFactors');
+  const resolved = resolveModelSelection(catalog, values.terms, values.pooled, values.hierarchy, bool(values.interactions, true));
+  if (resolved.mode === 'strict' && resolved.hierarchy.violations.length) {
+    const missing = [...new Set(resolved.hierarchy.violations.flatMap((violation) => violation.missing))];
+    throw new Error(`model.hierarchyViolation|terms=${missing.join(', ')}`);
+  }
+  saveModelSettings(id, {
+    terms: resolved.hierarchy.selected,
+    pooled: resolved.pooled.map((term) => termId(term.factors)),
+    hierarchy: resolved.mode,
+    order: id === 'doeanalyze' ? Math.max(1, Math.min(3, Math.round(num(values.order, 2)))) : 2,
+  });
+  return { catalog, ...resolved, pooledNames: resolved.pooled.map((term) => term.name) };
+}
+
+/** Output blocks shared by every model-controlled analysis. */
+function modelControlBlocks(
+  lang: Lang,
+  model: { pooling?: PoolingResult; saturated?: SaturatedReport; incompleteQuadratic?: boolean },
+  hierarchy: HierarchyResult,
+  mode: HierarchyMode,
+  catalog: TermCatalog,
+): Block[] {
+  const blocks: Block[] = [];
+  const lines: string[] = [];
+  if (hierarchy.added.length) {
+    const names = hierarchy.added.map((id) => catalog.terms.find((term) => term.id === id)?.name ?? id);
+    lines.push(t(lang, 'res.modelAdded', { terms: names.join(', '), mode: t(lang, `model.hierarchy.${mode}`) }));
+  }
+  if (model.saturated && !model.saturated.inferable) lines.push(t(lang, 'res.saturated'));
+  if (model.saturated?.aliased.length) lines.push(t(lang, 'res.saturatedAliased'));
+  if (model.incompleteQuadratic) lines.push(t(lang, 'res.incompleteQuadratic'));
+  if (lines.length) blocks.push({ type: 'text', lines });
+  if (model.pooling) {
+    const pooling = model.pooling;
+    blocks.push({
+      type: 'table',
+      title: tableTitle('res.errorPooling'),
+      headers: ['@th.term', '@th.df', '@th.ssTypeIII', '@th.status'],
+      rows: pooling.pooled.map((term) => [
+        term.name,
+        fmtInt(term.df),
+        fmt(term.ss),
+        t(lang, term.estimable ? 'res.pooledEstimable' : 'res.pooledAliased'),
+      ]),
+      align: ['l', 'r', 'r', 'l'],
+    });
+    blocks.push({
+      type: 'table',
+      title: tableTitle('res.poolingChecks'),
+      headers: ['@th.statistic', '@th.value'],
+      rows: [
+        ['DFE expected / actual', `${fmtInt(pooling.checks.expectedDfe)} / ${fmtInt(pooling.checks.actualDfe)}`],
+        ['SSE expected / actual', `${fmt(pooling.checks.expectedSs)} / ${fmt(pooling.checks.actualSs)}`],
+        ['Additive', pooling.checks.additive ? '✓' : '—'],
+      ],
+      align: ['l', 'r'],
+    });
+    blocks.push({
+      type: 'text',
+      lines: [t(lang, pooling.checks.additive ? 'res.poolingAdditive' : 'res.poolingNotAdditive')],
+    });
+  }
+  if (model.saturated?.lenth.available && model.saturated.lenth.result) {
+    const lenth = model.saturated.lenth.result;
+    blocks.push({
+      type: 'table',
+      title: tableTitle('res.lenth'),
+      headers: ['@th.term', '@th.effect', '@th.absEffect', '@th.status'],
+      rows: lenth.effects.map((entry) => [
+        entry.term,
+        fmt(entry.effect, 4),
+        fmt(Math.abs(entry.effect), 4),
+        t(lang, entry.active ? 'res.lenthActive' : 'res.lenthInactive'),
+      ]),
+      align: ['l', 'r', 'r', 'l'],
+    });
+    blocks.push({
+      type: 'text',
+      lines: [
+        t(lang, 'res.lenthStats', { pse: fmt(lenth.pse, 4), me: fmt(lenth.me, 4), sme: fmt(lenth.sme, 4), df: fmtInt(lenth.pseudoDf) }),
+        t(lang, 'res.lenthNote'),
+      ],
+    });
+  } else if (model.saturated?.lenth.reason && model.saturated.reason === 'no-error-df') {
+    blocks.push({
+      type: 'text',
+      lines: [t(lang, 'res.lenthUnavailable', { reason: t(lang, `res.lenthReason.${model.saturated.lenth.reason}`) })],
+    });
+  }
+  return blocks;
+}
+
 function mainEffectChart(factor: ModelFactor, y: (number | null)[], levels: Record<string, string[]>, grand: number, title: string, lang: Lang): { title: string; chart: ChartSpec } {
   const lv = levelsOf(factor, levels);
   const cells = cellMeans(y, [factor]);
@@ -2454,22 +2569,19 @@ function runGlm(ctx: RunContext): RunResult {
   if (!columns.length) throw new Error('res.needFactors');
   const factors = columns.map(factorFromColumn);
   const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
-  const terms: ModelTerm[] = factors.map((f) => ({ name: f.name, factors: [f.name] }));
-  if (bool(values.interactions, true)) {
-    for (let i = 0; i < factors.length; i += 1) {
-      for (let j = i + 1; j < factors.length; j += 1) {
-        terms.push({ name: `${factors[i].name}×${factors[j].name}`, factors: [factors[i].name, factors[j].name] });
-      }
-    }
-  }
+  const model = runModelSelection('glm', sheet, values);
   let glm;
+  let pooling;
   try {
-    glm = fitGlm(yValues, factors, terms);
+    pooling = fitWithPooling(yValues, factors, model.terms, model.pooledNames, { allowZeroDf: true });
+    glm = pooling.fit;
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.groupTooSmall');
     throw error;
   }
+  const saturated = saturatedReport(glm);
+  const terms = model.terms;
   const anovaRows: (string | number)[][] = glm.terms.map((term) => [
     term.name,
     fmtInt(term.df),
@@ -2532,6 +2644,7 @@ function runGlm(ctx: RunContext): RunResult {
       align: ['l', 'r', 'r', 'r', 'r'],
       caption: t(lang, 'res.glmCodingNote'),
     },
+    ...modelControlBlocks(lang, { pooling: model.pooledNames.length ? pooling : undefined, saturated }, model.hierarchy, model.mode, model.catalog),
     { type: 'chartgrid', charts },
   ];
   const modelDraft = draftFromGlm({
@@ -2596,9 +2709,10 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
   const order = Math.max(1, Math.min(3, Math.round(num(values.order, 2))));
   const factors = columns.map(factorFromColumn);
   const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
+  const model = runModelSelection('doeanalyze', sheet, values);
   let analysis;
   try {
-    analysis = analyzeFactorial(yValues, factors, order);
+    analysis = analyzeFactorial(yValues, factors, order, { terms: model.terms, pooled: model.pooledNames, allowZeroDf: true });
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.doeNoDf');
@@ -2680,6 +2794,7 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
         rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
         align: ['l', 'r'],
       },
+      ...modelControlBlocks(lang, analysis, model.hierarchy, model.mode, model.catalog),
       { type: 'chartgrid', charts },
     ],
   };
@@ -2722,9 +2837,10 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
   if (columns.length < 2) throw new Error('res.needFactors');
   const factors = columns.map(factorFromColumn);
   const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
+  const selection = runModelSelection('rsmanalyze', sheet, values);
   let analysis;
   try {
-    analysis = analyzeRsm(yValues, factors);
+    analysis = analyzeRsm(yValues, factors, { terms: selection.terms, pooled: selection.pooledNames, allowZeroDf: true });
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.doeNoDf');
@@ -2801,6 +2917,7 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
       align: ['l', 'r'],
       caption: analysis.stationary?.outsideRegion ? t(lang, 'res.stationaryOutsideWarn') : t(lang, 'res.stationaryNote'),
     },
+    ...modelControlBlocks(lang, analysis, selection.hierarchy, selection.mode, selection.catalog),
     {
       type: 'chart',
       chart: {
@@ -3343,6 +3460,7 @@ export const ANALYSES: AnalysisDef[] = [
     slots: [
       { key: 'response', label: 'slot.response', kind: 'col', required: true },
       { key: 'factors', label: 'slot.factors', kind: 'vars', required: true },
+      { key: 'model', label: 'model.termsTitle', kind: 'model' },
       { key: 'interactions', label: 'opt.interactions', kind: 'check', group: 'options', defaultValue: true },
       confidenceSlot,
     ],
@@ -3366,6 +3484,7 @@ export const ANALYSES: AnalysisDef[] = [
     slots: [
       { key: 'response', label: 'slot.response', kind: 'col', required: true },
       { key: 'factors', label: 'slot.factors', kind: 'vars', required: true },
+      { key: 'model', label: 'model.termsTitle', kind: 'model' },
       {
         key: 'order',
         label: 'slot.modelOrder',
@@ -3408,6 +3527,7 @@ export const ANALYSES: AnalysisDef[] = [
     slots: [
       { key: 'response', label: 'slot.response', kind: 'col', required: true },
       { key: 'factors', label: 'slot.factors', kind: 'vars', required: true },
+      { key: 'model', label: 'model.termsTitle', kind: 'model' },
     ],
     run: runRsmAnalyze,
   },
@@ -3528,6 +3648,7 @@ export function defaultValues(def: AnalysisDef): Record<string, unknown> {
   def.slots.forEach((slot) => {
     if (slot.kind === 'vars') out[slot.key] = slot.defaultValue ?? [];
     else if (slot.kind === 'check') out[slot.key] = slot.defaultValue ?? false;
+    else if (slot.kind === 'model') out[slot.key] = null;
     else out[slot.key] = slot.defaultValue ?? (slot.kind === 'num' ? 0 : '');
   });
   return out;

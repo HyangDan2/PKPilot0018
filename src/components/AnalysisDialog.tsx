@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Lang, Worksheet } from '../types';
-import { defaultValues, type AnalysisDef, type SlotDef } from '../lib/analyses';
+import { analysisTermCatalog, defaultValues, type AnalysisDef, type SlotDef } from '../lib/analyses';
 import { t } from '../lib/i18n';
+import { loadModelSettings, saveModelSettings } from '../lib/modelSettings';
+import { resolveModelSelection, type HierarchyMode } from '../lib/modelTerms';
 import { IconPlus, IconX } from './Icons';
+import { ModelTermsDialog, type ModelChoice } from './ModelTermsDialog';
 
 interface Props {
   def: AnalysisDef;
@@ -22,8 +25,13 @@ function columnMeta(sheet: Worksheet, ref: string): { id: string; name: string; 
   return { id: col.id, name: col.name, type: col.type, n };
 }
 
-export function normalizeValues(def: AnalysisDef, initial?: Record<string, unknown>): Record<string, unknown> {
+export function normalizeValues(def: AnalysisDef, initial?: Record<string, unknown>, saved?: { terms: string[]; pooled: string[]; hierarchy: HierarchyMode } | null): Record<string, unknown> {
   const next: Record<string, unknown> = { ...defaultValues(def), ...(initial ?? {}) };
+  if (saved) {
+    if (next.terms === undefined) next.terms = saved.terms;
+    if (next.pooled === undefined) next.pooled = saved.pooled;
+    if (next.hierarchy === undefined) next.hierarchy = saved.hierarchy;
+  }
   def.slots.forEach((slot) => {
     const value = next[slot.key];
     // A single-column slot became a list when the analysis gained multi-variable
@@ -41,11 +49,12 @@ export function normalizeValues(def: AnalysisDef, initial?: Record<string, unkno
 }
 
 export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun, onValuesChange }: Props) {
-  const [values, setValues] = useState<Record<string, unknown>>(() => normalizeValues(def, initial));
+  const [values, setValues] = useState<Record<string, unknown>>(() => normalizeValues(def, initial, loadModelSettings(def.id)));
   const [active, setActive] = useState<string>(() => def.slots.find((s) => s.kind === 'vars' || s.kind === 'col')?.key ?? '');
   const [tab, setTab] = useState<'main' | 'options' | 'graphs'>('main');
   const [picked, setPicked] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [modelOpen, setModelOpen] = useState(false);
 
   const groups = useMemo(() => {
     const present = new Set(def.slots.map((s) => s.group ?? 'main'));
@@ -66,6 +75,38 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun, onVa
   }, [values]);
 
   const activeSlot = def.slots.find((s) => s.key === active);
+
+  const hasModelSlot = def.slots.some((slot) => slot.kind === 'model');
+  const catalog = hasModelSlot ? analysisTermCatalog(def.id, sheet, values) : null;
+  const hasOrderSlot = def.slots.some((slot) => slot.key === 'order');
+  const hasInteractionsSlot = def.slots.some((slot) => slot.key === 'interactions');
+  const orderValue = hasOrderSlot
+    ? Math.max(1, Math.min(3, Math.round(Number(values.order) || 2)))
+    : hasInteractionsSlot && values.interactions === false ? 1 : 2;
+  const resolvedModel = catalog
+    ? resolveModelSelection(catalog, values.terms, values.pooled, values.hierarchy, values.interactions !== false)
+    : null;
+
+  const applyModelChoice = (choice: ModelChoice) => {
+    setValues((prev) => {
+      const next: Record<string, unknown> = { ...prev, terms: choice.terms, pooled: choice.pooled, hierarchy: choice.hierarchy };
+      if (hasOrderSlot) next.order = String(choice.order);
+      if (hasInteractionsSlot) next.interactions = choice.order > 1;
+      return next;
+    });
+    saveModelSettings(def.id, { terms: choice.terms, pooled: choice.pooled, hierarchy: choice.hierarchy, order: choice.order });
+    setModelOpen(false);
+    setError(null);
+  };
+
+  const changeModelOrder = (order: number) => {
+    setValues((prev) => {
+      const next: Record<string, unknown> = { ...prev };
+      if (hasOrderSlot) next.order = String(order);
+      if (hasInteractionsSlot) next.interactions = order > 1;
+      return next;
+    });
+  };
 
   const addColumn = (slotKey: string, ref: string) => {
     const slot = def.slots.find((s) => s.key === slotKey);
@@ -127,6 +168,31 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun, onVa
 
   const renderSlot = (slot: SlotDef) => {
     const value = values[slot.key];
+    if (slot.kind === 'model') {
+      const violationTerms = resolvedModel
+        ? [...new Set(resolvedModel.hierarchy.violations.flatMap((violation) => violation.missing))].join(', ')
+        : '';
+      return (
+        <div key={slot.key} className="slot" data-testid="model-slot">
+          <span className="slot-label">{t(lang, slot.label)}</span>
+          <div className="mono-note" style={{ fontSize: 11.5 }} data-testid="model-summary">
+            {resolvedModel
+              ? t(lang, 'model.summary', {
+                terms: resolvedModel.terms.length - resolvedModel.pooled.length,
+                pooled: resolvedModel.pooled.length,
+                mode: t(lang, `model.hierarchy.${resolvedModel.mode}`),
+              })
+              : t(lang, 'model.termsNoFactors')}
+          </div>
+          <button type="button" className="btn tiny" onClick={() => setModelOpen(true)} disabled={!catalog} data-testid="model-edit">
+            {t(lang, 'model.edit')}
+          </button>
+          {resolvedModel && resolvedModel.mode === 'strict' && resolvedModel.hierarchy.violations.length > 0 && (
+            <div className="dlg-error" data-testid="model-violation">{t(lang, 'model.hierarchyViolation', { terms: violationTerms })}</div>
+          )}
+        </div>
+      );
+    }
     if (slot.kind === 'vars') {
       const refs = (value as string[]) ?? [];
       return (
@@ -255,6 +321,7 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun, onVa
   const visible = def.slots.filter((slot) => (slot.group ?? 'main') === tab);
 
   return (
+    <>
     <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={t(lang, def.titleKey)} data-testid="analysis-dialog">
         <div className="modal-head">
@@ -361,5 +428,21 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun, onVa
         </div>
       </div>
     </div>
+    {modelOpen && catalog && (
+      <ModelTermsDialog
+        catalog={catalog}
+        lang={lang}
+        analysisId={def.id}
+        terms={Array.isArray(values.terms) ? (values.terms as string[]) : undefined}
+        pooled={Array.isArray(values.pooled) ? (values.pooled as string[]) : undefined}
+        hierarchy={values.hierarchy === 'auto' || values.hierarchy === 'unrestricted' ? values.hierarchy : 'strict'}
+        order={orderValue}
+        orderLocked={!hasOrderSlot}
+        onOrderChange={changeModelOrder}
+        onClose={() => setModelOpen(false)}
+        onSave={applyModelChoice}
+      />
+    )}
+    </>
   );
 }
