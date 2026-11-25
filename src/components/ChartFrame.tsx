@@ -577,19 +577,41 @@ export function ChartFrame({
             )}
           </div>
         )}
-        {interactive && (
-          <div className="chart-interaction-tools" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className={mode === 'zoom' ? 'active' : ''} onClick={() => setMode('zoom')} title={t(lang, 'ct.boxZoom')} aria-label={t(lang, 'ct.boxZoom')} data-testid="chart-mode-zoom">⤢</button>
-            <button type="button" className={mode === 'pan' ? 'active' : ''} onClick={() => setMode('pan')} title={t(lang, 'ct.pan')} aria-label={t(lang, 'ct.pan')} data-testid="chart-mode-pan">✥</button>
-            <button type="button" className={mode === 'select' ? 'active' : ''} onClick={() => setMode('select')} title={t(lang, 'ct.select')} aria-label={t(lang, 'ct.select')} data-testid="chart-mode-select">◎</button>
-            <button type="button" className={crosshair ? 'active' : ''} onClick={() => setCrosshair((value) => !value)} title={t(lang, 'ct.crosshair')} aria-label={t(lang, 'ct.crosshair')} data-testid="chart-crosshair-toggle">✛</button>
-            <button type="button" onClick={() => zoomBy(0.7)} title={t(lang, 'ct.zoomIn')} aria-label={t(lang, 'ct.zoomIn')} data-testid="chart-zoom-in">＋</button>
-            <button type="button" onClick={() => zoomBy(1 / 0.7)} title={t(lang, 'ct.zoomOut')} aria-label={t(lang, 'ct.zoomOut')} data-testid="chart-zoom-out">－</button>
-            <button type="button" onClick={resetView} disabled={!view || (base ? viewportIsBase(view, base) : true)} title={t(lang, 'ct.resetView')} aria-label={t(lang, 'ct.resetView')} data-testid="chart-reset-view">⟲</button>
-            <button type="button" onClick={exportSelection} disabled={!selectedRows.length || !onExportSelection} title={t(lang, 'ct.exportSelection')} aria-label={t(lang, 'ct.exportSelection')} data-testid="chart-export-selection">⇩{selectedRows.length ? ` ${selectedRows.length}` : ''}</button>
-            <span className="chart-selection-count" data-testid="chart-selection-count">{rowCount}</span>
-          </div>
-        )}
+        {interactive && (() => {
+          const isZoomed = Boolean(view && (!base || !viewportIsBase(view, base)));
+          return (
+            <div className="chart-interaction-tools" data-zoomed={isZoomed ? '1' : '0'} onClick={(event) => event.stopPropagation()}>
+              <span className="chart-mode-pill" data-testid="chart-mode-badge">{t(lang, `ct.mode.${mode}`)}</span>
+              <button type="button" className={mode === 'zoom' ? 'active' : ''} onClick={() => setMode('zoom')} title={t(lang, 'ct.boxZoom')} aria-label={t(lang, 'ct.boxZoom')} data-testid="chart-mode-zoom">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5M8.5 11h5M11 8.5v5" /></svg>
+              </button>
+              <button type="button" className={mode === 'pan' ? 'active' : ''} onClick={() => setMode('pan')} title={t(lang, 'ct.pan')} aria-label={t(lang, 'ct.pan')} data-testid="chart-mode-pan">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" /></svg>
+              </button>
+              <button type="button" className={mode === 'select' ? 'active' : ''} onClick={() => setMode('select')} title={t(lang, 'ct.select')} aria-label={t(lang, 'ct.select')} data-testid="chart-mode-select">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" strokeDasharray="3 3" /><circle cx="12" cy="12" r="2.2" fill="currentColor" /></svg>
+              </button>
+              <button type="button" className={crosshair ? 'active' : ''} onClick={() => setCrosshair((value) => !value)} title={t(lang, 'ct.crosshair')} aria-label={t(lang, 'ct.crosshair')} data-testid="chart-crosshair-toggle">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="7" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+              </button>
+              <button type="button" onClick={() => zoomBy(0.7)} title={t(lang, 'ct.zoomIn')} aria-label={t(lang, 'ct.zoomIn')} data-testid="chart-zoom-in">＋</button>
+              <button type="button" onClick={() => zoomBy(1 / 0.7)} title={t(lang, 'ct.zoomOut')} aria-label={t(lang, 'ct.zoomOut')} data-testid="chart-zoom-out">－</button>
+              <button
+                type="button"
+                className={isZoomed ? 'chart-reset-active' : ''}
+                onClick={resetView}
+                disabled={!isZoomed}
+                title={t(lang, 'ct.resetView')}
+                aria-label={t(lang, 'ct.resetView')}
+                data-testid="chart-reset-view"
+              >
+                ⟲{isZoomed ? ` ${t(lang, 'ct.resetViewShort')}` : ''}
+              </button>
+              <button type="button" onClick={exportSelection} disabled={!selectedRows.length || !onExportSelection} title={t(lang, 'ct.exportSelection')} aria-label={t(lang, 'ct.exportSelection')} data-testid="chart-export-selection">⇩{selectedRows.length ? ` ${selectedRows.length}` : ''}</button>
+              <span className="chart-selection-count" data-testid="chart-selection-count">{rowCount}</span>
+            </div>
+          );
+        })()}
         <div className="chart-toolbar" onClick={(event) => event.stopPropagation()}>
           <button type="button" onClick={() => onEdit({ tab: 'general' })} title={t(lang, 'ct.edit')} aria-label={t(lang, 'ct.edit')} data-testid="chart-edit">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z" /></svg>

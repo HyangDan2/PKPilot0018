@@ -13,6 +13,7 @@ export type MenuAction =
   | 'findReplace' | 'help' | 'about' | 'theme' | 'langKo' | 'langEn' | 'resetLayout' | 'toggleNav'
   | 'layoutBalanced' | 'layoutSheet' | 'layoutResults' | 'layoutFocus'
   | 'wsTri' | 'wsFocus' | 'wsClassic' | 'toggleDrawer' | 'modelManager' | 'graphLayout'
+  | 'modelContour' | 'modelSurface' | 'modelOverlaid' | 'responseOptimizer' | 'predictionProfiler'
   | 'tutorials' | 'helpCenter' | 'sampleLibrary' | 'learn';
 
 interface MenuLeaf {
@@ -180,6 +181,11 @@ function buildMenus(canUndo: boolean, canRedo: boolean, navVisible: boolean, lay
             { labelKey: 'stat.doeAnalyze', analysis: 'doeanalyze' },
             { labelKey: 'stat.rsmCreate', analysis: 'rsmcreate' },
             { labelKey: 'stat.rsmAnalyze', analysis: 'rsmanalyze' },
+            { labelKey: 'stat.doeContour', action: 'modelContour', separatorBefore: true },
+            { labelKey: 'stat.doeSurface', action: 'modelSurface' },
+            { labelKey: 'stat.doeOverlaid', action: 'modelOverlaid' },
+            { labelKey: 'stat.doeOptimizer', action: 'responseOptimizer', separatorBefore: true },
+            { labelKey: 'stat.doeProfiler', action: 'predictionProfiler' },
           ],
         },
         {

@@ -41,6 +41,7 @@ import {
 import { modelSurface, toActualValue } from './lib/modelPredictor';
 import { buildModelSurface, buildOverlaidChart, numericFactors } from './lib/chartConfigOps';
 import { commonNumericFactors, OVERLAY_COLORS, OVERLAY_DASHES } from './lib/feasible';
+import { defaultFactorSettings, defaultResponseSettings, sharedFactorNames, suggestResponseLimits } from './lib/optimizer';
 import { surfaceResolutionPoints } from './lib/surface3d';
 import { DATASETS, emptyWorksheet } from './lib/datasets';
 import { findSample } from './samples/registry';
@@ -1565,6 +1566,27 @@ export default function App() {
     }
     setOptimizerModels(models);
     setModelManagerOpen(false);
+  };
+
+  /** Open the prediction profiler directly from stored model(s), without requiring a prior optimizer run. */
+  const openProfilerDirectly = (models: StoredModel[]) => {
+    if (!models.length) {
+      toast(t(lang, 'toast.optimizerNoModel'));
+      return;
+    }
+    const factorNames = sharedFactorNames(models);
+    if (!factorNames.length) {
+      toast(t(lang, 'toast.modelNoSurface'));
+      return;
+    }
+    const factors = factorNames.map((name) => defaultFactorSettings(models, name));
+    const responses = suggestResponseLimits(models, models.map((model) => defaultResponseSettings(model)), factors);
+    setModelManagerOpen(false);
+    setProfilerState({ models, responses, factors, point: null });
+    pushTutorialEvent('profiler-opened', {
+      point: null,
+      models: models.map((model) => model.response.name),
+    });
   };
 
   /** The optimiser's answer becomes one output card: conditions, predictions, alternatives. */
@@ -3170,6 +3192,29 @@ export default function App() {
       case 'wsClassic': applyWorkspaceLayout('classic'); break;
       case 'toggleDrawer': setDrawerOpen(!ws.drawerOpen); break;
       case 'modelManager': setModelManagerOpen(true); break;
+      case 'modelContour': {
+        const latest = storedModels[storedModels.length - 1];
+        if (!latest) toast(t(lang, 'toast.optimizerNoModel'));
+        else contourFromModel(latest);
+        break;
+      }
+      case 'modelSurface': {
+        const latest = storedModels[storedModels.length - 1];
+        if (!latest) toast(t(lang, 'toast.optimizerNoModel'));
+        else surfaceFromModel(latest);
+        break;
+      }
+      case 'modelOverlaid': {
+        if (storedModels.length < 2) {
+          toast(t(lang, 'toast.overlaidNeedTwo'));
+          setModelManagerOpen(true);
+        } else {
+          overlaidFromModels(storedModels);
+        }
+        break;
+      }
+      case 'responseOptimizer': openOptimizer(storedModels); break;
+      case 'predictionProfiler': openProfilerDirectly(storedModels); break;
       case 'graphLayout': setLayoutEditorOpen(true); break;
       default: break;
     }
@@ -3254,6 +3299,7 @@ export default function App() {
         onModelContour={(output) => { const m = ensureModelFromCard(output); if (m) contourFromModel(m); }}
         onModelSurface={(output) => { const m = ensureModelFromCard(output); if (m) surfaceFromModel(m); }}
         onModelOptimize={(output) => { const m = ensureModelFromCard(output); if (m) openOptimizer([m]); }}
+        onModelProfiler={(output) => { const m = ensureModelFromCard(output); if (m) openProfilerDirectly([m]); }}
         onOpenModelManager={() => setModelManagerOpen(true)}
         selection={chartSelection}
         onSelectRows={(rows, additive, source) => setChartSelection((prev) => {
@@ -3704,6 +3750,7 @@ export default function App() {
           onSurface={surfaceFromModel}
           onOverlaid={overlaidFromModels}
           onOptimize={openOptimizer}
+          onProfiler={openProfilerDirectly}
         />
       )}
 

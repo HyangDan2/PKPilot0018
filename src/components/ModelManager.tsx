@@ -32,6 +32,7 @@ interface Props {
   onOverlaid: (models: StoredModel[]) => void;
   /** Open the response optimiser on the picked models (or the selected one). */
   onOptimize: (models: StoredModel[]) => void;
+  onProfiler?: (models: StoredModel[]) => void;
 }
 
 interface PredictionState {
@@ -57,7 +58,7 @@ function staleLabel(lang: Lang, model: StoredModel, worksheets: Worksheet[]): { 
 }
 
 export function ModelManager({
-  lang, models, worksheets, activeSheetId, onClose, onRename, onDuplicate, onDelete, onRefit, onContour, onSurface, onOverlaid, onOptimize,
+  lang, models, worksheets, activeSheetId, onClose, onRename, onDuplicate, onDelete, onRefit, onContour, onSurface, onOverlaid, onOptimize, onProfiler,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(models[0]?.id ?? null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -401,6 +402,19 @@ export function ModelManager({
                     >
                       {t(lang, 'model.followup.optimizer')}
                     </button>
+                    {onProfiler && (
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={!optimizerReady || Boolean(staleness && staleness.state === 'missing-data')}
+                        onClick={() => onProfiler(optimizerModels)}
+                        title={t(lang, 'model.followup.profilerHint')}
+                        data-testid="mm-profiler"
+                        data-count={optimizerModels.length}
+                      >
+                        {t(lang, 'model.followup.profiler')}
+                      </button>
+                    )}
                   </div>
                   {previewSurface && (
                     <p className="mono-note" data-testid="mm-surface-preview">

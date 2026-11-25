@@ -63,7 +63,9 @@ export function ModelTermsDialog({
   const activePooled = useMemo(() => pooledIds.filter((id) => activeSelection.includes(id)), [pooledIds, activeSelection]);
   const modelIds = useMemo(() => activeSelection.filter((id) => !activePooled.includes(id)), [activeSelection, activePooled]);
 
-  const hierarchyResult = useMemo(() => applyHierarchy(catalog, activeSelection, mode), [catalog, activeSelection, mode]);
+  // Check hierarchy against the actual fitted model (excluding pooled terms),
+  // so pooling a main effect while its interaction remains is caught properly.
+  const hierarchyResult = useMemo(() => applyHierarchy(catalog, modelIds, mode), [catalog, modelIds, mode]);
   const violations = hierarchyResult.violations;
   const needsApproval = mode === 'unrestricted' && violations.length > 0;
 
@@ -104,8 +106,12 @@ export function ModelTermsDialog({
       setError(t(lang, 'model.unrestrictedWarning'));
       return;
     }
-    const applied = mode === 'auto' ? hierarchyResult.selected : activeSelection;
-    onSave({ terms: applied, pooled: activePooled, hierarchy: mode, order: currentOrder });
+    const restoredByAuto = mode === 'auto' ? new Set(hierarchyResult.added) : new Set<string>();
+    const nextPooled = activePooled.filter((id) => !restoredByAuto.has(id));
+    const applied = mode === 'auto'
+      ? [...new Set([...hierarchyResult.selected, ...nextPooled])]
+      : activeSelection;
+    onSave({ terms: applied, pooled: nextPooled, hierarchy: mode, order: currentOrder });
   };
 
   const orderChoices = [1, 2, 3];
@@ -151,8 +157,8 @@ export function ModelTermsDialog({
                     <div key={id} className="var-row" data-testid={`mt-selected-${id}`}>
                       <span className="v-name">{nameOf(id)}</span>
                       <span className="spacer" />
-                      <button type="button" className="btn tiny" onClick={() => pool(id)} data-testid={`mt-pool-${id}`}>{t(lang, 'model.pool')}</button>
-                      <button type="button" className="icon-btn" onClick={() => remove(id)} aria-label={t(lang, 'model.remove')} data-testid={`mt-remove-${id}`}><IconX size={12} /></button>
+                      <button type="button" className="btn tiny" onClick={() => pool(id)} title={t(lang, 'model.poolTip')} data-testid={`mt-pool-${id}`}>{t(lang, 'model.pool')}</button>
+                      <button type="button" className="icon-btn" onClick={() => remove(id)} title={t(lang, 'model.removeTip')} aria-label={t(lang, 'model.remove')} data-testid={`mt-remove-${id}`}><IconX size={12} /></button>
                     </div>
                   ))}
                   {modelIds.length === 0 && <p className="nav-empty">{t(lang, 'model.termsEmpty')}</p>}

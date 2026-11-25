@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Block, ChartSource, ChartSpec, Lang, OutputDoc } from '../types';
 import type { StoredModelDraft } from '../lib/modelStore';
 import { fmtTime } from '../lib/format';
@@ -45,6 +45,7 @@ interface Props {
   onModelContour?: (output: OutputDoc) => void;
   onModelSurface?: (output: OutputDoc) => void;
   onModelOptimize?: (output: OutputDoc) => void;
+  onModelProfiler?: (output: OutputDoc) => void;
   onOpenModelManager?: () => void;
   /** Chart selection lifted to the app, so the worksheet can follow it. */
   selection?: { rows: number[]; source?: ChartSource } | null;
@@ -265,10 +266,23 @@ function blocksWithChart(output: OutputDoc, target: ChartTarget, chart: ChartSpe
 
 export function OutputPanel({
   lang, outputs, focusedOutput, onFocus, onDelete, onToggleCollapse, onCollapseAll, onToast, onRerun, onReproduce, onUpdateBlocks, onSaveModel,
-  savedModelOutputIds = [], onModelContour, onModelSurface, onModelOptimize, onOpenModelManager,
+  savedModelOutputIds = [], onModelContour, onModelSurface, onModelOptimize, onModelProfiler, onOpenModelManager,
   selection, onSelectRows, onExportSelection,
 }: Props) {
   const savedSet = new Set(savedModelOutputIds);
+  const [cardMenu, setCardMenu] = useState<{ id: string; kind: 'export' | 'more' } | null>(null);
+
+  useEffect(() => {
+    if (!cardMenu) return;
+    const close = () => setCardMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('click', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [cardMenu]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; outputId: string | null; target?: ChartTarget } | null>(null);
   const [drawer, setDrawer] = useState<{ target: ChartTarget; tab: ChartDrawerTab; axis?: 'x' | 'y' | 'z' | 'y2' } | null>(null);
@@ -700,27 +714,66 @@ export function OutputPanel({
               <button type="button" onClick={() => onRerun(output)} title={t(lang, 'card.rerun')} aria-label={t(lang, 'card.rerun')} data-testid="card-rerun">
                 <IconRerun size={14} />
               </button>
-              <button type="button" onClick={() => onReproduce(output)} title={t(lang, 'card.reproduce')} aria-label={t(lang, 'card.reproduce')} data-testid="card-reproduce">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h5" /></svg>
-              </button>
               <button type="button" onClick={() => void handleCopy(output)} title={t(lang, 'card.copy')} aria-label={t(lang, 'card.copy')} data-testid="card-copy">
                 <IconCopy size={14} />
               </button>
-              <button type="button" onClick={() => handleCsv(output)} title={t(lang, 'card.csv')} aria-label={t(lang, 'card.csv')} data-testid="card-csv">
-                <IconDownload size={14} />
-              </button>
-              <button type="button" onClick={() => handleSvg(output)} title={t(lang, 'card.svg')} aria-label={t(lang, 'card.svg')} data-testid="card-svg">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M4 18V6M20 18V9M4 18h16" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="14" r="1.6" /></svg>
-              </button>
-              <button type="button" onClick={() => void handlePng(output)} title={t(lang, 'card.png')} aria-label={t(lang, 'card.png')} data-testid="card-png">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 15l5-4 4 3 3-2 6 4" /></svg>
-              </button>
-              <button type="button" onClick={() => handlePrint(output)} title={t(lang, 'card.pdf')} aria-label={t(lang, 'card.pdf')} data-testid="card-pdf">
-                <IconPrinter size={14} />
-              </button>
-              <button type="button" onClick={() => onDelete(output.id)} title={t(lang, 'card.delete')} aria-label={t(lang, 'card.delete')} data-testid="card-delete">
-                <IconTrash size={14} />
-              </button>
+              <div className="out-tool-pop">
+                <button
+                  type="button"
+                  className="out-tool-labeled"
+                  aria-haspopup="menu"
+                  aria-expanded={cardMenu?.id === output.id && cardMenu.kind === 'export'}
+                  onClick={() => setCardMenu((prev) => (prev?.id === output.id && prev.kind === 'export' ? null : { id: output.id, kind: 'export' }))}
+                  title={t(lang, 'card.exportMenu')}
+                  data-testid="card-export-menu"
+                >
+                  <IconDownload size={13} />
+                  <span>{t(lang, 'card.exportMenu')}</span>
+                  <IconChevronDown size={11} />
+                </button>
+                {cardMenu?.id === output.id && cardMenu.kind === 'export' && (
+                  <div className="out-tool-menu" role="menu">
+                    <button type="button" role="menuitem" onClick={() => { setCardMenu(null); handleCsv(output); }} data-testid="card-csv">
+                      <IconDownload size={13} /><span>{t(lang, 'card.csv')}</span>
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { setCardMenu(null); handleSvg(output); }} data-testid="card-svg">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M4 18V6M20 18V9M4 18h16" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="14" r="1.6" /></svg>
+                      <span>{t(lang, 'card.svg')}</span>
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { setCardMenu(null); void handlePng(output); }} data-testid="card-png">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 15l5-4 4 3 3-2 6 4" /></svg>
+                      <span>{t(lang, 'card.png')}</span>
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { setCardMenu(null); handlePrint(output); }} data-testid="card-pdf">
+                      <IconPrinter size={13} /><span>{t(lang, 'card.pdf')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="out-tool-pop">
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={cardMenu?.id === output.id && cardMenu.kind === 'more'}
+                  onClick={() => setCardMenu((prev) => (prev?.id === output.id && prev.kind === 'more' ? null : { id: output.id, kind: 'more' }))}
+                  title={t(lang, 'card.moreMenu')}
+                  aria-label={t(lang, 'card.moreMenu')}
+                  data-testid="card-more-menu"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+                </button>
+                {cardMenu?.id === output.id && cardMenu.kind === 'more' && (
+                  <div className="out-tool-menu" role="menu">
+                    <button type="button" role="menuitem" onClick={() => { setCardMenu(null); onReproduce(output); }} data-testid="card-reproduce">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h5" /></svg>
+                      <span>{t(lang, 'card.reproduce')}</span>
+                    </button>
+                    <button type="button" role="menuitem" className="danger" onClick={() => { setCardMenu(null); onDelete(output.id); }} data-testid="card-delete">
+                      <IconTrash size={13} /><span>{t(lang, 'card.delete')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -770,6 +823,11 @@ export function OutputPanel({
                   {onModelOptimize && (
                     <button type="button" className="model-bar-btn" onClick={() => onModelOptimize(output)} data-testid="card-model-optimize">
                       {t(lang, 'card.modelOptimize')}
+                    </button>
+                  )}
+                  {onModelProfiler && (
+                    <button type="button" className="model-bar-btn" onClick={() => onModelProfiler(output)} data-testid="card-model-profiler">
+                      {t(lang, 'card.modelProfiler')}
                     </button>
                   )}
                   {onOpenModelManager && (
