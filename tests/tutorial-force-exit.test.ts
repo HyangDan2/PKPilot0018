@@ -20,6 +20,8 @@ import {
 } from '../src/tutorials/sessionMachine';
 import { TutorialProgressStore, createProgress, newSessionId } from '../src/tutorials/progressStore';
 import { TUTORIALS } from '../src/tutorials/registry';
+import { isTutorialComplete } from '../src/tutorials/tutorialEngine';
+import { originalBackupWins } from '../src/lib/restorePolicy';
 
 class MemoryStorage {
   data = new Map<string, string>();
@@ -170,5 +172,103 @@ describe('forced exit and stored progress', () => {
     // The library reads loadAll(), so the lesson reads as not started rather
     // than as completed after a forced exit.
     expect(store.loadAll()[tutorial.id]).toBeUndefined();
+  });
+});
+
+describe('a forced exit at any step of any lesson', () => {
+  /** Every lesson, at every step it can be left from. */
+  it('leaves no record that reads as started or complete', () => {
+    const offenders: string[] = [];
+    TUTORIALS.forEach((lesson) => {
+      lesson.steps.forEach((current, index) => {
+        const storage = new MemoryStorage();
+        const store = new TutorialProgressStore(storage);
+        const base = createProgress(lesson, `practice-${index}`);
+        const steps = { ...base.steps };
+        lesson.steps.slice(0, index).forEach((done) => {
+          steps[done.id] = { status: 'COMPLETED', mode: done.completion };
+        });
+        const at = { ...base, currentStepId: current.id, steps };
+        store.save(at);
+        // The record is where the reader is standing before the exit.
+        if (store.load(lesson.id)?.currentStepId !== current.id) offenders.push(`${lesson.id}@${current.id} not stored`);
+        if (isTutorialComplete(lesson, at)) offenders.push(`${lesson.id}@${current.id} already complete`);
+
+        store.removeSession(lesson.id, at.sessionId);
+
+        if (store.loadAll()[lesson.id]) offenders.push(`${lesson.id}@${current.id} still listed`);
+        if (store.loadSession(lesson.id, at.sessionId)) offenders.push(`${lesson.id}@${current.id} still readable`);
+      });
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  it('leaves the lesson restartable as a new session with every step unstarted', () => {
+    const storage = new MemoryStorage();
+    const store = new TutorialProgressStore(storage);
+    const exited = createProgress(tutorial, 'practice-e');
+    store.save({ ...exited, steps: { ...exited.steps }, status: 'completed' as const });
+    store.removeSession(tutorial.id, exited.sessionId);
+
+    const restarted = createProgress(tutorial, 'practice-f');
+    expect(restarted.sessionId).not.toBe(exited.sessionId);
+    expect(Object.values(restarted.steps).every((step) => step.status === 'NOT_STARTED')).toBe(true);
+    expect(restarted.status).toBe('in-progress');
+
+    store.save(restarted);
+    expect(store.loadAll()[tutorial.id]?.sessionId).toBe(restarted.sessionId);
+    expect(store.loadSession(tutorial.id, exited.sessionId)).toBeNull();
+  });
+
+  it('keeps the guarded original when the store is full during the exit', () => {
+    const storage = new MemoryStorage();
+    const store = new TutorialProgressStore(storage);
+    const guard = store.saveOriginalProject({
+      projectId: 'original-quota',
+      tutorialId: tutorial.id,
+      sessionId: 'session-quota',
+      json: JSON.stringify({ worksheets: [], activeSheetId: '', settings: { theme: 'light', lang: 'en' } }),
+      fingerprint: 'fingerprint-quota',
+    });
+    expect(guard.ok).toBe(true);
+    const progress = createProgress(tutorial, 'practice-g');
+    store.save(progress);
+
+    // A full store refuses every further write, including the removal.
+    storage.failWrites = true;
+    store.removeSession(tutorial.id, progress.sessionId);
+
+    // The session is gone from what the reader can reach, whatever the store did.
+    expect(store.loadAll()[tutorial.id]).toBeUndefined();
+    // The backup is only deleted after a verified restore, and there was none.
+    const kept = store.loadOriginalProject('original-quota');
+    expect(kept?.fingerprint).toBe('fingerprint-quota');
+  });
+});
+
+describe('a reload after an exit', () => {
+  const guard = (savedAt: string, fingerprint = 'own-project') => ({ savedAt, fingerprint });
+
+  it('restores the guarded original when the exit could not write it to the store', () => {
+    // Force exit wrote the workspace but the store refused it: the guard is newer
+    // than the last successful autosave and comes back on the next load.
+    expect(originalBackupWins(guard('2026-11-25T10:00:05.000Z'), { savedAt: '2026-11-25T10:00:00.000Z' }, 'practice-project', [])).toBe(true);
+  });
+
+  it('restores the original when the autosave still holds a practice project', () => {
+    expect(originalBackupWins(guard('2026-11-25T09:00:00.000Z'), { savedAt: '2026-11-25T10:00:00.000Z' }, 'practice-fp', ['practice-fp'])).toBe(true);
+  });
+
+  it('leaves a newer autosave of the reader’s own project alone', () => {
+    expect(originalBackupWins(guard('2026-11-25T09:00:00.000Z'), { savedAt: '2026-11-25T10:00:00.000Z' }, 'own-fp', ['practice-fp'])).toBe(false);
+  });
+
+  it('does nothing when the stored project already is the guarded one', () => {
+    expect(originalBackupWins(guard('2026-11-25T10:00:00.000Z', 'same'), null, 'same', [])).toBe(false);
+  });
+
+  it('does nothing without a guard, and nothing when no autosave survived', () => {
+    expect(originalBackupWins(null, null, 'own-fp', [])).toBe(false);
+    expect(originalBackupWins(guard('2026-11-25T10:00:00.000Z'), null, 'practice-fp', ['practice-fp'])).toBe(true);
   });
 });

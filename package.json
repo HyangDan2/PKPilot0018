@@ -18,6 +18,7 @@
     "qa:portable": "node tools/e2e_portable_offline.cjs",
     "qa:tutorials": "node tools/e2e_tutorials.cjs",
     "qa:tutorials:portable": "node tools/e2e_portable_tutorials.cjs",
+    "qa:force-exit": "node tools/e2e_force_exit.cjs",
     "qa:guard": "node tools/probe_tutorial_guard.cjs",
     "qa:network": "node tools/qa_network_audit.cjs",
     "release:check": "node tools/release.mjs check",

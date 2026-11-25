@@ -142,6 +142,13 @@ PATH=/tmp/pk18-qa312/bin:$PATH npm run qa:stats
 - macOS 기본 붙여넣기를 `ControlOrMeta+V`로 처리
 - macOS 다중 선택의 Control-click이 문맥 메뉴를 여는 문제를 Meta+click으로 회피
 
+WO-3F-01 검증(3F-A)에서 강제 종료 경로의 두 구멍을 추가로 막았다.
+
+- **STARTING 중에는 탈출구가 없었다.** 시작은 남은 오토세이브를 기다리는 동안 `STARTING`에 머무는데, 그 구간에는 세션 레코드가 아직 없어 패널·라이브러리 어느 쪽에도 강제 종료가 없었고 시작 대화상자의 취소는 대화상자만 닫아 곧 수업이 열렸다. 상태 기계의 `ABORT_START`를 실제로 연결해, 시작 대화상자에 강제 종료를 두고 취소·배경 클릭도 시작을 중단하도록 했다. 중단은 세대 토큰을 올려 뒤늦은 시작 결과를 차단하고, 그 시작이 스스로 만든 원본 사본만 회수한다(작업 공간은 아직 바뀌지 않았으므로 복원할 것이 없다). 시작 중에는 라이브러리에도 강제 종료를 노출한다.
+- **실습 보관 실패가 보이지 않았다.** 종료 대화상자에서 보관을 눌러 저장이 거부되면 저장 실패 대화상자가 종료 대화상자 뒤에 열려 재시도·내보내기·강제 종료에 닿을 수 없었다. 보관 실패 시 종료 대화상자를 닫아 실패 화면을 유일한 표면으로 만든다.
+
+검증은 `tests/tutorial-force-exit.test.ts`(21개)와 `tools/e2e_force_exit.cjs`(29개 검사, `npm run qa:force-exit`)에 있다. 모든 강의·모든 단계에서의 종료, 최소화 종료, 패널 닫힘 종료, 저장 실패 종료, 시작 중 종료·취소, 새로고침 복구, 종료 후 재시작을 포함한다.
+
 Portable HTML은 `file://`에서 13개 강의·26개 도움말 문서·분석 실행을 외부 요청 없이 검증한다. 저장소가 차단되면 진행 저장 실패를 숨기지 않는다. 상세 결과는 `docs/PHASE3F_TUTORIAL_RECOVERY_QA.md`에 기록했다.
 
 ## 7. 호환성과 제약
@@ -162,7 +169,7 @@ Portable HTML은 `file://`에서 13개 강의·26개 도움말 문서·분석 �
 | 검사 | 결과 |
 | --- | --- |
 | `npm run typecheck` | PASS · 0 errors |
-| `npm test` | **1,315 / 1,315 PASS** |
+| `npm test` | **1,323 / 1,323 PASS** |
 | `npm run qa:stats` | **250 / 250 PASS** |
 | `npm run build` | PASS · 외부 CDN/API 없음 |
 | `npm run build:portable` | PASS |
@@ -170,6 +177,7 @@ Portable HTML은 `file://`에서 13개 강의·26개 도움말 문서·분석 �
 | 10단계 강의 단독 실행 | **13 / 13 PASS** |
 | `npm run qa:tutorials:portable` | **8 / 8 PASS** |
 | `npm run qa:guard` | **10 / 10 PASS** |
+| `npm run qa:force-exit` | **29 / 29 PASS** (신규) |
 | `npm run qa:network` | **13 / 13 PASS** · web·portable·enterprise 외부 요청 0 |
 | `node tools/e2e_phase3f.cjs` | **11 / 11 PASS** |
 | `node tools/run_e2e_suite.cjs` | **13 / 13 suites clean · 560 PASS · 0 FAIL** |

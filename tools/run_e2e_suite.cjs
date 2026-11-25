@@ -58,6 +58,7 @@ const SUITES = [
   { name: 'phase3_3c', file: 'e2e_phase3_3c.cjs', base: false, phase: 'Phase 3' },
   { name: 'phase3_3d', file: 'e2e_phase3_3d.cjs', base: false, phase: 'Phase 3' },
   { name: 'phase3f', file: 'e2e_phase3f.cjs', base: false, phase: 'Phase 3' },
+  { name: 'phase3f_force_exit', file: 'e2e_force_exit.cjs', base: true, phase: 'Phase 3' },
 ];
 
 /** Run one suite asynchronously — execFileSync would block the event loop and

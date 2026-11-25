@@ -22,6 +22,8 @@ interface Props {
   lang: Lang;
   progressMap: Record<string, TutorialProgress>;
   activeTutorialId: string | null;
+  /** WO-3F-01: a start is still waiting for its autosave; exit from here too. */
+  starting?: boolean;
   onClose: () => void;
   onStart: (tutorialId: string) => void;
   onResume: (tutorialId: string) => void;
@@ -33,7 +35,7 @@ interface Props {
 
 const DIFFICULTIES: TutorialDifficulty[] = ['intro', 'beginner', 'intermediate', 'advanced'];
 
-export function TutorialLibrary({ lang, progressMap, activeTutorialId, onClose, onStart, onResume, onRestart, onOpenSample, onForceExit }: Props) {
+export function TutorialLibrary({ lang, progressMap, activeTutorialId, starting = false, onClose, onStart, onResume, onRestart, onOpenSample, onForceExit }: Props) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<TutorialCategory | 'all'>('all');
   const [difficulty, setDifficulty] = useState<TutorialDifficulty | 'all'>('all');
@@ -57,9 +59,9 @@ export function TutorialLibrary({ lang, progressMap, activeTutorialId, onClose, 
           <button type="button" className="icon-btn" onClick={onClose} aria-label={t(lang, 'close')} data-testid="tutorial-library-close"><IconX size={16} /></button>
         </div>
 
-        {activeTutorialId && (
+        {(activeTutorialId || starting) && (
           <div className="tut-active-session" data-testid="tut-library-active-session">
-            <span>{t(lang, 'tut.activeSessionNote')}</span>
+            <span>{starting ? t(lang, 'tut.startingNote') : t(lang, 'tut.activeSessionNote')}</span>
             <span className="spacer" />
             <button type="button" className="btn tiny ghost danger" onClick={onForceExit} data-testid="tut-library-force-exit">
               {t(lang, 'tut.forceExit')}

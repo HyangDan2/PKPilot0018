@@ -399,6 +399,12 @@ export default function App() {
   /** Invalidates async starts and results the moment a session ends (WO-3F-01). */
   const tutorialGeneration = useRef(0);
   const exitingTutorial = useRef(false);
+  /**
+   * The guarded copy written by a start that has not finished yet. A start
+   * abandoned while STARTING is still holding the workspace exactly as it was,
+   * so its guard is this start's own copy and goes with it (WO-3F-01).
+   */
+  const pendingStartGuard = useRef<string | null>(null);
   const [optimizerTutorial, setOptimizerTutorial] = useState<TutorialOptimizerSpec | null>(null);
   const [dialogNonce, setDialogNonce] = useState(0);
   const practiceSnapshot = useRef<{
@@ -2019,6 +2025,7 @@ export default function App() {
     if (!original.kept) {
       setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
     }
+    if (original.kept) pendingStartGuard.current = original.projectId;
     // A save still owed by the autosave is finished before the workspace changes,
     // so the stored autosave and the guarded original are the same project
     // (WO-FINAL-001 · F-REL-03 step 4). The guard above already protects the data
@@ -2032,6 +2039,7 @@ export default function App() {
       return;
     }
     if (pending.status !== 'SAVED') setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
+    pendingStartGuard.current = null;
     practiceSnapshot.current = captureWorkspace();
     practiceOriginalId.current = original.kept ? original.projectId : null;
     if (!useCurrent) {
@@ -2368,6 +2376,10 @@ export default function App() {
     if (!practice) return;
     const failure = writePracticeSlot();
     if (failure) {
+      // The failure surface is the save-failure dialog; leaving the exit dialog
+      // open would paint over it and leave the reader with no way forward
+      // (WO-3F-01).
+      setExitPrompt(false);
       setPracticeSaveFailure(failure);
       return;
     }
@@ -2415,7 +2427,10 @@ export default function App() {
    */
   const forceExitTutorial = (ask = true) => {
     if (exitingTutorial.current || !canForceExit(tutorialPhase)) return;
-    if (ask && !window.confirm(t(lang, 'tut.forceExitConfirm'))) return;
+    // A start that has not touched the workspace yet says so instead of
+    // warning about practice changes that do not exist.
+    const question = tutorialPhase === 'STARTING' ? 'tut.forceExitStartingConfirm' : 'tut.forceExitConfirm';
+    if (ask && !window.confirm(t(lang, question))) return;
     void runForceExit();
   };
 
@@ -2430,6 +2445,11 @@ export default function App() {
     const originalId = practiceOriginalId.current;
     const sessionId = session?.sessionId ?? null;
     const snapshot = practiceSnapshot.current;
+    // A start that never got as far as replacing the workspace left its own
+    // guard behind and nothing else; that copy goes with it (WO-3F-01).
+    const startGuard = pendingStartGuard.current;
+    pendingStartGuard.current = null;
+    if (startGuard) TUTORIAL_STORE.removeOriginalProject(startGuard);
     const plan = exitPlan(mode);
     const expected = plan.restoreOriginal
       ? (snapshot ? snapshotWorkspaceState(snapshot) : slotWorkspaceState(originalId))
@@ -2461,7 +2481,31 @@ export default function App() {
       }
     }
     setTutorialPhase((phase) => nextPhase(phase, { type: 'EXITED' }));
-    toast(t(lang, 'tut.forceExited'));
+    toast(t(lang, session ? 'tut.forceExited' : 'tut.startAborted'));
+  };
+
+  /**
+   * Abandon a start that is still waiting for its autosave (WO-3F-01).
+   *
+   * Nothing has been applied to the workspace yet, so this is the one exit that
+   * needs no restore: the generation bump stops the pending start from applying
+   * its result, and the copy it wrote for itself is removed. It is idempotent —
+   * a second request finds no pending start and changes nothing.
+   */
+  const abortTutorialStart = () => {
+    if (tutorialPhase !== 'STARTING') {
+      setStartPrompt(null);
+      return;
+    }
+    tutorialGeneration.current += 1;
+    const startGuard = pendingStartGuard.current;
+    pendingStartGuard.current = null;
+    if (startGuard) TUTORIAL_STORE.removeOriginalProject(startGuard);
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'ABORT_START' }));
+    setStartPrompt(null);
+    setTutorialMessage(null);
+    setTutorialBusy(false);
+    toast(t(lang, 'tut.startAborted'));
   };
 
   /** Retry the guarded original after a failed restore; never drops the backup. */
@@ -2556,6 +2600,7 @@ export default function App() {
           return;
         }
         if (!guard.kept) setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
+        if (guard.kept) pendingStartGuard.current = guard.projectId;
         // Any autosave still owed is settled before the workspace changes.
         const pending = await runAutosave();
         if (generation !== tutorialGeneration.current) {
@@ -2563,6 +2608,7 @@ export default function App() {
           return;
         }
         if (pending.status !== 'SAVED') setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
+        pendingStartGuard.current = null;
         practiceSnapshot.current = captureWorkspace();
         practiceOriginalId.current = guard.kept ? guard.projectId : null;
         setWorksheets(parsed.worksheets);
@@ -3764,6 +3810,7 @@ export default function App() {
           lang={lang}
           progressMap={progressMap}
           activeTutorialId={tutorialSession?.tutorialId ?? null}
+          starting={tutorialPhase === 'STARTING'}
           onClose={() => setLibraryOpen(false)}
           onStart={(tutorialId) => requestStartTutorial(tutorialId)}
           onResume={(tutorialId) => resumeTutorial(tutorialId)}
@@ -3829,7 +3876,7 @@ export default function App() {
         const tutorial = findTutorial(startPrompt.tutorialId);
         if (!tutorial) return null;
         return (
-          <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setStartPrompt(null); }}>
+          <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) abortTutorialStart(); }}>
             <div className="modal narrow" role="dialog" aria-modal="true" aria-label={t(lang, 'tut.startTitle')} data-testid="tutorial-start-dialog">
               <div className="modal-head">
                 <div>
@@ -3839,10 +3886,13 @@ export default function App() {
               </div>
               <div className="modal-body">
                 <p className="tut-start-desc">{t(lang, 'tut.startSub')}</p>
+                {tutorialPhase === 'STARTING' && (
+                  <p className="tut-warning" role="status" data-testid="tutorial-starting-note">{t(lang, 'tut.startingNote')}</p>
+                )}
                 <div className="tut-start-option">
                   <h4>{t(lang, 'tut.startIsolated')}</h4>
                   <p>{t(lang, 'tut.startIsolatedNote')}</p>
-                  <button type="button" className="btn primary" onClick={() => { void beginTutorial(tutorial.id, false); }} data-testid="tutorial-start-isolated">
+                  <button type="button" className="btn primary" disabled={tutorialPhase === 'STARTING'} onClick={() => { void beginTutorial(tutorial.id, false); }} data-testid="tutorial-start-isolated">
                     {t(lang, 'tut.startIsolatedAction')}
                   </button>
                 </div>
@@ -3852,6 +3902,7 @@ export default function App() {
                   <button
                     type="button"
                     className="btn"
+                    disabled={tutorialPhase === 'STARTING'}
                     data-testid="tutorial-start-current"
                     onClick={() => {
                       if (!window.confirm(t(lang, 'tut.useCurrentConfirm'))) return;
@@ -3865,7 +3916,10 @@ export default function App() {
               </div>
               <div className="modal-foot">
                 <span className="spacer" />
-                <button type="button" className="btn ghost" onClick={() => setStartPrompt(null)}>{t(lang, 'dlg.cancel')}</button>
+                {tutorialPhase === 'STARTING' && (
+                  <button type="button" className="btn ghost danger" onClick={() => forceExitTutorial()} data-testid="tutorial-start-force-exit">{t(lang, 'tut.forceExitShort')}</button>
+                )}
+                <button type="button" className="btn ghost" onClick={() => abortTutorialStart()} data-testid="tutorial-start-cancel">{t(lang, 'dlg.cancel')}</button>
               </div>
             </div>
           </div>
