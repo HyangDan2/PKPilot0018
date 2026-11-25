@@ -298,6 +298,36 @@ async function main() {
   check('cancelling a start in progress leaves the own project untouched', JSON.stringify(await workspace(slowPage)) === JSON.stringify(slowOwn), JSON.stringify(await workspace(slowPage)));
   await slowPage.evaluate(() => { if (window.__restoreIdb) window.__restoreIdb(); });
 
+  /* ── 9. the backup goes only after a verified restore ─────────────────── */
+  // A kept practice is resumed (which guards the reader's project again) and
+  // then force-exited: the restored copy was written and read back, so the
+  // guard must not stay behind taking up the store.
+  await startIsolated(page);
+  await page.click('[data-testid=tut-exit]');
+  await page.waitForSelector('[data-testid=tutorial-exit-dialog]', { timeout: 8000 });
+  await page.click('[data-testid=tutorial-exit-keep]');
+  await page.waitForTimeout(1200);
+  await openLibrary(page);
+  const keptResume = page.locator(`[data-testid=tut-resume-${LESSON}]`);
+  const keptCount = await keptResume.count();
+  check('a kept practice is offered for resume', keptCount === 1, `resume=${keptCount}`);
+  if (keptCount) await keptResume.click();
+  await page.waitForSelector('[data-testid=tutorial-dock]', { timeout: 12000 });
+  await page.waitForTimeout(700);
+  const guardsBefore = await page.evaluate(() => {
+    const raw = localStorage.getItem('sigrun.tutorials.original.v1');
+    return raw ? Object.keys(JSON.parse(raw).slots || {}).length : 0;
+  });
+  check('resuming guarded the project again', guardsBefore >= 1, `guards=${guardsBefore}`);
+  await page.click('[data-testid=tut-force-exit]');
+  await page.waitForTimeout(1600);
+  const guardsAfter = await page.evaluate(() => {
+    const raw = localStorage.getItem('sigrun.tutorials.original.v1');
+    return raw ? Object.keys(JSON.parse(raw).slots || {}).length : 0;
+  });
+  check('a verified restore removes the guarded backup', guardsAfter === 0, `guards=${guardsAfter}`);
+  check('the resumed practice force-exits back to the own project', JSON.stringify(await workspace(page)) === JSON.stringify(own), JSON.stringify(await workspace(page)));
+
   check('no console errors in the normal path', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
   try { await context.close(); } catch { /* already closed */ }

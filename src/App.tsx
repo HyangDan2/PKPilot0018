@@ -2479,6 +2479,10 @@ export default function App() {
         setTutorialPhase('RECOVERY_REQUIRED');
         return;
       }
+      // Restored and proven on disk: only now may the backup go, exactly as the
+      // other exit paths do. Keeping it would leave a full copy of the reader's
+      // project in the store after every forced exit (WO-3F-01).
+      if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
     }
     setTutorialPhase((phase) => nextPhase(phase, { type: 'EXITED' }));
     toast(t(lang, session ? 'tut.forceExited' : 'tut.startAborted'));
