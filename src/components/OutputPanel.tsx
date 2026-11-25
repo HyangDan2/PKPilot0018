@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Block, ChartSource, ChartSpec, Lang, OutputDoc } from '../types';
+import type { StoredModelDraft } from '../lib/modelStore';
 import { fmtTime } from '../lib/format';
 import { PRODUCT } from '../config/product';
 import { resolveLabel, t } from '../lib/i18n';
@@ -37,7 +38,7 @@ interface Props {
   onReproduce: (output: OutputDoc) => void;
   onUpdateBlocks: (id: string, blocks: Block[]) => void;
   /** Hand this card's fitted model to the model store (WO-02). */
-  onSaveModel: (output: OutputDoc) => void;
+  onSaveModel: (output: OutputDoc, draft?: StoredModelDraft) => void;
   /** Chart selection lifted to the app, so the worksheet can follow it. */
   selection?: { rows: number[]; source?: ChartSource } | null;
   onSelectRows?: (rows: number[], additive: boolean, source?: ChartSource) => void;
@@ -476,6 +477,7 @@ export function OutputPanel({
     { id: 'out-sep-1', label: '', separator: true },
     { id: 'out-rerun', label: t(lang, 'outctx.rerun'), onSelect: () => onRerun(output) },
     ...(output.model ? [{ id: 'out-save-model', label: t(lang, 'outctx.saveModel'), onSelect: () => onSaveModel(output) }] : []),
+    ...(output.modelOriginal ? [{ id: 'out-save-model-original', label: t(lang, 'outctx.saveModelOriginal'), onSelect: () => onSaveModel(output, output.modelOriginal) }] : []),
     { id: 'out-reproduce', label: t(lang, 'outctx.reproduce'), onSelect: () => onReproduce(output) },
     { id: 'out-sep-2', label: '', separator: true },
     {
@@ -698,6 +700,19 @@ export function OutputPanel({
                   <IconModel size={14} />
                 </button>
               )}
+              {output.modelOriginal && (
+                <button
+                  type="button"
+                  className="card-save-model"
+                  onClick={() => onSaveModel(output, output.modelOriginal)}
+                  title={t(lang, 'outctx.saveModelOriginal')}
+                  aria-label={t(lang, 'outctx.saveModelOriginal')}
+                  data-testid="card-save-model-original"
+                >
+                  <IconModel size={14} />
+                  <span className="mono-note" style={{ fontSize: 10 }}>O</span>
+                </button>
+              )}
               <button type="button" onClick={() => onRerun(output)} title={t(lang, 'card.rerun')} aria-label={t(lang, 'card.rerun')} data-testid="card-rerun">
                 <IconRerun size={14} />
               </button>
@@ -863,30 +878,33 @@ function BlockView({
   }
   if (block.type === 'chartgrid') {
     return (
-      <div className="chart-grid">
-        {block.charts.map((item, i) => {
-          const target: ChartTarget = { outputId, blockIndex, chartIndex: i };
-          const chart = chartForFrame(target, item.chart);
-          return (
-            <div className="chart-card" key={i}>
-              <h5>{resolveLabel(lang, item.title)}</h5>
-              <ChartFrame
-                lang={lang}
-                chart={chart}
-                config={previewFor(target)}
-                onChartChange={(next) => onChartChange(target, next)}
-                onEdit={(request) => onEdit(target, request)}
-                onMenu={(event) => onMenu(event, target)}
-                onView={(mode) => onView(target, mode)}
-                onCopyPng={() => onCopyPng(target, chart)}
-                onExport={() => onExport(target, chart)}
-                highlightRows={selection && selectionCompatible(selection.source, chart.source) ? selection.rows : undefined}
-                onSelectRows={onSelectRows}
-                onExportSelection={onExportSelection}
-              />
-            </div>
-          );
-        })}
+      <div>
+        {block.caption && <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--text-secondary)' }}>{resolveLabel(lang, block.caption)}</p>}
+        <div className="chart-grid">
+          {block.charts.map((item, i) => {
+            const target: ChartTarget = { outputId, blockIndex, chartIndex: i };
+            const chart = chartForFrame(target, item.chart);
+            return (
+              <div className="chart-card" key={i}>
+                <h5>{resolveLabel(lang, item.title)}</h5>
+                <ChartFrame
+                  lang={lang}
+                  chart={chart}
+                  config={previewFor(target)}
+                  onChartChange={(next) => onChartChange(target, next)}
+                  onEdit={(request) => onEdit(target, request)}
+                  onMenu={(event) => onMenu(event, target)}
+                  onView={(mode) => onView(target, mode)}
+                  onCopyPng={() => onCopyPng(target, chart)}
+                  onExport={() => onExport(target, chart)}
+                  highlightRows={selection && selectionCompatible(selection.source, chart.source) ? selection.rows : undefined}
+                  onSelectRows={onSelectRows}
+                  onExportSelection={onExportSelection}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }

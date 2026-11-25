@@ -167,6 +167,30 @@ export const PRESETS: AnalysisPreset[] = [
     slots: { response: cols('Y'), factors: cols('A', 'B', 'C'), order: value('2') },
   },
   {
+    id: 'preset-doeanalyze-pooled',
+    analysisId: 'doeanalyze',
+    sampleId: 'doe-pooled',
+    slots: { response: cols('Y'), factors: cols('A', 'B', 'C'), order: value('3') },
+  },
+  {
+    id: 'preset-doeanalyze-unreplicated',
+    analysisId: 'doeanalyze',
+    sampleId: 'doe-unreplicated',
+    slots: { response: cols('Y'), factors: cols('A', 'B', 'C'), order: value('3') },
+  },
+  {
+    id: 'preset-doeanalyze-screening',
+    analysisId: 'doeanalyze',
+    sampleId: 'doe-screening',
+    slots: { response: cols('Cycle Time'), factors: cols('A', 'B', 'C', 'D'), order: value('2') },
+  },
+  {
+    id: 'preset-glm-unbalanced',
+    analysisId: 'glm',
+    sampleId: 'glm-unbalanced',
+    slots: { response: cols('Strength'), factors: cols('Machine', 'Shift'), interactions: value(true) },
+  },
+  {
     id: 'preset-rsmanalyze-sample',
     analysisId: 'rsmanalyze',
     sampleId: 'rsm',

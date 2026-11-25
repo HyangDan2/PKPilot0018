@@ -428,8 +428,8 @@ describe('[T-13] the status bar states the build’s stage', () => {
 /* ── whole registry regression (required check 11) ────────────────────── */
 
 describe('tutorial registry still audits clean after the corrections', () => {
-  it('has no registry errors and twelve tutorials', () => {
+  it('has no registry errors and thirteen tutorials', () => {
     expect(auditErrors()).toEqual([]);
-    expect(TUTORIALS).toHaveLength(12);
+    expect(TUTORIALS).toHaveLength(13);
   });
 });

@@ -46,7 +46,7 @@ async function main() {
   await page.click('[data-testid=learn-sigrun]');
   await page.waitForSelector('[data-testid=tutorial-library]', { timeout: 8000 });
   const cards = await page.locator('[data-testid^=tut-card-]').count();
-  record('tutorial registry is bundled', cards === 12, `${cards} lessons`);
+  record('tutorial registry is bundled', cards === 13, `${cards} lessons`);
 
   await page.click('[data-testid=tut-start-tutorial-start-001]');
   await page.waitForSelector('[data-testid=tutorial-start-dialog]', { timeout: 8000 });

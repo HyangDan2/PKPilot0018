@@ -1,6 +1,6 @@
 /* Sigrún — Tutorial System E2E (WO-3E-11 / WO-T12)
 
-   Runs the twelve lessons through their main execution path in a real browser,
+   Runs every lesson through its main execution path in a real browser,
    the flagship from data load to the completion summary, and the practice
    isolation check (the reader's own project must come back unchanged).
 
@@ -34,6 +34,7 @@ const TUTORIALS = [
   'tutorial-gagerr-001',
   'tutorial-reliability-001',
   'tutorial-doe-001',
+  'tutorial-doe-reduction-001',
   'tutorial-rsm-001',
 ];
 
@@ -254,6 +255,24 @@ async function handleAction(page, action) {
   }
 }
 
+async function runPoolingStep(page) {
+  await page.click('[data-testid=tut-action-open-analysis]');
+  await page.waitForSelector('[data-testid=analysis-dialog]', { timeout: 8000 });
+  await page.click('[data-testid=tab-main]');
+  await page.click('[data-testid=model-edit]');
+  await page.waitForSelector('[data-testid=model-terms-dialog]', { timeout: 8000 });
+  await page.click('[data-testid="mt-pool-B|C"]');
+  await page.click('[data-testid=mt-save]');
+  await page.waitForSelector('[data-testid=model-terms-dialog]', { state: 'detached', timeout: 8000 });
+  await page.click('[data-testid=dialog-ok]');
+  const pooledResult = page.locator('[data-testid=out-card]').filter({ hasText: 'Partial F-test (nested models)' }).last();
+  await pooledResult.waitFor({ state: 'visible', timeout: 15000 });
+  const text = await pooledResult.innerText();
+  if (!text.includes('1.85') || !text.includes('0.207')) {
+    throw new Error(`pooling step did not report partial F 1.85 / p 0.207: ${text.slice(-1200)}`);
+  }
+}
+
 async function runTutorial(page, tutorialId) {
   await startTutorial(page, tutorialId);
   let step = await currentStepId(page);
@@ -262,6 +281,14 @@ async function runTutorial(page, tutorialId) {
   while (step && guard < 60) {
     guard += 1;
     if (await page.locator('[data-testid=tutorial-summary]').count()) break;
+    if (tutorialId === 'tutorial-doe-reduction-001' && step === 'pool') {
+      console.log(`  [${tutorialId}] step ${step} → pool B×C`);
+      await runPoolingStep(page);
+      const next = await currentStepId(page);
+      if (next === step) throw new Error(`pooling step did not advance: ${await stepStatus(page)}`);
+      step = next;
+      continue;
+    }
     // A dialog the previous step opened hides the dock; running it is the reader's next move.
     if (await page.locator('[data-testid=analysis-dialog]').count()) {
       await page.click('[data-testid=dialog-ok]');
@@ -359,7 +386,7 @@ async function main() {
   // Entry points: Help ▸ Tutorials, the Learn button and Sample Library → related tutorials.
   await openLibrary(page);
   const cards = await page.locator('[data-testid^=tut-card-]').count();
-  record('library lists twelve tutorials', cards === 12, `${cards} cards`);
+  record('library lists thirteen tutorials', cards === 13, `${cards} cards`);
   await page.locator('[data-testid=tutorial-search]').fill('optimization');
   const filtered = await page.locator('[data-testid^=tut-card-]').count();
   record('library search filters', filtered === 1, `${filtered} card for “optimization”`);
@@ -375,7 +402,7 @@ async function main() {
   await page.click('[data-testid=sample-library-open]');
   await page.waitForSelector('[data-testid=sample-library]', { timeout: 8000 });
   const samples = await page.locator('[data-testid^=sample-item-]').count();
-  record('sample library lists every dataset', samples === 8, `${samples} datasets`);
+  record('sample library lists every dataset', samples === 12, `${samples} datasets`);
   await shot(page, '02-sample-library');
   await page.click('[data-testid=sample-library-close]');
 

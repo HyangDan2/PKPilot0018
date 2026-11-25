@@ -53,6 +53,9 @@ import { factorAxisValues, factorIssues, validateFactorValue, discreteValueAt } 
 import type { FactorSettings, ResponseSettings } from '../../../src/lib/optimizationTypes';
 import type { Block, ChartSpec, Worksheet } from '../../../src/types';
 import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, ccdDesign, factorialDesign } from '../../../src/lib/doe';
+import { fitWithPooling } from '../../../src/lib/errorPooling';
+import { compareFits } from '../../../src/lib/modelComparison';
+import { applyHierarchy, buildTermCatalog, termName, termId } from '../../../src/lib/modelTerms';
 import { fitLognormalReliability, fitWeibull, type WeibullInput } from '../../../src/lib/reliability';
 import { solvePower, type PowerMethod, type PowerSpec } from '../../../src/lib/power';
 import {
@@ -1620,6 +1623,96 @@ const ops: Record<string, Op> = {
     });
     bag.put('refused', refused);
     if (refused === points.length && points.length > 0) throw new Error('model.nonEstimable');
+  },
+
+  /* ── Stage 3F: model control (WO-3F-05/07/08) ───────────────────────
+     The comparison, pooling and Lenth numbers must be reproducible from the
+     data alone; the Python reference refits the same models with NumPy and
+     statsmodels and recomputes every scalar below from its own fit. */
+
+  pooling(bag, ds, args) {
+    const factors: ModelFactor[] = (args.factors as string[]).map((name) => ({
+      name,
+      kind: 'numeric',
+      values: rawNums(ds, name),
+    }));
+    const catalog = buildTermCatalog(factors, args.order ?? 2);
+    const terms: ModelTerm[] = catalog.terms.map((term) => ({ name: term.name, factors: term.factors }));
+    const pooledNames = ((args.pooled as string[][]) ?? []).map((names) => termName(names));
+    const result = fitWithPooling(rawNums(ds, args.response), factors, terms, pooledNames, { allowZeroDf: true });
+    const comparison = compareFits(result.full, result.fit, pooledNames);
+    bag.put('full_sse', result.full.sse);
+    bag.put('full_dfe', result.full.dfe);
+    bag.put('full_mse', result.full.mse);
+    bag.put('full_s', result.full.s);
+    bag.put('full_r2', result.full.r2);
+    bag.put('full_r2_adj', result.full.r2adj);
+    bag.put('full_r2_pred', result.full.r2pred);
+    bag.put('red_sse', result.fit.sse);
+    bag.put('red_dfe', result.fit.dfe);
+    bag.put('red_mse', result.fit.mse);
+    bag.put('red_s', result.fit.s);
+    bag.put('red_r2', result.fit.r2);
+    bag.put('red_r2_adj', result.fit.r2adj);
+    bag.put('red_r2_pred', result.fit.r2pred);
+    comparison.metrics.forEach((metric) => {
+      bag.put(`cmp:${metric.key}:difference`, metric.difference);
+      bag.put(`cmp:${metric.key}:reason`, metric.reason ?? null);
+    });
+    bag.put('partial_df1', comparison.partial ? comparison.partial.df1 : null);
+    bag.put('partial_df2', comparison.partial ? comparison.partial.df2 : null);
+    bag.put('partial_f', comparison.partial ? comparison.partial.f : null);
+    bag.put('partial_p', comparison.partial ? comparison.partial.p : null);
+    bag.put('partial_reason', comparison.partialReason ?? null);
+    bag.put('checks_expected_dfe', result.checks.expectedDfe);
+    bag.put('checks_actual_dfe', result.checks.actualDfe);
+    bag.put('checks_expected_ss', result.checks.expectedSs);
+    bag.put('checks_actual_ss', result.checks.actualSs);
+    bag.put('checks_additive', result.checks.additive ? 1 : 0);
+  },
+
+  lenth(bag, ds, args) {
+    const factors: ModelFactor[] = (args.factors as string[]).map((name) => ({
+      name,
+      kind: 'numeric',
+      values: rawNums(ds, name),
+    }));
+    const r = analyzeFactorial(rawNums(ds, args.response), factors, args.order ?? factors.length);
+    const availability = r.saturated.lenth;
+    bag.put('available', availability.available ? 1 : 0);
+    if (!availability.available || !availability.result) {
+      bag.put('reason', availability.reason ?? null);
+      return;
+    }
+    const lenth = availability.result;
+    bag.put('pse', lenth.pse);
+    bag.put('me', lenth.me);
+    bag.put('sme', lenth.sme);
+    bag.put('pseudo_df', lenth.pseudoDf);
+    bag.put('active_count', lenth.activeCount);
+    lenth.effects.forEach((entry) => {
+      bag.put(`effect:${entry.term}`, entry.effect);
+      bag.put(`active:${entry.term}`, entry.active ? 1 : 0);
+    });
+  },
+
+  hierarchy(bag, _ds, args) {
+    const factors: ModelFactor[] = (args.factors as string[]).map((name) => ({
+      name,
+      kind: 'numeric',
+      values: [],
+    }));
+    const catalog = buildTermCatalog(factors, args.order ?? 2);
+    const selected = ((args.selected as string[][]) ?? []).map((names) => termId(names));
+    const mode = (args.mode ?? 'strict') as 'strict' | 'auto' | 'unrestricted';
+    const result = applyHierarchy(catalog, selected, mode);
+    bag.put('refused', mode === 'strict' && result.violations.length > 0 ? 1 : 0);
+    bag.put('selected_count', result.selected.length);
+    bag.put('added_count', result.added.length);
+    bag.put('violation_count', result.violations.length);
+    const missing = result.violations.flatMap((violation) => violation.missing);
+    bag.put('missing', missing.slice().sort().join(','));
+    bag.put('selected', catalog.terms.filter((term) => result.selected.includes(term.id)).map((term) => term.name).join(','));
   },
 
   /** Deliberately failing guard: proves the comparator reports engine errors. */

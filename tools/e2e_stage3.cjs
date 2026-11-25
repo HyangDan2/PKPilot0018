@@ -328,7 +328,7 @@ async function runViewport(browser, viewport) {
     await page.waitForTimeout(150);
     await page.evaluate(() => navigator.clipboard.writeText('777'));
     await page.locator('[data-testid=worksheet-drawer] ' + cell(2, 0)).click();
-    await page.keyboard.press('Control+V');
+    await page.keyboard.press('ControlOrMeta+V');
     await page.waitForTimeout(400);
     check(`${tag} · 5: pasting into the drawer reaches the sheet`,
       (await page.locator('[data-testid=worksheet-drawer] td[data-row="2"][data-col="0"]').innerText()).trim() === '777',
@@ -465,7 +465,7 @@ async function runViewport(browser, viewport) {
     check(`${tag} · 10: shift-click selects a range`, selected >= 3, `${selected} cells`);
     await page.click(`${cell(2, 1)}`);
     await page.evaluate(() => navigator.clipboard.writeText('11\n22'));
-    await page.keyboard.press('Control+V');
+    await page.keyboard.press('ControlOrMeta+V');
     await page.waitForTimeout(450);
     const pasted = await page.locator(`${cell(2, 1)}`).innerText();
     const pastedNext = await page.locator(`${cell(3, 1)}`).innerText();

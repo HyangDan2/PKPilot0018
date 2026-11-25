@@ -8,9 +8,10 @@
 
 import type { Column, Worksheet } from '../types';
 import { makeWorksheet } from './datasets';
-import type { ModelFactor } from './glm';
-import { fitGlm, type GlmResult } from './glm';
+import type { ModelFactor, ModelTerm } from './glm';
+import type { GlmResult } from './glm';
 import type { ModelFactor as Factor } from './glm';
+import { fitWithPooling, saturatedReport, type PoolingResult, type SaturatedReport } from './errorPooling';
 import { mulberry32 } from './random';
 import { mean } from './stats';
 
@@ -137,29 +138,50 @@ export interface FactorialAnalysis {
   glm: GlmResult;
   effects: EffectRow[];
   factorNames: string[];
+  /** Present when terms were moved to error (WO-3F-03). */
+  pooling?: PoolingResult;
+  /** Present when the design leaves no residual df (WO-3F-06). */
+  saturated?: SaturatedReport;
+}
+
+export interface FactorialOptions {
+  /** Explicit model terms; omitted keeps main effects + interactions to `order`. */
+  terms?: ModelTerm[];
+  /** Term names moved to error and refitted out of the model. */
+  pooled?: string[];
+  allowZeroDf?: boolean;
 }
 
 /**
  * Analyze a 2-level factorial: main effects plus every interaction up to
  * `order`. Each 1-df term's effect is twice its coded coefficient.
  */
-export function analyzeFactorial(y: (number | null)[], factors: ModelFactor[], order = 2): FactorialAnalysis {
+export function analyzeFactorial(
+  y: (number | null)[],
+  factors: ModelFactor[],
+  order = 2,
+  options: FactorialOptions = {},
+): FactorialAnalysis {
   const names = factors.map((f) => f.name);
-  const terms: { name: string; factors: string[] }[] = [];
-  const combos: string[][] = [];
-  const build = (start: number, current: string[]) => {
-    for (let i = start; i < names.length; i += 1) {
-      const next = [...current, names[i]];
-      if (next.length <= order) {
-        combos.push(next);
-        build(i + 1, next);
+  const terms: ModelTerm[] = options.terms ? [...options.terms] : [];
+  if (!options.terms) {
+    const combos: string[][] = [];
+    const build = (start: number, current: string[]) => {
+      for (let i = start; i < names.length; i += 1) {
+        const next = [...current, names[i]];
+        if (next.length <= order) {
+          combos.push(next);
+          build(i + 1, next);
+        }
       }
-    }
-  };
-  build(0, []);
-  combos.forEach((c) => terms.push({ name: c.join('×'), factors: c }));
-  const glm = fitGlm(y, factors, terms);
-  const effects: EffectRow[] = terms.map((term, ti) => {
+    };
+    build(0, []);
+    combos.forEach((c) => terms.push({ name: c.join('×'), factors: c }));
+  }
+  const pooling = fitWithPooling(y, factors, terms, options.pooled ?? [], { allowZeroDf: options.allowZeroDf ?? true });
+  const glm = pooling.fit;
+  const active = terms.filter((term) => !(options.pooled ?? []).includes(term.name));
+  const effects: EffectRow[] = active.map((term, ti) => {
     const start = glm.design.blockStart[ti];
     const coef = glm.beta[start] ?? 0;
     const se = glm.se[start] ?? NaN;
@@ -167,14 +189,24 @@ export function analyzeFactorial(y: (number | null)[], factors: ModelFactor[], o
     const pValue = glm.p[start] ?? NaN;
     return {
       term: term.name,
-      effect: glm.design.blockSizes[ti] === 1 && term.factors.every((f) => factors.find((x) => x.name === f)?.kind === 'numeric') ? 2 * coef : 2 * coef,
+      effect: 2 * coef,
       coef,
       se,
       t: tValue,
       p: pValue,
     };
   });
-  return { glm, effects, factorNames: names };
+  const cells = new Set(glm.design.rows.map((row) => factors.map((f) => String(f.values[row] ?? '')).join('|')));
+  const saturated = saturatedReport(glm, effects.map((effect) => ({ term: effect.term, effect: effect.effect })), {
+    replicated: glm.n > cells.size,
+  });
+  return {
+    glm,
+    effects,
+    factorNames: names,
+    ...(options.pooled?.length ? { pooling } : {}),
+    saturated,
+  };
 }
 
 /* ── response surface ────────────────────────────────────────────────── */
@@ -198,6 +230,10 @@ export interface RsmAnalysis {
     outsideRegion: boolean;
   };
   quadratic: { name: string; coef: number }[];
+  pooling?: PoolingResult;
+  saturated?: SaturatedReport;
+  /** A pooled/excluded square term means the quadratic surface is incomplete. */
+  incompleteQuadratic?: boolean;
 }
 
 function jacobiEigen(matrix: number[][], iterations = 100): number[] {
@@ -252,22 +288,31 @@ function invertSmall(matrix: number[][]): number[][] | null {
   return M.map((row) => row.slice(n));
 }
 
-export function analyzeRsm(y: (number | null)[], factors: ModelFactor[], options: { alpha?: number } = {}): RsmAnalysis {
+export function analyzeRsm(
+  y: (number | null)[],
+  factors: ModelFactor[],
+  options: { alpha?: number; terms?: ModelTerm[]; pooled?: string[]; allowZeroDf?: boolean } = {},
+): RsmAnalysis {
   const names = factors.map((f) => f.name);
   const squares: ModelFactor[] = factors.map((f) => ({
     name: `${f.name}²`,
     kind: 'numeric',
     values: f.values.map((v) => (typeof v === 'number' ? v * v : null)),
   }));
-  const terms: { name: string; factors: string[] }[] = [];
-  names.forEach((name) => terms.push({ name, factors: [name] }));
-  squares.forEach((sq) => terms.push({ name: sq.name, factors: [sq.name] }));
-  for (let i = 0; i < names.length; i += 1) {
-    for (let j = i + 1; j < names.length; j += 1) {
-      terms.push({ name: `${names[i]}×${names[j]}`, factors: [names[i], names[j]] });
+  const terms: ModelTerm[] = options.terms ? [...options.terms] : [];
+  if (!options.terms) {
+    names.forEach((name) => terms.push({ name, factors: [name] }));
+    squares.forEach((sq) => terms.push({ name: sq.name, factors: [sq.name] }));
+    for (let i = 0; i < names.length; i += 1) {
+      for (let j = i + 1; j < names.length; j += 1) {
+        terms.push({ name: `${names[i]}×${names[j]}`, factors: [names[i], names[j]] });
+      }
     }
   }
-  const glm = fitGlm(y, [...factors, ...squares], terms);
+  const allFactors = [...factors, ...squares];
+  const pooling = fitWithPooling(y, allFactors, terms, options.pooled ?? [], { allowZeroDf: options.allowZeroDf ?? true });
+  const glm = pooling.fit;
+  const active = terms.filter((term) => !(options.pooled ?? []).includes(term.name));
   const blockSs = (predicate: (name: string) => boolean) => {
     const chosen = glm.terms.filter((tt) => predicate(tt.name));
     return { df: chosen.reduce((a, t) => a + t.df, 0), ss: chosen.reduce((a, t) => a + t.ssAdj, 0) };
@@ -317,7 +362,9 @@ export function analyzeRsm(y: (number | null)[], factors: ModelFactor[], options
   }
   const BInv = invertSmall(B);
   let stationary: RsmAnalysis['stationary'];
-  if (BInv) {
+  const incompleteQuadratic = !names.every((name) => active.some((term) => term.name === name))
+    || !names.every((name) => active.some((term) => term.name === `${name}²`));
+  if (BInv && !incompleteQuadratic) {
     const point = new Array(k).fill(0);
     for (let i = 0; i < k; i += 1) {
       point[i] = -0.5 * BInv[i].reduce((a, v, j) => a + v * b[j], 0);
@@ -347,7 +394,10 @@ export function analyzeRsm(y: (number | null)[], factors: ModelFactor[], options
     pureError,
     lackOfFit,
     stationary,
-    quadratic: terms.map((term, ti) => ({ name: term.name, coef: beta[glm.design.blockStart[ti]] ?? 0 })),
+    quadratic: active.map((term, ti) => ({ name: term.name, coef: beta[glm.design.blockStart[ti]] ?? 0 })),
+    ...(options.pooled?.length ? { pooling } : {}),
+    saturated: saturatedReport(glm),
+    incompleteQuadratic,
   };
 }
 

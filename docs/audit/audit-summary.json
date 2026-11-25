@@ -126,8 +126,8 @@
  "sigrunAnalysisCount": 41,
  "sigrunModuleCount": 20,
  "qa": {
-  "cases": 225,
-  "featuresWithQa": 38,
+  "cases": 250,
+  "featuresWithQa": 43,
   "featuresTotal": 61
  },
  "backlog": {

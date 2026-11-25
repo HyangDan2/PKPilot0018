@@ -1,14 +1,14 @@
 {
  "meta": {
-  "generated_at": "2026-11-25T01:58:14+09:00",
-  "commit": "7c6c0a398b58a8ea4787e13548c43d65c41d0a79",
+  "generated_at": "2026-11-25T11:51:39+09:00",
+  "commit": "ac7ca94f90d889e9f2fd4e3258594c1c7e0b241d",
   "adapter_meta": {
    "adapter": "qa/adapters/sigrun/cli.ts",
    "engine": "src/lib (shipped TypeScript)",
    "node": "v22.23.4",
-   "commit": "7c6c0a398b58a8ea4787e13548c43d65c41d0a79",
-   "cases": 225,
-   "generatedAt": "2026-11-24T16:58:02.511Z"
+   "commit": "ac7ca94f90d889e9f2fd4e3258594c1c7e0b241d",
+   "cases": 250,
+   "generatedAt": "2026-11-25T02:51:20.326Z"
   },
   "reference_meta": {
    "engine": "qa/reference/engine.py",
@@ -19,8 +19,33 @@
    "pandas": "3.1.1",
    "patsy": "1.0.3",
    "platform": "macOS-15.7.9-arm64-arm-64bit",
-   "cases": 225,
+   "cases": 250,
    "methods": {
+    "QA-3F-01": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+    "QA-3F-02": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+    "QA-3F-03": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+    "QA-3F-04": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+    "QA-3F-05": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+    "QA-3F-06": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+    "QA-3F-07": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+    "QA-3F-08": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+    "QA-3F-09": "independent_formula: Lenth s0 / PSE / ME / SME from |effects| medians",
+    "QA-3F-10": "independent_formula: Lenth s0 / PSE / ME / SME from |effects| medians",
+    "QA-3F-11": "independent_formula: Lenth s0 / PSE / ME / SME from |effects| medians",
+    "QA-3F-12": "independent_formula: Lenth availability (replicated)",
+    "QA-3F-13": "independent_formula: Lenth availability (not saturated)",
+    "QA-3F-14": "statsmodels OLS on coded factors (effect = 2 × coefficient)",
+    "QA-3F-15": "independent_formula: hierarchical closure as set algebra",
+    "QA-3F-16": "independent_formula: hierarchical closure as set algebra",
+    "QA-3F-17": "independent_formula: hierarchical closure as set algebra",
+    "QA-3F-18": "independent_formula: hierarchical closure as set algebra",
+    "QA-3F-19": "independent_formula: hierarchical closure as set algebra",
+    "QA-3F-20": "independent_formula: hierarchical closure as set algebra",
+    "QA-3F-21": "statsmodels ols + anova_lm(typ=1/3) with C(factor, Sum) coding",
+    "QA-3F-22": "statsmodels ols + anova_lm(typ=1/3) with C(factor, Sum) coding",
+    "QA-3F-23": "statsmodels ols + anova_lm(typ=1/3) with C(factor, Sum) coding",
+    "QA-3F-24": "statsmodels OLS on coded factors (effect = 2 × coefficient)",
+    "QA-3F-25": "statsmodels OLS on coded factors (effect = 2 × coefficient)",
     "QA-A-01": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
     "QA-A-02": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
     "QA-A-03": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
@@ -350,18 +375,28 @@
  },
  "summary": {
   "counts": {
-   "PASS": 225,
+   "PASS": 250,
    "FAIL": 0,
    "REVIEW": 0,
    "UNVERIFIED": 0,
    "ERROR": 0
   },
-  "total": 225,
-  "verifiable": 225,
+  "total": 250,
+  "verifiable": 250,
   "pass_rate_verifiable": 1.0,
   "review_rate": 0.0,
   "unverified_rate": 0.0,
   "areas": {
+   "QA-3F": {
+    "PASS": 25,
+    "FAIL": 0,
+    "REVIEW": 0,
+    "UNVERIFIED": 0,
+    "ERROR": 0,
+    "max_rel": 4.769230769230769,
+    "max_abs": 1.9905854742319207e-11,
+    "total": 25
+   },
    "QA-A": {
     "PASS": 48,
     "FAIL": 0,
@@ -515,6 +550,2682 @@
   }
  },
  "cases": [
+  {
+   "id": "QA-3F-01",
+   "area": "QA-3F",
+   "title": "풀링 전·후 적합통계 — 원본 보존과 축소모형",
+   "op": "pooling",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "B×C를 오차로 옮긴 뒤 두 적합의 SSE·DFE·MSE·S·R²를 모두 보고한다. 원본(full)은 덮어쓰지 않는다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "full_sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.7367993205703889,
+     "reference": 1.7367993205703889,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "full_dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8,
+     "reference": 8,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "full_mse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.2170999150712986,
+     "reference": 0.2170999150712986,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "full_s",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.46593981915189286,
+     "reference": 0.46593981915189286,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "full_r2",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.9975656991339147,
+     "reference": 0.9975656991339148,
+     "abs": 1.1102230246251565e-16,
+     "rel": 1.1129322365324416e-16,
+     "status": "match"
+    },
+    {
+     "key": "full_r2_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.99543568587609,
+     "reference": 0.9954356858760902,
+     "abs": 2.220446049250313e-16,
+     "rel": 2.230627333091924e-16,
+     "status": "match"
+    },
+    {
+     "key": "full_r2_pred",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.990262796535659,
+     "reference": 0.990262796535659,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "red_sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.765820529903923,
+     "reference": 1.7658205299039205,
+     "abs": 2.4424906541753444e-15,
+     "rel": 1.3832043590003125e-15,
+     "status": "match"
+    },
+    {
+     "key": "red_dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "red_mse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.1962022811004359,
+     "reference": 0.1962022811004356,
+     "abs": 2.7755575615628914e-16,
+     "rel": 1.414640821704865e-15,
+     "status": "match"
+    },
+    {
+     "key": "red_s",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.44294726672645346,
+     "reference": 0.4429472667264531,
+     "abs": 3.3306690738754696e-16,
+     "rel": 7.519335424486004e-16,
+     "status": "match"
+    },
+    {
+     "key": "red_r2",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.9975250229578138,
+     "reference": 0.9975250229578139,
+     "abs": 1.1102230246251565e-16,
+     "rel": 1.112977618679856e-16,
+     "status": "match"
+    },
+    {
+     "key": "red_r2_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.9958750382630229,
+     "reference": 0.9958750382630231,
+     "abs": 2.220446049250313e-16,
+     "rel": 2.2296432423119587e-16,
+     "status": "match"
+    },
+    {
+     "key": "red_r2_pred",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.9921778503358067,
+     "reference": 0.9921778503358067,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 2.4424906541753444e-15,
+   "max_rel": 1.414640821704865e-15
+  },
+  {
+   "id": "QA-3F-02",
+   "area": "QA-3F",
+   "title": "비교표 차이 — 오차 DF +1, 오차 SS 증가",
+   "op": "pooling",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "차이는 축소 − 원본이다. 항 하나가 df 1을 오차로 넘기므로 errorDf 차이 +1, modelDf 차이 −1이며, S는 커지고 R²·수정 R²·예측 R²는 작아진다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "cmp:modelDf:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1,
+     "reference": -1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cmp:errorDf:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cmp:modelSs:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.029021209333564002,
+     "reference": -0.029021209333564002,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cmp:errorSs:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.029021209333534026,
+     "reference": 0.029021209333531583,
+     "abs": 2.4424906541753444e-15,
+     "rel": 8.416226305749604e-14,
+     "status": "match"
+    },
+    {
+     "key": "cmp:errorMs:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.020897633970862722,
+     "reference": -0.020897633970863,
+     "abs": 2.7755575615628914e-16,
+     "rel": 1.3281683301721024e-14,
+     "status": "match"
+    },
+    {
+     "key": "cmp:s:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.022992552425439405,
+     "reference": -0.02299255242543974,
+     "abs": 3.3306690738754696e-16,
+     "rel": 1.448586051799236e-14,
+     "status": "match"
+    },
+    {
+     "key": "cmp:r2:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -4.0676176100928885e-05,
+     "reference": -4.0676176100928885e-05,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cmp:r2adj:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.0004393523869329341,
+     "reference": 0.0004393523869329341,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cmp:r2pred:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.0019150538001477813,
+     "reference": 0.0019150538001477813,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cmp:n:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 2.4424906541753444e-15,
+   "max_rel": 8.416226305749604e-14
+  },
+  {
+   "id": "QA-3F-03",
+   "area": "QA-3F",
+   "title": "부분 F — 내포된 축소모형",
+   "op": "pooling",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "df1은 축소에서 얻은 오차 df(reduced − full), df2는 축소모형의 오차 df. F=(SSE_red−SSE_full)/df1÷MSE_red.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "partial_df1",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "partial_df2",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "partial_f",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.14791473967969862,
+     "reference": 0.14791473967968638,
+     "abs": 1.2240208846492351e-14,
+     "rel": 8.27517857449425e-14,
+     "status": "match"
+    },
+    {
+     "key": "partial_p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.7094662749414035,
+     "reference": 0.7094662749414145,
+     "abs": 1.099120794378905e-14,
+     "rel": 1.5492220464879278e-14,
+     "status": "match"
+    },
+    {
+     "key": "partial_reason",
+     "tol": "default",
+     "kind": "string",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 1.2240208846492351e-14,
+   "max_rel": 8.27517857449425e-14
+  },
+  {
+   "id": "QA-3F-04",
+   "area": "QA-3F",
+   "title": "풀링 가산성 점검 — 오차 SS·DF 합",
+   "op": "pooling",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "직교 설계에서는 SSE(full)+SS(항)=SSE(reduced)가 성립한다. 점검은 재적합 결과와 합계를 실제로 비교한다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "checks_expected_dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "checks_actual_dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "checks_expected_ss",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.765820529903923,
+     "reference": 1.7658205299039151,
+     "abs": 7.771561172376096e-15,
+     "rel": 4.401104778637371e-15,
+     "status": "match"
+    },
+    {
+     "key": "checks_actual_ss",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.765820529903923,
+     "reference": 1.7658205299039205,
+     "abs": 2.4424906541753444e-15,
+     "rel": 1.3832043590003125e-15,
+     "status": "match"
+    },
+    {
+     "key": "checks_additive",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 7.771561172376096e-15,
+   "max_rel": 4.401104778637371e-15
+  },
+  {
+   "id": "QA-3F-05",
+   "area": "QA-3F",
+   "title": "두 항 풀링 — A×B×C와 B×C",
+   "op": "pooling",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "두 항이 함께 오차로 가면 df1=2다. 부분 F는 두 항의 결합 기여를 검정한다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "A",
+      "B",
+      "C"
+     ],
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "red_dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "red_sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3.06572751372125,
+     "reference": 3.0657275137212636,
+     "abs": 1.3766765505351941e-14,
+     "rel": 4.490537871919826e-15,
+     "status": "match"
+    },
+    {
+     "key": "red_s",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.5536901221550958,
+     "reference": 0.553690122155097,
+     "abs": 1.2212453270876722e-15,
+     "rel": 2.2056476686531583e-15,
+     "status": "match"
+    },
+    {
+     "key": "partial_df1",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "partial_f",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.167394504571898,
+     "reference": 2.167394504571911,
+     "abs": 1.3322676295501878e-14,
+     "rel": 6.146862635020514e-15,
+     "status": "match"
+    },
+    {
+     "key": "partial_p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.1652127175251208,
+     "reference": 0.1652127175251185,
+     "abs": 2.275957200481571e-15,
+     "rel": 1.3775920126339791e-14,
+     "status": "match"
+    },
+    {
+     "key": "checks_additive",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 1.3766765505351941e-14,
+   "max_rel": 1.3775920126339791e-14
+  },
+  {
+   "id": "QA-3F-06",
+   "area": "QA-3F",
+   "title": "축소 없음 — 부분 F는 'no-reduction'",
+   "op": "pooling",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "풀링 항이 없으면 두 적합이 같다. df1=0이므로 부분 F를 계산하지 않고 이유를 보고한다(0/0을 숫자로 만들지 않는다).",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": []
+   },
+   "fields": [
+    {
+     "key": "red_sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.7367993205703889,
+     "reference": 1.7367993205703889,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "red_dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8,
+     "reference": 8,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "cmp:errorDf:difference",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "partial_df1",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "partial_df2",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "partial_f",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "partial_p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    },
+    {
+     "key": "partial_reason",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "no-reduction",
+     "reference": "no-reduction",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-07",
+   "area": "QA-3F",
+   "title": "주효과 C 풀링 — 작은 효과의 흡수",
+   "op": "pooling",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "주효과를 풀링해도 같은 규칙이 적용되는지 확인한다. 축소모형은 다시 적합하며 숫자를 더해 만들지 않는다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "full_sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.7367993205703889,
+     "reference": 1.7367993205703889,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "red_sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 76.20190264548303,
+     "reference": 76.2019026454831,
+     "abs": 7.105427357601002e-14,
+     "rel": 9.32447499461771e-16,
+     "status": "match"
+    },
+    {
+     "key": "red_dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "red_r2_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.8219921405520401,
+     "reference": 0.8219921405520401,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "red_r2_pred",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.6624443554172024,
+     "reference": 0.6624443554172019,
+     "abs": 4.440892098500626e-16,
+     "rel": 6.703796420310336e-16,
+     "status": "match"
+    },
+    {
+     "key": "partial_df1",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "partial_df2",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "partial_f",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8.794871343857972,
+     "reference": 8.794871343857974,
+     "abs": 1.7763568394002505e-15,
+     "rel": 2.0197644399207672e-16,
+     "status": "match"
+    },
+    {
+     "key": "partial_p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.015814637277855703,
+     "reference": 0.01581463727785577,
+     "abs": 6.591949208711867e-17,
+     "rel": 4.168258236274666e-15,
+     "status": "match"
+    },
+    {
+     "key": "partial_reason",
+     "tol": "default",
+     "kind": "string",
+     "adapter": {
+      "__special": "null"
+     },
+     "reference": {
+      "__special": "null"
+     },
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 7.105427357601002e-14,
+   "max_rel": 4.168258236274666e-15
+  },
+  {
+   "id": "QA-3F-08",
+   "area": "QA-3F",
+   "title": "2차 모형에서 B×C 풀링",
+   "op": "pooling",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "모형 차수를 2로 제한하면 원래 오차 df가 커진다. 부분 F의 df2가 그만큼 커지는지 확인한다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "full_dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "red_dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "partial_df1",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "partial_df2",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 10,
+     "reference": 10,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "partial_f",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.09466336849457048,
+     "reference": 0.09466336849456428,
+     "abs": 6.203371150093062e-15,
+     "rel": 6.553085157168551e-14,
+     "status": "match"
+    },
+    {
+     "key": "partial_p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.7646428257383452,
+     "reference": 0.7646428257383531,
+     "abs": 7.882583474838611e-15,
+     "rel": 1.0308843828132494e-14,
+     "status": "match"
+    },
+    {
+     "key": "checks_additive",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 7.882583474838611e-15,
+   "max_rel": 6.553085157168551e-14
+  },
+  {
+   "id": "QA-3F-09",
+   "area": "QA-3F",
+   "title": "Lenth PSE — 반복 없는 2³ 설계",
+   "op": "lenth",
+   "dataset": "doe_unreplicated",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "s0=1.5·median|효과|, 활성 제외 후 PSE=1.5·median|비활성|, ME=t(0.975, pseudo df)·PSE.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "pse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.625000000000006,
+     "reference": 2.624999999999996,
+     "abs": 1.021405182655144e-14,
+     "rel": 3.891067362495793e-15,
+     "status": "match"
+    },
+    {
+     "key": "me",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 11.294463415612226,
+     "reference": 11.29446341559232,
+     "abs": 1.9905854742319207e-11,
+     "rel": 1.7624435982358067e-12,
+     "status": "match"
+    },
+    {
+     "key": "sme",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5.647231707806113,
+     "reference": 5.64723170779616,
+     "abs": 9.952927371159603e-12,
+     "rel": 1.7624435982358067e-12,
+     "status": "match"
+    },
+    {
+     "key": "pseudo_df",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "active_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6,
+     "reference": 6,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 1.9905854742319207e-11,
+   "max_rel": 1.7624435982358067e-12
+  },
+  {
+   "id": "QA-3F-10",
+   "area": "QA-3F",
+   "title": "Lenth 효과 — 7개 항의 크기",
+   "op": "lenth",
+   "dataset": "doe_unreplicated",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "효과 = 2×코드화 계수. 기준은 자체 OLS 적합에서 같은 값을 얻는다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "effect:A",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 13.999999999999979,
+     "reference": 13.99999999999999,
+     "abs": 1.0658141036401503e-14,
+     "rel": 7.612957883143936e-16,
+     "status": "match"
+    },
+    {
+     "key": "effect:B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5.999999999999987,
+     "reference": 6.000000000000007,
+     "abs": 2.042810365310288e-14,
+     "rel": 3.404683942183809e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -3.000000000000013,
+     "reference": -3.000000000000014,
+     "abs": 1.3322676295501878e-15,
+     "rel": 4.440892098500605e-16,
+     "status": "match"
+    },
+    {
+     "key": "effect:A×B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2.000000000000018,
+     "reference": 1.9999999999999858,
+     "abs": 3.241851231905457e-14,
+     "rel": 1.6209256159527402e-14,
+     "status": "match"
+    },
+    {
+     "key": "effect:A×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -1.4999999999999898,
+     "reference": -1.5000000000000089,
+     "abs": 1.9095836023552692e-14,
+     "rel": 1.2730557349035053e-14,
+     "status": "match"
+    },
+    {
+     "key": "effect:B×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.8000000000000094,
+     "reference": 0.8000000000000025,
+     "abs": 6.8833827526759706e-15,
+     "rel": 8.604228440844936e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:A×B×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.399999999999982,
+     "reference": 0.3999999999999986,
+     "abs": 1.659783421814609e-14,
+     "rel": 4.149458554536537e-14,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 3.241851231905457e-14,
+   "max_rel": 4.149458554536537e-14
+  },
+  {
+   "id": "QA-3F-11",
+   "area": "QA-3F",
+   "title": "Lenth 활성 표시 — |효과| ≥ 2.5 s0",
+   "op": "lenth",
+   "dataset": "doe_unreplicated",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "활성 표시는 s0 기준(2.5배)이며 ME와 다른 기준이다. 큰 효과 A만 활성이어야 한다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "active:A",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "active:B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "active:C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "active:A×B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "active:A×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "active:B×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "active:A×B×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-12",
+   "area": "QA-3F",
+   "title": "중심점이 있어 Lenth 불가 — 'replicated'",
+   "op": "lenth",
+   "dataset": "doe_2k3",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "반복이 있으면 잔차 표준오차가 실제로 존재하므로 의사 표준오차로 대체하지 않고 거부한다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2
+   },
+   "fields": [
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "reason",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "replicated",
+     "reference": "replicated",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-13",
+   "area": "QA-3F",
+   "title": "포화되지 않은 모형 — 'not-saturated'",
+   "op": "lenth",
+   "dataset": "doe_unreplicated",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "반복은 없지만 모형 차수가 낮아 오차 df가 남으면 Lenth의 전제(포화)가 깨진다. 거부 사유가 구분되는지 확인한다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2
+   },
+   "fields": [
+    {
+     "key": "available",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "reason",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "not-saturated",
+     "reference": "not-saturated",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-14",
+   "area": "QA-3F",
+   "title": "포화 요인분석 — 오차 통계량은 정의 불가",
+   "op": "doeanalyze",
+   "dataset": "doe_unreplicated",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "dfe=0이면 S와 수정 R²는 숫자가 아니라 정의 불가(NaN)다. 0이나 무한대로 대체하지 않는다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "effect:A",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 13.999999999999979,
+     "reference": 13.99999999999999,
+     "abs": 1.0658141036401503e-14,
+     "rel": 7.612957883143936e-16,
+     "status": "match"
+    },
+    {
+     "key": "effect:B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5.999999999999987,
+     "reference": 6.000000000000007,
+     "abs": 2.042810365310288e-14,
+     "rel": 3.404683942183809e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:A×B×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.399999999999982,
+     "reference": 0.3999999999999986,
+     "abs": 1.659783421814609e-14,
+     "rel": 4.149458554536537e-14,
+     "status": "match"
+    },
+    {
+     "key": "sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.135959703518257e-26,
+     "reference": 1.9689968194316455e-27,
+     "abs": 9.390600215750925e-27,
+     "rel": 4.769230769230769,
+     "status": "match"
+    },
+    {
+     "key": "dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "r2",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1.0,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "r2_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "NaN"
+     },
+     "reference": {
+      "__special": "NaN"
+     },
+     "status": "match",
+     "both_nan": true
+    },
+    {
+     "key": "s",
+     "tol": "default",
+     "kind": "number",
+     "adapter": {
+      "__special": "NaN"
+     },
+     "reference": {
+      "__special": "NaN"
+     },
+     "status": "match",
+     "both_nan": true
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 2.042810365310288e-14,
+   "max_rel": 4.769230769230769
+  },
+  {
+   "id": "QA-3F-15",
+   "area": "QA-3F",
+   "title": "엄격 모드 — 상위 항 없는 교호작용 거부",
+   "op": "hierarchy",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "엄격 모드는 선택을 바꾸지 않고 거부한다. 빠진 상위 항 A, B를 이름으로 보고한다.",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "strict",
+    "selected": [
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "selected_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "added_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "violation_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "missing",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A,B",
+     "reference": "A,B",
+     "status": "match"
+    },
+    {
+     "key": "selected",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A×B",
+     "reference": "A×B",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-16",
+   "area": "QA-3F",
+   "title": "자동 모드 — 빠진 상위 항 추가",
+   "op": "hierarchy",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "자동 모드는 A×B를 유지하려고 A와 B를 더한다. 최종 선택은 목록 순서(주효과 먼저)를 따른다.",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "auto",
+    "selected": [
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "selected_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3,
+     "reference": 3,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "added_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "violation_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "missing",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A,B",
+     "reference": "A,B",
+     "status": "match"
+    },
+    {
+     "key": "selected",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A,B,A×B",
+     "reference": "A,B,A×B",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-17",
+   "area": "QA-3F",
+   "title": "제한 없음 모드 — 선택 유지와 경고",
+   "op": "hierarchy",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "제한 없음은 선택을 그대로 두되 위반을 기록한다. 거부도 자동 추가도 아니다.",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "unrestricted",
+    "selected": [
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "selected_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "added_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "violation_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "missing",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A,B",
+     "reference": "A,B",
+     "status": "match"
+    },
+    {
+     "key": "selected",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A×B",
+     "reference": "A×B",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-18",
+   "area": "QA-3F",
+   "title": "계층성 만족 — 위반 없음",
+   "op": "hierarchy",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "상위 항이 모두 있으면 세 모드가 같은 선택을 돌려준다.",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "strict",
+    "selected": [
+     [
+      "A"
+     ],
+     [
+      "B"
+     ],
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "selected_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3,
+     "reference": 3,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "added_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "violation_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "missing",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "",
+     "reference": "",
+     "status": "match"
+    },
+    {
+     "key": "selected",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A,B,A×B",
+     "reference": "A,B,A×B",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-19",
+   "area": "QA-3F",
+   "title": "삼원 교호작용의 폐포 — 하위 항 6개",
+   "op": "hierarchy",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "A×B×C의 하위 항은 A, B, C, A×B, A×C, B×C 여섯 개다. 자동 모드는 그 전부를 더한다.",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "mode": "auto",
+    "selected": [
+     [
+      "A",
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "selected_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7,
+     "reference": 7,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "added_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6,
+     "reference": 6,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "violation_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "missing",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A,A×B,A×C,B,B×C,C",
+     "reference": "A,A×B,A×C,B,B×C,C",
+     "status": "match"
+    },
+    {
+     "key": "selected",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A,B,C,A×B,A×C,B×C,A×B×C",
+     "reference": "A,B,C,A×B,A×C,B×C,A×B×C",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-20",
+   "area": "QA-3F",
+   "title": "부분 선택의 폐포 — 주효과와 이원 교호작용",
+   "op": "hierarchy",
+   "dataset": null,
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "B×C의 상위 항 B, C만 더해진다. 이미 선택된 A는 다시 세지 않는다.",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "auto",
+    "selected": [
+     [
+      "A"
+     ],
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0,
+     "reference": 0,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "selected_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 4,
+     "reference": 4,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "added_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "violation_count",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "missing",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "B,C",
+     "reference": "B,C",
+     "status": "match"
+    },
+    {
+     "key": "selected",
+     "tol": "default",
+     "kind": "string",
+     "adapter": "A,B,C,B×C",
+     "reference": "A,B,C,B×C",
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 0.0,
+   "max_rel": 0.0
+  },
+  {
+   "id": "QA-3F-21",
+   "area": "QA-3F",
+   "title": "불균형 교차 설계 — Type I·III 분산분석",
+   "op": "glm",
+   "dataset": "glm_crossed",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "불균형 설계에서는 순차(Type I)와 조정(Type III) 제곱합이 다르다. 두 값을 모두 비교한다.",
+   "args": {
+    "response": "Strength",
+    "factors": [
+     {
+      "name": "Machine",
+      "column": "Machine",
+      "kind": "categorical"
+     },
+     {
+      "name": "Shift",
+      "column": "Shift",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "Machine"
+     ],
+     [
+      "Shift"
+     ],
+     [
+      "Machine",
+      "Shift"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "n",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 24,
+     "reference": 24,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 18,
+     "reference": 18,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "rank",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6,
+     "reference": 6,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3.1932323417379225,
+     "reference": 3.193232341737923,
+     "abs": 4.440892098500626e-16,
+     "rel": 1.390720005072873e-16,
+     "status": "match"
+    },
+    {
+     "key": "mse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.1774017967632179,
+     "reference": 0.17740179676321793,
+     "abs": 2.7755575615628914e-17,
+     "rel": 1.564560005706982e-16,
+     "status": "match"
+    },
+    {
+     "key": "s",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.4211909267342044,
+     "reference": 0.4211909267342044,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "ss_total",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 173.79731707382746,
+     "reference": 173.7973170738275,
+     "abs": 2.842170943040401e-14,
+     "rel": 1.635336489016728e-16,
+     "status": "match"
+    },
+    {
+     "key": "ss_model",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 170.60408473208955,
+     "reference": 170.60408473208958,
+     "abs": 2.842170943040401e-14,
+     "rel": 1.6659454241694402e-16,
+     "status": "match"
+    },
+    {
+     "key": "r2",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.9816266879402893,
+     "reference": 0.9816266879402893,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "r2_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.9765229901459253,
+     "reference": 0.9765229901459253,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:df",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:ss_seq",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 75.49701769780063,
+     "reference": 75.4970176978009,
+     "abs": 2.7000623958883807e-13,
+     "rel": 3.576382853553471e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:ss_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 48.10298468456893,
+     "reference": 48.10298468456955,
+     "abs": 6.181721801112872e-13,
+     "rel": 1.2851015049583485e-14,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:f",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 135.57637397769156,
+     "reference": 135.5763739776933,
+     "abs": 1.7337242752546445e-12,
+     "rel": 1.27878053114173e-14,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.4037992990267867e-11,
+     "reference": 1.4038045000041572e-11,
+     "abs": 5.2009773705330034e-17,
+     "rel": 3.7049157275942634e-06,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift:df",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1,
+     "reference": 1,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift:ss_seq",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 87.38603498994253,
+     "reference": 87.38603498994247,
+     "abs": 5.684341886080802e-14,
+     "rel": 6.504863033017838e-16,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift:ss_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 88.28227830088973,
+     "reference": 88.28227830088936,
+     "abs": 3.694822225952521e-13,
+     "rel": 4.18523660361323e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift:f",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 497.6402714721206,
+     "reference": 497.64027147211846,
+     "abs": 2.1600499167107046e-12,
+     "rel": 4.3405850381056364e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift:p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.454392162258955e-14,
+     "reference": 1.4505726415429544e-14,
+     "abs": 3.8195207160006654e-17,
+     "rel": 0.0026331123355104046,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine×Shift:df",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 2,
+     "reference": 2,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine×Shift:ss_seq",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7.721032044346372,
+     "reference": 7.721032044346382,
+     "abs": 9.769962616701378e-15,
+     "rel": 1.265370038692599e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine×Shift:ss_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7.721032044346372,
+     "reference": 7.7210320443463205,
+     "abs": 5.1514348342607263e-14,
+     "rel": 6.6719511131064834e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine×Shift:f",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 21.761425716143687,
+     "reference": 21.76142571614354,
+     "abs": 1.4921397450962104e-13,
+     "rel": 6.856810599451113e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine×Shift:p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.5708128461966453e-05,
+     "reference": 1.570812846193781e-05,
+     "abs": 2.864326614435142e-17,
+     "rel": 1.8234677806306843e-12,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 2.1600499167107046e-12,
+   "max_rel": 0.0026331123355104046
+  },
+  {
+   "id": "QA-3F-22",
+   "area": "QA-3F",
+   "title": "주효과 모형 — 불균형에서도 Type I≠III",
+   "op": "glm",
+   "dataset": "glm_crossed",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "교호작용을 빼도 불균형이면 두 제곱합이 다르며, 차이는 Machine이 Shift와 상관된 몫이다.",
+   "args": {
+    "response": "Strength",
+    "factors": [
+     {
+      "name": "Machine",
+      "column": "Machine",
+      "kind": "categorical"
+     },
+     {
+      "name": "Shift",
+      "column": "Shift",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "Machine"
+     ],
+     [
+      "Shift"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 20,
+     "reference": 20,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:ss_seq",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 75.49701769780063,
+     "reference": 75.4970176978009,
+     "abs": 2.7000623958883807e-13,
+     "rel": 3.576382853553471e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:ss_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 55.12171444126909,
+     "reference": 55.121714441269475,
+     "abs": 3.836930773104541e-13,
+     "rel": 6.960833515424625e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift:ss_seq",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 87.38603498994253,
+     "reference": 87.38603498994247,
+     "abs": 5.684341886080802e-14,
+     "rel": 6.504863033017838e-16,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift:ss_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 87.38603498994253,
+     "reference": 87.38603498994249,
+     "abs": 4.263256414560601e-14,
+     "rel": 4.878647274763378e-16,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.521032533258193e-08,
+     "reference": 1.5210325312739787e-08,
+     "abs": 1.984214383612601e-17,
+     "rel": 1.3045180446934115e-09,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift:p",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5.290745619390691e-11,
+     "reference": 5.2907417939735754e-11,
+     "abs": 3.825417115625179e-17,
+     "rel": 7.230398429162662e-07,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 3.836930773104541e-13,
+   "max_rel": 7.230398429162662e-07
+  },
+  {
+   "id": "QA-3F-23",
+   "area": "QA-3F",
+   "title": "항 순서를 바꾼 모형 — 순차 제곱합의 순서 의존성",
+   "op": "glm",
+   "dataset": "glm_crossed",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "Type I은 항 순서에 따라 달라지고 Type III는 순서에 불변이다. 두 성질을 동시에 확인한다.",
+   "args": {
+    "response": "Strength",
+    "factors": [
+     {
+      "name": "Machine",
+      "column": "Machine",
+      "kind": "categorical"
+     },
+     {
+      "name": "Shift",
+      "column": "Shift",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "Shift"
+     ],
+     [
+      "Machine"
+     ],
+     [
+      "Shift",
+      "Machine"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "term:Shift:ss_seq",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 107.76133824647407,
+     "reference": 107.76133824647374,
+     "abs": 3.268496584496461e-13,
+     "rel": 3.0330883391784673e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:ss_seq",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 55.12171444126909,
+     "reference": 55.121714441269035,
+     "abs": 5.684341886080802e-14,
+     "rel": 1.0312345948777305e-15,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift:ss_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 88.28227830088973,
+     "reference": 88.28227830088969,
+     "abs": 4.263256414560601e-14,
+     "rel": 4.829119158015247e-16,
+     "status": "match"
+    },
+    {
+     "key": "term:Machine:ss_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 48.10298468456893,
+     "reference": 48.102984684569414,
+     "abs": 4.831690603168681e-13,
+     "rel": 1.004447153300781e-14,
+     "status": "match"
+    },
+    {
+     "key": "term:Shift×Machine:ss_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 7.721032044346372,
+     "reference": 7.721032044346446,
+     "abs": 7.37188088351104e-14,
+     "rel": 9.547792110134986e-15,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 4.831690603168681e-13,
+   "max_rel": 1.004447153300781e-14
+  },
+  {
+   "id": "QA-3F-24",
+   "area": "QA-3F",
+   "title": "반복 설계의 완전 모형 — 효과·적합통계",
+   "op": "doeanalyze",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "2³×2 반복에서 7개 항의 효과와 잔차 통계량을 기준 OLS와 비교한다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "effect:A",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8.899786655287498,
+     "reference": 8.899786655287494,
+     "abs": 3.552713678800501e-15,
+     "rel": 3.9919088135554143e-16,
+     "status": "match"
+    },
+    {
+     "key": "effect:B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6.296113816162496,
+     "reference": 6.296113816162487,
+     "abs": 8.881784197001252e-15,
+     "rel": 1.410677198083872e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -4.314658251962499,
+     "reference": -4.31465825196252,
+     "abs": 2.042810365310288e-14,
+     "rel": 4.734582082789794e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:A×B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5.132993407387501,
+     "reference": 5.132993407387504,
+     "abs": 2.6645352591003757e-15,
+     "rel": 5.19099684652921e-16,
+     "status": "match"
+    },
+    {
+     "key": "effect:A×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -3.7134598261875036,
+     "reference": -3.7134598261874867,
+     "abs": 1.687538997430238e-14,
+     "rel": 4.544384688181185e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:B×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.08517806251249815,
+     "reference": -0.08517806251249027,
+     "abs": 7.882583474838611e-15,
+     "rel": 9.254241341404933e-14,
+     "status": "match"
+    },
+    {
+     "key": "effect:A×B×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.5700673170375009,
+     "reference": -0.5700673170375001,
+     "abs": 7.771561172376096e-16,
+     "rel": 1.3632707822583114e-15,
+     "status": "match"
+    },
+    {
+     "key": "sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 1.7367993205703889,
+     "reference": 1.7367993205703889,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8,
+     "reference": 8,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "r2",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.9975656991339147,
+     "reference": 0.9975656991339148,
+     "abs": 1.1102230246251565e-16,
+     "rel": 1.1129322365324416e-16,
+     "status": "match"
+    },
+    {
+     "key": "r2_adj",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.99543568587609,
+     "reference": 0.9954356858760902,
+     "abs": 2.220446049250313e-16,
+     "rel": 2.230627333091924e-16,
+     "status": "match"
+    },
+    {
+     "key": "s",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.46593981915189286,
+     "reference": 0.46593981915189286,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 2.042810365310288e-14,
+   "max_rel": 9.254241341404933e-14
+  },
+  {
+   "id": "QA-3F-25",
+   "area": "QA-3F",
+   "title": "2차 모형의 효과 — 항 수가 줄면 오차 df가 는다",
+   "op": "doeanalyze",
+   "dataset": "doe_pooled",
+   "tolerance": "default",
+   "declared": "PASS",
+   "note": "A×B×C를 모형에서 빼면 그 제곱합이 오차로 돌아간다. 효과 값은 변하지 않고 dfe만 커진다.",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2
+   },
+   "fields": [
+    {
+     "key": "effect:A",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 8.899786655287498,
+     "reference": 8.899786655287485,
+     "abs": 1.2434497875801753e-14,
+     "rel": 1.3971680847443964e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 6.296113816162496,
+     "reference": 6.296113816162482,
+     "abs": 1.4210854715202004e-14,
+     "rel": 2.257083516934197e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -4.3146582519625,
+     "reference": -4.3146582519625145,
+     "abs": 1.4210854715202004e-14,
+     "rel": 3.2936223184624695e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:A×B",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 5.132993407387501,
+     "reference": 5.132993407387506,
+     "abs": 4.440892098500626e-15,
+     "rel": 8.651661410882013e-16,
+     "status": "match"
+    },
+    {
+     "key": "effect:A×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -3.7134598261875036,
+     "reference": -3.713459826187492,
+     "abs": 1.1546319456101628e-14,
+     "rel": 3.109315839281859e-15,
+     "status": "match"
+    },
+    {
+     "key": "effect:B×C",
+     "tol": "default",
+     "kind": "number",
+     "adapter": -0.0851780625124979,
+     "reference": -0.08517806251249027,
+     "abs": 7.632783294297951e-15,
+     "rel": 8.960973129881536e-14,
+     "status": "match"
+    },
+    {
+     "key": "sse",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 3.036706304387732,
+     "reference": 3.0367063043877316,
+     "abs": 4.440892098500626e-16,
+     "rel": 1.4624042147520123e-16,
+     "status": "match"
+    },
+    {
+     "key": "dfe",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 9,
+     "reference": 9,
+     "abs": 0,
+     "rel": 0.0,
+     "status": "match"
+    },
+    {
+     "key": "s",
+     "tol": "default",
+     "kind": "number",
+     "adapter": 0.5808715964812162,
+     "reference": 0.5808715964812162,
+     "abs": 0.0,
+     "rel": 0.0,
+     "status": "match"
+    }
+   ],
+   "verdict": "PASS",
+   "errors": [],
+   "max_abs": 1.4210854715202004e-14,
+   "max_rel": 8.960973129881536e-14
+  },
   {
    "id": "QA-A-01",
    "area": "QA-A",
@@ -40856,6 +43567,18 @@
    "description": "2^3 factorial with 2 centre points: Y = 30 + 4A - 3B + 2C + 1.5AB + N(0,0.4)"
   },
   {
+   "name": "doe_pooled",
+   "rows": 16,
+   "seed": 11031,
+   "description": "2³ factorial x2 replicates (16 runs), y = 70 + 4.5A + 3.1B − 2.2C + 2.4AB − 1.6AC + 0.1BC − 0.05ABC + N(0,0.55)"
+  },
+  {
+   "name": "doe_unreplicated",
+   "rows": 8,
+   "seed": 11032,
+   "description": "Unreplicated 2³ factorial (8 runs, no noise), effects A 14, B 6, C −3, AB 2, AC −1.5, BC 0.8, ABC 0.4"
+  },
+  {
    "name": "gage_crossed",
    "rows": 60,
    "seed": 11008,
@@ -40878,6 +43601,12 @@
    "rows": 19,
    "seed": 11010,
    "description": "Gage R&R crossed but unbalanced: part P4 / operator O2 has a single replicate"
+  },
+  {
+   "name": "glm_crossed",
+   "rows": 24,
+   "seed": 11033,
+   "description": "Crossed unbalanced layout: Machine × Shift cells 5/3/3/5/4/4 (24 rows), shift +2.8 at Night, machine M2 +2.1 / M3 −1.4"
   },
   {
    "name": "large_stability",
@@ -40947,6 +43676,31 @@
   }
  ],
  "methods": {
+  "QA-3F-01": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+  "QA-3F-02": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+  "QA-3F-03": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+  "QA-3F-04": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+  "QA-3F-05": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+  "QA-3F-06": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+  "QA-3F-07": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+  "QA-3F-08": "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula",
+  "QA-3F-09": "independent_formula: Lenth s0 / PSE / ME / SME from |effects| medians",
+  "QA-3F-10": "independent_formula: Lenth s0 / PSE / ME / SME from |effects| medians",
+  "QA-3F-11": "independent_formula: Lenth s0 / PSE / ME / SME from |effects| medians",
+  "QA-3F-12": "independent_formula: Lenth availability (replicated)",
+  "QA-3F-13": "independent_formula: Lenth availability (not saturated)",
+  "QA-3F-14": "statsmodels OLS on coded factors (effect = 2 × coefficient)",
+  "QA-3F-15": "independent_formula: hierarchical closure as set algebra",
+  "QA-3F-16": "independent_formula: hierarchical closure as set algebra",
+  "QA-3F-17": "independent_formula: hierarchical closure as set algebra",
+  "QA-3F-18": "independent_formula: hierarchical closure as set algebra",
+  "QA-3F-19": "independent_formula: hierarchical closure as set algebra",
+  "QA-3F-20": "independent_formula: hierarchical closure as set algebra",
+  "QA-3F-21": "statsmodels ols + anova_lm(typ=1/3) with C(factor, Sum) coding",
+  "QA-3F-22": "statsmodels ols + anova_lm(typ=1/3) with C(factor, Sum) coding",
+  "QA-3F-23": "statsmodels ols + anova_lm(typ=1/3) with C(factor, Sum) coding",
+  "QA-3F-24": "statsmodels OLS on coded factors (effect = 2 × coefficient)",
+  "QA-3F-25": "statsmodels OLS on coded factors (effect = 2 × coefficient)",
   "QA-A-01": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
   "QA-A-02": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",
   "QA-A-03": "numpy + scipy.stats.skew/kurtosis (bias=False), quantile method='weibull'",

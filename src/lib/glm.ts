@@ -302,6 +302,8 @@ export interface GlmResult {
   n: number;
   /** residual degrees of freedom */
   dfe: number;
+  /** False when there is no residual df (or no residual SS): estimable, not inferable. */
+  inferable: boolean;
   sse: number;
   mse: number;
   s: number;
@@ -310,6 +312,10 @@ export interface GlmResult {
   dfModel: number;
   r2: number;
   r2adj: number;
+  /** Predicted R² (1 − PRESS/SS_total): NaN when it cannot be defined. */
+  r2pred: number;
+  /** Leave-one-out prediction error sum of squares. */
+  press: number;
   terms: TermTest[];
   labels: string[];
   beta: number[];
@@ -337,7 +343,17 @@ function sse(X: number[][], y: number[], colLimit: number): number {
     return a + (v - pred) ** 2;
   }, 0);
 }
-export function fitGlm(y: (number | null)[], factors: ModelFactor[], terms: ModelTerm[]): GlmResult {
+export interface GlmOptions {
+  /**
+   * A saturated design (dfe = 0) still has estimable coefficients; it has no
+   * error mean square to test them against. With this option the fit is
+   * returned with `inferable: false` and NaN inference instead of throwing.
+   * The default stays strict so every existing caller keeps its guard.
+   */
+  allowZeroDf?: boolean;
+}
+
+export function fitGlm(y: (number | null)[], factors: ModelFactor[], terms: ModelTerm[], options: GlmOptions = {}): GlmResult {
   const design = buildDesign(y, factors, terms);
   const { X, y: ys, n, blockSizes, blockStart } = design;
   if (n < 2) throw new Error('glm.noData');
@@ -346,14 +362,37 @@ export function fitGlm(y: (number | null)[], factors: ModelFactor[], terms: Mode
   const residuals = ys.map((v, i) => v - fitted[i]);
   const sseFull = residuals.reduce((a, r) => a + r * r, 0);
   const dfe = n - full.rank;
-  if (dfe < 1) throw new Error('glm.noDf');
-  const mse = sseFull / dfe;
+  if (dfe < 1 && !options.allowZeroDf) throw new Error('glm.noDf');
+  const inferable = dfe > 0;
+  const mse = inferable ? sseFull / dfe : NaN;
   const grand = mean(ys);
   const ssTotal = ys.reduce((a, v) => a + (v - grand) ** 2, 0);
   const ssModel = ssTotal - sseFull;
   const dfModel = full.rank - 1;
   const r2 = ssTotal > 0 ? ssModel / ssTotal : 0;
-  const r2adj = 1 - (1 - r2) * ((n - 1) / dfe);
+  const r2adj = inferable ? 1 - (1 - r2) * ((n - 1) / dfe) : NaN;
+  // PRESS from the leave-one-out residual e_i / (1 − h_ii), with h_ii the
+  // leverage x_i' (X'X)⁻¹ x_i. A leverage of 1 makes the LOO prediction
+  // undefined, so PRESS (and predicted R²) become unavailable rather than huge.
+  let press = NaN;
+  if (inferable) {
+    let total = 0;
+    let defined = true;
+    for (let i = 0; i < n; i += 1) {
+      const row = X[i];
+      let h = 0;
+      for (let a = 0; a < row.length; a += 1) {
+        const inv = full.xtxInv[a];
+        let s = 0;
+        for (let b = 0; b < row.length; b += 1) s += (inv[b] ?? 0) * row[b];
+        h += row[a] * s;
+      }
+      if (!(h < 1 - 1e-9)) { defined = false; break; }
+      total += (residuals[i] / (1 - h)) ** 2;
+    }
+    if (defined) press = total;
+  }
+  const r2pred = ssTotal > 0 && isFinite(press) ? 1 - press / ssTotal : NaN;
   // Type I: sequential sums of squares, term by term in model order.
   const seqSs: number[] = [];
   let prev = ssTotal;
@@ -393,6 +432,7 @@ export function fitGlm(y: (number | null)[], factors: ModelFactor[], terms: Mode
   return {
     n,
     dfe,
+    inferable,
     sse: sseFull,
     mse,
     s: Math.sqrt(mse),
@@ -401,6 +441,8 @@ export function fitGlm(y: (number | null)[], factors: ModelFactor[], terms: Mode
     dfModel,
     r2,
     r2adj,
+    r2pred,
+    press,
     terms: termTests.map((tt, i) => ({ ...tt, name: terms[i].name })),
     labels: design.labels,
     beta: full.beta,

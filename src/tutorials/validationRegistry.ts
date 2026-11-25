@@ -287,10 +287,12 @@ export function matchSample(facts: WorkspaceFacts, sampleId: string, requiredCol
   }
 
   const wanted = [...new Set([...signature.columns.map((column) => column.name), ...requiredColumns])];
-  const candidate = facts.worksheets.find((sheet) => {
-    const names = new Set(sheet.columns.map((column) => column.name));
-    return wanted.every((name) => names.has(name));
-  });
+  const loadedSample = [...identity].reverse().find((event) => event.payload.sampleId === sampleId && typeof event.payload.sheetId === 'string');
+  const candidate = (loadedSample && facts.worksheets.find((sheet) => sheet.id === loadedSample.payload.sheetId))
+    || facts.worksheets.find((sheet) => {
+      const names = new Set(sheet.columns.map((column) => column.name));
+      return wanted.every((name) => names.has(name));
+    });
 
   if (!candidate) {
     if (identity.length) {

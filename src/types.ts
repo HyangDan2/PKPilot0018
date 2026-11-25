@@ -347,6 +347,8 @@ export interface OutputDoc {
   meta?: AnalysisMeta;
   /** A fitted model this card can hand to the model store (WO-02). */
   model?: StoredModelDraft;
+  /** The pre-reduction fit, storable alongside the reduced model (WO-3F-05). */
+  modelOriginal?: StoredModelDraft;
 }
 
 export type Theme = 'light' | 'dark';

@@ -29,6 +29,7 @@ import { buildYearFrom } from '../src/config/buildYear';
 import { APP_PHASE, APP_VERSION, aboutVersionLine, statusBarLabel } from '../src/lib/appInfo';
 import { WORKSPACE_KEY } from '../src/lib/workspace';
 import { CUSTOM_STYLE_STORAGE_KEY } from '../src/lib/chartStyles';
+import { MODEL_SETTINGS_KEY } from '../src/lib/modelSettings';
 import { AUTOSAVE_STORAGE_KEY } from '../src/lib/db';
 import { projectFileName } from '../src/lib/project';
 import { TUTORIAL_ORIGINAL_KEY, TUTORIAL_PRACTICE_KEY, TUTORIAL_PRACTICE_KEY_V1, TUTORIAL_PROGRESS_KEY } from '../src/tutorials/progressStore';
@@ -128,6 +129,7 @@ describe('WO-04 · storage namespaces', () => {
     expect(TUTORIAL_PRACTICE_KEY).toBe(namespacedKey(STORAGE_KEY.tutorialPractice));
     expect(TUTORIAL_PRACTICE_KEY_V1).toBe(namespacedKey(STORAGE_KEY.tutorialPracticeV1));
     expect(TUTORIAL_ORIGINAL_KEY).toBe(namespacedKey(STORAGE_KEY.tutorialOriginal));
+    expect(MODEL_SETTINGS_KEY).toBe(namespacedKey(STORAGE_KEY.modelSettings));
     expect(WORKSPACE_KEY).toBe('sigrun.workspace.v2');
   });
 

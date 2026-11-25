@@ -491,6 +491,70 @@ def main() -> None:
          "censor1": [0] * 15 + [1] * 15},
     )
 
+    # Stage 3F ── model control: a replicated 2³ factorial (pooling and model
+    # comparison), an unreplicated 2³ (Lenth) and a crossed unbalanced layout
+    # (Type I vs Type III sums of squares).
+    rng = np.random.default_rng(11031)
+    rows3 = {"A": [], "B": [], "C": [], "Y": []}
+    for a in (-1.0, 1.0):
+        for b in (-1.0, 1.0):
+            for c in (-1.0, 1.0):
+                for _ in range(2):
+                    rows3["A"].append(a)
+                    rows3["B"].append(b)
+                    rows3["C"].append(c)
+                    rows3["Y"].append(
+                        70.0 + 4.5 * a + 3.1 * b - 2.2 * c + 2.4 * a * b
+                        - 1.6 * a * c + 0.1 * b * c - 0.05 * a * b * c
+                        + rng.normal(0.0, 0.55)
+                    )
+    write(
+        "doe_pooled",
+        "2³ factorial x2 replicates (16 runs), y = 70 + 4.5A + 3.1B − 2.2C + 2.4AB − 1.6AC + 0.1BC − 0.05ABC + N(0,0.55)",
+        11031,
+        "numpy.random.default_rng(11031).normal over the standard-order 2³ design",
+        rows3,
+    )
+
+    rowsu = {"A": [], "B": [], "C": [], "Y": []}
+    for a in (-1.0, 1.0):
+        for b in (-1.0, 1.0):
+            for c in (-1.0, 1.0):
+                rowsu["A"].append(a)
+                rowsu["B"].append(b)
+                rowsu["C"].append(c)
+                rowsu["Y"].append(60.0 + 7.0 * a + 3.0 * b - 1.5 * c + 1.0 * a * b - 0.75 * a * c + 0.4 * b * c + 0.2 * a * b * c)
+    write(
+        "doe_unreplicated",
+        "Unreplicated 2³ factorial (8 runs, no noise), effects A 14, B 6, C −3, AB 2, AC −1.5, BC 0.8, ABC 0.4",
+        11032,
+        "literal 2³ design with effects = 2 × coded coefficients (no RNG)",
+        rowsu,
+    )
+
+    rng = np.random.default_rng(11033)
+    cells = [("M1", "Day", 5), ("M1", "Night", 3), ("M2", "Day", 3),
+             ("M2", "Night", 5), ("M3", "Day", 4), ("M3", "Night", 4)]
+    machine_effect = {"M1": 0.0, "M2": 2.1, "M3": -1.4}
+    shift_effect = {"Day": 0.0, "Night": 2.8}
+    interaction = {("M2", "Day"): -1.3, ("M2", "Night"): 1.1, ("M3", "Day"): 0.4, ("M3", "Night"): -0.4}
+    rowsg = {"Machine": [], "Shift": [], "Strength": []}
+    for machine, shift, count in cells:
+        for _ in range(count):
+            rowsg["Machine"].append(machine)
+            rowsg["Shift"].append(shift)
+            rowsg["Strength"].append(
+                40.0 + machine_effect[machine] + shift_effect[shift]
+                + interaction.get((machine, shift), 0.0) + rng.normal(0.0, 0.5)
+            )
+    write(
+        "glm_crossed",
+        "Crossed unbalanced layout: Machine × Shift cells 5/3/3/5/4/4 (24 rows), shift +2.8 at Night, machine M2 +2.1 / M3 −1.4",
+        11033,
+        "numpy.random.default_rng(11033).normal over the unbalanced cell pattern",
+        rowsg,
+    )
+
 
 if __name__ == "__main__":
     main()

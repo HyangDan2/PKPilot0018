@@ -11,9 +11,9 @@ import { evaluateFormula } from './calc';
 import { histogramBins } from './charts';
 import { fCdf, normalInv, normalPdf, tInv } from './dist';
 import { analyzeFactorial, analyzeRsm, boxBehnkenDesign, buildRsmModel, ccdDesign, designWorksheet, factorialDesign, rsmPredictSurface } from './doe';
-import { fmt, fmtInt, fmtP } from './format';
+import { fmt, fmtInt, fmtP, fmtPct } from './format';
 import { gageRR, type GrrRow } from './gagerr';
-import { cellMeans, fitGlm, type ModelFactor, type ModelTerm } from './glm';
+import { cellMeans, fitGlm, type GlmResult, type ModelFactor, type ModelTerm } from './glm';
 import { t } from './i18n';
 import { nonnormalCapability, type NonnormalDist } from './nonnormal';
 import { powerCurve, solvePower, type PowerMethod, type PowerSpec } from './power';
@@ -48,7 +48,12 @@ import {
   type Alt,
 } from './stats';
 
-export type SlotKind = 'vars' | 'col' | 'num' | 'text' | 'select' | 'check';
+import { fitWithPooling, saturatedReport, type PoolingResult, type SaturatedReport } from './errorPooling';
+import { compareFits, type ModelComparison } from './modelComparison';
+import { buildRsmCatalog, buildTermCatalog, formulaPreview, resolveModelSelection, termId, type HierarchyMode, type HierarchyResult, type TermCatalog } from './modelTerms';
+import { saveModelSettings } from './modelSettings';
+
+export type SlotKind = 'vars' | 'col' | 'num' | 'text' | 'select' | 'check' | 'model';
 export type SlotGroup = 'main' | 'options' | 'graphs';
 
 export interface SlotDef {
@@ -75,6 +80,8 @@ export interface RunResult {
   blocks: Block[];
   /** A fitted model this analysis can store for later use (WO-02). */
   modelDraft?: StoredModelDraft;
+  /** The pre-reduction fit, storable alongside the reduced model (WO-3F-05). */
+  modelOriginal?: StoredModelDraft;
   subtitle?: string;
   titleText?: string;
   sheetPatch?: Worksheet;
@@ -673,9 +680,9 @@ function runRegression(ctx: RunContext): RunResult {
   }
   const modelRows: (string | number)[][] = [
     ['S', fmt(result.s)],
-    ['R²', `${(result.r2 * 100).toFixed(2)}%`],
-    ['R²(adj)', `${(result.r2adj * 100).toFixed(2)}%`],
-    ['R²(pred)', `${(result.r2pred * 100).toFixed(2)}%`],
+    ['R²', fmtPct(result.r2)],
+    ['R²(adj)', fmtPct(result.r2adj)],
+    ['R²(pred)', fmtPct(result.r2pred)],
     ['N', fmtInt(result.n)],
   ];
   const coefRows = result.coefficients.map((c) => [c.term, fmt(c.coef), fmt(c.se), fmt(c.t), fmtP(c.p), Number.isFinite(c.vif) ? fmt(c.vif, 2) : '—']);
@@ -811,7 +818,7 @@ function runPolyRegression(ctx: RunContext): RunResult {
       type: 'table',
       title: tableTitle('res.modelSummary'),
       headers: ['@th.statistic', '@th.value'],
-      rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
+      rows: [['S', fmt(glm.s)], ['R²', fmtPct(glm.r2)], ['R²(adj)', fmtPct(glm.r2adj)], ['N', fmtInt(glm.n)]],
       align: ['l', 'r'],
     },
     { type: 'table', title: tableTitle('res.coefficients'), headers: ['@th.term', '@th.coef', '@th.seCoef', '@th.t', '@th.p'], rows: coefRows, align: ['l', 'r', 'r', 'r', 'r'] },
@@ -2408,18 +2415,336 @@ function levelsOf(factor: ModelFactor, levels: Record<string, string[]>): string
   return unique.map((v) => String(v));
 }
 
-function mainEffectChart(factor: ModelFactor, y: (number | null)[], levels: Record<string, string[]>, grand: number, title: string, lang: Lang): { title: string; chart: ChartSpec } {
+/**
+ * The term catalog a run can build from the dialog's current factors. The
+ * editor and the run functions share it, so the terms offered in the UI are
+ * exactly the terms the engine can fit.
+ */
+export function analysisTermCatalog(id: string, sheet: Worksheet, values: Record<string, unknown>): TermCatalog | null {
+  if (id !== 'glm' && id !== 'doeanalyze' && id !== 'rsmanalyze') return null;
+  const columns = refList(values, 'factors').map((ref) => findColumn(sheet, ref)).filter((col): col is Column => Boolean(col));
+  if (!columns.length) return null;
+  const factors = columns.map(factorFromColumn);
+  if (id === 'rsmanalyze') return buildRsmCatalog(factors);
+  const order = id === 'doeanalyze' ? Math.max(1, Math.min(3, Math.round(num(values.order, 2)))) : 2;
+  return buildTermCatalog(factors, order);
+}
+
+/** The selection a run executes: hierarchy applied, strict violations refused. */
+export function runModelSelection(id: string, sheet: Worksheet, values: Record<string, unknown>) {
+  const catalog = analysisTermCatalog(id, sheet, values);
+  if (!catalog) throw new Error('res.needFactors');
+  const resolved = resolveModelSelection(catalog, values.terms, values.pooled, values.hierarchy, bool(values.interactions, true));
+  if (resolved.mode === 'strict' && resolved.hierarchy.violations.length) {
+    const missing = [...new Set(resolved.hierarchy.violations.flatMap((violation) => violation.missing))];
+    throw new Error(`model.hierarchyViolation|terms=${missing.join(', ')}`);
+  }
+  saveModelSettings(id, {
+    terms: resolved.hierarchy.selected,
+    pooled: resolved.pooled.map((term) => termId(term.factors)),
+    hierarchy: resolved.mode,
+    order: id === 'doeanalyze' ? Math.max(1, Math.min(3, Math.round(num(values.order, 2)))) : 2,
+  });
+  return { catalog, ...resolved, pooledNames: resolved.pooled.map((term) => term.name) };
+}
+
+/* ── original vs reduced model comparison (WO-3F-05) ──────────────────── */
+
+const RATE_METRICS = new Set(['r2', 'r2adj', 'r2pred']);
+const INT_METRICS = new Set(['n', 'modelDf', 'errorDf']);
+
+function showMetric(key: string, value: number | null): string {
+  if (value == null) return '—';
+  if (RATE_METRICS.has(key)) return `${(value * 100).toFixed(2)}%`;
+  if (INT_METRICS.has(key)) return fmtInt(value);
+  return fmt(value, 4);
+}
+
+function showDifference(key: string, value: number | null): string {
+  if (value == null) return '—';
+  if (RATE_METRICS.has(key)) return `${value >= 0 ? '+' : ''}${(value * 100).toFixed(2)} pp`;
+  if (INT_METRICS.has(key)) return `${value >= 0 ? '+' : ''}${fmtInt(value)}`;
+  return `${value >= 0 ? '+' : ''}${fmt(value, 4)}`;
+}
+
+function comparisonBlocks(lang: Lang, comparison: ModelComparison, formula: string): Block[] {
+  const blocks: Block[] = [];
+  const notes = [...new Set(comparison.metrics.filter((metric) => metric.reason).map((metric) => t(lang, metric.reason!)))];
+  blocks.push({ type: 'text', lines: [t(lang, 'res.modelFormula', { formula })] });
+  blocks.push({
+    type: 'table',
+    title: tableTitle('res.modelComparison'),
+    headers: ['@th.metric', '@th.original', '@th.reduced', '@th.difference'],
+    rows: comparison.metrics.map((metric) => [
+      t(lang, `model.cmp.${metric.key}`),
+      showMetric(metric.key, metric.original),
+      showMetric(metric.key, metric.reduced),
+      showDifference(metric.key, metric.difference),
+    ]),
+    align: ['l', 'r', 'r', 'r'],
+    caption: notes.length ? `${t(lang, 'res.comparisonUnavailable')} ${notes.join(' · ')}` : t(lang, 'res.comparisonCaption'),
+  });
+  blocks.push({
+    type: 'text',
+    lines: [
+      t(lang, 'res.retainedTerms', { terms: comparison.retained.length ? comparison.retained.join(', ') : t(lang, 'res.none') }),
+      t(lang, 'res.removedTerms', { terms: comparison.removed.length ? comparison.removed.join(', ') : t(lang, 'res.none') }),
+    ],
+  });
+  if (comparison.partial) {
+    blocks.push({
+      type: 'table',
+      title: tableTitle('res.partialF'),
+      headers: ['@th.statistic', '@th.value'],
+      rows: [
+        [t(lang, 'res.partialFdf'), `${fmtInt(comparison.partial.df1)} / ${fmtInt(comparison.partial.df2)}`],
+        ['F', fmt(comparison.partial.f, 4)],
+        ['P', fmtP(comparison.partial.p)],
+      ],
+      align: ['l', 'r'],
+      caption: t(lang, 'res.partialFNote'),
+    });
+  } else if (comparison.partialReason) {
+    blocks.push({ type: 'text', lines: [t(lang, 'res.partialFUnavailable', { reason: t(lang, `res.partialReason.${comparison.partialReason}`) })] });
+  }
+  blocks.push({
+    type: 'table',
+    title: tableTitle('res.coefficientComparison'),
+    headers: ['@th.term', '@th.original', '@th.reduced', '@th.difference'],
+    rows: comparison.coefficients.map((entry) => [
+      entry.label,
+      entry.original != null ? fmt(entry.original, 5) : '—',
+      entry.reduced != null ? fmt(entry.reduced, 5) : '—',
+      entry.original != null && entry.reduced != null ? showDifference('coef', entry.reduced - entry.original) : '—',
+    ]),
+    align: ['l', 'r', 'r', 'r'],
+  });
+  blocks.push({
+    type: 'table',
+    title: tableTitle('res.anovaComparison'),
+    headers: ['@th.source', '@th.ssTypeIII', '@th.reduced', '@th.status'],
+    rows: comparison.anova.map((entry) => [
+      entry.term,
+      entry.originalSs != null ? fmt(entry.originalSs) : '—',
+      entry.reducedSs != null ? fmt(entry.reducedSs) : '—',
+      t(lang, entry.state === 'removed' ? 'res.termRemoved' : 'res.termRetained'),
+    ]),
+    align: ['l', 'r', 'r', 'l'],
+  });
+  const fittedAll = [...comparison.original.fitted, ...comparison.reduced.fitted].filter((value) => Number.isFinite(value));
+  const residualAll = [...comparison.original.residuals, ...comparison.reduced.residuals].filter((value) => Number.isFinite(value));
+  const xDomain: [number, number] | undefined = fittedAll.length ? [Math.min(...fittedAll), Math.max(...fittedAll)] : undefined;
+  const yDomain: [number, number] | undefined = residualAll.length ? [Math.min(...residualAll), Math.max(...residualAll)] : undefined;
+  const residualChart = (fit: GlmResult, label: string) => ({
+    title: label,
+    chart: {
+      kind: 'scatter' as const,
+      points: fit.fitted.map((value, index) => ({ x: value, y: fit.residuals[index] })).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)),
+      fit: { intercept: 0, slope: 0 },
+      xLabel: t(lang, 'res.fittedValue'),
+      yLabel: t(lang, 'res.residual'),
+      ...(xDomain ? { xDomain } : {}),
+      ...(yDomain ? { yDomain } : {}),
+      height: 220,
+    },
+  });
+  blocks.push({
+    type: 'chartgrid',
+    charts: [residualChart(comparison.original, '@chart.residualsOriginal'), residualChart(comparison.reduced, '@chart.residualsReduced')],
+    caption: t(lang, 'chart.residualNote'),
+  });
+  return blocks;
+}
+
+function catalogModelTerms(catalog: TermCatalog): ModelTerm[] {
+  return catalog.terms.map((term) => ({ name: term.name, factors: [...term.factors] }));
+}
+
+function excludedTermNames(catalog: TermCatalog, terms: ModelTerm[]): string[] {
+  const kept = new Set(terms.map((term) => term.name));
+  return catalog.terms.filter((term) => !kept.has(term.name)).map((term) => term.name);
+}
+
+function modelFormulaOf(catalog: TermCatalog, terms: ModelTerm[], response: string): string {
+  return formulaPreview(catalog, terms.map((term) => termId(term.factors)), response);
+}
+
+/** The formula of the model actually fitted: pooled terms are no longer in it. */
+function retainedModelTerms(terms: ModelTerm[], pooled: { name: string }[] = []): ModelTerm[] {
+  const removed = new Set(pooled.map((entry) => entry.name));
+  return terms.filter((term) => !removed.has(term.name));
+}
+
+/**
+ * The un-reduced model a comparison starts from: every term the dialog can
+ * offer, fitted with the same rows. Null when even that fit cannot run.
+ */
+function baselineFit(y: (number | null)[], factors: ModelFactor[], catalog: TermCatalog): GlmResult | null {
+  try {
+    return fitGlm(y, factors, catalogModelTerms(catalog), { allowZeroDf: true });
+  } catch {
+    return null;
+  }
+}
+
+function comparisonFor(
+  fit: GlmResult,
+  full: GlmResult | undefined,
+  fullTerms: ModelTerm[],
+  pooledNames: string[],
+  excluded: string[],
+  factors: ModelFactor[],
+  y: (number | null)[],
+  catalog: TermCatalog,
+  baseline?: GlmResult | null,
+): { comparison: ModelComparison; originalFit: GlmResult; originalTerms: ModelTerm[] } | null {
+  if (excluded.length) {
+    const original = baseline ?? baselineFit(y, factors, catalog);
+    if (!original) return null;
+    return { comparison: compareFits(original, fit, excluded), originalFit: original, originalTerms: catalogModelTerms(catalog) };
+  }
+  if (full && pooledNames.length) {
+    return { comparison: compareFits(full, fit, pooledNames), originalFit: full, originalTerms: fullTerms.map((term) => ({ ...term, factors: [...term.factors] })) };
+  }
+  return null;
+}
+
+/** Output blocks shared by every model-controlled analysis. */
+function modelControlBlocks(
+  lang: Lang,
+  model: { pooling?: PoolingResult; saturated?: SaturatedReport; incompleteQuadratic?: boolean; comparison?: ModelComparison; formula?: string },
+  hierarchy: HierarchyResult,
+  mode: HierarchyMode,
+  catalog: TermCatalog,
+): Block[] {
+  const blocks: Block[] = [];
+  const lines: string[] = [];
+  if (hierarchy.added.length) {
+    const names = hierarchy.added.map((id) => catalog.terms.find((term) => term.id === id)?.name ?? id);
+    lines.push(t(lang, 'res.modelAdded', { terms: names.join(', '), mode: t(lang, `model.hierarchy.${mode}`) }));
+  }
+  if (model.saturated && !model.saturated.inferable) lines.push(t(lang, 'res.saturated'));
+  if (model.saturated?.aliased.length) lines.push(t(lang, 'res.saturatedAliased'));
+  if (model.incompleteQuadratic) lines.push(t(lang, 'res.incompleteQuadratic'));
+  if (lines.length) blocks.push({ type: 'text', lines });
+  if (model.pooling) {
+    const pooling = model.pooling;
+    blocks.push({
+      type: 'table',
+      title: tableTitle('res.errorPooling'),
+      headers: ['@th.term', '@th.df', '@th.ssTypeIII', '@th.status'],
+      rows: pooling.pooled.map((term) => [
+        term.name,
+        fmtInt(term.df),
+        fmt(term.ss),
+        t(lang, term.estimable ? 'res.pooledEstimable' : 'res.pooledAliased'),
+      ]),
+      align: ['l', 'r', 'r', 'l'],
+    });
+    blocks.push({
+      type: 'table',
+      title: tableTitle('res.poolingChecks'),
+      headers: ['@th.statistic', '@th.value'],
+      rows: [
+        [t(lang, 'res.poolingDfe'), `${fmtInt(pooling.checks.expectedDfe)} / ${fmtInt(pooling.checks.actualDfe)}`],
+        [t(lang, 'res.poolingSse'), `${fmt(pooling.checks.expectedSs)} / ${fmt(pooling.checks.actualSs)}`],
+        [t(lang, 'res.poolingSameRows'), pooling.checks.sameRows ? '✓' : '—'],
+        [t(lang, 'res.poolingAdditiveRow'), pooling.checks.additive ? '✓' : '—'],
+      ],
+      align: ['l', 'r'],
+    });
+    blocks.push({
+      type: 'text',
+      lines: [t(lang, pooling.checks.additive ? 'res.poolingAdditive' : 'res.poolingNotAdditive')],
+    });
+  }
+  if (model.comparison) blocks.push(...comparisonBlocks(lang, model.comparison, model.formula ?? ''));
+  if (model.saturated?.lenth.available && model.saturated.lenth.result) {
+    const lenth = model.saturated.lenth.result;
+    blocks.push({
+      type: 'table',
+      title: tableTitle('res.lenth'),
+      headers: ['@th.term', '@th.effect', '@th.absEffect', '@th.status'],
+      rows: lenth.effects.map((entry) => [
+        entry.term,
+        fmt(entry.effect, 4),
+        fmt(Math.abs(entry.effect), 4),
+        t(lang, entry.active ? 'res.lenthActive' : 'res.lenthInactive'),
+      ]),
+      align: ['l', 'r', 'r', 'l'],
+    });
+    blocks.push({
+      type: 'text',
+      lines: [
+        t(lang, 'res.lenthStats', { pse: fmt(lenth.pse, 4), me: fmt(lenth.me, 4), sme: fmt(lenth.sme, 4), df: fmtInt(lenth.pseudoDf) }),
+        t(lang, 'res.lenthNote'),
+      ],
+    });
+  } else if (model.saturated?.lenth.reason && model.saturated.reason === 'no-error-df') {
+    blocks.push({
+      type: 'text',
+      lines: [t(lang, 'res.lenthUnavailable', { reason: t(lang, `res.lenthReason.${model.saturated.lenth.reason}`) })],
+    });
+  }
+  return blocks;
+}
+
+interface EffectChartModel {
+  /** Model-fitted response per worksheet row, aligned with `y`. */
+  fitted: number[];
+  mse: number;
+  dfe: number;
+  /** Draw pooled-error 95% CI lines when the fit has an error mean square. */
+  showCi?: boolean;
+}
+
+function mainEffectChart(
+  factor: ModelFactor,
+  y: (number | null)[],
+  levels: Record<string, string[]>,
+  grand: number,
+  title: string,
+  lang: Lang,
+  model?: EffectChartModel,
+): { title: string; chart: ChartSpec } {
   const lv = levelsOf(factor, levels);
   const cells = cellMeans(y, [factor]);
   const points = lv.map((level, index) => {
     const cell = cells.find((c) => c.keys[0] === level);
     return { x: index, y: cell ? cell.mean : NaN };
   }).filter((p) => isFinite(p.y));
+  const series: Extract<ChartSpec, { kind: 'line' }>['series'] = [{ label: factor.name, points }];
+  if (model) {
+    const fitted = lv.map((level, index) => {
+      const cell = cells.find((c) => c.keys[0] === level);
+      const values = (cell?.rows ?? []).map((row) => model.fitted[row]).filter((value) => Number.isFinite(value));
+      const fittedMean = values.length ? values.reduce((a, v) => a + v, 0) / values.length : NaN;
+      return { x: index, y: fittedMean };
+    }).filter((p) => isFinite(p.y));
+    if (fitted.length) series.push({ label: t(lang, 'chart.fittedMean'), points: fitted, color: 1, dash: '6 3' });
+    if (model.showCi && model.dfe > 0 && Number.isFinite(model.mse) && model.mse > 0) {
+      const tCrit = tInv(0.975, model.dfe);
+      const lo: { x: number; y: number }[] = [];
+      const hi: { x: number; y: number }[] = [];
+      points.forEach((point) => {
+        const cell = cells.find((c) => c.keys[0] === lv[point.x]);
+        const n = cell?.n ?? 0;
+        if (n <= 0) return;
+        const half = tCrit * Math.sqrt(model.mse / n);
+        lo.push({ x: point.x, y: point.y - half });
+        hi.push({ x: point.x, y: point.y + half });
+      });
+      if (lo.length) {
+        series.push({ label: t(lang, 'chart.ciLow'), points: lo, color: 2, dash: '2 3', showMarkers: false });
+        series.push({ label: t(lang, 'chart.ciHigh'), points: hi, color: 2, dash: '2 3', showMarkers: false });
+      }
+    }
+  }
   return {
     title,
     chart: {
       kind: 'line',
-      series: [{ label: factor.name, points }],
+      series,
       xLabels: lv,
       yLabel: t(lang, 'res.mean'),
       refLines: isFinite(grand) ? [{ y: grand }] : undefined,
@@ -2428,8 +2753,76 @@ function mainEffectChart(factor: ModelFactor, y: (number | null)[], levels: Reco
   };
 }
 
-function interactionChart(a: ModelFactor, b: ModelFactor, y: (number | null)[], levels: Record<string, string[]>, lang: Lang): { title: string; chart: ChartSpec } {
-  const aLevels = levelsOf(a, levels);
+/** Pareto, normal and half-normal plots of the fitted effects (WO-3F-07). */
+function effectCharts(
+  effects: { term: string; effect: number; t: number }[],
+  options: { dfe: number; lenthMe?: number; titles?: { pareto?: string; normal?: string; half?: string } },
+  lang: Lang,
+): { title: string; chart: ChartSpec }[] {
+  const usable = effects.filter((entry) => Number.isFinite(entry.effect));
+  if (!usable.length) return [];
+  const tCrit = options.dfe > 0 ? tInv(0.975, options.dfe) : NaN;
+  const lenthAxis = !Number.isFinite(tCrit) && options.lenthMe != null && Number.isFinite(options.lenthMe);
+  const paretoItems = (lenthAxis
+    ? usable.map((entry) => ({ label: entry.term, value: Math.abs(entry.effect) }))
+    : effects.filter((entry) => Number.isFinite(entry.t)).map((entry) => ({ label: entry.term, value: Math.abs(entry.t) })))
+    .sort((a, b) => b.value - a.value);
+  const reference = lenthAxis
+    ? { y: options.lenthMe!, label: `Lenth ME ${fmt(options.lenthMe!, 2)}` }
+    : Number.isFinite(tCrit) ? { y: tCrit, label: `t ${fmt(tCrit, 2)}` } : undefined;
+  const m = usable.length;
+  const positions = usable
+    .map((entry) => entry.effect)
+    .sort((a, b) => a - b)
+    .map((value, index) => ({ x: value, y: normalInv(0.5 + 0.5 * ((index + 1 - 0.375) / (m + 0.25))) }));
+  const meanX = mean(positions.map((point) => point.x));
+  const meanY = mean(positions.map((point) => point.y));
+  const sxx = positions.reduce((sum, point) => sum + (point.x - meanX) ** 2, 0);
+  const sxy = positions.reduce((sum, point) => sum + (point.x - meanX) * (point.y - meanY), 0);
+  const slope = sxx > 0 ? sxy / sxx : 0;
+  const intercept = meanY - slope * meanX;
+  const halfNormal = usable.map((entry) => Math.abs(entry.effect)).sort((a, b) => a - b);
+  return [
+    {
+      title: options.titles?.pareto ?? '@chart.paretoEffects',
+      chart: {
+        kind: 'bar',
+        items: paretoItems,
+        yLabel: lenthAxis ? '|Effect|' : '|t|',
+        refLine: reference,
+        decimals: 2,
+        height: 240,
+        ...(lenthAxis ? { subtitle: t(lang, 'chart.lenthParetoNote') } : {}),
+      },
+    },
+    {
+      title: options.titles?.normal ?? '@chart.normalEffects',
+      chart: {
+        kind: 'probplot',
+        points: positions,
+        fit: { intercept, slope },
+        xLabel: t(lang, 'res.effect'),
+        yLabel: t(lang, 'res.percent'),
+        yTicks: [10, 30, 50, 70, 90].map((p) => ({ v: normalInv(0.5 + 0.5 * p / 100), label: String(p) })),
+        height: 240,
+      },
+    },
+    {
+      title: options.titles?.half ?? '@chart.halfNormal',
+      chart: {
+        kind: 'probplot',
+        points: halfNormal.map((value, index) => ({ x: value, y: normalInv(0.5 + 0.5 * ((index + 1 - 0.375) / (halfNormal.length + 0.25))) })),
+        fit: { intercept: 0, slope: 0 },
+        xLabel: '|Effect|',
+        yLabel: t(lang, 'res.percent'),
+        yTicks: [10, 30, 50, 70, 90].map((p) => ({ v: normalInv(0.5 + 0.5 * p / 100), label: String(p) })),
+        height: 240,
+      },
+    },
+  ];
+}
+
+function interactionChart(a: ModelFactor, b: ModelFactor, y: (number | null)[], levels: Record<string, string[]>, lang: Lang): { title: string; chart: ChartSpec } {  const aLevels = levelsOf(a, levels);
   const bLevels = levelsOf(b, levels);
   const cells = cellMeans(y, [a, b]);
   const series = bLevels.map((bLevel, index) => ({
@@ -2454,22 +2847,23 @@ function runGlm(ctx: RunContext): RunResult {
   if (!columns.length) throw new Error('res.needFactors');
   const factors = columns.map(factorFromColumn);
   const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
-  const terms: ModelTerm[] = factors.map((f) => ({ name: f.name, factors: [f.name] }));
-  if (bool(values.interactions, true)) {
-    for (let i = 0; i < factors.length; i += 1) {
-      for (let j = i + 1; j < factors.length; j += 1) {
-        terms.push({ name: `${factors[i].name}×${factors[j].name}`, factors: [factors[i].name, factors[j].name] });
-      }
-    }
-  }
+  const model = runModelSelection('glm', sheet, values);
   let glm;
+  let pooling;
   try {
-    glm = fitGlm(yValues, factors, terms);
+    pooling = fitWithPooling(yValues, factors, model.terms, model.pooledNames, { allowZeroDf: true });
+    glm = pooling.fit;
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.groupTooSmall');
     throw error;
   }
+  const saturated = saturatedReport(glm);
+  const terms = model.terms;
+  const excluded = excludedTermNames(model.catalog, terms);
+  const baseline = excluded.length ? baselineFit(yValues, factors, model.catalog) : null;
+  const comparison = comparisonFor(glm, pooling.full, model.terms, model.pooledNames, excluded, factors, yValues, model.catalog, baseline);
+  const formula = modelFormulaOf(model.catalog, retainedModelTerms(terms, pooling.pooled), response.name || response.id);
   const anovaRows: (string | number)[][] = glm.terms.map((term) => [
     term.name,
     fmtInt(term.df),
@@ -2518,8 +2912,8 @@ function runGlm(ctx: RunContext): RunResult {
       headers: ['@th.statistic', '@th.value'],
       rows: [
         ['S', fmt(glm.s)],
-        ['R²', `${(glm.r2 * 100).toFixed(2)}%`],
-        ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`],
+        ['R²', fmtPct(glm.r2)],
+        ['R²(adj)', fmtPct(glm.r2adj)],
         ['N', fmtInt(glm.n)],
       ],
       align: ['l', 'r'],
@@ -2532,8 +2926,22 @@ function runGlm(ctx: RunContext): RunResult {
       align: ['l', 'r', 'r', 'r', 'r'],
       caption: t(lang, 'res.glmCodingNote'),
     },
+    ...modelControlBlocks(lang, {
+      pooling: model.pooledNames.length ? pooling : undefined,
+      saturated,
+      ...(comparison ? { comparison: comparison.comparison, formula } : {}),
+    }, model.hierarchy, model.mode, model.catalog),
     { type: 'chartgrid', charts },
   ];
+  const control = {
+    hierarchy: model.mode,
+    excluded,
+    pooling: model.pooledNames.length
+      ? pooling.pooled.map((term) => ({ term: term.name, df: term.df, ss: term.ss, estimable: term.estimable }))
+      : [],
+    fitMethod: 'glm' as const,
+    formula,
+  };
   const modelDraft = draftFromGlm({
     glm,
     factors,
@@ -2542,8 +2950,27 @@ function runGlm(ctx: RunContext): RunResult {
     kind: 'glm',
     sheet,
     analysisId: 'glm',
+    control,
   });
-  return { subtitle: `${response.name || response.id} · ${factors.map((f) => f.name).join(' × ')}`, blocks, modelDraft };
+  const modelOriginal = comparison
+    ? draftFromGlm({
+      glm: comparison.originalFit,
+      factors,
+      terms: comparison.originalTerms,
+      response: { id: response.id, name: response.name || response.id, values: response.values },
+      kind: 'glm',
+      sheet,
+      analysisId: 'glm',
+      control: {
+        hierarchy: model.mode,
+        excluded: [],
+        pooling: [],
+        fitMethod: 'glm',
+        formula: modelFormulaOf(model.catalog, comparison.originalTerms, response.name || response.id),
+      },
+    })
+    : undefined;
+  return { subtitle: `${response.name || response.id} · ${factors.map((f) => f.name).join(' × ')}`, blocks, modelDraft, ...(modelOriginal ? { modelOriginal } : {}) };
 }
 
 /* ── P2: DOE ──────────────────────────────────────────────────────────── */
@@ -2596,9 +3023,10 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
   const order = Math.max(1, Math.min(3, Math.round(num(values.order, 2))));
   const factors = columns.map(factorFromColumn);
   const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
+  const model = runModelSelection('doeanalyze', sheet, values);
   let analysis;
   try {
-    analysis = analyzeFactorial(yValues, factors, order);
+    analysis = analyzeFactorial(yValues, factors, order, { terms: model.terms, pooled: model.pooledNames, allowZeroDf: true });
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.doeNoDf');
@@ -2624,38 +3052,46 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
   ]);
   anovaRows.push([t(lang, '@th.error'), fmtInt(glm.dfe), fmt(glm.sse), fmt(glm.sse), fmt(glm.mse), '—', '—']);
   anovaRows.push([t(lang, '@th.total'), fmtInt(glm.dfe + glm.rank - 1), fmt(glm.ssTotal), '—', '—', '—', '—']);
-  const tCrit = tInv(1 - 0.025, glm.dfe);
-  const paretoItems = analysis.effects
-    .filter((e) => isFinite(e.t))
-    .map((e) => ({ label: e.term, value: Math.abs(e.t) }))
-    .sort((a, b) => b.value - a.value);
-  const halfNormal = analysis.effects
-    .filter((e) => isFinite(e.effect))
-    .map((e) => Math.abs(e.effect))
-    .sort((a, b) => a - b)
-    .map((value, i, arr) => ({ x: value, y: normalInv(0.5 + 0.5 * ((i + 1 - 0.375) / (arr.length + 0.25))) }));
+  const lenthMe = analysis.saturated?.lenth.available ? analysis.saturated.lenth.result?.me : undefined;
   const grand = mean(clean(yValues));
+  const effectModel: EffectChartModel = { fitted: glm.fitted, mse: glm.mse, dfe: glm.dfe, showCi: bool(values.ci, true) };
   const charts: { title: string; chart: ChartSpec }[] = [
-    { title: '@chart.paretoEffects', chart: { kind: 'bar', items: paretoItems, yLabel: '|t|', refLine: { y: tCrit, label: `t ${fmt(tCrit, 2)}` }, decimals: 2, height: 240 } },
-    {
-      title: '@chart.halfNormal',
-      chart: {
-        kind: 'probplot',
-        points: halfNormal,
-        fit: { intercept: 0, slope: 0 },
-        curve: halfNormal.length > 1 ? [{ x: 0, y: 0 }, { x: Math.max(...halfNormal.map((p) => p.x)), y: normalInv(0.5 + 0.5 * (halfNormal.length - 0.375) / (halfNormal.length + 0.25)) }] : undefined,
-        xLabel: '|Effect|',
-        yLabel: t(lang, 'res.percent'),
-        yTicks: [10, 30, 50, 70, 90].map((p) => ({ v: normalInv(0.5 + 0.5 * p / 100), label: String(p) })),
-        height: 240,
-      },
-    },
-    ...factors.map((factor) => mainEffectChart(factor, yValues, glm.design.levels, grand, factor.name, lang)),
+    ...effectCharts(analysis.effects, { dfe: glm.dfe, lenthMe }, lang),
+    ...factors.map((factor) => mainEffectChart(factor, yValues, glm.design.levels, grand, factor.name, lang, effectModel)),
   ];
   for (let i = 0; i < factors.length; i += 1) {
     for (let j = i + 1; j < factors.length; j += 1) charts.push(interactionChart(factors[i], factors[j], yValues, glm.design.levels, lang));
   }
+  const excluded = excludedTermNames(model.catalog, model.terms);
+  const baseline = excluded.length ? baselineFit(yValues, factors, model.catalog) : null;
+  const comparison = comparisonFor(glm, analysis.pooling?.full, model.terms, analysis.pooling?.pooled.map((term) => term.name) ?? [], excluded, factors, yValues, model.catalog, baseline);
+  const formula = modelFormulaOf(model.catalog, retainedModelTerms(model.terms, analysis.pooling?.pooled), response.name || response.id);
+  // Effects before pooling, drawn the same way, so the reader can see what the
+  // reduced model changed instead of having to imagine the original fit.
+  let beforePooling: { title: string; chart: ChartSpec }[] = [];
+  if (analysis.pooling) {
+    try {
+      const full = analyzeFactorial(yValues, factors, order, { terms: model.terms, allowZeroDf: true });
+      const fullLenth = full.saturated?.lenth.available ? full.saturated.lenth.result?.me : undefined;
+      beforePooling = effectCharts(full.effects, {
+        dfe: full.glm.dfe,
+        lenthMe: fullLenth,
+        titles: { pareto: '@chart.paretoBeforePooling', normal: '@chart.normalBeforePooling', half: '@chart.halfNormalBeforePooling' },
+      }, lang);
+    } catch {
+      beforePooling = [];
+    }
+  }
   // A 2-level design is analysed in CODED units, so the stored model says so.
+  const control = {
+    hierarchy: model.mode,
+    excluded,
+    pooling: analysis.pooling
+      ? analysis.pooling.pooled.map((term) => ({ term: term.name, df: term.df, ss: term.ss, estimable: term.estimable }))
+      : [],
+    fitMethod: 'glm' as const,
+    formula,
+  };
   const modelDraft = draftFromGlm({
     glm,
     factors,
@@ -2665,10 +3101,31 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
     codingMode: 'coded',
     sheet,
     analysisId: 'doeanalyze',
+    control,
   });
+  const modelOriginal = comparison
+    ? draftFromGlm({
+      glm: comparison.originalFit,
+      factors,
+      terms: comparison.originalTerms,
+      response: { id: response.id, name: response.name || response.id, values: response.values },
+      kind: 'doe',
+      codingMode: 'coded',
+      sheet,
+      analysisId: 'doeanalyze',
+      control: {
+        hierarchy: model.mode,
+        excluded: [],
+        pooling: [],
+        fitMethod: 'glm',
+        formula: modelFormulaOf(model.catalog, comparison.originalTerms, response.name || response.id),
+      },
+    })
+    : undefined;
   return {
     subtitle: `${response.name || response.id} · 2^${factors.length}`,
     modelDraft,
+    ...(modelOriginal ? { modelOriginal } : {}),
     blocks: [
       { type: 'text', lines: [t(lang, 'res.doeAnalysisInfo', { response: response.name || response.id, order, n: glm.n }), t(lang, 'res.effectNote')] },
       { type: 'table', title: tableTitle('res.effectsTable'), headers: ['@th.term', '@th.effect', '@th.coef', '@th.seCoef', '@th.t', '@th.p'], rows: effectRows, align: ['l', 'r', 'r', 'r', 'r', 'r'] },
@@ -2677,9 +3134,14 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
         type: 'table',
         title: tableTitle('res.modelSummary'),
         headers: ['@th.statistic', '@th.value'],
-        rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
+        rows: [['S', fmt(glm.s)], ['R²', fmtPct(glm.r2)], ['R²(adj)', fmtPct(glm.r2adj)], ['N', fmtInt(glm.n)]],
         align: ['l', 'r'],
       },
+      ...modelControlBlocks(lang, {
+        ...analysis,
+        ...(comparison ? { comparison: comparison.comparison, formula } : {}),
+      }, model.hierarchy, model.mode, model.catalog),
+      ...(beforePooling.length ? [{ type: 'chartgrid' as const, charts: beforePooling, caption: t(lang, 'res.chartsBeforePooling') }] : []),
       { type: 'chartgrid', charts },
     ],
   };
@@ -2722,9 +3184,10 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
   if (columns.length < 2) throw new Error('res.needFactors');
   const factors = columns.map(factorFromColumn);
   const yValues = response.values.map((v) => (typeof v === 'number' ? v : null));
+  const selection = runModelSelection('rsmanalyze', sheet, values);
   let analysis;
   try {
-    analysis = analyzeRsm(yValues, factors);
+    analysis = analyzeRsm(yValues, factors, { terms: selection.terms, pooled: selection.pooledNames, allowZeroDf: true });
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'glm.noDf' || code === 'glm.noData') throw new Error('res.doeNoDf');
@@ -2760,6 +3223,16 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
     Number.isFinite(glm.t[i]) ? fmt(glm.t[i], 3) : '—',
     Number.isFinite(glm.p[i]) ? fmtP(glm.p[i]) : '—',
   ]);
+  const excluded = excludedTermNames(selection.catalog, selection.terms);
+  const squares: ModelFactor[] = factors.map((factor) => ({
+    name: `${factor.name}²`,
+    kind: 'numeric',
+    values: factor.values.map((value) => (typeof value === 'number' ? value * value : null)),
+  }));
+  const fitFactors = [...factors, ...squares];
+  const baseline = excluded.length ? baselineFit(yValues, fitFactors, selection.catalog) : null;
+  const comparison = comparisonFor(glm, analysis.pooling?.full, selection.terms, selection.pooledNames, excluded, fitFactors, yValues, selection.catalog, baseline);
+  const formula = modelFormulaOf(selection.catalog, retainedModelTerms(selection.terms, analysis.pooling?.pooled), response.name || response.id);
   // The contour view carries the fitted model so the Phase 2 drawer can change
   // the factor pair, holdings and units without refitting, and it starts at the
   // measured default resolution (101 × 101) with filled bands plus iso-lines.
@@ -2779,7 +3252,7 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
       type: 'table',
       title: tableTitle('res.modelSummary'),
       headers: ['@th.statistic', '@th.value'],
-      rows: [['S', fmt(glm.s)], ['R²', `${(glm.r2 * 100).toFixed(2)}%`], ['R²(adj)', `${(glm.r2adj * 100).toFixed(2)}%`], ['N', fmtInt(glm.n)]],
+      rows: [['S', fmt(glm.s)], ['R²', fmtPct(glm.r2)], ['R²(adj)', fmtPct(glm.r2adj)], ['N', fmtInt(glm.n)]],
       align: ['l', 'r'],
     },
     { type: 'table', title: tableTitle('res.coefficients'), headers: ['@th.term', '@th.coef', '@th.seCoef', '@th.t', '@th.p'], rows: coefRows, align: ['l', 'r', 'r', 'r', 'r'] },
@@ -2801,6 +3274,10 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
       align: ['l', 'r'],
       caption: analysis.stationary?.outsideRegion ? t(lang, 'res.stationaryOutsideWarn') : t(lang, 'res.stationaryNote'),
     },
+    ...modelControlBlocks(lang, {
+      ...analysis,
+      ...(comparison ? { comparison: comparison.comparison, formula } : {}),
+    }, selection.hierarchy, selection.mode, selection.catalog),
     {
       type: 'chart',
       chart: {
@@ -2834,8 +3311,41 @@ function runRsmAnalyze(ctx: RunContext): RunResult {
     response: { id: response.id, name: response.name || response.id },
     sheet,
     analysisId: 'rsmanalyze',
+    control: {
+      hierarchy: selection.mode,
+      excluded,
+      pooling: analysis.pooling
+        ? analysis.pooling.pooled.map((term) => ({ term: term.name, df: term.df, ss: term.ss, estimable: term.estimable }))
+        : [],
+      fitMethod: 'rsm',
+      formula,
+    },
   });
-  return { subtitle: `${response.name || response.id} · RSM`, blocks, modelDraft };
+  const modelOriginal = comparison
+    ? draftFromGlm({
+      glm: comparison.originalFit,
+      factors: fitFactors,
+      terms: comparison.originalTerms,
+      response: { id: response.id, name: response.name || response.id, values: response.values },
+      kind: 'rsm',
+      codingMode: 'coded',
+      sheet,
+      analysisId: 'rsmanalyze',
+      control: {
+        hierarchy: selection.mode,
+        excluded: [],
+        pooling: [],
+        fitMethod: 'rsm',
+        formula: modelFormulaOf(selection.catalog, comparison.originalTerms, response.name || response.id),
+      },
+    })
+    : undefined;
+  return {
+    subtitle: `${response.name || response.id} · RSM`,
+    blocks,
+    modelDraft,
+    ...(modelOriginal ? { modelOriginal } : {}),
+  };
 }
 
 /* ── P2: power and sample size ────────────────────────────────────────── */
@@ -3343,6 +3853,7 @@ export const ANALYSES: AnalysisDef[] = [
     slots: [
       { key: 'response', label: 'slot.response', kind: 'col', required: true },
       { key: 'factors', label: 'slot.factors', kind: 'vars', required: true },
+      { key: 'model', label: 'model.termsTitle', kind: 'model' },
       { key: 'interactions', label: 'opt.interactions', kind: 'check', group: 'options', defaultValue: true },
       confidenceSlot,
     ],
@@ -3366,6 +3877,7 @@ export const ANALYSES: AnalysisDef[] = [
     slots: [
       { key: 'response', label: 'slot.response', kind: 'col', required: true },
       { key: 'factors', label: 'slot.factors', kind: 'vars', required: true },
+      { key: 'model', label: 'model.termsTitle', kind: 'model' },
       {
         key: 'order',
         label: 'slot.modelOrder',
@@ -3378,6 +3890,7 @@ export const ANALYSES: AnalysisDef[] = [
           { value: '3', label: 'doe.order3' },
         ],
       },
+      { key: 'ci', label: 'doe.mainEffectCi', kind: 'check', group: 'options', defaultValue: true },
     ],
     run: runDoeAnalyze,
   },
@@ -3408,6 +3921,7 @@ export const ANALYSES: AnalysisDef[] = [
     slots: [
       { key: 'response', label: 'slot.response', kind: 'col', required: true },
       { key: 'factors', label: 'slot.factors', kind: 'vars', required: true },
+      { key: 'model', label: 'model.termsTitle', kind: 'model' },
     ],
     run: runRsmAnalyze,
   },
@@ -3528,6 +4042,7 @@ export function defaultValues(def: AnalysisDef): Record<string, unknown> {
   def.slots.forEach((slot) => {
     if (slot.kind === 'vars') out[slot.key] = slot.defaultValue ?? [];
     else if (slot.kind === 'check') out[slot.key] = slot.defaultValue ?? false;
+    else if (slot.kind === 'model') out[slot.key] = null;
     else out[slot.key] = slot.defaultValue ?? (slot.kind === 'num' ? 0 : '');
   });
   return out;
