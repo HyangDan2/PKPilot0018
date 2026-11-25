@@ -22,6 +22,45 @@ import { uid } from './datasets';
 
 export type StoredModelKind = 'linear' | 'multiple' | 'polynomial' | 'glm' | 'doe' | 'rsm';
 
+/** Schema version written with every new model (WO-3F-08). */
+export const MODEL_SCHEMA_VERSION = 2;
+
+export type ModelFitMethod = 'glm' | 'ols' | 'rsm';
+
+export interface ModelPoolingStep {
+  term: string;
+  df: number;
+  ss: number;
+  /** False when the term was aliased and carried no sum of squares. */
+  estimable: boolean;
+}
+
+/**
+ * The model-control configuration a fit was produced under (WO-3F-08). Kept
+ * with the coefficients so the Model Manager, optimiser and project file can
+ * tell a reduced model from the default one without re-reading the analysis.
+ */
+export interface ModelControl {
+  hierarchy: 'strict' | 'auto' | 'unrestricted';
+  /** Terms the fit kept (display labels, in model order). */
+  selected: string[];
+  /** Catalog terms the editor left out of the model. */
+  excluded: string[];
+  order?: number;
+  /** Error-pooling history: what left the model and what it carried. */
+  pooling: ModelPoolingStep[];
+  saturated: boolean;
+  inferable: boolean;
+  errorDf: number;
+  rank: number;
+  formula: string;
+  fitMethod: ModelFitMethod;
+  response: string;
+  factors: string[];
+  /** Hash of the fitted columns at save time (same hash as `training`). */
+  datasetFingerprint: string | null;
+}
+
 export type ModelVariableKind = 'numeric' | 'categorical';
 
 /** How the coefficients read a numeric predictor. */
@@ -98,6 +137,8 @@ export interface StoredModelDiagnostics {
 export interface StoredModel {
   format: 'sigrun-model';
   version: 1;
+  /** Record schema; 1 for models saved before Phase 3F, 2 from then on. */
+  schemaVersion?: number;
   id: string;
   name: string;
   kind: StoredModelKind;
@@ -126,6 +167,11 @@ export interface StoredModel {
   stationary?: { levels: Record<string, number>; response: number; kind: string } | null;
   /** Best operating point an optimiser chose, in coded factor levels. */
   optimal?: { levels: Record<string, number>; response: number } | null;
+  /**
+   * The model-control configuration the fit was produced under (Phase 3F).
+   * Absent on models saved before it: those are read as schema version 1.
+   */
+  control?: ModelControl | null;
   /** Where it came from: analysis id, output card, chart. */
   source: { analysisId?: string; outputId?: string };
 }
@@ -167,6 +213,47 @@ export function trainingFromSheet(sheet: Worksheet | undefined, columnIds: strin
 }
 
 /* ── model construction ───────────────────────────────────────────────── */
+
+/** What an analysis knows about the model it fitted, beyond the numbers. */
+export interface ModelControlInput {
+  hierarchy: ModelControl['hierarchy'];
+  excluded: string[];
+  order?: number;
+  pooling?: ModelPoolingStep[];
+  fitMethod?: ModelFitMethod;
+  formula?: string;
+}
+
+function controlRecord(
+  input: ModelControlInput,
+  parts: {
+    terms: ({ name: string } | { label: string })[];
+    factors: string[];
+    response: string;
+    rank: number;
+    errorDf: number;
+    saturated: boolean;
+    inferable: boolean;
+    fingerprint: string | null;
+  },
+): ModelControl {
+  return {
+    hierarchy: input.hierarchy,
+    selected: parts.terms.map((term) => ('name' in term ? term.name : term.label)),
+    excluded: [...input.excluded],
+    ...(input.order != null ? { order: input.order } : {}),
+    pooling: input.pooling ? input.pooling.map((step) => ({ ...step })) : [],
+    saturated: parts.saturated,
+    inferable: parts.inferable,
+    errorDf: parts.errorDf,
+    rank: parts.rank,
+    formula: input.formula ?? `${parts.response} = β0${parts.terms.map((term) => ` + ${'name' in term ? term.name : term.label}`).join('')}`,
+    fitMethod: input.fitMethod ?? 'glm',
+    response: parts.response,
+    factors: [...parts.factors],
+    datasetFingerprint: parts.fingerprint,
+  };
+}
 
 function actualCoding(values: (number | string | null)[]): ModelCoding {
   const numbers = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
@@ -234,6 +321,8 @@ export interface GlmModelInput {
   codingMode?: 'coded' | 'actual';
   sheet?: Worksheet;
   analysisId?: string;
+  /** Phase 3F model-control metadata; omitted for fits without an editor. */
+  control?: ModelControlInput;
 }
 
 /** One fitted general linear model (GLM, DOE, RSM) becomes a stored record. */
@@ -299,9 +388,11 @@ export function draftFromGlm(input: GlmModelInput): StoredModelDraft {
     ...factors.map((factor) => input.sheet?.columns.find((c) => c.id === factor.name || c.name === factor.name)?.id),
     input.sheet?.columns.find((c) => c.id === response.id || c.name === response.name)?.id,
   ].filter((id): id is string => Boolean(id));
+  const training = trainingFromSheet(input.sheet, columnIds, glm.n);
   return {
     format: 'sigrun-model',
     version: 1,
+    schemaVersion: MODEL_SCHEMA_VERSION,
     kind,
     response: { id: response.id, name: response.name, kind: 'numeric' },
     predictors,
@@ -314,7 +405,19 @@ export function draftFromGlm(input: GlmModelInput): StoredModelDraft {
     dof: { model: glm.dfModel, residual: glm.dfe, total: glm.dfe + glm.rank - 1, rank: glm.rank },
     factorBounds: boundsByPredictor(predictors, factors),
     categoricalLevels: Object.keys(glm.design.levels).length ? { ...glm.design.levels } : null,
-    training: trainingFromSheet(input.sheet, columnIds, glm.n),
+    training,
+    control: input.control
+      ? controlRecord(input.control, {
+        terms,
+        factors: predictors.map((predictor) => predictor.name),
+        response: response.name,
+        rank: glm.rank,
+        errorDf: glm.dfe,
+        saturated: glm.dfe === 0,
+        inferable: glm.inferable,
+        fingerprint: training?.fingerprint ?? null,
+      })
+      : null,
     diagnostics: {
       n: glm.n,
       r2: glm.r2,
@@ -364,6 +467,7 @@ export function draftFromRegression(options: RegressionModelOptions): StoredMode
   return {
     format: 'sigrun-model',
     version: 1,
+    schemaVersion: MODEL_SCHEMA_VERSION,
     kind: result.xNames.length === 1 ? 'linear' : 'multiple',
     response: { id: options.response.id, name: options.response.name, kind: 'numeric' },
     predictors,
@@ -399,7 +503,7 @@ export function draftFromRegression(options: RegressionModelOptions): StoredMode
 /** An RSM payload (already fitted) becomes a stored record without refitting. */
 export function draftFromRsmPayload(
   model: RsmModelPayload,
-  options: { response: { id: string; name: string }; factors?: ModelVariable[]; sheet?: Worksheet; analysisId?: string } = { response: { id: '', name: 'Y' } },
+  options: { response: { id: string; name: string }; factors?: ModelVariable[]; sheet?: Worksheet; analysisId?: string; control?: ModelControlInput } = { response: { id: '', name: 'Y' } },
 ): StoredModelDraft {
   const predictors: ModelVariable[] = model.factorNames.map((name, index) => {
     const transform = model.actualTransform[index];
@@ -422,13 +526,26 @@ export function draftFromRsmPayload(
       ? { min: transform.center + (transform.halfRange || 1) * bound.min, max: transform.center + (transform.halfRange || 1) * bound.max }
       : { min: bound.min, max: bound.max };
   });
+  const training = options.sheet
+    ? {
+      sheetId: options.sheet.id,
+      sheetName: options.sheet.name,
+      rows: model.n ?? model.designPoints.length,
+      fingerprint: fingerprintColumns(options.sheet.columns.filter((c) => model.factorNames.includes(c.name) || model.factorNames.includes(c.id))),
+      columns: options.sheet.columns
+        .filter((c) => model.factorNames.includes(c.name) || model.factorNames.includes(c.id))
+        .map((c) => ({ id: c.id, name: c.name, type: c.type })),
+    }
+    : null;
+  const terms = termsFromLabels(labels);
   return {
     format: 'sigrun-model',
     version: 1,
+    schemaVersion: MODEL_SCHEMA_VERSION,
     kind: 'rsm',
     response: { id: options.response.id, name: options.response.name, kind: 'numeric' },
     predictors,
-    terms: termsFromLabels(labels),
+    terms,
     coefficients: labels.map((label, index) => ({
       label,
       value: model.beta[index],
@@ -466,16 +583,18 @@ export function draftFromRsmPayload(
       : null,
     factorBounds: Object.fromEntries(model.factorNames.map((name, index) => [name, bounds[index]])),
     categoricalLevels: null,
-    training: options.sheet
-      ? {
-        sheetId: options.sheet.id,
-        sheetName: options.sheet.name,
-        rows: model.n ?? model.designPoints.length,
-        fingerprint: fingerprintColumns(options.sheet.columns.filter((c) => model.factorNames.includes(c.name) || model.factorNames.includes(c.id))),
-        columns: options.sheet.columns
-          .filter((c) => model.factorNames.includes(c.name) || model.factorNames.includes(c.id))
-          .map((c) => ({ id: c.id, name: c.name, type: c.type })),
-      }
+    training,
+    control: options.control
+      ? controlRecord(options.control, {
+        terms,
+        factors: model.factorNames,
+        response: options.response.name,
+        rank: model.rank ?? labels.length,
+        errorDf: model.dfe ?? 0,
+        saturated: model.dfe === 0,
+        inferable: (model.dfe ?? 0) > 0,
+        fingerprint: training?.fingerprint ?? null,
+      })
       : null,
     diagnostics: {
       ...(model.n != null ? { n: model.n } : {}),
@@ -513,6 +632,7 @@ export function createStoredModel(draft: StoredModelDraft, name: string): Stored
   const now = new Date().toISOString();
   return {
     ...draft,
+    schemaVersion: draft.schemaVersion ?? MODEL_SCHEMA_VERSION,
     id: `mdl-${Date.now().toString(36)}-${modelSequence.toString(36)}`,
     name: name.trim() || defaultModelName(draft),
     createdAt: now,
@@ -658,6 +778,9 @@ export function refitStoredModel(model: StoredModel, sheet: Worksheet | undefine
       responseColumn.values.map((value) => (typeof value === 'number' ? value : null)),
       factors,
       terms,
+      // A model saved from a saturated design can only be re-fitted with the
+      // same allowance; every other model keeps the strict guard.
+      model.control?.saturated ? { allowZeroDf: true } : {},
     );
   } catch (error) {
     throw new ModelRefitError(error instanceof Error ? error.message : 'model.refitFailed');
@@ -671,6 +794,16 @@ export function refitStoredModel(model: StoredModel, sheet: Worksheet | undefine
     codingMode: model.predictors[0]?.coding?.mode ?? 'actual',
     sheet,
     analysisId: analysisId ?? model.source.analysisId,
+    control: model.control
+      ? {
+        hierarchy: model.control.hierarchy,
+        excluded: model.control.excluded,
+        order: model.control.order,
+        pooling: model.control.pooling,
+        fitMethod: model.control.fitMethod,
+        formula: model.control.formula,
+      }
+      : undefined,
   });
   return {
     ...model,
@@ -685,6 +818,7 @@ export function refitStoredModel(model: StoredModel, sheet: Worksheet | undefine
     factorBounds: draft.factorBounds,
     categoricalLevels: draft.categoricalLevels,
     training: draft.training ?? model.training,
+    control: draft.control ?? model.control ?? null,
     diagnostics: { ...draft.diagnostics, r2pred: model.diagnostics.r2pred, f: model.diagnostics.f, p: model.diagnostics.p },
     updatedAt: new Date().toISOString(),
   };
@@ -705,6 +839,9 @@ export function parseStoredModels(raw: unknown): StoredModel[] {
     if (!Array.isArray(candidate.coefficients) || !isObject(candidate.response)) return;
     out.push({
       ...candidate,
+      // Fields a pre-3F file never wrote stay absent, so a project round trip
+      // adds nothing and an old model reads exactly as it was saved.
+      ...(typeof candidate.schemaVersion === 'number' ? { schemaVersion: candidate.schemaVersion } : {}),
       name: typeof candidate.name === 'string' && candidate.name ? candidate.name : defaultModelName(candidate),
       terms: Array.isArray(candidate.terms) ? candidate.terms : [],
       coefficients: candidate.coefficients.filter((coefficient) => isObject(coefficient) && typeof coefficient.label === 'string'),
@@ -720,6 +857,7 @@ export function parseStoredModels(raw: unknown): StoredModel[] {
       design: isObject(candidate.design) ? candidate.design as unknown as StoredModel['design'] : null,
       stationary: isObject(candidate.stationary) ? candidate.stationary as unknown as StoredModel['stationary'] : null,
       optimal: isObject(candidate.optimal) ? candidate.optimal as unknown as StoredModel['optimal'] : null,
+      ...(isObject(candidate.control) ? { control: candidate.control as unknown as ModelControl } : {}),
       source: isObject(candidate.source) ? candidate.source : {},
     });
   });

@@ -312,6 +312,10 @@ export interface GlmResult {
   dfModel: number;
   r2: number;
   r2adj: number;
+  /** Predicted R² (1 − PRESS/SS_total): NaN when it cannot be defined. */
+  r2pred: number;
+  /** Leave-one-out prediction error sum of squares. */
+  press: number;
   terms: TermTest[];
   labels: string[];
   beta: number[];
@@ -367,6 +371,28 @@ export function fitGlm(y: (number | null)[], factors: ModelFactor[], terms: Mode
   const dfModel = full.rank - 1;
   const r2 = ssTotal > 0 ? ssModel / ssTotal : 0;
   const r2adj = inferable ? 1 - (1 - r2) * ((n - 1) / dfe) : NaN;
+  // PRESS from the leave-one-out residual e_i / (1 − h_ii), with h_ii the
+  // leverage x_i' (X'X)⁻¹ x_i. A leverage of 1 makes the LOO prediction
+  // undefined, so PRESS (and predicted R²) become unavailable rather than huge.
+  let press = NaN;
+  if (inferable) {
+    let total = 0;
+    let defined = true;
+    for (let i = 0; i < n; i += 1) {
+      const row = X[i];
+      let h = 0;
+      for (let a = 0; a < row.length; a += 1) {
+        const inv = full.xtxInv[a];
+        let s = 0;
+        for (let b = 0; b < row.length; b += 1) s += (inv[b] ?? 0) * row[b];
+        h += row[a] * s;
+      }
+      if (!(h < 1 - 1e-9)) { defined = false; break; }
+      total += (residuals[i] / (1 - h)) ** 2;
+    }
+    if (defined) press = total;
+  }
+  const r2pred = ssTotal > 0 && isFinite(press) ? 1 - press / ssTotal : NaN;
   // Type I: sequential sums of squares, term by term in model order.
   const seqSs: number[] = [];
   let prev = ssTotal;
@@ -415,6 +441,8 @@ export function fitGlm(y: (number | null)[], factors: ModelFactor[], terms: Mode
     dfModel,
     r2,
     r2adj,
+    r2pred,
+    press,
     terms: termTests.map((tt, i) => ({ ...tt, name: terms[i].name })),
     labels: design.labels,
     beta: full.beta,

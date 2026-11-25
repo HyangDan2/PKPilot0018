@@ -37,6 +37,7 @@ import {
   renameStoredModel,
   uniqueModelName,
   type StoredModel,
+  type StoredModelDraft,
 } from './lib/modelStore';
 import { modelSurface, toActualValue } from './lib/modelPredictor';
 import { buildModelSurface, buildOverlaidChart, numericFactors } from './lib/chartConfigOps';
@@ -1155,7 +1156,7 @@ export default function App() {
         applySheets((list) => [...list, created]);
         setActiveSheetId(created.id);
       }
-      const doc = restoreChartConfigs({ ...makeDoc(def, result, buildMeta(def, values, sheet)), ...(result.modelDraft ? { model: result.modelDraft } : {}) });
+      const doc = restoreChartConfigs({ ...makeDoc(def, result, buildMeta(def, values, sheet)), ...(result.modelDraft ? { model: result.modelDraft } : {}), ...(result.modelOriginal ? { modelOriginal: result.modelOriginal } : {}) });
       rememberChartConfigs(doc);
       focusDoc(doc);
       pushTutorialEvent('analysis-run', { analysisId: def.id, outputId: doc.id, values: { ...values } });
@@ -1184,7 +1185,7 @@ export default function App() {
     try {
       const result = def.run({ lang, sheet: snapshotSheet, values: { ...meta.values } });
       // The snapshot is read-only: a transform's sheet patch is not applied here.
-      const doc = restoreChartConfigs({ ...makeDoc(def, result, { ...meta, ranAt: Date.now() }), ...(result.modelDraft ? { model: result.modelDraft } : {}) });
+      const doc = restoreChartConfigs({ ...makeDoc(def, result, { ...meta, ranAt: Date.now() }), ...(result.modelDraft ? { model: result.modelDraft } : {}), ...(result.modelOriginal ? { modelOriginal: result.modelOriginal } : {}) });
       rememberChartConfigs(doc);
       focusDoc(doc);
     } catch (error) {
@@ -1241,8 +1242,8 @@ export default function App() {
   /* ── stored models (WO-02) ─────────────────────────────────────────── */
 
   /** Keep the fit an output card carries: named, dated and deduplicated. */
-  const saveModelFromCard = (output: OutputDoc) => {
-    const draft = output.model;
+  const saveModelFromCard = (output: OutputDoc, draftOverride?: StoredModelDraft) => {
+    const draft = draftOverride ?? output.model;
     if (!draft) {
       toast(t(lang, 'toast.modelNone'));
       return;

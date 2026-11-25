@@ -163,6 +163,9 @@ export function ModelManager({
                       {kindLabel(lang, model.kind)} · {model.response.name} ← {model.predictors.map((p) => p.name).join(', ')}
                     </div>
                     <div className={`mm-badge ${stale.tone}`}>{stale.text}</div>
+                    {model.control?.saturated && (
+                      <div className="mm-badge warn" data-testid="mm-saturated-badge">{t(lang, 'model.control.saturated')}</div>
+                    )}
                   </div>
                 </div>
               );
@@ -236,8 +239,17 @@ export function ModelManager({
                     <div className="mm-fact"><span>{t(lang, 'model.fact.dfe')}</span><b>{selected.residual?.df != null ? fmtInt(selected.residual.df) : t(lang, 'model.na')}</b></div>
                     <div className="mm-fact"><span>{t(lang, 'model.fact.covariance')}</span><b>{selected.covariance ? t(lang, 'model.cmp.available') : t(lang, 'model.cmp.unavailable')}</b></div>
                     <div className="mm-fact"><span>{t(lang, 'model.fact.training')}</span><b>{selected.training ? `${selected.training.sheetName ?? '—'} · ${fmtInt(selected.training.rows)}` : t(lang, 'model.na')}</b></div>
+                    <div className="mm-fact"><span>{t(lang, 'model.fact.hierarchy')}</span><b data-testid="mm-hierarchy">{selected.control ? t(lang, `model.hierarchy.${selected.control.hierarchy}`) : t(lang, 'model.na')}</b></div>
+                    <div className="mm-fact"><span>{t(lang, 'model.fact.pooled')}</span><b data-testid="mm-pooled">{selected.control ? (selected.control.pooling.length ? selected.control.pooling.map((step) => step.term).join(', ') : t(lang, 'res.none')) : t(lang, 'model.na')}</b></div>
+                    <div className="mm-fact"><span>{t(lang, 'model.fact.excluded')}</span><b data-testid="mm-excluded">{selected.control ? (selected.control.excluded.length ? selected.control.excluded.join(', ') : t(lang, 'res.none')) : t(lang, 'model.na')}</b></div>
+                    <div className="mm-fact"><span>{t(lang, 'model.fact.schema')}</span><b data-testid="mm-schema">{selected.schemaVersion ?? 1}</b></div>
                     <div className="mm-fact"><span>{t(lang, 'model.fact.created')}</span><b>{selected.createdAt.slice(0, 16).replace('T', ' ')}</b></div>
                     <div className="mm-fact"><span>{t(lang, 'model.fact.updated')}</span><b>{selected.updatedAt.slice(0, 16).replace('T', ' ')}</b></div>
+                    {selected.control?.formula && (
+                      <div className="mm-fact" style={{ gridColumn: '1 / -1' }}>
+                        <span>{t(lang, 'model.fact.formula')}</span><b className="mono-note" data-testid="mm-formula">{selected.control.formula}</b>
+                      </div>
+                    )}
                   </div>
                   <div className="mm-diagnostics">
                     <table className="stat-table">
