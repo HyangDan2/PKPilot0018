@@ -25,9 +25,12 @@ function columnMeta(sheet: Worksheet, ref: string): { id: string; name: string; 
   return { id: col.id, name: col.name, type: col.type, n };
 }
 
-export function normalizeValues(def: AnalysisDef, initial?: Record<string, unknown>, saved?: { terms: string[]; pooled: string[]; hierarchy: HierarchyMode } | null): Record<string, unknown> {
+export function normalizeValues(def: AnalysisDef, initial?: Record<string, unknown>, saved?: { terms: string[]; pooled: string[]; hierarchy: HierarchyMode; order?: number } | null): Record<string, unknown> {
   const next: Record<string, unknown> = { ...defaultValues(def), ...(initial ?? {}) };
-  if (saved) {
+  const hasOrderSlot = def.slots.some((slot) => slot.key === 'order');
+  if (saved && hasOrderSlot && saved.order !== undefined && initial?.order === undefined) next.order = String(saved.order);
+  const orderMatches = !hasOrderSlot || saved?.order === undefined || Number(next.order) === saved.order;
+  if (saved && orderMatches) {
     if (next.terms === undefined) next.terms = saved.terms;
     if (next.pooled === undefined) next.pooled = saved.pooled;
     if (next.hierarchy === undefined) next.hierarchy = saved.hierarchy;

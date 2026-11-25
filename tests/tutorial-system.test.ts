@@ -89,9 +89,9 @@ describe('tutorial registry', () => {
     expect(auditErrors()).toEqual([]);
   });
 
-  it('ships twelve tutorials with a twelve-step flagship, all automatically validated', () => {
-    expect(TUTORIALS).toHaveLength(12);
-    expect(new Set(TUTORIALS.map((tutorial) => tutorial.id)).size).toBe(12);
+  it('ships thirteen tutorials with a twelve-step flagship, all automatically validated', () => {
+    expect(TUTORIALS).toHaveLength(13);
+    expect(new Set(TUTORIALS.map((tutorial) => tutorial.id)).size).toBe(13);
     const flagship = flagshipTutorial();
     expect(flagship.id).toBe('tutorial-rsm-001');
     expect(flagship.steps).toHaveLength(12);

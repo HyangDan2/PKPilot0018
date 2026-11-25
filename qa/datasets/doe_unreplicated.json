@@ -1,0 +1,50 @@
+{
+ "name": "doe_unreplicated",
+ "description": "Unreplicated 2³ factorial (8 runs, no noise), effects A 14, B 6, C −3, AB 2, AC −1.5, BC 0.8, ABC 0.4",
+ "seed": 11032,
+ "generator": "literal 2³ design with effects = 2 × coded coefficients (no RNG)",
+ "python": "3.12.16",
+ "numpy": "2.5.4",
+ "columns": {
+  "A": [
+   -1.0,
+   -1.0,
+   -1.0,
+   -1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "B": [
+   -1.0,
+   -1.0,
+   1.0,
+   1.0,
+   -1.0,
+   -1.0,
+   1.0,
+   1.0
+  ],
+  "C": [
+   -1.0,
+   1.0,
+   -1.0,
+   1.0,
+   -1.0,
+   1.0,
+   -1.0,
+   1.0
+  ],
+  "Y": [
+   51.95,
+   50.05,
+   55.55,
+   54.45,
+   65.85,
+   60.15,
+   72.65,
+   69.35
+  ]
+ }
+}

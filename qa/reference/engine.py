@@ -3350,6 +3350,200 @@ def op_nelson(bag, ds, args, cid):
     mark(cid, "independent_formula: Nelson (1984) rules 1–8")
 
 
+def op_pooling(bag, ds, args, cid):
+    """Full vs reduced factorial fits, compared from two independent refits."""
+    names = args["factors"]
+    order = args.get("order", 2)
+    pooled = [tuple(term) for term in args.get("pooled", [])]
+    frame = pd.DataFrame({n: pd.Series(raw(ds, n), dtype=float) for n in names})
+    frame["__y"] = pd.Series(raw(ds, args["response"]), dtype=float)
+    frame = frame.dropna()
+    terms = _factorial_columns(frame, names, order)
+    active = [t for t in terms if t not in pooled]
+
+    def fit(selected):
+        rhs = " + ".join(":".join(t) for t in selected)
+        return smf.ols(f"__y ~ {rhs}", data=frame).fit()
+
+    full = fit(terms)
+    reduced = fit(active)
+    sst = float(np.sum((frame["__y"] - frame["__y"].mean()) ** 2))
+
+    def fitstat(model):
+        h = model.get_influence().hat_matrix_diag
+        press = float(np.sum((model.resid.to_numpy() / (1 - h)) ** 2))
+        return {
+            "sse": float(np.sum(model.resid ** 2)),
+            "dfe": int(model.df_resid),
+            "mse": float(model.mse_resid),
+            "s": math.sqrt(float(model.mse_resid)),
+            "n": int(model.nobs),
+            "modelDf": int(round(model.df_model)),
+            "ssModel": float(model.ess),
+            "r2": float(model.rsquared),
+            "r2adj": float(model.rsquared_adj),
+            "r2pred": 1 - press / sst if sst > 0 else float("nan"),
+        }
+
+    before = fitstat(full)
+    after = fitstat(reduced)
+    for key in ("sse", "dfe", "mse", "s", "r2", "r2_adj", "r2_pred"):
+        source = {"r2_adj": "r2adj", "r2_pred": "r2pred"}.get(key, key)
+        bag.put(f"full_{key}", before[source])
+        bag.put(f"red_{key}", after[source])
+    metric_keys = {"n": "n", "modelDf": "modelDf", "dfe": "errorDf", "ssModel": "modelSs",
+                   "sse": "errorSs", "mse": "errorMs", "s": "s", "r2": "r2", "r2adj": "r2adj", "r2pred": "r2pred"}
+    for metric, key in metric_keys.items():
+        bag.put(f"cmp:{key}:difference", after[metric] - before[metric])
+        bag.put(f"cmp:{key}:reason", None)
+
+    a1 = sm.stats.anova_lm(full, typ=1)
+    pooled_df = 0
+    pooled_ss = 0.0
+    for term in pooled:
+        label = ":".join(term)
+        if label in a1.index:
+            pooled_df += int(round(a1.loc[label, "df"]))
+            pooled_ss += float(a1.loc[label, "sum_sq"])
+    expected_dfe = before["dfe"] + pooled_df
+    expected_ss = before["sse"] + pooled_ss
+    bag.put("checks_expected_dfe", expected_dfe)
+    bag.put("checks_actual_dfe", after["dfe"])
+    bag.put("checks_expected_ss", expected_ss)
+    bag.put("checks_actual_ss", after["sse"])
+    tolerance = 1e-8 * max(1.0, abs(after["sse"]), abs(expected_ss))
+    additive = expected_dfe == after["dfe"] and abs(expected_ss - after["sse"]) <= tolerance
+    bag.put("checks_additive", 1 if additive else 0)
+
+    df1 = after["dfe"] - before["dfe"]
+    nested = all(t in terms for t in active)
+    if not nested:
+        bag.put("partial_reason", "not-nested")
+        partial = None
+    elif df1 <= 0:
+        bag.put("partial_reason", "no-reduction")
+        partial = None
+    elif not (after["mse"] > 0):
+        bag.put("partial_reason", "no-error-df")
+        partial = None
+    else:
+        drop = after["sse"] - before["sse"]
+        f = max(0.0, drop) / df1 / after["mse"]
+        p = float(stats.f.sf(f, df1, after["dfe"]))
+        partial = {"df1": df1, "df2": after["dfe"], "f": f, "p": p}
+        bag.put("partial_reason", None)
+    if partial is None:
+        bag.put("partial_df1", None)
+        bag.put("partial_df2", None)
+        bag.put("partial_f", None)
+        bag.put("partial_p", None)
+    else:
+        bag.put("partial_df1", partial["df1"])
+        bag.put("partial_df2", partial["df2"])
+        bag.put("partial_f", partial["f"])
+        bag.put("partial_p", partial["p"])
+    mark(cid, "statsmodels: two OLS refits, PRESS from the hat matrix, partial F by formula")
+
+
+def op_lenth(bag, ds, args, cid):
+    """Lenth's PSE computed here from the formula, not from the shipped code."""
+    names = args["factors"]
+    order = args.get("order", len(names))
+    frame = pd.DataFrame({n: pd.Series(raw(ds, n), dtype=float) for n in names})
+    frame["__y"] = pd.Series(raw(ds, args["response"]), dtype=float)
+    frame = frame.dropna()
+    terms = _factorial_columns(frame, names, order)
+    rhs = " + ".join(":".join(t) for t in terms)
+    model = smf.ols(f"__y ~ {rhs}", data=frame).fit()
+    cells = len(frame[names].drop_duplicates())
+    if int(model.nobs) > cells:
+        bag.put("available", 0)
+        bag.put("reason", "replicated")
+        mark(cid, "independent_formula: Lenth availability (replicated)")
+        return
+    if int(model.df_resid) > 0:
+        bag.put("available", 0)
+        bag.put("reason", "not-saturated")
+        mark(cid, "independent_formula: Lenth availability (not saturated)")
+        return
+    effects = [(t, 2 * float(model.params[":".join(t)])) for t in terms]
+    abs_effects = sorted(abs(e) for _, e in effects)
+    if len(abs_effects) < 3:
+        bag.put("available", 0)
+        bag.put("reason", "too-few-effects")
+        return
+    s0 = 1.5 * float(np.median(abs_effects))
+    selected = [a for a in abs_effects if a > 0 and a < 2.5 * s0]
+    if s0 <= 0 or len(selected) < 2:
+        bag.put("available", 0)
+        bag.put("reason", "degenerate")
+        return
+    pse = 1.5 * float(np.median(selected))
+    if pse <= 0:
+        bag.put("available", 0)
+        bag.put("reason", "degenerate")
+        return
+    pseudo_df = max(1, int(math.floor(len(selected) / 3)))
+    t_crit = float(stats.t.ppf(0.975, pseudo_df))
+    bag.put("available", 1)
+    bag.put("pse", pse)
+    bag.put("me", t_crit * pse)
+    bag.put("sme", t_crit * pse / 2)
+    bag.put("pseudo_df", pseudo_df)
+    bag.put("active_count", len(selected))
+    for name, effect in effects:
+        label = name if isinstance(name, str) else "×".join(name)
+        bag.put(f"effect:{label}", effect)
+        bag.put(f"active:{label}", 1 if abs(effect) >= 2.5 * s0 else 0)
+    mark(cid, "independent_formula: Lenth s0 / PSE / ME / SME from |effects| medians")
+
+
+def op_hierarchy(bag, ds, args, cid):
+    """Set algebra over the term catalogue, independent of the shipped dialog."""
+    import itertools
+
+    names = args["factors"]
+    order = args.get("order", 2)
+    mode = args.get("mode", "strict")
+    catalog = []
+    for size in range(1, order + 1):
+        catalog.extend(tuple(c) for c in itertools.combinations(names, size))
+    selected = [tuple(term) for term in args.get("selected", [])]
+    selected = [t for t in selected if t in catalog]
+
+    violations = []
+    for term in selected:
+        missing = [
+            subset for size in range(1, len(term))
+            for subset in itertools.combinations(term, size)
+            if subset in catalog and subset not in selected
+        ]
+        if missing:
+            violations.append((term, missing))
+
+    if not violations:
+        result = selected
+    elif mode == "auto":
+        wanted = set(selected)
+        for term, _ in violations:
+            for size in range(1, len(term)):
+                for subset in itertools.combinations(term, size):
+                    if subset in catalog:
+                        wanted.add(subset)
+        result = [t for t in catalog if t in wanted]
+    else:
+        result = selected
+
+    bag.put("refused", 1 if mode == "strict" and violations else 0)
+    bag.put("selected_count", len(result))
+    bag.put("added_count", len(result) - len(selected) if mode == "auto" else 0)
+    bag.put("violation_count", len(violations))
+    missing_names = sorted("×".join(t) for _, missing in violations for t in missing)
+    bag.put("missing", ",".join(missing_names))
+    bag.put("selected", ",".join("×".join(t) for t in catalog if t in result))
+    mark(cid, "independent_formula: hierarchical closure as set algebra")
+
+
 OPS = {
     "desc": op_desc,
     "normality": op_normality,
@@ -3374,6 +3568,9 @@ OPS = {
     "glm": op_glm,
     "doecreate": op_doecreate,
     "doeanalyze": op_doeanalyze,
+    "pooling": op_pooling,
+    "lenth": op_lenth,
+    "hierarchy": op_hierarchy,
     "rsmcreate": op_doecreate,
     "rsmanalyze": op_rsmanalyze,
     "power": op_power,

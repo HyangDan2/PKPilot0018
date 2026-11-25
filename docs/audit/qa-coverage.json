@@ -3,9 +3,9 @@
  "kind": "qa-coverage",
  "meta": {
   "harness": "qa/cases → qa/adapters/sigrun/cli.ts(출하 엔진 직접 호출) → qa/reference(engine.py, SciPy 1.18.1·statsmodels 0.15.0) → qa/compare.py",
-  "caseCount": 225,
+  "caseCount": 250,
   "verdictRule": "PASS/(PASS+FAIL)만 통과율로 계산하고 REVIEW·UNVERIFIED·ERROR는 별도로 보고한다.",
-  "lastRun": "npm run qa:stats — Phase 3E 기준 225/225 PASS(FAIL 0·REVIEW 0·UNVERIFIED 0·ERROR 0). 이 감사는 케이스를 다시 실행해 확인했다(§ 검증 스냅샷)."
+  "lastRun": "npm run qa:stats — Phase 3F 기준 250/250 PASS(FAIL 0·REVIEW 0·UNVERIFIED 0·ERROR 0). QA-3F-01~25가 모형 비교·부분 F·Lenth PSE·계층성 규칙을 독립 기준과 대조했다."
  },
  "perFeature": [
   {
@@ -279,13 +279,16 @@
    "featureId": "S-AN-glm",
    "title": "일반선형모형",
    "caseIds": [
+    "QA-3F-21",
+    "QA-3F-22",
+    "QA-3F-23",
     "QA-B-02",
     "QA-B-03",
     "QA-B-04",
     "QA-B-05",
     "QA-B-06"
    ],
-   "caseCount": 5
+   "caseCount": 8
   },
   {
    "featureId": "S-AN-doecreate",
@@ -302,10 +305,13 @@
    "featureId": "S-AN-doeanalyze",
    "title": "요인설계 분석",
    "caseIds": [
+    "QA-3F-14",
+    "QA-3F-24",
+    "QA-3F-25",
     "QA-H-06",
     "QA-H-07"
    ],
-   "caseCount": 2
+   "caseCount": 5
   },
   {
    "featureId": "S-AN-rsmcreate",
@@ -612,6 +618,61 @@
    "title": "성능 상한·대용량 처리",
    "caseIds": [],
    "caseCount": 0
+  },
+  {
+   "featureId": "S-MOD-21",
+   "title": "모형 비교표(원본 vs 축소)",
+   "caseIds": [
+    "QA-3F-02",
+    "QA-3F-03",
+    "QA-3F-05",
+    "QA-3F-06",
+    "QA-3F-08"
+   ],
+   "caseCount": 5
+  },
+  {
+   "featureId": "S-MOD-22",
+   "title": "오차 풀링(항 제거·재적합·가산성 점검)",
+   "caseIds": [
+    "QA-3F-01",
+    "QA-3F-04",
+    "QA-3F-07"
+   ],
+   "caseCount": 3
+  },
+  {
+   "featureId": "S-MOD-23",
+   "title": "Lenth PSE(반복 없는 2수준 설계)",
+   "caseIds": [
+    "QA-3F-09",
+    "QA-3F-10",
+    "QA-3F-11",
+    "QA-3F-12",
+    "QA-3F-13"
+   ],
+   "caseCount": 5
+  },
+  {
+   "featureId": "S-MOD-24",
+   "title": "모형 계층성·교락 규칙",
+   "caseIds": [
+    "QA-3F-15",
+    "QA-3F-16",
+    "QA-3F-17",
+    "QA-3F-18",
+    "QA-3F-19",
+    "QA-3F-20"
+   ],
+   "caseCount": 6
+  },
+  {
+   "featureId": "S-MOD-25",
+   "title": "포화·별칭 적합 보고",
+   "caseIds": [
+    "QA-3F-14"
+   ],
+   "caseCount": 1
   }
  ],
  "perCase": [
@@ -2862,6 +2923,257 @@
    "file": "qa/cases/QA-Y-stage3d-errorbars.json",
    "targets": [
     "S-MOD-04"
+   ],
+   "fields": 9
+  },
+  {
+   "id": "QA-3F-01",
+   "op": "pooling",
+   "title": "풀링 전·후 적합통계 — 원본 보존과 축소모형",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-22"
+   ],
+   "fields": 14
+  },
+  {
+   "id": "QA-3F-02",
+   "op": "pooling",
+   "title": "비교표 차이 — 오차 DF +1, 오차 SS 증가",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-21"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-3F-03",
+   "op": "pooling",
+   "title": "부분 F — 내포된 축소모형",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-21"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-3F-04",
+   "op": "pooling",
+   "title": "풀링 가산성 점검 — 오차 SS·DF 합",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-22"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-3F-05",
+   "op": "pooling",
+   "title": "두 항 풀링 — A×B×C와 B×C",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-21"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-3F-06",
+   "op": "pooling",
+   "title": "축소 없음 — 부분 F는 'no-reduction'",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-21"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-3F-07",
+   "op": "pooling",
+   "title": "주효과 C 풀링 — 작은 효과의 흡수",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-22"
+   ],
+   "fields": 10
+  },
+  {
+   "id": "QA-3F-08",
+   "op": "pooling",
+   "title": "2차 모형에서 B×C 풀링",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-21"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-3F-09",
+   "op": "lenth",
+   "title": "Lenth PSE — 반복 없는 2³ 설계",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-23"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-3F-10",
+   "op": "lenth",
+   "title": "Lenth 효과 — 7개 항의 크기",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-23"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-3F-11",
+   "op": "lenth",
+   "title": "Lenth 활성 표시 — |효과| ≥ 2.5 s0",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-23"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-3F-12",
+   "op": "lenth",
+   "title": "중심점이 있어 Lenth 불가 — 'replicated'",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-23"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-3F-13",
+   "op": "lenth",
+   "title": "포화되지 않은 모형 — 'not-saturated'",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-23"
+   ],
+   "fields": 2
+  },
+  {
+   "id": "QA-3F-14",
+   "op": "doeanalyze",
+   "title": "포화 요인분석 — 오차 통계량은 정의 불가",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-25",
+    "S-AN-doeanalyze"
+   ],
+   "fields": 8
+  },
+  {
+   "id": "QA-3F-15",
+   "op": "hierarchy",
+   "title": "엄격 모드 — 상위 항 없는 교호작용 거부",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-24"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-3F-16",
+   "op": "hierarchy",
+   "title": "자동 모드 — 빠진 상위 항 추가",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-24"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-3F-17",
+   "op": "hierarchy",
+   "title": "제한 없음 모드 — 선택 유지와 경고",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-24"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-3F-18",
+   "op": "hierarchy",
+   "title": "계층성 만족 — 위반 없음",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-24"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-3F-19",
+   "op": "hierarchy",
+   "title": "삼원 교호작용의 폐포 — 하위 항 6개",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-24"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-3F-20",
+   "op": "hierarchy",
+   "title": "부분 선택의 폐포 — 주효과와 이원 교호작용",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-MOD-24"
+   ],
+   "fields": 6
+  },
+  {
+   "id": "QA-3F-21",
+   "op": "glm",
+   "title": "불균형 교차 설계 — Type I·III 분산분석",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-AN-glm"
+   ],
+   "fields": 25
+  },
+  {
+   "id": "QA-3F-22",
+   "op": "glm",
+   "title": "주효과 모형 — 불균형에서도 Type I≠III",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-AN-glm"
+   ],
+   "fields": 7
+  },
+  {
+   "id": "QA-3F-23",
+   "op": "glm",
+   "title": "항 순서를 바꾼 모형 — 순차 제곱합의 순서 의존성",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-AN-glm"
+   ],
+   "fields": 5
+  },
+  {
+   "id": "QA-3F-24",
+   "op": "doeanalyze",
+   "title": "반복 설계의 완전 모형 — 효과·적합통계",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-AN-doeanalyze"
+   ],
+   "fields": 12
+  },
+  {
+   "id": "QA-3F-25",
+   "op": "doeanalyze",
+   "title": "2차 모형의 효과 — 항 수가 줄면 오차 df가 는다",
+   "file": "qa/cases/QA-3F-model-control.json",
+   "targets": [
+    "S-AN-doeanalyze"
    ],
    "fields": 9
   }

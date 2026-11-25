@@ -17,6 +17,12 @@ import {
   buildWeibullData,
 } from './datasets/builtin';
 import { buildDisplayOpticalDoE } from './datasets/displayOptical';
+import {
+  buildPoolingData,
+  buildScreeningData,
+  buildUnbalancedGlmData,
+  buildUnreplicatedData,
+} from './datasets/modelControl';
 
 function v(name: string, role: SampleVariable['role'], unit?: string): SampleVariable {
   return unit ? { name, role, unit } : { name, role };
@@ -227,6 +233,111 @@ export const SAMPLES: SampleDef[] = [
     build: buildDisplayOpticalDoE,
     tutorialIds: ['tutorial-rsm-001', 'tutorial-rsm-001'],
     helpIds: ['rsm-fitting', 'contour-surface', 'model-store', 'multi-response-optimization', 'prediction-profiler'],
+  },
+  {
+    id: 'doe-pooled',
+    nameKey: '@sample.doePooled',
+    category: 'doe',
+    synthetic: true,
+    title: { en: '2³ Replicated (error pooling)', ko: '2³ 반복 설계 (오차 풀링)' },
+    summary: {
+      en: 'Sixteen runs: a full 2³ factorial in duplicate, where a small interaction can be pooled into error and the error degrees of freedom grow.',
+      ko: '16회 배치: 2³ 요인설계를 2회 반복한 자료로, 작은 교호작용을 오차에 풀링하면 오차 자유도가 늘어납니다.',
+    },
+    source: {
+      en: 'Synthetic data generated from a fixed seed; the design is a textbook replicated 2³ factorial.',
+      ko: '고정 시드로 생성한 합성 데이터이며 설계 자체는 교과서적인 반복 2³ 요인설계입니다.',
+    },
+    variables: [
+      v('StdOrder', 'id'),
+      v('RunOrder', 'id'),
+      v('PtType', 'pttype'),
+      v('A', 'factor', 'coded'),
+      v('B', 'factor', 'coded'),
+      v('C', 'factor', 'coded'),
+      v('Y', 'response'),
+    ],
+    build: buildPoolingData,
+    tutorialIds: ['tutorial-doe-reduction-001'],
+    helpIds: ['error-pooling', 'factorial-analysis', 'model-store'],
+  },
+  {
+    id: 'doe-unreplicated',
+    nameKey: '@sample.doeUnreplicated',
+    category: 'doe',
+    synthetic: true,
+    title: { en: '2³ Unreplicated (Lenth)', ko: '2³ 반복 없는 설계 (Lenth)' },
+    summary: {
+      en: 'Eight factorial runs with no replication: no pure error exists, so Lenth’s method and the effect charts carry the judgement.',
+      ko: '반복 없는 8개 요인 배치입니다. 순수오차가 없으므로 Lenth 방법과 효과 그림이 판단을 맡습니다.',
+    },
+    source: {
+      en: 'Synthetic data generated from a fixed seed; the design is a textbook unreplicated 2³ factorial.',
+      ko: '고정 시드로 생성한 합성 데이터이며 설계 자체는 교과서적인 반복 없는 2³ 요인설계입니다.',
+    },
+    variables: [
+      v('StdOrder', 'id'),
+      v('RunOrder', 'id'),
+      v('PtType', 'pttype'),
+      v('A', 'factor', 'coded'),
+      v('B', 'factor', 'coded'),
+      v('C', 'factor', 'coded'),
+      v('Y', 'response'),
+    ],
+    build: buildUnreplicatedData,
+    tutorialIds: ['tutorial-doe-reduction-001'],
+    helpIds: ['unreplicated-designs', 'factorial-analysis'],
+  },
+  {
+    id: 'glm-unbalanced',
+    nameKey: '@sample.glmUnbalanced',
+    category: 'comparison',
+    synthetic: true,
+    title: { en: 'Unbalanced Machine × Shift', ko: '불균형 기계 × 교대' },
+    summary: {
+      en: 'Two categorical factors with unequal cell counts, where the Type I and Type III sums of squares no longer agree.',
+      ko: '셀 개수가 다른 두 범주형 요인으로, 1형과 3형 제곱합이 더 이상 일치하지 않습니다.',
+    },
+    source: {
+      en: 'Synthetic data generated from a fixed seed; not measured on real machines.',
+      ko: '고정 시드로 생성한 합성 데이터이며 실제 기계 측정값이 아닙니다.',
+    },
+    variables: [
+      v('Machine', 'factor'),
+      v('Shift', 'factor'),
+      v('Strength', 'response'),
+    ],
+    build: buildUnbalancedGlmData,
+    tutorialIds: ['tutorial-doe-reduction-001'],
+    helpIds: ['model-hierarchy', 'anova-glm'],
+  },
+  {
+    id: 'doe-screening',
+    nameKey: '@sample.doeScreening',
+    category: 'doe',
+    synthetic: true,
+    title: { en: '2^(4−1) Screening (hierarchy)', ko: '2^(4−1) 선별 설계 (계층성)' },
+    summary: {
+      en: 'Eight runs in four factors with D = ABC: a resolution-IV design for practising hierarchy and aliasing.',
+      ko: 'D = ABC인 4요인 8회 배치입니다. 계층성과 교락을 연습하는 해상도 IV 설계입니다.',
+    },
+    source: {
+      en: 'Synthetic data generated from a fixed seed; the design is a textbook resolution-IV fraction.',
+      ko: '고정 시드로 생성한 합성 데이터이며 설계 자체는 교과서적인 해상도 IV 부분설계입니다.',
+    },
+    variables: [
+      v('StdOrder', 'id'),
+      v('RunOrder', 'id'),
+      v('PtType', 'pttype'),
+      v('A', 'factor', 'coded'),
+      v('B', 'factor', 'coded'),
+      v('C', 'factor', 'coded'),
+      v('D', 'factor', 'coded'),
+      v('Cycle Time', 'response'),
+    ],
+    build: buildScreeningData,
+    tutorialIds: ['tutorial-doe-reduction-001'],
+    helpIds: ['model-hierarchy', 'factorial-analysis'],
   },
 ];
 

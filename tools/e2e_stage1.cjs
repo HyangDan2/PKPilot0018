@@ -64,7 +64,7 @@ async function pasteBlock(page, row, col, text) {
   await page.waitForTimeout(120);
   await setClipboard(page, text);
   await page.click(cell(row, col));
-  await page.keyboard.press('Control+V');
+  await page.keyboard.press('ControlOrMeta+V');
   await page.waitForTimeout(250);
 }
 
@@ -98,12 +98,11 @@ async function partSelection(browser) {
   const status1 = await page.locator('.statusbar').innerText();
   check('status names the blocked range', /C11:C24/.test(status1), status1.replace(/\n/g, ' | '));
 
-  // 2. Ctrl+click non-adjacent
-  await page.keyboard.down('Control');
-  await page.click(cell(6, 2));
-  await page.keyboard.up('Control');
+  // 2. Ctrl/Cmd+click non-adjacent (Control-click is a context-menu gesture on macOS).
+  const additiveModifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await page.click(cell(6, 2), { modifiers: [additiveModifier] });
   const status2 = await page.locator('.statusbar').innerText();
-  check('Ctrl+click adds a non-adjacent cell', /C37/.test(status2), status2.replace(/\n/g, ' | '));
+  check('Ctrl/Cmd+click adds a non-adjacent cell', /C37/.test(status2), status2.replace(/\n/g, ' | '));
   check('both blocks stay selected', (await selectedCount(page)) === 9, String(await selectedCount(page)));
 
   // 3. Drag selection
@@ -139,7 +138,7 @@ async function partSelection(browser) {
   const clip = await page.evaluate(() => navigator.clipboard.readText());
   check('Ctrl+C copies the active cell', clip.trim() === '1', JSON.stringify(clip));
   await page.click(cell(4, 0));
-  await page.keyboard.press('Control+v');
+  await page.keyboard.press('ControlOrMeta+V');
   await page.waitForTimeout(250);
   check('Ctrl+V pastes at the new cell', (await page.locator(cell(4, 0)).innerText()).trim() === '1');
   await page.keyboard.press('Control+z');
@@ -163,11 +162,9 @@ async function partSelection(browser) {
 
   // 7. multi-range paste refusal
   await page.click(cell(0, 0));
-  await page.keyboard.down('Control');
-  await page.click(cell(5, 2));
-  await page.keyboard.up('Control');
+  await page.click(cell(5, 2), { modifiers: [additiveModifier] });
   await setClipboard(page, '99');
-  await page.keyboard.press('Control+v');
+  await page.keyboard.press('ControlOrMeta+V');
   await page.waitForTimeout(300);
   const toast = await page.locator('.toast').allInnerTexts();
   check('multi-block paste is refused with a toast', toast.some((t) => /one block|한 블록/i.test(t)), toast.join(' | '));
@@ -202,7 +199,7 @@ async function partSelection(browser) {
   await page.keyboard.press('Control+x');
   await page.waitForTimeout(200);
   await page.click(cell(8, 0));
-  await page.keyboard.press('Control+v');
+  await page.keyboard.press('ControlOrMeta+V');
   await page.waitForTimeout(250);
   check('cut + paste moves the value', (await page.locator(cell(0, 0)).innerText()).trim() === ''
     && (await page.locator(cell(8, 0)).innerText()).trim() === '1');

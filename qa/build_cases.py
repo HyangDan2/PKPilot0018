@@ -1826,12 +1826,199 @@ Y.append(case(
 ))
 areas["QA-Y-stage3d-errorbars.json"] = ("QA-Y", Y)
 
+# ════════════════════════════════════════════════════════════════════════
+# QA-3F — Stage 3F: 모형 통제 (WO-3F-05/07/08)
+#   비교표·부분 F·Lenth PSE·계층성 규칙을 독립 기준으로 재계산한다. 기준은
+#   statsmodels의 두 번의 재적합과 NumPy 중앙값이며, Lenth와 계층성은 공개
+#   정의를 기준 엔진이 직접 구현한다(배포 코드를 호출하지 않는다).
+# ════════════════════════════════════════════════════════════════════════
+Q3F = []
+POOL_STATS = [f(k) for k in ("full_sse", "full_dfe", "full_mse", "full_s", "full_r2", "full_r2_adj",
+                             "full_r2_pred", "red_sse", "red_dfe", "red_mse", "red_s", "red_r2",
+                             "red_r2_adj", "red_r2_pred")]
+POOL_CMP = [f("cmp:modelDf:difference"), f("cmp:errorDf:difference"), f("cmp:modelSs:difference"),
+            f("cmp:errorSs:difference"), f("cmp:errorMs:difference"), f("cmp:s:difference"),
+            f("cmp:r2:difference"), f("cmp:r2adj:difference"), f("cmp:r2pred:difference"),
+            f("cmp:n:difference")]
+PARTIAL = [f("partial_df1"), f("partial_df2"), f("partial_f"), f("partial_p"),
+           f("partial_reason", kind="string")]
+D3F = {"response": "Y", "factors": ["A", "B", "C"], "order": 3}
+
+Q3F.append(case(
+    "QA-3F-01", "풀링 전·후 적합통계 — 원본 보존과 축소모형", "pooling", "doe_pooled",
+    dict(D3F, pooled=[["B", "C"]]), POOL_STATS,
+    note="B×C를 오차로 옮긴 뒤 두 적합의 SSE·DFE·MSE·S·R²를 모두 보고한다. 원본(full)은 덮어쓰지 않는다."
+))
+Q3F.append(case(
+    "QA-3F-02", "비교표 차이 — 오차 DF +1, 오차 SS 증가", "pooling", "doe_pooled",
+    dict(D3F, pooled=[["B", "C"]]), POOL_CMP,
+    note="차이는 축소 − 원본이다. 항 하나가 df 1을 오차로 넘기므로 errorDf 차이 +1, modelDf 차이 −1이며, S는 커지고 R²·수정 R²·예측 R²는 작아진다."
+))
+Q3F.append(case(
+    "QA-3F-03", "부분 F — 내포된 축소모형", "pooling", "doe_pooled",
+    dict(D3F, pooled=[["B", "C"]]), PARTIAL,
+    note="df1은 축소에서 얻은 오차 df(reduced − full), df2는 축소모형의 오차 df. F=(SSE_red−SSE_full)/df1÷MSE_red."
+))
+Q3F.append(case(
+    "QA-3F-04", "풀링 가산성 점검 — 오차 SS·DF 합", "pooling", "doe_pooled",
+    dict(D3F, pooled=[["B", "C"]]),
+    [f("checks_expected_dfe"), f("checks_actual_dfe"), f("checks_expected_ss"), f("checks_actual_ss"),
+     f("checks_additive")],
+    note="직교 설계에서는 SSE(full)+SS(항)=SSE(reduced)가 성립한다. 점검은 재적합 결과와 합계를 실제로 비교한다."
+))
+Q3F.append(case(
+    "QA-3F-05", "두 항 풀링 — A×B×C와 B×C", "pooling", "doe_pooled",
+    dict(D3F, pooled=[["A", "B", "C"], ["B", "C"]]),
+    [f("red_dfe"), f("red_sse"), f("red_s"), f("partial_df1"), f("partial_f"), f("partial_p"),
+     f("checks_additive")],
+    note="두 항이 함께 오차로 가면 df1=2다. 부분 F는 두 항의 결합 기여를 검정한다."
+))
+Q3F.append(case(
+    "QA-3F-06", "축소 없음 — 부분 F는 'no-reduction'", "pooling", "doe_pooled",
+    dict(D3F, pooled=[]),
+    [f("red_sse"), f("red_dfe"), f("cmp:errorDf:difference"), *PARTIAL],
+    note="풀링 항이 없으면 두 적합이 같다. df1=0이므로 부분 F를 계산하지 않고 이유를 보고한다(0/0을 숫자로 만들지 않는다)."
+))
+Q3F.append(case(
+    "QA-3F-07", "주효과 C 풀링 — 작은 효과의 흡수", "pooling", "doe_pooled",
+    dict(D3F, pooled=[["C"]]),
+    [f("full_sse"), f("red_sse"), f("red_dfe"), f("red_r2_adj"), f("red_r2_pred"), *PARTIAL],
+    note="주효과를 풀링해도 같은 규칙이 적용되는지 확인한다. 축소모형은 다시 적합하며 숫자를 더해 만들지 않는다."
+))
+Q3F.append(case(
+    "QA-3F-08", "2차 모형에서 B×C 풀링", "pooling", "doe_pooled",
+    {"response": "Y", "factors": ["A", "B", "C"], "order": 2, "pooled": [["B", "C"]]},
+    [f("full_dfe"), f("red_dfe"), f("partial_df1"), f("partial_df2"), f("partial_f"), f("partial_p"),
+     f("checks_additive")],
+    note="모형 차수를 2로 제한하면 원래 오차 df가 커진다. 부분 F의 df2가 그만큼 커지는지 확인한다."
+))
+
+Q3F.append(case(
+    "QA-3F-09", "Lenth PSE — 반복 없는 2³ 설계", "lenth", "doe_unreplicated",
+    {"response": "Y", "factors": ["A", "B", "C"], "order": 3},
+    [f("available"), f("pse"), f("me"), f("sme"), f("pseudo_df"), f("active_count")],
+    note="s0=1.5·median|효과|, 활성 제외 후 PSE=1.5·median|비활성|, ME=t(0.975, pseudo df)·PSE."
+))
+Q3F.append(case(
+    "QA-3F-10", "Lenth 효과 — 7개 항의 크기", "lenth", "doe_unreplicated",
+    {"response": "Y", "factors": ["A", "B", "C"], "order": 3},
+    [f(f"effect:{t}") for t in ("A", "B", "C", "A×B", "A×C", "B×C", "A×B×C")],
+    note="효과 = 2×코드화 계수. 기준은 자체 OLS 적합에서 같은 값을 얻는다."
+))
+Q3F.append(case(
+    "QA-3F-11", "Lenth 활성 표시 — |효과| ≥ 2.5 s0", "lenth", "doe_unreplicated",
+    {"response": "Y", "factors": ["A", "B", "C"], "order": 3},
+    [f(f"active:{t}") for t in ("A", "B", "C", "A×B", "A×C", "B×C", "A×B×C")],
+    note="활성 표시는 s0 기준(2.5배)이며 ME와 다른 기준이다. 큰 효과 A만 활성이어야 한다."
+))
+Q3F.append(case(
+    "QA-3F-12", "중심점이 있어 Lenth 불가 — 'replicated'", "lenth", "doe_2k3",
+    {"response": "Y", "factors": ["A", "B", "C"], "order": 2},
+    [f("available"), f("reason", kind="string")],
+    note="반복이 있으면 잔차 표준오차가 실제로 존재하므로 의사 표준오차로 대체하지 않고 거부한다."
+))
+Q3F.append(case(
+    "QA-3F-13", "포화되지 않은 모형 — 'not-saturated'", "lenth", "doe_unreplicated",
+    {"response": "Y", "factors": ["A", "B", "C"], "order": 2},
+    [f("available"), f("reason", kind="string")],
+    note="반복은 없지만 모형 차수가 낮아 오차 df가 남으면 Lenth의 전제(포화)가 깨진다. 거부 사유가 구분되는지 확인한다."
+))
+Q3F.append(case(
+    "QA-3F-14", "포화 요인분석 — 오차 통계량은 정의 불가", "doeanalyze", "doe_unreplicated",
+    {"response": "Y", "factors": ["A", "B", "C"], "order": 3},
+    [f("effect:A"), f("effect:B"), f("effect:A×B×C"), f("sse"), f("dfe"), f("r2"), f("r2_adj"), f("s")],
+    note="dfe=0이면 S와 수정 R²는 숫자가 아니라 정의 불가(NaN)다. 0이나 무한대로 대체하지 않는다."
+))
+
+HIER = {"factors": ["A", "B", "C"], "order": 2}
+HIER_FIELDS = [f("refused"), f("selected_count"), f("added_count"), f("violation_count"),
+               f("missing", kind="string"), f("selected", kind="string")]
+Q3F.append(case(
+    "QA-3F-15", "엄격 모드 — 상위 항 없는 교호작용 거부", "hierarchy", None,
+    dict(HIER, mode="strict", selected=[["A", "B"]]), HIER_FIELDS,
+    note="엄격 모드는 선택을 바꾸지 않고 거부한다. 빠진 상위 항 A, B를 이름으로 보고한다."
+))
+Q3F.append(case(
+    "QA-3F-16", "자동 모드 — 빠진 상위 항 추가", "hierarchy", None,
+    dict(HIER, mode="auto", selected=[["A", "B"]]), HIER_FIELDS,
+    note="자동 모드는 A×B를 유지하려고 A와 B를 더한다. 최종 선택은 목록 순서(주효과 먼저)를 따른다."
+))
+Q3F.append(case(
+    "QA-3F-17", "제한 없음 모드 — 선택 유지와 경고", "hierarchy", None,
+    dict(HIER, mode="unrestricted", selected=[["A", "B"]]), HIER_FIELDS,
+    note="제한 없음은 선택을 그대로 두되 위반을 기록한다. 거부도 자동 추가도 아니다."
+))
+Q3F.append(case(
+    "QA-3F-18", "계층성 만족 — 위반 없음", "hierarchy", None,
+    dict(HIER, mode="strict", selected=[["A"], ["B"], ["A", "B"]]), HIER_FIELDS,
+    note="상위 항이 모두 있으면 세 모드가 같은 선택을 돌려준다."
+))
+Q3F.append(case(
+    "QA-3F-19", "삼원 교호작용의 폐포 — 하위 항 6개", "hierarchy", None,
+    dict(HIER, mode="auto", order=3, selected=[["A", "B", "C"]]), HIER_FIELDS,
+    note="A×B×C의 하위 항은 A, B, C, A×B, A×C, B×C 여섯 개다. 자동 모드는 그 전부를 더한다."
+))
+Q3F.append(case(
+    "QA-3F-20", "부분 선택의 폐포 — 주효과와 이원 교호작용", "hierarchy", None,
+    dict(HIER, mode="auto", selected=[["A"], ["B", "C"]]), HIER_FIELDS,
+    note="B×C의 상위 항 B, C만 더해진다. 이미 선택된 A는 다시 세지 않는다."
+))
+
+GLM_FACTORS = [
+    {"name": "Machine", "column": "Machine", "kind": "categorical"},
+    {"name": "Shift", "column": "Shift", "kind": "categorical"},
+]
+Q3F.append(case(
+    "QA-3F-21", "불균형 교차 설계 — Type I·III 분산분석", "glm", "glm_crossed",
+    {"response": "Strength", "factors": GLM_FACTORS,
+     "terms": [["Machine"], ["Shift"], ["Machine", "Shift"]]},
+    [f("n"), f("dfe"), f("rank"), f("sse"), f("mse"), f("s"), f("ss_total"), f("ss_model"), f("r2"),
+     f("r2_adj"), f("term:Machine:df"), f("term:Machine:ss_seq"), f("term:Machine:ss_adj"),
+     f("term:Machine:f"), f("term:Machine:p"), f("term:Shift:df"), f("term:Shift:ss_seq"),
+     f("term:Shift:ss_adj"), f("term:Shift:f"), f("term:Shift:p"),
+     f("term:Machine×Shift:df"), f("term:Machine×Shift:ss_seq"), f("term:Machine×Shift:ss_adj"),
+     f("term:Machine×Shift:f"), f("term:Machine×Shift:p")],
+    note="불균형 설계에서는 순차(Type I)와 조정(Type III) 제곱합이 다르다. 두 값을 모두 비교한다."
+))
+Q3F.append(case(
+    "QA-3F-22", "주효과 모형 — 불균형에서도 Type I≠III", "glm", "glm_crossed",
+    {"response": "Strength", "factors": GLM_FACTORS, "terms": [["Machine"], ["Shift"]]},
+    [f("dfe"), f("term:Machine:ss_seq"), f("term:Machine:ss_adj"), f("term:Shift:ss_seq"),
+     f("term:Shift:ss_adj"), f("term:Machine:p"), f("term:Shift:p")],
+    note="교호작용을 빼도 불균형이면 두 제곱합이 다르며, 차이는 Machine이 Shift와 상관된 몫이다."
+))
+Q3F.append(case(
+    "QA-3F-23", "항 순서를 바꾼 모형 — 순차 제곱합의 순서 의존성", "glm", "glm_crossed",
+    {"response": "Strength", "factors": GLM_FACTORS,
+     "terms": [["Shift"], ["Machine"], ["Shift", "Machine"]]},
+    [f("term:Shift:ss_seq"), f("term:Machine:ss_seq"), f("term:Shift:ss_adj"),
+     f("term:Machine:ss_adj"), f("term:Shift×Machine:ss_adj")],
+    note="Type I은 항 순서에 따라 달라지고 Type III는 순서에 불변이다. 두 성질을 동시에 확인한다."
+))
+Q3F.append(case(
+    "QA-3F-24", "반복 설계의 완전 모형 — 효과·적합통계", "doeanalyze", "doe_pooled",
+    D3F,
+    [f(f"effect:{t}") for t in ("A", "B", "C", "A×B", "A×C", "B×C", "A×B×C")]
+    + [f(k) for k in ("sse", "dfe", "r2", "r2_adj", "s")],
+    note="2³×2 반복에서 7개 항의 효과와 잔차 통계량을 기준 OLS와 비교한다."
+))
+Q3F.append(case(
+    "QA-3F-25", "2차 모형의 효과 — 항 수가 줄면 오차 df가 는다", "doeanalyze", "doe_pooled",
+    {"response": "Y", "factors": ["A", "B", "C"], "order": 2},
+    [f(f"effect:{t}") for t in ("A", "B", "C", "A×B", "A×C", "B×C")]
+    + [f(k) for k in ("sse", "dfe", "s")],
+    note="A×B×C를 모형에서 빼면 그 제곱합이 오차로 돌아간다. 효과 값은 변하지 않고 dfe만 커진다."
+))
+
+areas["QA-3F-model-control.json"] = ("QA-3F", Q3F)
+
 for name, (area, cases) in [
     ("QA-I-calc.json", areas["QA-I-calc.json"]),
     ("QA-U-charts-transforms.json", areas["QA-U-charts-transforms.json"]),
     ("QA-V-stage3b-surface.json", areas["QA-V-stage3b-surface.json"]),
     ("QA-W-stage3c-optimizer.json", areas["QA-W-stage3c-optimizer.json"]),
     ("QA-Y-stage3d-errorbars.json", areas["QA-Y-stage3d-errorbars.json"]),
+    ("QA-3F-model-control.json", areas["QA-3F-model-control.json"]),
 ]:
     write(name, area, cases)
 print("total:", sum(len(v[1]) for v in areas.values()))

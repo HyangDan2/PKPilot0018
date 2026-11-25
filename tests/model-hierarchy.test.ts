@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { findAnalysis } from '../src/lib/analyses';
+import { normalizeValues } from '../src/components/AnalysisDialog';
 import { clearModelSettings, loadModelSettings, saveModelSettings } from '../src/lib/modelSettings';
 import { makeWorksheet } from '../src/lib/datasets';
 import type { Block, Worksheet } from '../src/types';
@@ -79,6 +80,25 @@ describe('hierarchy modes in a run (WO-3F-04)', () => {
 });
 
 describe('model settings store (WO-3F-02)', () => {
+  it('keeps a preset order authoritative over a stored lower-order selection', () => {
+    const def = findAnalysis('doeanalyze')!;
+    const saved = { terms: ['A', 'B', 'A|B'], pooled: ['A|B'], hierarchy: 'auto' as const, order: 2 };
+    const values = normalizeValues(def, { ...base, order: '3' }, saved);
+    expect(values.order).toBe('3');
+    expect(values.terms).toBeUndefined();
+    expect(values.pooled).toBeUndefined();
+    expect(values.hierarchy).toBeUndefined();
+  });
+
+  it('restores the stored order when no preset supplies one', () => {
+    const def = findAnalysis('doeanalyze')!;
+    const saved = { terms: ['A', 'B', 'A|B'], pooled: [], hierarchy: 'auto' as const, order: 3 };
+    const values = normalizeValues(def, undefined, saved);
+    expect(values.order).toBe('3');
+    expect(values.terms).toEqual(saved.terms);
+    expect(values.hierarchy).toBe('auto');
+  });
+
   it('survives a round trip and rejects a corrupted record', () => {
     clearModelSettings('glm');
     expect(loadModelSettings('glm')).toBeNull();

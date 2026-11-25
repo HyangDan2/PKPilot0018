@@ -1,0 +1,1210 @@
+{
+ "area": "QA-3F",
+ "cases": [
+  {
+   "id": "QA-3F-01",
+   "title": "풀링 전·후 적합통계 — 원본 보존과 축소모형",
+   "op": "pooling",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "full_sse"
+    },
+    {
+     "key": "full_dfe"
+    },
+    {
+     "key": "full_mse"
+    },
+    {
+     "key": "full_s"
+    },
+    {
+     "key": "full_r2"
+    },
+    {
+     "key": "full_r2_adj"
+    },
+    {
+     "key": "full_r2_pred"
+    },
+    {
+     "key": "red_sse"
+    },
+    {
+     "key": "red_dfe"
+    },
+    {
+     "key": "red_mse"
+    },
+    {
+     "key": "red_s"
+    },
+    {
+     "key": "red_r2"
+    },
+    {
+     "key": "red_r2_adj"
+    },
+    {
+     "key": "red_r2_pred"
+    }
+   ],
+   "note": "B×C를 오차로 옮긴 뒤 두 적합의 SSE·DFE·MSE·S·R²를 모두 보고한다. 원본(full)은 덮어쓰지 않는다."
+  },
+  {
+   "id": "QA-3F-02",
+   "title": "비교표 차이 — 오차 DF +1, 오차 SS 증가",
+   "op": "pooling",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "cmp:modelDf:difference"
+    },
+    {
+     "key": "cmp:errorDf:difference"
+    },
+    {
+     "key": "cmp:modelSs:difference"
+    },
+    {
+     "key": "cmp:errorSs:difference"
+    },
+    {
+     "key": "cmp:errorMs:difference"
+    },
+    {
+     "key": "cmp:s:difference"
+    },
+    {
+     "key": "cmp:r2:difference"
+    },
+    {
+     "key": "cmp:r2adj:difference"
+    },
+    {
+     "key": "cmp:r2pred:difference"
+    },
+    {
+     "key": "cmp:n:difference"
+    }
+   ],
+   "note": "차이는 축소 − 원본이다. 항 하나가 df 1을 오차로 넘기므로 errorDf 차이 +1, modelDf 차이 −1이며, S는 커지고 R²·수정 R²·예측 R²는 작아진다."
+  },
+  {
+   "id": "QA-3F-03",
+   "title": "부분 F — 내포된 축소모형",
+   "op": "pooling",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "partial_df1"
+    },
+    {
+     "key": "partial_df2"
+    },
+    {
+     "key": "partial_f"
+    },
+    {
+     "key": "partial_p"
+    },
+    {
+     "key": "partial_reason",
+     "kind": "string"
+    }
+   ],
+   "note": "df1은 축소에서 얻은 오차 df(reduced − full), df2는 축소모형의 오차 df. F=(SSE_red−SSE_full)/df1÷MSE_red."
+  },
+  {
+   "id": "QA-3F-04",
+   "title": "풀링 가산성 점검 — 오차 SS·DF 합",
+   "op": "pooling",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "checks_expected_dfe"
+    },
+    {
+     "key": "checks_actual_dfe"
+    },
+    {
+     "key": "checks_expected_ss"
+    },
+    {
+     "key": "checks_actual_ss"
+    },
+    {
+     "key": "checks_additive"
+    }
+   ],
+   "note": "직교 설계에서는 SSE(full)+SS(항)=SSE(reduced)가 성립한다. 점검은 재적합 결과와 합계를 실제로 비교한다."
+  },
+  {
+   "id": "QA-3F-05",
+   "title": "두 항 풀링 — A×B×C와 B×C",
+   "op": "pooling",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "A",
+      "B",
+      "C"
+     ],
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "red_dfe"
+    },
+    {
+     "key": "red_sse"
+    },
+    {
+     "key": "red_s"
+    },
+    {
+     "key": "partial_df1"
+    },
+    {
+     "key": "partial_f"
+    },
+    {
+     "key": "partial_p"
+    },
+    {
+     "key": "checks_additive"
+    }
+   ],
+   "note": "두 항이 함께 오차로 가면 df1=2다. 부분 F는 두 항의 결합 기여를 검정한다."
+  },
+  {
+   "id": "QA-3F-06",
+   "title": "축소 없음 — 부분 F는 'no-reduction'",
+   "op": "pooling",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": []
+   },
+   "fields": [
+    {
+     "key": "red_sse"
+    },
+    {
+     "key": "red_dfe"
+    },
+    {
+     "key": "cmp:errorDf:difference"
+    },
+    {
+     "key": "partial_df1"
+    },
+    {
+     "key": "partial_df2"
+    },
+    {
+     "key": "partial_f"
+    },
+    {
+     "key": "partial_p"
+    },
+    {
+     "key": "partial_reason",
+     "kind": "string"
+    }
+   ],
+   "note": "풀링 항이 없으면 두 적합이 같다. df1=0이므로 부분 F를 계산하지 않고 이유를 보고한다(0/0을 숫자로 만들지 않는다)."
+  },
+  {
+   "id": "QA-3F-07",
+   "title": "주효과 C 풀링 — 작은 효과의 흡수",
+   "op": "pooling",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "pooled": [
+     [
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "full_sse"
+    },
+    {
+     "key": "red_sse"
+    },
+    {
+     "key": "red_dfe"
+    },
+    {
+     "key": "red_r2_adj"
+    },
+    {
+     "key": "red_r2_pred"
+    },
+    {
+     "key": "partial_df1"
+    },
+    {
+     "key": "partial_df2"
+    },
+    {
+     "key": "partial_f"
+    },
+    {
+     "key": "partial_p"
+    },
+    {
+     "key": "partial_reason",
+     "kind": "string"
+    }
+   ],
+   "note": "주효과를 풀링해도 같은 규칙이 적용되는지 확인한다. 축소모형은 다시 적합하며 숫자를 더해 만들지 않는다."
+  },
+  {
+   "id": "QA-3F-08",
+   "title": "2차 모형에서 B×C 풀링",
+   "op": "pooling",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "pooled": [
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "full_dfe"
+    },
+    {
+     "key": "red_dfe"
+    },
+    {
+     "key": "partial_df1"
+    },
+    {
+     "key": "partial_df2"
+    },
+    {
+     "key": "partial_f"
+    },
+    {
+     "key": "partial_p"
+    },
+    {
+     "key": "checks_additive"
+    }
+   ],
+   "note": "모형 차수를 2로 제한하면 원래 오차 df가 커진다. 부분 F의 df2가 그만큼 커지는지 확인한다."
+  },
+  {
+   "id": "QA-3F-09",
+   "title": "Lenth PSE — 반복 없는 2³ 설계",
+   "op": "lenth",
+   "tolerance": "default",
+   "dataset": "doe_unreplicated",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "available"
+    },
+    {
+     "key": "pse"
+    },
+    {
+     "key": "me"
+    },
+    {
+     "key": "sme"
+    },
+    {
+     "key": "pseudo_df"
+    },
+    {
+     "key": "active_count"
+    }
+   ],
+   "note": "s0=1.5·median|효과|, 활성 제외 후 PSE=1.5·median|비활성|, ME=t(0.975, pseudo df)·PSE."
+  },
+  {
+   "id": "QA-3F-10",
+   "title": "Lenth 효과 — 7개 항의 크기",
+   "op": "lenth",
+   "tolerance": "default",
+   "dataset": "doe_unreplicated",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "effect:A"
+    },
+    {
+     "key": "effect:B"
+    },
+    {
+     "key": "effect:C"
+    },
+    {
+     "key": "effect:A×B"
+    },
+    {
+     "key": "effect:A×C"
+    },
+    {
+     "key": "effect:B×C"
+    },
+    {
+     "key": "effect:A×B×C"
+    }
+   ],
+   "note": "효과 = 2×코드화 계수. 기준은 자체 OLS 적합에서 같은 값을 얻는다."
+  },
+  {
+   "id": "QA-3F-11",
+   "title": "Lenth 활성 표시 — |효과| ≥ 2.5 s0",
+   "op": "lenth",
+   "tolerance": "default",
+   "dataset": "doe_unreplicated",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "active:A"
+    },
+    {
+     "key": "active:B"
+    },
+    {
+     "key": "active:C"
+    },
+    {
+     "key": "active:A×B"
+    },
+    {
+     "key": "active:A×C"
+    },
+    {
+     "key": "active:B×C"
+    },
+    {
+     "key": "active:A×B×C"
+    }
+   ],
+   "note": "활성 표시는 s0 기준(2.5배)이며 ME와 다른 기준이다. 큰 효과 A만 활성이어야 한다."
+  },
+  {
+   "id": "QA-3F-12",
+   "title": "중심점이 있어 Lenth 불가 — 'replicated'",
+   "op": "lenth",
+   "tolerance": "default",
+   "dataset": "doe_2k3",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2
+   },
+   "fields": [
+    {
+     "key": "available"
+    },
+    {
+     "key": "reason",
+     "kind": "string"
+    }
+   ],
+   "note": "반복이 있으면 잔차 표준오차가 실제로 존재하므로 의사 표준오차로 대체하지 않고 거부한다."
+  },
+  {
+   "id": "QA-3F-13",
+   "title": "포화되지 않은 모형 — 'not-saturated'",
+   "op": "lenth",
+   "tolerance": "default",
+   "dataset": "doe_unreplicated",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2
+   },
+   "fields": [
+    {
+     "key": "available"
+    },
+    {
+     "key": "reason",
+     "kind": "string"
+    }
+   ],
+   "note": "반복은 없지만 모형 차수가 낮아 오차 df가 남으면 Lenth의 전제(포화)가 깨진다. 거부 사유가 구분되는지 확인한다."
+  },
+  {
+   "id": "QA-3F-14",
+   "title": "포화 요인분석 — 오차 통계량은 정의 불가",
+   "op": "doeanalyze",
+   "tolerance": "default",
+   "dataset": "doe_unreplicated",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "effect:A"
+    },
+    {
+     "key": "effect:B"
+    },
+    {
+     "key": "effect:A×B×C"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "s"
+    }
+   ],
+   "note": "dfe=0이면 S와 수정 R²는 숫자가 아니라 정의 불가(NaN)다. 0이나 무한대로 대체하지 않는다."
+  },
+  {
+   "id": "QA-3F-15",
+   "title": "엄격 모드 — 상위 항 없는 교호작용 거부",
+   "op": "hierarchy",
+   "tolerance": "default",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "strict",
+    "selected": [
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused"
+    },
+    {
+     "key": "selected_count"
+    },
+    {
+     "key": "added_count"
+    },
+    {
+     "key": "violation_count"
+    },
+    {
+     "key": "missing",
+     "kind": "string"
+    },
+    {
+     "key": "selected",
+     "kind": "string"
+    }
+   ],
+   "note": "엄격 모드는 선택을 바꾸지 않고 거부한다. 빠진 상위 항 A, B를 이름으로 보고한다."
+  },
+  {
+   "id": "QA-3F-16",
+   "title": "자동 모드 — 빠진 상위 항 추가",
+   "op": "hierarchy",
+   "tolerance": "default",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "auto",
+    "selected": [
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused"
+    },
+    {
+     "key": "selected_count"
+    },
+    {
+     "key": "added_count"
+    },
+    {
+     "key": "violation_count"
+    },
+    {
+     "key": "missing",
+     "kind": "string"
+    },
+    {
+     "key": "selected",
+     "kind": "string"
+    }
+   ],
+   "note": "자동 모드는 A×B를 유지하려고 A와 B를 더한다. 최종 선택은 목록 순서(주효과 먼저)를 따른다."
+  },
+  {
+   "id": "QA-3F-17",
+   "title": "제한 없음 모드 — 선택 유지와 경고",
+   "op": "hierarchy",
+   "tolerance": "default",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "unrestricted",
+    "selected": [
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused"
+    },
+    {
+     "key": "selected_count"
+    },
+    {
+     "key": "added_count"
+    },
+    {
+     "key": "violation_count"
+    },
+    {
+     "key": "missing",
+     "kind": "string"
+    },
+    {
+     "key": "selected",
+     "kind": "string"
+    }
+   ],
+   "note": "제한 없음은 선택을 그대로 두되 위반을 기록한다. 거부도 자동 추가도 아니다."
+  },
+  {
+   "id": "QA-3F-18",
+   "title": "계층성 만족 — 위반 없음",
+   "op": "hierarchy",
+   "tolerance": "default",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "strict",
+    "selected": [
+     [
+      "A"
+     ],
+     [
+      "B"
+     ],
+     [
+      "A",
+      "B"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused"
+    },
+    {
+     "key": "selected_count"
+    },
+    {
+     "key": "added_count"
+    },
+    {
+     "key": "violation_count"
+    },
+    {
+     "key": "missing",
+     "kind": "string"
+    },
+    {
+     "key": "selected",
+     "kind": "string"
+    }
+   ],
+   "note": "상위 항이 모두 있으면 세 모드가 같은 선택을 돌려준다."
+  },
+  {
+   "id": "QA-3F-19",
+   "title": "삼원 교호작용의 폐포 — 하위 항 6개",
+   "op": "hierarchy",
+   "tolerance": "default",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3,
+    "mode": "auto",
+    "selected": [
+     [
+      "A",
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused"
+    },
+    {
+     "key": "selected_count"
+    },
+    {
+     "key": "added_count"
+    },
+    {
+     "key": "violation_count"
+    },
+    {
+     "key": "missing",
+     "kind": "string"
+    },
+    {
+     "key": "selected",
+     "kind": "string"
+    }
+   ],
+   "note": "A×B×C의 하위 항은 A, B, C, A×B, A×C, B×C 여섯 개다. 자동 모드는 그 전부를 더한다."
+  },
+  {
+   "id": "QA-3F-20",
+   "title": "부분 선택의 폐포 — 주효과와 이원 교호작용",
+   "op": "hierarchy",
+   "tolerance": "default",
+   "args": {
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2,
+    "mode": "auto",
+    "selected": [
+     [
+      "A"
+     ],
+     [
+      "B",
+      "C"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "refused"
+    },
+    {
+     "key": "selected_count"
+    },
+    {
+     "key": "added_count"
+    },
+    {
+     "key": "violation_count"
+    },
+    {
+     "key": "missing",
+     "kind": "string"
+    },
+    {
+     "key": "selected",
+     "kind": "string"
+    }
+   ],
+   "note": "B×C의 상위 항 B, C만 더해진다. 이미 선택된 A는 다시 세지 않는다."
+  },
+  {
+   "id": "QA-3F-21",
+   "title": "불균형 교차 설계 — Type I·III 분산분석",
+   "op": "glm",
+   "tolerance": "default",
+   "dataset": "glm_crossed",
+   "args": {
+    "response": "Strength",
+    "factors": [
+     {
+      "name": "Machine",
+      "column": "Machine",
+      "kind": "categorical"
+     },
+     {
+      "name": "Shift",
+      "column": "Shift",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "Machine"
+     ],
+     [
+      "Shift"
+     ],
+     [
+      "Machine",
+      "Shift"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "n"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "rank"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "mse"
+    },
+    {
+     "key": "s"
+    },
+    {
+     "key": "ss_total"
+    },
+    {
+     "key": "ss_model"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "term:Machine:df"
+    },
+    {
+     "key": "term:Machine:ss_seq"
+    },
+    {
+     "key": "term:Machine:ss_adj"
+    },
+    {
+     "key": "term:Machine:f"
+    },
+    {
+     "key": "term:Machine:p"
+    },
+    {
+     "key": "term:Shift:df"
+    },
+    {
+     "key": "term:Shift:ss_seq"
+    },
+    {
+     "key": "term:Shift:ss_adj"
+    },
+    {
+     "key": "term:Shift:f"
+    },
+    {
+     "key": "term:Shift:p"
+    },
+    {
+     "key": "term:Machine×Shift:df"
+    },
+    {
+     "key": "term:Machine×Shift:ss_seq"
+    },
+    {
+     "key": "term:Machine×Shift:ss_adj"
+    },
+    {
+     "key": "term:Machine×Shift:f"
+    },
+    {
+     "key": "term:Machine×Shift:p"
+    }
+   ],
+   "note": "불균형 설계에서는 순차(Type I)와 조정(Type III) 제곱합이 다르다. 두 값을 모두 비교한다."
+  },
+  {
+   "id": "QA-3F-22",
+   "title": "주효과 모형 — 불균형에서도 Type I≠III",
+   "op": "glm",
+   "tolerance": "default",
+   "dataset": "glm_crossed",
+   "args": {
+    "response": "Strength",
+    "factors": [
+     {
+      "name": "Machine",
+      "column": "Machine",
+      "kind": "categorical"
+     },
+     {
+      "name": "Shift",
+      "column": "Shift",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "Machine"
+     ],
+     [
+      "Shift"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "term:Machine:ss_seq"
+    },
+    {
+     "key": "term:Machine:ss_adj"
+    },
+    {
+     "key": "term:Shift:ss_seq"
+    },
+    {
+     "key": "term:Shift:ss_adj"
+    },
+    {
+     "key": "term:Machine:p"
+    },
+    {
+     "key": "term:Shift:p"
+    }
+   ],
+   "note": "교호작용을 빼도 불균형이면 두 제곱합이 다르며, 차이는 Machine이 Shift와 상관된 몫이다."
+  },
+  {
+   "id": "QA-3F-23",
+   "title": "항 순서를 바꾼 모형 — 순차 제곱합의 순서 의존성",
+   "op": "glm",
+   "tolerance": "default",
+   "dataset": "glm_crossed",
+   "args": {
+    "response": "Strength",
+    "factors": [
+     {
+      "name": "Machine",
+      "column": "Machine",
+      "kind": "categorical"
+     },
+     {
+      "name": "Shift",
+      "column": "Shift",
+      "kind": "categorical"
+     }
+    ],
+    "terms": [
+     [
+      "Shift"
+     ],
+     [
+      "Machine"
+     ],
+     [
+      "Shift",
+      "Machine"
+     ]
+    ]
+   },
+   "fields": [
+    {
+     "key": "term:Shift:ss_seq"
+    },
+    {
+     "key": "term:Machine:ss_seq"
+    },
+    {
+     "key": "term:Shift:ss_adj"
+    },
+    {
+     "key": "term:Machine:ss_adj"
+    },
+    {
+     "key": "term:Shift×Machine:ss_adj"
+    }
+   ],
+   "note": "Type I은 항 순서에 따라 달라지고 Type III는 순서에 불변이다. 두 성질을 동시에 확인한다."
+  },
+  {
+   "id": "QA-3F-24",
+   "title": "반복 설계의 완전 모형 — 효과·적합통계",
+   "op": "doeanalyze",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 3
+   },
+   "fields": [
+    {
+     "key": "effect:A"
+    },
+    {
+     "key": "effect:B"
+    },
+    {
+     "key": "effect:C"
+    },
+    {
+     "key": "effect:A×B"
+    },
+    {
+     "key": "effect:A×C"
+    },
+    {
+     "key": "effect:B×C"
+    },
+    {
+     "key": "effect:A×B×C"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "r2"
+    },
+    {
+     "key": "r2_adj"
+    },
+    {
+     "key": "s"
+    }
+   ],
+   "note": "2³×2 반복에서 7개 항의 효과와 잔차 통계량을 기준 OLS와 비교한다."
+  },
+  {
+   "id": "QA-3F-25",
+   "title": "2차 모형의 효과 — 항 수가 줄면 오차 df가 는다",
+   "op": "doeanalyze",
+   "tolerance": "default",
+   "dataset": "doe_pooled",
+   "args": {
+    "response": "Y",
+    "factors": [
+     "A",
+     "B",
+     "C"
+    ],
+    "order": 2
+   },
+   "fields": [
+    {
+     "key": "effect:A"
+    },
+    {
+     "key": "effect:B"
+    },
+    {
+     "key": "effect:C"
+    },
+    {
+     "key": "effect:A×B"
+    },
+    {
+     "key": "effect:A×C"
+    },
+    {
+     "key": "effect:B×C"
+    },
+    {
+     "key": "sse"
+    },
+    {
+     "key": "dfe"
+    },
+    {
+     "key": "s"
+    }
+   ],
+   "note": "A×B×C를 모형에서 빼면 그 제곱합이 오차로 돌아간다. 효과 값은 변하지 않고 dfe만 커진다."
+  }
+ ]
+}

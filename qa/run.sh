@@ -24,9 +24,9 @@ node --version
 
 echo "── 2/5 golden datasets ────────────────────────────────────────"
 python3 qa/datasets/generate.py | tail -2
-if [ -n "$(git status --porcelain qa/datasets 2>/dev/null | grep -v '^?? ')" ]; then
-  echo "ERROR: qa/datasets differs from the committed golden files — regenerate and commit them." >&2
-  git status --porcelain qa/datasets >&2
+if [ -n "$(git status --porcelain -- 'qa/datasets/*.json' 2>/dev/null | grep -v '^?? ')" ]; then
+  echo "ERROR: qa/datasets golden JSON differs from the committed files — regenerate and commit them." >&2
+  git status --porcelain -- 'qa/datasets/*.json' >&2
   exit 1
 fi
 

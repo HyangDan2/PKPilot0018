@@ -9,7 +9,7 @@
   "method": "src/lib/analyses.ts 레지스트리 41개 분석 전부와 src/lib·src/components 모듈을 소스에서 읽어 열거하고, 각 기능의 근거(파일·심볼·테스트·QA·튜토리얼·샘플)를 저장소에서 직접 확인했다.",
   "analysisCount": 41,
   "moduleCount": 20,
-  "qaCaseTotal": 225
+  "qaCaseTotal": 250
  },
  "features": [
   {
@@ -1489,6 +1489,9 @@
     "p2.test.ts": 28
    },
    "independentQaCaseIds": [
+    "QA-3F-21",
+    "QA-3F-22",
+    "QA-3F-23",
     "QA-B-02",
     "QA-B-03",
     "QA-B-04",
@@ -1503,7 +1506,7 @@
     "anova-glm"
    ],
    "tutorialIds": [],
-   "knownCaveat": "공변량·랜덤 요인·모형 축소·적합결여·별칭 표시가 없다."
+   "knownCaveat": "공변량·랜덤 요인·단계적 선택은 없다. 모형 축소·오차 풀링·계층성·비교표는 Phase 3F에서 추가했다."
   },
   {
    "featureId": "S-AN-doecreate",
@@ -1587,19 +1590,30 @@
     "p2.test.ts": 28
    },
    "independentQaCaseIds": [
+    "QA-3F-24",
+    "QA-3F-25",
     "QA-H-06",
     "QA-H-07"
    ],
    "e2eTestIds": [],
    "sampleDatasetIds": [
+    "display-optical-doe",
     "doe",
-    "display-optical-doe"
+    "doe-pooled",
+    "doe-screening",
+    "doe-unreplicated",
+    "glm-unbalanced"
    ],
    "helpDocumentIds": [
-    "factorial-analysis"
+    "error-pooling",
+    "factorial-analysis",
+    "model-hierarchy",
+    "unreplicated-designs"
    ],
-   "tutorialIds": [],
-   "knownCaveat": "단계적 선택·모형 축소·이진 반응·변동 분석이 없다."
+   "tutorialIds": [
+    "tutorial-doe-reduction-001"
+   ],
+   "knownCaveat": "이진 반응·변동 분석·단계적 선택은 없다. 축소모형 재적합·Lenth PSE·계층성은 Phase 3F에서 추가했다."
   },
   {
    "featureId": "S-AN-rsmcreate",
@@ -2861,6 +2875,239 @@
    "helpDocumentIds": [],
    "tutorialIds": [],
    "knownCaveat": "브라우저 메모리 한계는 기기별로 다르다."
+  },
+  {
+   "featureId": "S-MOD-21",
+   "kind": "module",
+   "analysisId": null,
+   "title": "모형 비교표(원본 vs 축소)",
+   "titleEn": "Model comparison (original vs reduced)",
+   "uiEntryPoint": "통계 > DOE > 요인 설계 분석 > 모형 > 항 선택 > 풀링 후 결과",
+   "sourceFile": "src/lib/modelComparison.ts, src/components/AnalysisDialog.tsx",
+   "engineFunction": "compareFits, COMPARISON_METRICS",
+   "supportedParameters": [
+    "지표 10종(n·모형 DF·오차 DF·모형 SS·오차 SS·오차 MS·S·R²·수정 R²·예측 R²)",
+    "내포 판정과 부분 F",
+    "계수·분산분석 변화표"
+   ],
+   "outputFields": [],
+   "resultBlocks": [
+    "table",
+    "text"
+   ],
+   "implementation": "원본 적합을 덮어쓰지 않고 축소 적합과 나란히 비교하며, 계산할 수 없는 지표는 이유와 함께 N/A로 표시한다.",
+   "unitTestFiles": [
+    "model-comparison.test.ts"
+   ],
+   "unitTestCounts": {
+    "model-comparison.test.ts": 5
+   },
+   "independentQaCaseIds": [
+    "QA-3F-02",
+    "QA-3F-03",
+    "QA-3F-05",
+    "QA-3F-06",
+    "QA-3F-08"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3f.cjs"
+   ],
+   "sampleDatasetIds": [
+    "doe-pooled"
+   ],
+   "helpDocumentIds": [
+    "error-pooling"
+   ],
+   "tutorialIds": [
+    "tutorial-doe-reduction-001"
+   ],
+   "knownCaveat": "비내포 모형은 부분 F를 계산하지 않고 이유만 보고한다. Minitab에는 모형 비교 UI가 없다."
+  },
+  {
+   "featureId": "S-MOD-22",
+   "kind": "module",
+   "analysisId": null,
+   "title": "오차 풀링(항 제거·재적합·가산성 점검)",
+   "titleEn": "Pooling terms into error",
+   "uiEntryPoint": "통계 > DOE > 요인 설계 분석 > 모형 > 항 선택 > 오차로 풀링",
+   "sourceFile": "src/lib/errorPooling.ts, src/components/ModelTermsDialog.tsx",
+   "engineFunction": "fitWithPooling, PoolingCheck",
+   "supportedParameters": [
+    "풀링할 항 다중 선택",
+    "축소모형 재적합",
+    "오차 SS·DF 가산성 점검",
+    "풀링 경고"
+   ],
+   "outputFields": [],
+   "resultBlocks": [
+    "table",
+    "text"
+   ],
+   "implementation": "풀링한 항을 모형에서 빼고 다시 적합하며, 숫자를 더해 축소모형을 만들지 않는다. 합이 맞지 않으면 경고한다.",
+   "unitTestFiles": [
+    "error-pooling.test.ts"
+   ],
+   "unitTestCounts": {
+    "error-pooling.test.ts": 9
+   },
+   "independentQaCaseIds": [
+    "QA-3F-01",
+    "QA-3F-04",
+    "QA-3F-07"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3f.cjs"
+   ],
+   "sampleDatasetIds": [
+    "doe-pooled"
+   ],
+   "helpDocumentIds": [
+    "error-pooling"
+   ],
+   "tutorialIds": [
+    "tutorial-doe-reduction-001"
+   ],
+   "knownCaveat": "별칭 항은 df 0으로 보고되고 두 번 더해지지 않는다. 비직교 설계에서는 가산성 점검이 실패할 수 있다."
+  },
+  {
+   "featureId": "S-MOD-23",
+   "kind": "module",
+   "analysisId": null,
+   "title": "Lenth PSE(반복 없는 2수준 설계)",
+   "titleEn": "Lenth's pseudo standard error",
+   "uiEntryPoint": "통계 > DOE > 요인 설계 분석 > 포화 적합 결과",
+   "sourceFile": "src/lib/errorPooling.ts, src/lib/doe.ts",
+   "engineFunction": "lenthPse, saturatedReport",
+   "supportedParameters": [
+    "s0=1.5·median|효과|",
+    "활성 판정 2.5 s0",
+    "PSE·ME·SME·의사 df"
+   ],
+   "outputFields": [],
+   "resultBlocks": [
+    "table",
+    "text",
+    "chart"
+   ],
+   "implementation": "반복이 없고 포화된 2수준 설계에서만 의사 표준오차를 제공하며, 반복이 있거나 포화가 아니면 이유와 함께 거부한다.",
+   "unitTestFiles": [
+    "saturated-design.test.ts"
+   ],
+   "unitTestCounts": {
+    "saturated-design.test.ts": 9
+   },
+   "independentQaCaseIds": [
+    "QA-3F-09",
+    "QA-3F-10",
+    "QA-3F-11",
+    "QA-3F-12",
+    "QA-3F-13"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3f.cjs"
+   ],
+   "sampleDatasetIds": [
+    "doe-unreplicated",
+    "doe-screening"
+   ],
+   "helpDocumentIds": [
+    "unreplicated-designs"
+   ],
+   "tutorialIds": [
+    "tutorial-doe-reduction-001"
+   ],
+   "knownCaveat": "선별 규칙이지 잔차 기반 검정이 아니다. 작은 실제 효과와 잡음을 구별하지 못한다."
+  },
+  {
+   "featureId": "S-MOD-24",
+   "kind": "module",
+   "analysisId": null,
+   "title": "모형 계층성·교락 규칙",
+   "titleEn": "Model hierarchy and aliasing rules",
+   "uiEntryPoint": "통계 > DOE > 요인 설계 분석 > 모형 > 계층성",
+   "sourceFile": "src/lib/modelTerms.ts, src/components/ModelTermsDialog.tsx",
+   "engineFunction": "applyHierarchy, buildTermCatalog, requiredLowerIds",
+   "supportedParameters": [
+    "엄격·자동·제한 없음 모드",
+    "누락 상위 항 보고",
+    "교락 항 구분"
+   ],
+   "outputFields": [],
+   "resultBlocks": [
+    "text",
+    "table"
+   ],
+   "implementation": "엄격은 거부, 자동은 폐포를 추가, 제한 없음은 승인 후 유지한다. 교락은 계층성으로 고칠 수 없다고 안내한다.",
+   "unitTestFiles": [
+    "model-hierarchy.test.ts"
+   ],
+   "unitTestCounts": {
+    "model-hierarchy.test.ts": 7
+   },
+   "independentQaCaseIds": [
+    "QA-3F-15",
+    "QA-3F-16",
+    "QA-3F-17",
+    "QA-3F-18",
+    "QA-3F-19",
+    "QA-3F-20"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3f.cjs"
+   ],
+   "sampleDatasetIds": [
+    "doe-screening"
+   ],
+   "helpDocumentIds": [
+    "model-hierarchy"
+   ],
+   "tutorialIds": [
+    "tutorial-doe-reduction-001"
+   ],
+   "knownCaveat": "자동 모드는 폐포를 추가할 뿐, 교락된 항을 추정 가능하게 만들지 않는다."
+  },
+  {
+   "featureId": "S-MOD-25",
+   "kind": "module",
+   "analysisId": null,
+   "title": "포화·별칭 적합 보고",
+   "titleEn": "Saturated and aliased fit reporting",
+   "uiEntryPoint": "통계 > DOE > 요인 설계 분석 > 결과",
+   "sourceFile": "src/lib/errorPooling.ts, src/lib/glm.ts",
+   "engineFunction": "saturatedReport, fitGlm",
+   "supportedParameters": [
+    "별칭 항·추정 가능 항",
+    "오차 DF=0에서 S·수정 R² N/A",
+    "Lenth 연결"
+   ],
+   "outputFields": [],
+   "resultBlocks": [
+    "table",
+    "text"
+   ],
+   "implementation": "오차 자유도가 없을 때 t·F 검정을 숫자로 만들지 않고, 추정 가능/별칭을 구분해 보고한다.",
+   "unitTestFiles": [
+    "saturated-design.test.ts"
+   ],
+   "unitTestCounts": {
+    "saturated-design.test.ts": 9
+   },
+   "independentQaCaseIds": [
+    "QA-3F-14"
+   ],
+   "e2eTestIds": [
+    "tools/e2e_phase3f.cjs"
+   ],
+   "sampleDatasetIds": [
+    "doe-unreplicated"
+   ],
+   "helpDocumentIds": [
+    "unreplicated-designs"
+   ],
+   "tutorialIds": [
+    "tutorial-doe-reduction-001"
+   ],
+   "knownCaveat": "별칭 항에는 계수를 추정할 수 없으며, 설계가 바뀌지 않는 한 해결되지 않는다."
   }
  ]
 }
