@@ -3,5 +3,5 @@ version     1.0.0
 release     v1.0.0-rc.1
 edition     public
 phase       Phase 3
-commit      91382d3
-built       2026-11-24T22:50:52Z
+commit      44ceacf
+built       2026-11-25T12:48:16Z
