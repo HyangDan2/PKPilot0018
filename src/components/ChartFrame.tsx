@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChartSource, ChartSpec, Lang } from '../types';
 import type { ChartConfig } from '../lib/chartConfig';
-import { renderChart } from '../lib/charts';
+import { defaultChartHeight, renderChart } from '../lib/charts';
 import { fmt } from '../lib/format';
 import { probeContour } from '../lib/chartProbe';
 import { t } from '../lib/i18n';
@@ -24,7 +24,21 @@ import {
 import type { AxisScale } from '../lib/chartConfig';
 
 const CHART_MIN_WIDTH = 280;
-const CHART_MAX_WIDTH = 820;
+const CHART_BASE_WIDTH = 560;
+const CHART_MAX_WIDTH = 780;
+
+/**
+ * Compute a responsive chart height that preserves the chart's baseline
+ * aspect ratio when rendered wider than 560px (e.g. wide-screen Classic
+ * layout or Zoom/Fullscreen viewer), while honoring explicit height overrides.
+ */
+export function responsiveChartHeight(chart: ChartSpec, width: number, config?: ChartConfig): number | undefined {
+  const explicit = config?.appearance?.height ?? chart.config?.appearance?.height;
+  if (explicit && explicit > 80) return Math.round(explicit);
+  const base = chart.height ?? defaultChartHeight(chart.kind);
+  if (width <= CHART_BASE_WIDTH) return undefined;
+  return Math.round(base * (width / CHART_BASE_WIDTH));
+}
 
 export interface ChartEditRequest {
   tab: ChartDrawerTab;
@@ -236,7 +250,9 @@ export function ChartCanvas({ chart, config, maxWidth = CHART_MAX_WIDTH, onChart
   if (chart.kind === 'surface3d') {
     const surface = { ...defaultSurfaceViewConfig(), ...((config ?? chart.config)?.surface ?? {}) };
     const wanted = (config ?? chart.config)?.appearance?.height ?? 0;
-    const height = wanted > 140 ? Math.round(wanted) : 380;
+    const height = wanted > 140
+      ? Math.round(wanted)
+      : (width > 560 ? Math.min(540, Math.round(380 * (width / 560))) : 380);
     const commit = (camera: SurfaceCameraConfig, projection?: SurfaceProjection) => {
       if (!onChartChange) return;
       const base = config ?? chart.config ?? {};
@@ -261,7 +277,8 @@ export function ChartCanvas({ chart, config, maxWidth = CHART_MAX_WIDTH, onChart
       </div>
     );
   }
-  const svg = renderChart(chart, { width, config });
+  const height = responsiveChartHeight(chart, width, config);
+  const svg = renderChart(chart, { width, height, config });
   return <div ref={hostRef} className="chart-canvas" data-testid="chart-canvas" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
@@ -643,7 +660,7 @@ export function ChartViewer({ lang, chart, config, caption, mode, onClose, onEdi
           <button type="button" className="icon-btn" onClick={onClose} title={t(lang, mode === 'full' ? 'ct.exitFullscreen' : 'ct.close')} aria-label={t(lang, 'ct.close')} data-testid="chart-viewer-close">✕</button>
         </header>
         <div className="chart-viewer-body">
-          <ChartCanvas chart={chart} config={config} maxWidth={mode === 'full' ? 1600 : 1100} lang={lang} onChartChange={onChartChange} />
+          <ChartCanvas chart={chart} config={config} maxWidth={mode === 'full' ? 1280 : 1040} lang={lang} onChartChange={onChartChange} />
         </div>
       </div>
     </div>

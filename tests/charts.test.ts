@@ -311,3 +311,32 @@ describe('control-chart panels with awkward data', () => {
     expect(svg).not.toContain('NaN');
   });
 });
+
+describe('wide-viewport aspect ratio preservation', () => {
+  const scatterSpec = {
+    kind: 'scatter' as const,
+    points: [{ x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 5 }],
+  };
+
+  function viewBoxOf(svg: string): { w: number; h: number } {
+    const match = /viewBox="0 0 (\d+) (\d+)"/.exec(svg);
+    expect(match).not.toBeNull();
+    return { w: Number(match![1]), h: Number(match![2]) };
+  }
+
+  it('keeps the baseline aspect ratio when width exceeds 560px via responsiveChartHeight', async () => {
+    const { responsiveChartHeight } = await import('../src/components/ChartFrame');
+    const base = viewBoxOf(renderChart(scatterSpec, { width: 560 }));
+    const wideH = responsiveChartHeight(scatterSpec, 780);
+    const wide = viewBoxOf(renderChart(scatterSpec, { width: 780, height: wideH }));
+    expect(base).toEqual({ w: 560, h: 260 });
+    expect(wide.w).toBe(780);
+    expect(Math.abs(wide.w / wide.h - base.w / base.h)).toBeLessThan(0.05);
+  });
+
+  it('respects an explicit appearance height override on wide viewports', async () => {
+    const { responsiveChartHeight } = await import('../src/components/ChartFrame');
+    const explicit = responsiveChartHeight(scatterSpec, 780, { appearance: { height: 220 } });
+    expect(explicit).toBe(220);
+  });
+});

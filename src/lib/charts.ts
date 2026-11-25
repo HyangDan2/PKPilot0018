@@ -494,6 +494,10 @@ const DEFAULT_HEIGHTS: Record<ChartSpec['kind'], number> = {
   overlaid: 320,
 };
 
+export function defaultChartHeight(kind: ChartSpec['kind']): number {
+  return DEFAULT_HEIGHTS[kind] ?? 250;
+}
+
 let renderSequence = 0;
 
 function createContext(spec: ChartSpec, options: RenderOptions): RenderContext {

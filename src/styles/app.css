@@ -553,7 +553,7 @@ a { color: inherit; }
 .chart-svg { display: block; width: 100%; max-width: 780px; height: auto; margin-inline: auto; overflow: hidden; }
 
 /* chart editing affordance (P1 #9) */
-.chart-holder { position: relative; }
+.chart-holder { position: relative; max-width: 780px; margin-inline: auto; }
 .chart-edit-btn,
 .chart-copy-btn {
   position: absolute;
@@ -1544,6 +1544,7 @@ kbd {
 }
 .chart-viewer-panel > header .spacer { flex: 1 1 auto; }
 .chart-viewer-body { padding: 10px; overflow: auto; }
+.chart-viewer .chart-holder,
 .chart-viewer .chart-svg { max-width: none; }
 
 /* ── chart properties drawer ──────────────────────────────────────────── */
