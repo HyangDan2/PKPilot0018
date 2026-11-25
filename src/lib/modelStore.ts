@@ -173,7 +173,14 @@ export interface StoredModel {
    */
   control?: ModelControl | null;
   /** Where it came from: analysis id, output card, chart. */
-  source: { analysisId?: string; outputId?: string };
+  source: {
+    analysisId?: string;
+    outputId?: string;
+    /** True when saved automatically on analysis run (eligible for smart upsert). */
+    autoSaved?: boolean;
+    /** True when protected from auto-overwrite (manual save, original model, or renamed). */
+    protected?: boolean;
+  };
 }
 
 /** A model as an analysis hands it over, before it gets an id and a name. */
@@ -650,7 +657,99 @@ export function defaultModelName(draft: StoredModelDraft): string {
 export function renameStoredModel(models: StoredModel[], id: string, name: string): StoredModel[] {
   const trimmed = name.trim();
   if (!trimmed) return models;
-  return models.map((model) => (model.id === id ? { ...model, name: trimmed, updatedAt: new Date().toISOString() } : model));
+  return models.map((model) => (model.id === id
+    ? { ...model, name: trimmed, updatedAt: new Date().toISOString(), source: { ...model.source, protected: true } }
+    : model));
+}
+
+/**
+ * Smart auto-save on analysis run: updates an existing unprotected auto-saved
+ * model that shares the same worksheet, response and analysis kind, or appends
+ * a new one otherwise. Manually saved, original, or renamed models are never
+ * overwritten.
+ */
+export function upsertAutoStoredModel(
+  models: StoredModel[],
+  draft: StoredModelDraft,
+  outputId?: string,
+): { models: StoredModel[]; saved: StoredModel; updated: boolean } {
+  const sheetId = draft.training?.sheetId ?? '';
+  const responseName = draft.response.name;
+  const analysisKey = draft.source.analysisId ?? draft.kind;
+  const matchIndex = models.findIndex((model) => (
+    model.source.autoSaved === true
+    && model.source.protected !== true
+    && (model.training?.sheetId ?? '') === sheetId
+    && model.response.name === responseName
+    && (model.source.analysisId ?? model.kind) === analysisKey
+  ));
+  const taggedDraft: StoredModelDraft = {
+    ...draft,
+    source: {
+      ...draft.source,
+      ...(outputId ? { outputId } : {}),
+      autoSaved: true,
+      protected: false,
+    },
+  };
+  if (matchIndex >= 0) {
+    const existing = models[matchIndex];
+    const updatedModel: StoredModel = {
+      ...taggedDraft,
+      schemaVersion: taggedDraft.schemaVersion ?? MODEL_SCHEMA_VERSION,
+      id: existing.id,
+      name: defaultModelName(taggedDraft),
+      createdAt: existing.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+    const next = models.map((model, idx) => (idx === matchIndex ? updatedModel : model));
+    return { models: next, saved: updatedModel, updated: true };
+  }
+  const created = createStoredModel(taggedDraft, uniqueModelName(models, defaultModelName(taggedDraft)));
+  return { models: [...models, created], saved: created, updated: false };
+}
+
+/**
+ * Manual save from an output card: idempotent if this card's model is already
+ * stored (promotes it to protected instead of duplicating), or creates a new
+ * protected entry (appending "(Original)" when saving a pre-pooling model).
+ */
+export function saveManualStoredModel(
+  models: StoredModel[],
+  draft: StoredModelDraft,
+  options: { outputId?: string; isOriginal?: boolean } = {},
+): { models: StoredModel[]; saved: StoredModel; alreadySaved: boolean } {
+  const targetOutputId = options.outputId
+    ? (options.isOriginal ? `${options.outputId}:original` : options.outputId)
+    : undefined;
+  if (targetOutputId) {
+    const existingIdx = models.findIndex((model) => model.source.outputId === targetOutputId);
+    if (existingIdx >= 0) {
+      const existing = models[existingIdx];
+      const promoted: StoredModel = {
+        ...existing,
+        source: { ...existing.source, protected: true },
+        updatedAt: new Date().toISOString(),
+      };
+      return {
+        models: models.map((model, idx) => (idx === existingIdx ? promoted : model)),
+        saved: promoted,
+        alreadySaved: true,
+      };
+    }
+  }
+  const baseName = options.isOriginal ? `${defaultModelName(draft)} (Original)` : defaultModelName(draft);
+  const taggedDraft: StoredModelDraft = {
+    ...draft,
+    source: {
+      ...draft.source,
+      ...(targetOutputId ? { outputId: targetOutputId } : {}),
+      autoSaved: false,
+      protected: true,
+    },
+  };
+  const created = createStoredModel(taggedDraft, uniqueModelName(models, baseName));
+  return { models: [...models, created], saved: created, alreadySaved: false };
 }
 
 export function duplicateStoredModel(models: StoredModel[], id: string): StoredModel[] {

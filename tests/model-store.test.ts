@@ -23,6 +23,8 @@ import {
   duplicateStoredModel,
   fingerprintColumns,
   mergeStoredModels,
+  saveManualStoredModel,
+  upsertAutoStoredModel,
   modelStaleness,
   parseStoredModels,
   refitStoredModel,
@@ -506,5 +508,59 @@ describe('model store — column helpers', () => {
     expect(model.factorBounds).toEqual({ Time: { min: 1, max: 8 }, Temp: { min: 1, max: 8 } });
     expect(model.categoricalLevels).toBeNull();
     expect(columns(sheet).length).toBe(3);
+  });
+});
+
+describe('smart auto-save upsert and manual protection', () => {
+  it('upserts same worksheet + response + analysis in place, but preserves distinct responses, renamed and original models', () => {
+    const sheet = reactor();
+    const { model } = regressionModel(sheet);
+    const { id: _id, name: _name, createdAt: _createdAt, updatedAt: _updatedAt, ...draft } = model;
+    void _id; void _name; void _createdAt; void _updatedAt;
+
+    // 1. First auto-save creates one entry
+    const first = upsertAutoStoredModel([], draft, 'out-1');
+    expect(first.updated).toBe(false);
+    expect(first.models).toHaveLength(1);
+    expect(first.saved.source.autoSaved).toBe(true);
+    expect(first.saved.source.protected).toBe(false);
+
+    // 2. Re-running the same analysis/response on the same worksheet updates in place
+    const second = upsertAutoStoredModel(first.models, draft, 'out-2');
+    expect(second.updated).toBe(true);
+    expect(second.models).toHaveLength(1);
+    expect(second.saved.id).toBe(first.saved.id);
+    expect(second.saved.source.outputId).toBe('out-2');
+
+    // 3. Different response on the same worksheet creates a separate model
+    const otherResp = { ...draft, response: { ...draft.response, name: 'Cost' } };
+    const third = upsertAutoStoredModel(second.models, otherResp, 'out-3');
+    expect(third.updated).toBe(false);
+    expect(third.models).toHaveLength(2);
+
+    // 4. Clicking manual save on an already auto-saved card is idempotent & protects it
+    const manualSame = saveManualStoredModel(third.models, draft, { outputId: 'out-2' });
+    expect(manualSame.alreadySaved).toBe(true);
+    expect(manualSame.models).toHaveLength(2);
+    expect(manualSame.saved.source.protected).toBe(true);
+
+    // 5. Subsequent auto-save does NOT overwrite a protected model
+    const afterProtected = upsertAutoStoredModel(manualSame.models, draft, 'out-4');
+    expect(afterProtected.updated).toBe(false);
+    expect(afterProtected.models).toHaveLength(3);
+
+    // 6. Renaming an auto-saved model protects it from overwrite
+    const renamed = renameStoredModel(afterProtected.models, afterProtected.saved.id, 'My Final Yield');
+    expect(renamed.find((m) => m.id === afterProtected.saved.id)?.source.protected).toBe(true);
+    const afterRename = upsertAutoStoredModel(renamed, draft, 'out-5');
+    expect(afterRename.updated).toBe(false);
+    expect(afterRename.models).toHaveLength(4);
+
+    // 7. Saving the pre-pooling original model creates a distinct "(Original)" protected entry
+    const orig = saveManualStoredModel(afterRename.models, draft, { outputId: 'out-5', isOriginal: true });
+    expect(orig.alreadySaved).toBe(false);
+    expect(orig.saved.name).toContain('(Original)');
+    expect(orig.saved.source.protected).toBe(true);
+    expect(orig.models).toHaveLength(5);
   });
 });

@@ -18,6 +18,8 @@ interface Props {
   onValuesChange?: (values: Record<string, unknown>) => void;
 }
 
+const MODEL_PRODUCING_ANALYSES = new Set(['regression', 'polyreg', 'glm', 'doeanalyze', 'rsmanalyze']);
+
 function columnMeta(sheet: Worksheet, ref: string): { id: string; name: string; type: string; n: number } | null {
   const col = sheet.columns.find((c) => c.id === ref);
   if (!col) return null;
@@ -425,6 +427,16 @@ export function AnalysisDialog({ def, lang, sheet, initial, onClose, onRun, onVa
 
         <div className="modal-foot">
           <span className="hint">{activeSlot ? `${t(lang, 'dlg.active')}: ${t(lang, activeSlot.label)}` : ''}</span>
+          {MODEL_PRODUCING_ANALYSES.has(def.id) && (
+            <label className="dlg-autosave-model" data-testid="dialog-auto-save-model">
+              <input
+                type="checkbox"
+                checked={values.autoSaveModel !== false}
+                onChange={(event) => setValues((prev) => ({ ...prev, autoSaveModel: event.target.checked }))}
+              />
+              <span>{t(lang, 'dlg.autoSaveModel')}</span>
+            </label>
+          )}
           <span className="spacer" />
           <button type="button" className="btn ghost" onClick={onClose}>{t(lang, 'dlg.cancel')}</button>
           <button type="button" className="btn primary" onClick={submit} data-testid="dialog-ok">{t(lang, 'dlg.ok')}</button>

@@ -39,6 +39,13 @@ interface Props {
   onUpdateBlocks: (id: string, blocks: Block[]) => void;
   /** Hand this card's fitted model to the model store (WO-02). */
   onSaveModel: (output: OutputDoc, draft?: StoredModelDraft) => void;
+  /** Output ids whose fitted model is already stored in Model Manager. */
+  savedModelOutputIds?: string[];
+  /** Direct follow-up shortcuts from an output card's model action bar. */
+  onModelContour?: (output: OutputDoc) => void;
+  onModelSurface?: (output: OutputDoc) => void;
+  onModelOptimize?: (output: OutputDoc) => void;
+  onOpenModelManager?: () => void;
   /** Chart selection lifted to the app, so the worksheet can follow it. */
   selection?: { rows: number[]; source?: ChartSource } | null;
   onSelectRows?: (rows: number[], additive: boolean, source?: ChartSource) => void;
@@ -258,8 +265,10 @@ function blocksWithChart(output: OutputDoc, target: ChartTarget, chart: ChartSpe
 
 export function OutputPanel({
   lang, outputs, focusedOutput, onFocus, onDelete, onToggleCollapse, onCollapseAll, onToast, onRerun, onReproduce, onUpdateBlocks, onSaveModel,
+  savedModelOutputIds = [], onModelContour, onModelSurface, onModelOptimize, onOpenModelManager,
   selection, onSelectRows, onExportSelection,
 }: Props) {
+  const savedSet = new Set(savedModelOutputIds);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; outputId: string | null; target?: ChartTarget } | null>(null);
   const [drawer, setDrawer] = useState<{ target: ChartTarget; tab: ChartDrawerTab; axis?: 'x' | 'y' | 'z' | 'y2' } | null>(null);
@@ -688,31 +697,6 @@ export function OutputPanel({
               </div>
             </div>
             <div className="out-tools" onClick={(event) => event.stopPropagation()}>
-              {output.model && (
-                <button
-                  type="button"
-                  className="card-save-model"
-                  onClick={() => onSaveModel(output)}
-                  title={t(lang, 'outctx.saveModel')}
-                  aria-label={t(lang, 'outctx.saveModel')}
-                  data-testid="card-save-model"
-                >
-                  <IconModel size={14} />
-                </button>
-              )}
-              {output.modelOriginal && (
-                <button
-                  type="button"
-                  className="card-save-model"
-                  onClick={() => onSaveModel(output, output.modelOriginal)}
-                  title={t(lang, 'outctx.saveModelOriginal')}
-                  aria-label={t(lang, 'outctx.saveModelOriginal')}
-                  data-testid="card-save-model-original"
-                >
-                  <IconModel size={14} />
-                  <span className="mono-note" style={{ fontSize: 10 }}>O</span>
-                </button>
-              )}
               <button type="button" onClick={() => onRerun(output)} title={t(lang, 'card.rerun')} aria-label={t(lang, 'card.rerun')} data-testid="card-rerun">
                 <IconRerun size={14} />
               </button>
@@ -739,6 +723,64 @@ export function OutputPanel({
               </button>
             </div>
           </div>
+
+          {!output.collapsed && output.model && (() => {
+            const isSaved = savedSet.has(output.id);
+            const isOrigSaved = savedSet.has(`${output.id}:original`);
+            const numericCount = output.model.predictors.filter((p) => p.kind === 'numeric').length;
+            return (
+              <div className="out-model-bar" data-testid="card-model-bar" onClick={(event) => event.stopPropagation()}>
+                <div className="out-model-bar-group">
+                  <button
+                    type="button"
+                    className={`model-bar-btn ${isSaved ? 'saved' : 'primary'}`}
+                    onClick={() => onSaveModel(output)}
+                    title={t(lang, 'outctx.saveModel')}
+                    aria-label={t(lang, 'outctx.saveModel')}
+                    data-testid="card-save-model"
+                  >
+                    <IconModel size={13} />
+                    <span>{isSaved ? t(lang, 'card.modelSaved') : t(lang, 'card.saveModelBtn')}</span>
+                  </button>
+                  {output.modelOriginal && (
+                    <button
+                      type="button"
+                      className={`model-bar-btn ${isOrigSaved ? 'saved' : ''}`}
+                      onClick={() => onSaveModel(output, output.modelOriginal)}
+                      title={t(lang, 'outctx.saveModelOriginal')}
+                      aria-label={t(lang, 'outctx.saveModelOriginal')}
+                      data-testid="card-save-model-original"
+                    >
+                      <IconModel size={13} />
+                      <span>{isOrigSaved ? t(lang, 'card.modelOriginalSaved') : t(lang, 'card.saveModelOriginalBtn')}</span>
+                    </button>
+                  )}
+                </div>
+                <div className="out-model-bar-group out-model-bar-next">
+                  {numericCount >= 2 && onModelContour && (
+                    <button type="button" className="model-bar-btn" onClick={() => onModelContour(output)} data-testid="card-model-contour">
+                      {t(lang, 'card.modelContour')}
+                    </button>
+                  )}
+                  {numericCount >= 2 && onModelSurface && (
+                    <button type="button" className="model-bar-btn" onClick={() => onModelSurface(output)} data-testid="card-model-surface">
+                      {t(lang, 'card.modelSurface')}
+                    </button>
+                  )}
+                  {onModelOptimize && (
+                    <button type="button" className="model-bar-btn" onClick={() => onModelOptimize(output)} data-testid="card-model-optimize">
+                      {t(lang, 'card.modelOptimize')}
+                    </button>
+                  )}
+                  {onOpenModelManager && (
+                    <button type="button" className="model-bar-btn" onClick={onOpenModelManager} data-testid="card-model-manager">
+                      {t(lang, 'card.modelManager')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {!output.collapsed && (
             <div className="out-body">

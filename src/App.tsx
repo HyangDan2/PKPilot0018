@@ -27,15 +27,14 @@ import { ANALYSES, defaultValues as defaultDialogValues, findAnalysis, type Anal
 import { ChartConfigMemory } from './lib/chartMemory';
 import { loadCustomStyles, saveCustomStyle, writeCustomStyles } from './lib/chartStyles';
 import {
-  createStoredModel,
-  defaultModelName,
   deleteStoredModel,
   duplicateStoredModel,
   mergeStoredModels,
   parseStoredModels,
   refitStoredModel,
   renameStoredModel,
-  uniqueModelName,
+  upsertAutoStoredModel,
+  saveManualStoredModel,
   type StoredModel,
   type StoredModelDraft,
 } from './lib/modelStore';
@@ -1166,9 +1165,17 @@ export default function App() {
       rememberChartConfigs(doc);
       focusDoc(doc);
       pushTutorialEvent('analysis-run', { analysisId: def.id, outputId: doc.id, values: { ...values } });
+      let autoSavedNotice: string | null = null;
+      if (doc.model && values.autoSaveModel !== false) {
+        const upserted = upsertAutoStoredModel(storedModels, doc.model, doc.id);
+        setStoredModels(upserted.models);
+        pushTutorialEvent('model-saved', { modelId: upserted.saved.id, name: upserted.saved.name, response: upserted.saved.response.name });
+        autoSavedNotice = t(lang, upserted.updated ? 'toast.modelAutoUpdated' : 'toast.modelAutoSaved', { name: upserted.saved.name });
+      }
       setLastDialog({ analysisId: def.id, values });
       setDialog(null);
       if (result.toastKey) toast(t(lang, result.toastKey, result.toastVars));
+      else if (autoSavedNotice) toast(autoSavedNotice);
       return null;
     } catch (error) {
       return errorText(error);
@@ -1254,11 +1261,27 @@ export default function App() {
       toast(t(lang, 'toast.modelNone'));
       return;
     }
-    const base = defaultModelName(draft);
-    const model = createStoredModel(draft, uniqueModelName(storedModels, base));
-    setStoredModels((prev) => [...prev, model]);
-    pushTutorialEvent('model-saved', { modelId: model.id, name: model.name, response: model.response.name });
-    toast(t(lang, 'toast.modelSaved', { name: model.name }));
+    const res = saveManualStoredModel(storedModels, draft, {
+      outputId: output.id,
+      isOriginal: Boolean(draftOverride),
+    });
+    setStoredModels(res.models);
+    pushTutorialEvent('model-saved', { modelId: res.saved.id, name: res.saved.name, response: res.saved.response.name });
+    toast(t(lang, res.alreadySaved ? 'toast.modelAlreadySaved' : 'toast.modelSaved', { name: res.saved.name }));
+  };
+
+  /** Ensure a card's fitted model is stored and return it for immediate follow-up tools. */
+  const ensureModelFromCard = (output: OutputDoc): StoredModel | null => {
+    const existing = storedModels.find((m) => m.source.outputId === output.id);
+    if (existing) return existing;
+    if (!output.model) {
+      toast(t(lang, 'toast.modelNone'));
+      return null;
+    }
+    const res = upsertAutoStoredModel(storedModels, output.model, output.id);
+    setStoredModels(res.models);
+    pushTutorialEvent('model-saved', { modelId: res.saved.id, name: res.saved.name, response: res.saved.response.name });
+    return res.saved;
   };
 
   const renameModel = (id: string, name: string) => {
@@ -3227,6 +3250,11 @@ export default function App() {
         onReproduce={reproduce}
         onUpdateBlocks={updateOutputBlocks}
         onSaveModel={saveModelFromCard}
+        savedModelOutputIds={storedModels.map((m) => m.source.outputId).filter((id): id is string => Boolean(id))}
+        onModelContour={(output) => { const m = ensureModelFromCard(output); if (m) contourFromModel(m); }}
+        onModelSurface={(output) => { const m = ensureModelFromCard(output); if (m) surfaceFromModel(m); }}
+        onModelOptimize={(output) => { const m = ensureModelFromCard(output); if (m) openOptimizer([m]); }}
+        onOpenModelManager={() => setModelManagerOpen(true)}
         selection={chartSelection}
         onSelectRows={(rows, additive, source) => setChartSelection((prev) => {
           void additive;

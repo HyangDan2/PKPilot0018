@@ -65,13 +65,13 @@ export const REGRESSION_TUTORIAL: RawTutorial = {
     },
     {
       id: 'store',
-      title: L('Store the model', '모형 저장'),
+      title: L('Verify the stored model', '저장 모형 확인'),
       instruction: L(
-        'On the regression output card press “Save model”, then open the Model Manager with the action button and find it there.',
-        '회귀 결과 카드에서 “Save model”을 누른 뒤 실행 버튼으로 모형 관리자를 열어 저장된 모형을 확인하십시오.',
+        'Fitted models are auto-saved by default. Confirm “✓ Model saved” on the regression card bar (or click “+ Save model” if auto-save was unchecked), then open the Model Manager to inspect it.',
+        '적합된 모형은 기본으로 자동 저장됩니다. 회귀 결과 카드의 모형 바에서 “✓ 모형 저장됨”을 확인한 뒤(자동 저장을 끈 경우 “+ 모형 저장” 클릭), 모형 관리자를 열어 저장된 모형을 확인하십시오.',
       ),
       expected: L('One stored model with R² above 0.5 and a fresh data fingerprint.', 'R²가 0.5를 넘고 데이터 지문이 최신인 저장 모형 하나입니다.'),
-      hint: L('Save model lives on the output card, not in the Model Manager.', 'Save model은 모형 관리자가 아니라 결과 카드에 있습니다.'),
+      hint: L('The model action bar sits directly below the card header and lets you save or jump to Contour, 3D Surface, Optimize, or Model Manager.', '결과 카드 헤더 바로 아래의 모형 바에서 저장 상태를 확인하거나 등고선도·3D 표면도·반응 최적화·모형 관리자로 바로 이동할 수 있습니다.'),
       action: { action: 'open-model-manager' },
       helpId: 'model-store',
       completion: 'validated',

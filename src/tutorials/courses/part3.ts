@@ -246,10 +246,10 @@ export const DOE_TUTORIAL: RawTutorial = {
     },
     {
       id: 'store',
-      title: L('Store the model and open the contour', '모형 저장과 등고선 열기'),
+      title: L('Confirm the stored model and open the contour', '저장 모형 확인과 등고선 열기'),
       instruction: L(
-        'Press “Save model” on the analysis card, then use the action button to build a contour of Y over A and B from that stored model.',
-        '분석 카드에서 “Save model”을 누른 뒤 실행 버튼으로 저장 모형에서 A·B에 대한 Y 등고선을 만드십시오.',
+        'The fitted DOE model is auto-saved when you run the analysis. Confirm “✓ Model saved” on the card bar (or click “+ Save model” if auto-save was off), then click “Contour” on the card bar or use the action button to plot Y over A and B.',
+        '요인분석을 실행하면 적합 모형이 자동으로 저장됩니다. 카드 모형 바에서 “✓ 모형 저장됨”을 확인한 뒤(자동 저장 해제 시 “+ 모형 저장” 클릭), 카드의 “등고선도” 버튼이나 실행 버튼으로 A·B에 대한 Y 등고선을 만드십시오.',
       ),
       expected: L('A stored model for Y and a contour card titled Y = f(A, B).', 'Y 저장 모형과 “Y = f(A, B)” 등고선 카드입니다.'),
       action: { action: 'open-chart', chart: { kind: 'contour', responses: ['Y'] } },
@@ -392,10 +392,10 @@ export const REDUCTION_TUTORIAL: RawTutorial = {
     },
     {
       id: 'store-reduced',
-      title: L('Step 5 · Store the reduced model', '5단계 · 축소 모형 저장'),
+      title: L('Step 5 · Verify the reduced model', '5단계 · 축소 모형 확인'),
       instruction: L(
-        'Save the reduced model from its card. The model manager must show its hierarchy, pooling history, formula and error DF.',
-        '축소 모형 카드에서 모형을 저장하십시오. 모형 관리자에서 계층성, 풀링 이력, 수식, 오차 자유도를 확인합니다.',
+        'Re-running the factorial analysis automatically updates the stored model for Y to the reduced fit. Open the Model Manager to inspect its hierarchy, pooling history, formula and error DF (use “+ Save original model” on the card if you also want to keep the pre-pooling fit).',
+        '요인분석을 재실행하면 Y의 저장 모형이 축소 모형으로 자동 갱신됩니다. 모형 관리자에서 계층성, 풀링 이력, 수식, 오차 자유도를 확인하십시오(풀링 전 원본 모형도 함께 보관하려면 카드의 “+ 원본 모형 저장”을 누르십시오).',
       ),
       expected: L('One stored model for Y whose formula has no B×C term.', '수식에 B×C가 없는 Y 저장 모형 하나입니다.'),
       action: { action: 'open-model-manager' },
@@ -580,10 +580,10 @@ export const FLAGSHIP_TUTORIAL: RawTutorial = {
     },
     {
       id: 'store-models',
-      title: L('Step 4 · Store the models', '4단계 · 모형 저장'),
+      title: L('Step 4 · Verify all four stored models', '4단계 · 저장 모형 4개 확인'),
       instruction: L(
-        'Press “Save model” on each of the four RSM cards, then open the Model Manager. Each stored model must be an RSM with squared terms and R² above 0.9.',
-        'RSM 카드 네 개에서 각각 “Save model”을 누른 뒤 모형 관리자를 여십시오. 저장 모형은 제곱항이 있는 RSM이고 R²가 0.9를 넘어야 합니다.',
+        'Each RSM response is auto-saved under its own response name. Open the Model Manager (or click “+ Save model” on any card if auto-save was off) and verify all four RSM models have squared terms and R² above 0.9.',
+        '네 개의 RSM 반응은 각 반응 이름으로 자동 저장됩니다. 모형 관리자를 열어(자동 저장 해제 시 각 카드의 “+ 모형 저장” 클릭) 네 모형 모두 제곱항이 있는 RSM이고 R²가 0.9를 넘는지 확인하십시오.',
       ),
       expected: L('Four stored RSM models named after their responses, all fresh.', '반응 이름을 가진 저장 RSM 모형 4개, 모두 최신 상태입니다.'),
       action: { action: 'open-model-manager' },
