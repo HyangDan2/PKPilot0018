@@ -117,6 +117,8 @@ function sanitise(record: unknown): TutorialProgress | null {
 export class TutorialProgressStore {
   /** The newest record this window has seen, by session, so a stale store cannot swing progress back. */
   private memory = new Map<string, TutorialProgress>();
+  /** Sessions removed here; a store that refused the removal must not resurrect them. */
+  private removed = new Set<string>();
 
   constructor(private readonly storage: ProgressStoreLike | null) {}
 
@@ -145,6 +147,7 @@ export class TutorialProgressStore {
             if (!clean) return;
             // v1 was keyed by tutorial id; v2 by session id. Either way the
             // record states its own identity, and that is what is used.
+            if (this.removed.has(clean.sessionId)) return;
             output.set(clean.sessionId || key, clean);
           });
         } catch {
@@ -187,6 +190,7 @@ export class TutorialProgressStore {
    */
   save(progress: TutorialProgress): void {
     const record = { ...progress, updatedAt: nowIso() };
+    this.removed.delete(record.sessionId);
     this.memory.set(record.sessionId, record);
     const storage = this.require();
     const all = this.sessions();
@@ -199,10 +203,29 @@ export class TutorialProgressStore {
     }
   }
 
+  /** Forget one exact session; another session of the same lesson survives. */
+  removeSession(tutorialId: string, sessionId: string): void {
+    const record = this.sessions().get(sessionId);
+    this.memory.delete(sessionId);
+    this.removed.add(sessionId);
+    if (!this.storage) return;
+    if (!record || record.tutorialId !== tutorialId) return;
+    const all = this.sessions();
+    all.delete(sessionId);
+    try {
+      this.storage.setItem(TUTORIAL_PROGRESS_KEY, JSON.stringify({ version: 2, sessions: Object.fromEntries(all) }));
+    } catch {
+      /* a failed removal leaves the record; the tombstone still hides it here */
+    }
+  }
+
   /** Forget every session of one tutorial. */
   remove(tutorialId: string): void {
-    [...this.memory.entries()].forEach(([sessionId, record]) => {
-      if (record.tutorialId === tutorialId) this.memory.delete(sessionId);
+    [...this.sessions().entries()].forEach(([sessionId, record]) => {
+      if (record.tutorialId === tutorialId) {
+        this.memory.delete(sessionId);
+        this.removed.add(sessionId);
+      }
     });
     if (!this.storage) return;
     const all = this.sessions();
@@ -218,6 +241,7 @@ export class TutorialProgressStore {
 
   clear(): void {
     this.memory.clear();
+    this.removed.clear();
     if (!this.storage) return;
     try {
       this.storage.removeItem(TUTORIAL_PROGRESS_KEY);

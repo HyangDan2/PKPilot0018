@@ -27,11 +27,13 @@ interface Props {
   onResume: (tutorialId: string) => void;
   onRestart: (tutorialId: string) => void;
   onOpenSample: (sampleId: string) => void;
+  /** WO-3F-01: force exit stays reachable while the tutorial panel is closed. */
+  onForceExit: () => void;
 }
 
 const DIFFICULTIES: TutorialDifficulty[] = ['intro', 'beginner', 'intermediate', 'advanced'];
 
-export function TutorialLibrary({ lang, progressMap, activeTutorialId, onClose, onStart, onResume, onRestart, onOpenSample }: Props) {
+export function TutorialLibrary({ lang, progressMap, activeTutorialId, onClose, onStart, onResume, onRestart, onOpenSample, onForceExit }: Props) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<TutorialCategory | 'all'>('all');
   const [difficulty, setDifficulty] = useState<TutorialDifficulty | 'all'>('all');
@@ -54,6 +56,16 @@ export function TutorialLibrary({ lang, progressMap, activeTutorialId, onClose, 
           <span className="spacer" />
           <button type="button" className="icon-btn" onClick={onClose} aria-label={t(lang, 'close')} data-testid="tutorial-library-close"><IconX size={16} /></button>
         </div>
+
+        {activeTutorialId && (
+          <div className="tut-active-session" data-testid="tut-library-active-session">
+            <span>{t(lang, 'tut.activeSessionNote')}</span>
+            <span className="spacer" />
+            <button type="button" className="btn tiny ghost danger" onClick={onForceExit} data-testid="tut-library-force-exit">
+              {t(lang, 'tut.forceExit')}
+            </button>
+          </div>
+        )}
 
         <div className="modal-body library-body tutorial-body">
           <aside className="library-list" aria-label={t(lang, 'tut.library')}>

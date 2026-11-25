@@ -67,6 +67,13 @@ import {
   skipStep,
   tutorialSummary,
 } from './tutorials/tutorialEngine';
+import {
+  canForceExit,
+  exitPlan,
+  isSessionEvaluating,
+  nextPhase,
+  type TutorialPhase,
+} from './tutorials/sessionMachine';
 import type {
   ActionResult,
   BridgeState,
@@ -384,6 +391,13 @@ export default function App() {
   const [exitPrompt, setExitPrompt] = useState(false);
   /** WO-01 F-REL-01: the practice could not be written; the session stays open. */
   const [practiceSaveFailure, setPracticeSaveFailure] = useState<string | null>(null);
+  /** WO-3F-01: the lesson's lifecycle, so an exit is honoured in every state. */
+  const [tutorialPhase, setTutorialPhase] = useState<TutorialPhase>('IDLE');
+  /** WO-3F-01: the guarded original could not be put back; the backup stays. */
+  const [recoveryPrompt, setRecoveryPrompt] = useState<{ projectId: string | null; sessionId: string | null; reason: 'missing' | 'persist' } | null>(null);
+  /** Invalidates async starts and results the moment a session ends (WO-3F-01). */
+  const tutorialGeneration = useRef(0);
+  const exitingTutorial = useRef(false);
   const [optimizerTutorial, setOptimizerTutorial] = useState<TutorialOptimizerSpec | null>(null);
   const [dialogNonce, setDialogNonce] = useState(0);
   const practiceSnapshot = useRef<{
@@ -1904,6 +1918,8 @@ export default function App() {
      is only complete while the state that satisfied it still exists. */
   useEffect(() => {
     if (!tutorialSession) return;
+    // Paused, exiting and recovery states do not judge steps (WO-3F-01).
+    if (!isSessionEvaluating(tutorialPhase)) return;
     const tutorial = findTutorial(tutorialSession.tutorialId);
     if (!tutorial) return;
     const result = evaluateSession(tutorial, tutorialSession, tutorialFacts());
@@ -1913,10 +1929,14 @@ export default function App() {
       persistProgress(result.progress);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [worksheets, activeSheetId, outputs, storedModels, figures, tutorialEvents, tutorialSession]);
+  }, [worksheets, activeSheetId, outputs, storedModels, figures, tutorialEvents, tutorialSession, tutorialPhase]);
 
   const requestStartTutorial = (tutorialId: string) => {
     if (!findTutorial(tutorialId)) return;
+    if (recoveryPrompt) {
+      setTutorialMessage(t(lang, 'tut.recoveryPending'));
+      return;
+    }
     if (practice) {
       setTutorialMessage(t(lang, 'tut.finishFirst'));
       setTutorialPanel('open');
@@ -1981,6 +2001,8 @@ export default function App() {
   const beginTutorial = async (tutorialId: string, useCurrent: boolean, backupAcknowledged = false) => {
     const tutorial = findTutorial(tutorialId);
     if (!tutorial) return;
+    const generation = ++tutorialGeneration.current;
+    setTutorialPhase('STARTING');
     const projectId = `practice-${Date.now().toString(36)}`;
     const progress = createProgress(tutorial, projectId);
     const original = guardOriginalProject(tutorialId, progress.sessionId);
@@ -1990,6 +2012,7 @@ export default function App() {
       setBackupPrompt({ tutorialId, useCurrent, json: original.json });
       setStartPrompt(null);
       setTutorialMessage(null);
+      setTutorialPhase('IDLE');
       return;
     }
     if (!original.kept) {
@@ -2000,6 +2023,13 @@ export default function App() {
     // (WO-FINAL-001 · F-REL-03 step 4). The guard above already protects the data
     // if this write fails, so the practice may still start.
     const pending = await runAutosave();
+    // A force exit during STARTING abandons the start: nothing below may run
+    // for a session that is no longer the current one (WO-3F-01). The guard
+    // written above is this start's own copy and goes with it.
+    if (generation !== tutorialGeneration.current) {
+      if (original.kept) TUTORIAL_STORE.removeOriginalProject(original.projectId);
+      return;
+    }
     if (pending.status !== 'SAVED') setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
     practiceSnapshot.current = captureWorkspace();
     practiceOriginalId.current = original.kept ? original.projectId : null;
@@ -2020,6 +2050,7 @@ export default function App() {
     setTutorialEvents([]);
     setTutorialOutcomes({});
     setTutorialSession(progress);
+    setTutorialPhase('ACTIVE');
     persistProgress(progress);
     setTutorialPanel('open');
     setTutorialBusy(false);
@@ -2233,17 +2264,29 @@ export default function App() {
     }
   };
 
-  const endPracticeSession = () => {
-    setPractice(null);
+  /**
+   * WO-3F-01: one cleanup for every exit path. The session, its evidence, its
+   * validation, the tutorial overlays and the busy flag go together; pending
+   * async work is invalidated by the generation counter, not by waiting.
+   */
+  const clearTutorialRuntime = () => {
     setTutorialSession(null);
     setTutorialOutcomes({});
     setTutorialEvents([]);
     setTutorialPanel('closed');
-    setExitPrompt(false);
+    setTutorialBusy(false);
+    setReviewingTutorial(false);
     setTutorialMessage(null);
-    setOptimizerTutorial(null);
+    setExitPrompt(false);
     setBackupPrompt(null);
     setPracticeSaveFailure(null);
+    setOptimizerTutorial(null);
+    setStartPrompt(null);
+  };
+
+  const endPracticeSession = () => {
+    setPractice(null);
+    clearTutorialRuntime();
   };
 
   /**
@@ -2286,9 +2329,10 @@ export default function App() {
    * the backup in place and says so, for every exit path — discard, keep, file
    * export and the switch to the next lesson.
    */
-  const restoreAfterPractice = async (): Promise<void> => {
+  const restoreAfterPractice = async (): Promise<'restored' | 'recovery'> => {
     const isolated = practice?.mode !== 'current';
     const originalId = practiceOriginalId.current;
+    const sessionId = practice?.sessionId ?? tutorialSession?.sessionId ?? null;
     const snapshot = practiceSnapshot.current;
     const expected = isolated
       ? (snapshot ? snapshotWorkspaceState(snapshot) : slotWorkspaceState(originalId))
@@ -2297,15 +2341,26 @@ export default function App() {
     practiceOriginalId.current = null;
     if (isolated && !restoreOriginalProject(originalId)) {
       setTutorialStorageWarning(t(lang, 'tut.originalMissing'));
-      return;
+      setRecoveryPrompt({ projectId: originalId, sessionId, reason: 'missing' });
+      setTutorialPhase((phase) => nextPhase(phase, { type: 'RESTORE_FAILED' }));
+      return 'recovery';
     }
-    if (!expected) return;
+    if (!expected) return 'restored';
     const outcome = await persistWorkspaceVerified(expected);
     if (outcome === 'verified') {
       if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
     } else {
       setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+      // The project is on screen, but the store refused it: the backup stays and
+      // the reader keeps a recovery surface until a save succeeds (WO-3F-01).
+      if (isolated) {
+        setRecoveryPrompt({ projectId: originalId, sessionId, reason: 'persist' });
+        setTutorialPhase((phase) => nextPhase(phase, { type: 'RESTORE_FAILED' }));
+        return 'recovery';
+      }
     }
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'EXITED' }));
+    return 'restored';
   };
 
   const keepPractice = async () => {
@@ -2316,6 +2371,7 @@ export default function App() {
       return;
     }
     setPracticeSaveFailure(null);
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'EXIT' }));
     toast(t(lang, 'tut.practiceKept'));
     await restoreAfterPractice();
   };
@@ -2324,6 +2380,7 @@ export default function App() {
   const exportFailedPractice = async () => {
     if (!savePracticeProject()) return;
     setPracticeSaveFailure(null);
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'EXIT' }));
     toast(t(lang, 'tut.practiceKeptUnsaved'));
     await restoreAfterPractice();
   };
@@ -2343,8 +2400,110 @@ export default function App() {
         return next;
       });
     }
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'EXIT' }));
     await restoreAfterPractice();
     toast(t(lang, 'tut.discarded'));
+  };
+
+  /**
+   * WO-3F-01 — Force Exit. Always reachable (tutorial panel, collapsed bar,
+   * tutorial library, save-failure dialog), even while starting, busy, paused or
+   * recovering. It ends the session without ever counting as completion; an
+   * isolated practice puts the guarded original back, and a restore that fails
+   * leaves a recovery surface with the backup intact.
+   */
+  const forceExitTutorial = (ask = true) => {
+    if (exitingTutorial.current || !canForceExit(tutorialPhase)) return;
+    if (ask && !window.confirm(t(lang, 'tut.forceExitConfirm'))) return;
+    void runForceExit();
+  };
+
+  const runForceExit = async () => {
+    if (exitingTutorial.current) return;
+    exitingTutorial.current = true;
+    // Every async result still in flight now belongs to an older generation.
+    tutorialGeneration.current += 1;
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'EXIT', force: true }));
+    const session = tutorialSession;
+    const mode = practice?.mode ?? null;
+    const originalId = practiceOriginalId.current;
+    const sessionId = session?.sessionId ?? null;
+    const snapshot = practiceSnapshot.current;
+    const plan = exitPlan(mode);
+    const expected = plan.restoreOriginal
+      ? (snapshot ? snapshotWorkspaceState(snapshot) : slotWorkspaceState(originalId))
+      : currentWorkspaceState();
+    // A forced exit is not a completion: this session's record is removed and
+    // any kept practice slot survives for the reader to open or delete.
+    if (session) {
+      TUTORIAL_STORE.removeSession(session.tutorialId, session.sessionId);
+      setProgressMap(TUTORIAL_STORE.loadAll());
+    }
+    endPracticeSession();
+    practiceOriginalId.current = null;
+    exitingTutorial.current = false;
+
+    const needsRestore = plan.restoreOriginal && (mode !== null || Boolean(originalId) || Boolean(snapshot));
+    if (needsRestore && !restoreOriginalProject(originalId)) {
+      setTutorialStorageWarning(t(lang, 'tut.originalMissing'));
+      setRecoveryPrompt({ projectId: originalId, sessionId, reason: 'missing' });
+      setTutorialPhase('RECOVERY_REQUIRED');
+      return;
+    }
+    if (needsRestore && expected) {
+      const outcome = await persistWorkspaceVerified(expected);
+      if (outcome !== 'verified') {
+        setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+        setRecoveryPrompt({ projectId: originalId, sessionId, reason: 'persist' });
+        setTutorialPhase('RECOVERY_REQUIRED');
+        return;
+      }
+    }
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'EXITED' }));
+    toast(t(lang, 'tut.forceExited'));
+  };
+
+  /** Retry the guarded original after a failed restore; never drops the backup. */
+  const recoverOriginal = async () => {
+    const pending = recoveryPrompt;
+    if (!pending) return;
+    if (!restoreOriginalProject(pending.projectId)) {
+      setTutorialMessage(t(lang, 'tut.recoveryRetryFailed'));
+      return;
+    }
+    const slot = pending.projectId ? TUTORIAL_STORE.loadOriginalProject(pending.projectId) : null;
+    const expected = slot ? slotWorkspaceState(pending.projectId) : currentWorkspaceState();
+    if (expected) {
+      const outcome = await persistWorkspaceVerified(expected);
+      if (outcome !== 'verified') {
+        setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
+        setTutorialMessage(t(lang, 'tut.recoveryRetryFailed'));
+        return;
+      }
+    }
+    if (pending.projectId) TUTORIAL_STORE.removeOriginalProject(pending.projectId);
+    setRecoveryPrompt(null);
+    setTutorialMessage(null);
+    setTutorialStorageWarning(null);
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'RECOVERED' }));
+    toast(t(lang, 'tut.recovered'));
+  };
+
+  /** Download the guarded original the browser is still holding. */
+  const downloadRecoveryBackup = () => {
+    const slot = recoveryPrompt?.projectId ? TUTORIAL_STORE.loadOriginalProject(recoveryPrompt.projectId) : null;
+    if (!slot) {
+      setTutorialMessage(t(lang, 'tut.recoveryRetryFailed'));
+      return;
+    }
+    downloadFile(`${PRODUCT.EXPORT_FILE_PREFIX}-original-${new Date().toISOString().slice(0, 10)}.sigrun.json`, slot.json, 'application/json');
+  };
+
+  /** Leave the UI even though the restore failed: the backup is kept. */
+  const leaveRecovery = () => {
+    setRecoveryPrompt(null);
+    setTutorialMessage(t(lang, 'tut.recoveryLeft'));
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'RECOVERED' }));
   };
 
   const resumeTutorial = async (tutorialId: string, backupAcknowledged = false) => {
@@ -2382,6 +2541,8 @@ export default function App() {
       }
       try {
         const parsed = parseProject(slot.json);
+        const generation = ++tutorialGeneration.current;
+        setTutorialPhase('STARTING');
         // The workspace being replaced gets the same protection a fresh start
         // gets, under a new guard id — the previous session's guard is never
         // reused for this one (F-REL-03).
@@ -2390,11 +2551,16 @@ export default function App() {
           setBackupPrompt({ tutorialId, useCurrent: false, json: guard.json, resumeSessionId: saved.sessionId });
           setStartPrompt(null);
           setTutorialMessage(null);
+          setTutorialPhase('IDLE');
           return;
         }
         if (!guard.kept) setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
         // Any autosave still owed is settled before the workspace changes.
         const pending = await runAutosave();
+        if (generation !== tutorialGeneration.current) {
+          if (guard.kept) TUTORIAL_STORE.removeOriginalProject(guard.projectId);
+          return;
+        }
         if (pending.status !== 'SAVED') setTutorialStorageWarning(t(lang, 'tut.backupOnly'));
         practiceSnapshot.current = captureWorkspace();
         practiceOriginalId.current = guard.kept ? guard.projectId : null;
@@ -2417,6 +2583,7 @@ export default function App() {
           sessionId: resumed.sessionId,
         });
         setTutorialSession({ ...resumed, practiceProjectId: slot.projectId || saved.practiceProjectId });
+        setTutorialPhase('ACTIVE');
         // Restoring the evidence is what makes the steps verifiable again (WO-TQA-08):
         // the engine re-runs every rule against the restored workspace and evidence.
         setTutorialEvents(slot.events ?? []);
@@ -2633,6 +2800,8 @@ export default function App() {
 
   const handleTutorialAction = (spec: TutorialActionSpec) => {
     if (!tutorialSession) return;
+    // After an exit was requested, a late click must not act on the old session.
+    if (tutorialPhase === 'EXITING' || tutorialPhase === 'RECOVERY_REQUIRED') return;
     setTutorialBusy(true);
     setTutorialMessage(null);
     const result = runTutorialAction(spec, tutorialBridge);
@@ -2701,38 +2870,25 @@ export default function App() {
     persistProgress(next);
   };
 
+  /** Minimize keeps the session; pause stops validation until resumed. */
+  const toggleTutorialPause = () => {
+    setTutorialPhase((phase) => nextPhase(phase, { type: phase === 'PAUSED' ? 'RESUME' : 'PAUSE' }));
+  };
+
   const activeTutorial = tutorialSession ? findTutorial(tutorialSession.tutorialId) : undefined;
   const tutorialFinished = Boolean(activeTutorial && tutorialSession && !reviewingTutorial && isTutorialComplete(activeTutorial, tutorialSession));
   const tutorialSummaryData = activeTutorial && tutorialSession ? tutorialSummary(activeTutorial, tutorialSession, tutorialFacts()) : null;
 
   const onExitedTutorial = async () => {
     const nextId = activeTutorial?.nextTutorialId;
-    const originalId = practiceOriginalId.current;
-    const isolated = practice?.mode !== 'current';
-    const snapshot = practiceSnapshot.current;
-    const expected = isolated ? (snapshot ? snapshotWorkspaceState(snapshot) : null) : currentWorkspaceState();
-    endPracticeSession();
-    practiceOriginalId.current = null;
+    tutorialGeneration.current += 1;
+    setTutorialPhase((phase) => nextPhase(phase, { type: 'EXIT' }));
     // Q-01: the next-tutorial path restores under the same policy — the backup
-    // goes only after the restored workspace is on disk and reads back equal.
-    if (isolated) {
-      if (restorePracticeSnapshot() && expected) {
-        const outcome = await persistWorkspaceVerified(expected);
-        if (outcome === 'verified') {
-          if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
-        } else {
-          setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
-        }
-      }
-    } else {
-      const outcome = await persistWorkspaceVerified(currentWorkspaceState());
-      if (outcome === 'verified') {
-        if (originalId) TUTORIAL_STORE.removeOriginalProject(originalId);
-      } else {
-        setTutorialStorageWarning(t(lang, outcome === 'unsaved' ? 'tut.originalNotPersisted' : 'tut.originalUnverified'));
-      }
-    }
+    // goes only after the restored workspace is on disk and reads back equal;
+    // a failed restore leaves the recovery surface (WO-3F-01).
+    const result = await restoreAfterPractice();
     setLibraryOpen(true);
+    if (result === 'recovery') return;
     if (nextId) setTutorialMessage(t(lang, 'tut.nextAfterExit'));
   };
 
@@ -3615,6 +3771,7 @@ export default function App() {
             else requestStartTutorial(tutorialId);
           }}
           onOpenSample={(sampleId) => { setLibraryOpen(false); setSampleLibraryInitial(sampleId); setSampleLibraryOpen(true); }}
+          onForceExit={() => forceExitTutorial()}
         />
       )}
 
@@ -3633,6 +3790,7 @@ export default function App() {
           practiceMode={practice?.mode ?? null}
           practiceSaved={Boolean(practiceSavedAt)}
           collapsed={tutorialPanel === 'collapsed'}
+          phase={tutorialPhase}
           storageWarning={tutorialStorageWarning}
           onAction={handleTutorialAction}
           onHelp={(helpId) => { setHelpCenter({ helpId }); pushTutorialEvent('help-opened', { helpId }); }}
@@ -3658,6 +3816,8 @@ export default function App() {
             requestStartTutorial(tutorialId);
           }}
           onExitPractice={() => setExitPrompt(true)}
+          onForceExit={() => forceExitTutorial()}
+          onTogglePause={toggleTutorialPause}
           onClosePanel={() => { setTutorialPanel('closed'); setTutorialMessage(null); }}
           onToggleCollapse={() => setTutorialPanel((prev) => (prev === 'open' ? 'collapsed' : 'open'))}
           onOpenLibrary={() => setLibraryOpen(true)}
@@ -3787,6 +3947,7 @@ export default function App() {
               <button type="button" className="btn primary" onClick={keepPractice} data-testid="practice-save-retry">{t(lang, 'tut.retrySave')}</button>
               <button type="button" className="btn" onClick={exportFailedPractice} data-testid="practice-save-export">{t(lang, 'tut.exportPractice')}</button>
               <button type="button" className="btn ghost danger" onClick={discardPractice} data-testid="practice-save-discard">{t(lang, 'tut.discardPractice')}</button>
+              <button type="button" className="btn ghost danger" onClick={() => forceExitTutorial()} data-testid="practice-save-force">{t(lang, 'tut.forceExitShort')}</button>
               <span className="spacer" />
               <button type="button" className="btn ghost" onClick={() => setPracticeSaveFailure(null)} data-testid="practice-save-cancel">{t(lang, 'dlg.cancel')}</button>
             </div>
@@ -3824,10 +3985,48 @@ export default function App() {
                 <p>{t(lang, 'tut.discardNote')}</p>
                 <button type="button" className="btn" onClick={discardPractice} data-testid="tutorial-exit-discard">{t(lang, 'tut.discardAction')}</button>
               </div>
+              <div className="tut-start-option warn">
+                <h4>{t(lang, 'tut.forceExit')}</h4>
+                <p>{t(lang, 'tut.forceExitNote')}</p>
+                <button type="button" className="btn ghost danger" onClick={() => { setExitPrompt(false); forceExitTutorial(); }} data-testid="tutorial-exit-force">{t(lang, 'tut.forceExitAction')}</button>
+              </div>
             </div>
             <div className="modal-foot">
               <span className="spacer" />
               <button type="button" className="btn ghost" onClick={() => setExitPrompt(false)}>{t(lang, 'dlg.cancel')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {recoveryPrompt && (
+        <div className="overlay">
+          <div className="modal narrow" role="dialog" aria-modal="true" aria-label={t(lang, 'tut.recoveryTitle')} data-testid="tutorial-recovery-dialog">
+            <div className="modal-head">
+              <div>
+                <h3>{t(lang, 'tut.recoveryTitle')}</h3>
+                <div className="modal-sub">
+                  {recoveryPrompt.reason === 'missing' ? t(lang, 'tut.recoveryMissing') : t(lang, 'tut.recoveryPersist')}
+                </div>
+              </div>
+            </div>
+            <div className="modal-body">
+              <p className="tut-warning" data-testid="tutorial-recovery-warning">{t(lang, 'tut.recoveryBody')}</p>
+              <div className="tut-start-option">
+                <h4>{t(lang, 'tut.recoveryRetry')}</h4>
+                <p>{t(lang, 'tut.recoveryRetryNote')}</p>
+                <button type="button" className="btn primary" onClick={() => { void recoverOriginal(); }} data-testid="tutorial-recovery-retry">{t(lang, 'tut.recoveryRetryAction')}</button>
+              </div>
+              <div className="tut-start-option">
+                <h4>{t(lang, 'tut.recoveryDownload')}</h4>
+                <p>{t(lang, 'tut.recoveryDownloadNote')}</p>
+                <button type="button" className="btn" onClick={downloadRecoveryBackup} data-testid="tutorial-recovery-download">{t(lang, 'tut.recoveryDownloadAction')}</button>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button type="button" className="btn ghost" onClick={leaveRecovery} data-testid="tutorial-recovery-leave">{t(lang, 'tut.recoveryLeave')}</button>
+              <span className="spacer" />
+              {tutorialMessage && <span className="hint">{tutorialMessage}</span>}
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { tutorialText } from '../../tutorials/localize';
 import { findTutorial, TUTORIALS } from '../../tutorials/registry';
 import type { TutorialProgress, ValidationOutcome, TutorialActionSpec } from '../../tutorials/types';
 import type { TutorialSummaryData } from '../../tutorials/tutorialEngine';
+import type { TutorialPhase } from '../../tutorials/sessionMachine';
 import { findSample } from '../../samples/registry';
 import { TutorialProgress as ProgressView } from './TutorialProgress';
 import { TutorialStep } from './TutorialStep';
@@ -32,6 +33,7 @@ interface Props {
   practiceMode: 'isolated' | 'current' | null;
   practiceSaved: boolean;
   collapsed: boolean;
+  phase: TutorialPhase;
   storageWarning: string | null;
   onAction: (spec: TutorialActionSpec) => void;
   onHelp: (helpId: string) => void;
@@ -48,6 +50,8 @@ interface Props {
   onExportPractice: () => void;
   onNextTutorial: (tutorialId: string) => void;
   onExitPractice: () => void;
+  onForceExit: () => void;
+  onTogglePause: () => void;
   onClosePanel: () => void;
   onToggleCollapse: () => void;
   onOpenLibrary: () => void;
@@ -55,9 +59,10 @@ interface Props {
 
 export function TutorialRunner(props: Props) {
   const {
-    lang, tutorialId, progress, outcomes, summary, completed, reviewing, onShowSummary, busy, message, practiceMode, practiceSaved, collapsed, storageWarning,
+    lang, tutorialId, progress, outcomes, summary, completed, reviewing, onShowSummary, busy, message, practiceMode, practiceSaved, collapsed, phase, storageWarning,
     onAction, onHelp, onManual, onSkip, onReopen, onPrev, onNext, onValidate, onSelectStep,
-    onRestart, onReview, onSavePractice, onExportPractice, onNextTutorial, onExitPractice, onClosePanel, onToggleCollapse, onOpenLibrary,
+    onRestart, onReview, onSavePractice, onExportPractice, onNextTutorial, onExitPractice,
+    onForceExit, onTogglePause, onClosePanel, onToggleCollapse, onOpenLibrary,
   } = props;
 
   const tutorial = findTutorial(tutorialId);
@@ -75,6 +80,9 @@ export function TutorialRunner(props: Props) {
           <span>{tutorialText(lang, tutorial.titleKey)}</span>
           <span className="mono-note">{index + 1}/{tutorial.steps.length}</span>
         </button>
+        <button type="button" className="btn tiny ghost" onClick={onForceExit} data-testid="tut-collapsed-force-exit" title={t(lang, 'tut.forceExit')}>
+          {t(lang, 'tut.forceExitShort')}
+        </button>
       </aside>
     );
   }
@@ -87,6 +95,12 @@ export function TutorialRunner(props: Props) {
           <h2>{tutorialText(lang, tutorial.titleKey)}</h2>
         </div>
         <div className="tut-head-actions">
+          <button type="button" className="btn tiny ghost" onClick={onTogglePause} data-testid="tut-pause" aria-pressed={phase === 'PAUSED'}>
+            {phase === 'PAUSED' ? t(lang, 'tut.resumeSession') : t(lang, 'tut.pause')}
+          </button>
+          <button type="button" className="btn tiny ghost" onClick={onForceExit} data-testid="tut-force-exit" title={t(lang, 'tut.forceExitNote')}>
+            {t(lang, 'tut.forceExitShort')}
+          </button>
           <button type="button" className="icon-btn" onClick={onOpenLibrary} title={t(lang, 'tut.library')} aria-label={t(lang, 'tut.library')} data-testid="tut-open-library">☰</button>
           <button type="button" className="icon-btn" onClick={onToggleCollapse} title={t(lang, 'tut.collapse')} aria-label={t(lang, 'tut.collapse')} data-testid="tut-collapse">–</button>
           <button type="button" className="icon-btn" onClick={onClosePanel} title={t(lang, 'tut.closePanel')} aria-label={t(lang, 'tut.closePanel')} data-testid="tut-close"><IconX size={15} /></button>
@@ -109,6 +123,8 @@ export function TutorialRunner(props: Props) {
       </div>
 
       {storageWarning && <p className="tut-warning" role="alert" data-testid="tut-storage-warning">{storageWarning}</p>}
+      {phase === 'PAUSED' && <p className="tut-warning" role="status" data-testid="tut-paused-note">{t(lang, 'tut.pausedNote')}</p>}
+      {phase === 'EXITING' && <p className="tut-warning" role="status" data-testid="tut-exiting-note">{t(lang, 'tut.exitingNote')}</p>}
       {message && <p className="tut-message" role="status" data-testid="tut-message">{message}</p>}
 
       {completed ? (
