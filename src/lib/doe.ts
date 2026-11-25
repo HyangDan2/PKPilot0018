@@ -133,14 +133,113 @@ export interface EffectRow {
   p: number;
 }
 
+export interface FactorialFactorCoding {
+  name: string;
+  kind: 'numeric' | 'categorical';
+  /** True when the factor is 2-level (or 2-level + center point), so effect = 2 * coded coef is valid. */
+  isTwoLevel: boolean;
+  /** True when a 2-level numeric factor also includes center point(s) at (min + max) / 2. */
+  hasCenterPoints: boolean;
+  levelCount: number;
+  center?: number;
+  halfRange?: number;
+}
+
 export interface FactorialAnalysis {
   glm: GlmResult;
   effects: EffectRow[];
   factorNames: string[];
+  /** Coded factors actually fed into the GLM engine (numeric 2-level factors scaled to [-1, +1]). */
+  codedFactors: ModelFactor[];
+  /** Per-factor coding metadata (center, halfRange, 2-level/center-point/multi-level classification). */
+  codings: FactorialFactorCoding[];
   /** Present when terms were moved to error (WO-3F-03). */
   pooling?: PoolingResult;
   /** Present when the design leaves no residual df (WO-3F-06). */
   saturated?: SaturatedReport;
+}
+
+/**
+ * Code factorial factors to [-1, +1] on valid complete-case rows (WO-RC-FINAL-01 RC-02).
+ * - 2-level numeric factors (-1/+1, 0/1, 30/50, etc.) and 2-level + center point
+ *   factors are transformed via x_coded = (x - center) / halfRange so that
+ *   effect = 2 * coef is unit-invariant.
+ * - Multi-level (>2 non-center levels) numeric or >2-level categorical factors
+ *   are flagged with `isTwoLevel = false` so 2*coef is never blindly applied.
+ */
+export function codeFactorialFactors(
+  y: (number | null)[],
+  factors: ModelFactor[],
+): { codedFactors: ModelFactor[]; codings: FactorialFactorCoding[] } {
+  const n = y.length;
+  const validRows: number[] = [];
+  for (let r = 0; r < n; r += 1) {
+    const yv = y[r];
+    if (typeof yv !== 'number' || !Number.isFinite(yv)) continue;
+    let ok = true;
+    for (const f of factors) {
+      const v = f.values[r];
+      if (f.kind === 'numeric') {
+        if (typeof v !== 'number' || !Number.isFinite(v)) { ok = false; break; }
+      } else if (v === null || v === undefined || String(v).trim() === '') {
+        ok = false; break;
+      }
+    }
+    if (ok) validRows.push(r);
+  }
+
+  const codings: FactorialFactorCoding[] = [];
+  const codedFactors: ModelFactor[] = factors.map((f) => {
+    if (f.kind === 'categorical') {
+      const levels = new Set<string>();
+      for (const r of validRows) levels.add(String(f.values[r]));
+      codings.push({
+        name: f.name,
+        kind: 'categorical',
+        isTwoLevel: levels.size === 2,
+        hasCenterPoints: false,
+        levelCount: levels.size,
+      });
+      return f;
+    }
+    const vals: number[] = [];
+    for (const r of validRows) vals.push(f.values[r] as number);
+    if (!vals.length) {
+      codings.push({ name: f.name, kind: 'numeric', isTwoLevel: false, hasCenterPoints: false, levelCount: 0 });
+      return f;
+    }
+    const sorted = [...vals].sort((a, b) => a - b);
+    const min = sorted[0];
+    const max = sorted[sorted.length - 1];
+    const halfRange = (max - min) / 2;
+    const center = (min + max) / 2;
+    if (!(halfRange > 0)) {
+      codings.push({ name: f.name, kind: 'numeric', isTwoLevel: false, hasCenterPoints: false, levelCount: 1, center, halfRange: 1 });
+      return f;
+    }
+    // Deduplicate numeric levels within floating tolerance relative to span.
+    const tol = 1e-6 * halfRange;
+    const distinct: number[] = [sorted[0]];
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (Math.abs(sorted[i] - distinct[distinct.length - 1]) > tol) distinct.push(sorted[i]);
+    }
+    const isPureTwoLevel = distinct.length === 2;
+    const isTwoLevelWithCenter = distinct.length === 3 && Math.abs(distinct[1] - center) <= tol;
+    const isTwoLevel = isPureTwoLevel || isTwoLevelWithCenter;
+    codings.push({
+      name: f.name,
+      kind: 'numeric',
+      isTwoLevel,
+      hasCenterPoints: isTwoLevelWithCenter,
+      levelCount: distinct.length,
+      center,
+      halfRange,
+    });
+    const codedValues = f.values.map((v) => (typeof v === 'number' && Number.isFinite(v) ? (v - center) / halfRange : null));
+    return { ...f, values: codedValues };
+  });
+
+  return { codedFactors, codings };
 }
 
 export interface FactorialOptions {
@@ -153,7 +252,8 @@ export interface FactorialOptions {
 
 /**
  * Analyze a 2-level factorial: main effects plus every interaction up to
- * `order`. Each 1-df term's effect is twice its coded coefficient.
+ * `order`. Numeric 2-level factors (including those with center points) are
+ * coded to [-1, +1] so each 1-df term's effect is twice its coded coefficient.
  */
 export function analyzeFactorial(
   y: (number | null)[],
@@ -177,25 +277,30 @@ export function analyzeFactorial(
     build(0, []);
     combos.forEach((c) => terms.push({ name: c.join('×'), factors: c }));
   }
-  const pooling = fitWithPooling(y, factors, terms, options.pooled ?? [], { allowZeroDf: options.allowZeroDf ?? true });
+  const { codedFactors, codings } = codeFactorialFactors(y, factors);
+  const codingByName = new Map(codings.map((c) => [c.name, c]));
+  const pooling = fitWithPooling(y, codedFactors, terms, options.pooled ?? [], { allowZeroDf: options.allowZeroDf ?? true });
   const glm = pooling.fit;
   const active = terms.filter((term) => !(options.pooled ?? []).includes(term.name));
   const effects: EffectRow[] = active.map((term, ti) => {
     const start = glm.design.blockStart[ti];
+    const nextStart = glm.design.blockStart[ti + 1] ?? glm.labels.length;
+    const len = nextStart - start;
     const coef = glm.beta[start] ?? 0;
     const se = glm.se[start] ?? NaN;
     const tValue = glm.t[start] ?? NaN;
     const pValue = glm.p[start] ?? NaN;
+    const validTwoLevelTerm = len === 1 && term.factors.every((fn) => codingByName.get(fn)?.isTwoLevel === true);
     return {
       term: term.name,
-      effect: 2 * coef,
+      effect: validTwoLevelTerm ? 2 * coef : NaN,
       coef,
       se,
       t: tValue,
       p: pValue,
     };
   });
-  const cells = new Set(glm.design.rows.map((row) => factors.map((f) => String(f.values[row] ?? '')).join('|')));
+  const cells = new Set(glm.design.rows.map((row) => codedFactors.map((f) => String(f.values[row] ?? '')).join('|')));
   const saturated = saturatedReport(glm, effects.map((effect) => ({ term: effect.term, effect: effect.effect })), {
     replicated: glm.n > cells.size,
   });
@@ -203,6 +308,8 @@ export function analyzeFactorial(
     glm,
     effects,
     factorNames: names,
+    codedFactors,
+    codings,
     ...(options.pooled?.length ? { pooling } : {}),
     saturated,
   };

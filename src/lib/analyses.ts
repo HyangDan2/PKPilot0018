@@ -2440,7 +2440,7 @@ export function runModelSelection(id: string, sheet: Worksheet, values: Record<s
     throw new Error(`model.hierarchyViolation|terms=${missing.join(', ')}`);
   }
   saveModelSettings(id, {
-    terms: resolved.hierarchy.selected,
+    terms: resolved.terms.map((term) => termId(term.factors)),
     pooled: resolved.pooled.map((term) => termId(term.factors)),
     hierarchy: resolved.mode,
     order: id === 'doeanalyze' ? Math.max(1, Math.min(3, Math.round(num(values.order, 2)))) : 2,
@@ -3035,7 +3035,7 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
   const glm = analysis.glm;
   const effectRows = analysis.effects.map((e) => [
     e.term,
-    fmt(e.effect, 4),
+    Number.isFinite(e.effect) ? fmt(e.effect, 4) : '—',
     fmt(e.coef, 4),
     Number.isFinite(e.se) ? fmt(e.se, 4) : '—',
     Number.isFinite(e.t) ? fmt(e.t, 3) : '—',
@@ -3063,8 +3063,8 @@ function runDoeAnalyze(ctx: RunContext): RunResult {
     for (let j = i + 1; j < factors.length; j += 1) charts.push(interactionChart(factors[i], factors[j], yValues, glm.design.levels, lang));
   }
   const excluded = excludedTermNames(model.catalog, model.terms);
-  const baseline = excluded.length ? baselineFit(yValues, factors, model.catalog) : null;
-  const comparison = comparisonFor(glm, analysis.pooling?.full, model.terms, analysis.pooling?.pooled.map((term) => term.name) ?? [], excluded, factors, yValues, model.catalog, baseline);
+  const baseline = excluded.length ? baselineFit(yValues, analysis.codedFactors, model.catalog) : null;
+  const comparison = comparisonFor(glm, analysis.pooling?.full, model.terms, analysis.pooling?.pooled.map((term) => term.name) ?? [], excluded, analysis.codedFactors, yValues, model.catalog, baseline);
   const formula = modelFormulaOf(model.catalog, retainedModelTerms(model.terms, analysis.pooling?.pooled), response.name || response.id);
   // Effects before pooling, drawn the same way, so the reader can see what the
   // reduced model changed instead of having to imagine the original fit.

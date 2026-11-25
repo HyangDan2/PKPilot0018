@@ -846,16 +846,36 @@ export function refitStoredModel(model: StoredModel, sheet: Worksheet | undefine
   const responseColumn = findColumn(model.response);
   if (!responseColumn) throw new ModelRefitError('model.track.missingColumn', { missing: model.response.name });
   const factors: ModelFactor[] = [];
+  const rawFactors: ModelFactor[] = [];
   model.predictors.forEach((predictor) => {
     const column = findColumn(predictor);
     if (!column) throw new ModelRefitError('model.track.missingColumn', { missing: predictor.name });
-    factors.push({
-      name: predictor.name,
-      kind: predictor.kind,
-      values: predictor.kind === 'numeric'
-        ? column.values.map((value) => (typeof value === 'number' ? value : null))
-        : column.values.map((value) => (value === null || value === undefined ? null : String(value))),
-    });
+    if (predictor.kind === 'numeric') {
+      const nums = column.values.map((value) => (typeof value === 'number' && Number.isFinite(value) ? value : null));
+      rawFactors.push({ name: predictor.name, kind: 'numeric', values: nums });
+      if (model.kind === 'doe' && predictor.coding?.mode === 'coded') {
+        const finite = nums.filter((v): v is number => v !== null);
+        const min = finite.length ? Math.min(...finite) : 0;
+        const max = finite.length ? Math.max(...finite) : 0;
+        const center = (min + max) / 2;
+        const halfRange = (max - min) / 2 || 1;
+        factors.push({
+          name: predictor.name,
+          kind: 'numeric',
+          values: nums.map((v) => (v === null ? null : (v - center) / halfRange)),
+        });
+      } else {
+        factors.push({ name: predictor.name, kind: 'numeric', values: nums });
+      }
+    } else {
+      const cat = {
+        name: predictor.name,
+        kind: 'categorical' as const,
+        values: column.values.map((value) => (value === null || value === undefined ? null : String(value))),
+      };
+      rawFactors.push(cat);
+      factors.push(cat);
+    }
   });
   // Rebuild any derived factor (A² from A) a term refers to.
   model.terms.forEach((term) => term.factors.forEach((name) => {
@@ -886,7 +906,7 @@ export function refitStoredModel(model: StoredModel, sheet: Worksheet | undefine
   }
   const draft = draftFromGlm({
     glm,
-    factors,
+    factors: rawFactors,
     terms,
     response: { id: responseColumn.id, name: responseColumn.name || responseColumn.id, values: responseColumn.values },
     kind: model.kind,

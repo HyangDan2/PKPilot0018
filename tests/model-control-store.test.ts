@@ -71,6 +71,7 @@ describe('model comparison reaches the analysis output (WO-3F-05)', () => {
         order: '3',
         terms: ['A', 'B', 'C', 'A|B', 'A|C', 'B|C', 'A|B|C'],
         pooled: ['B|C'],
+        hierarchy: 'unrestricted',
       },
     });
     const titles = tables(result.blocks).map((table) => table.title);

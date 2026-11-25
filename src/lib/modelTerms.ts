@@ -216,12 +216,23 @@ export function resolveModelSelection(
     ? (stored as string[]).filter((id) => known.has(id))
     : [];
   const ids = storedIds.length ? storedIds : defaultTermIds(catalog, interactions);
-  const hierarchy = applyHierarchy(catalog, ids, hierarchyMode);
-  const selected = new Set(hierarchy.selected);
-  const pooledIds = Array.isArray(pooledStored) ? (pooledStored as string[]) : [];
+  const idSet = new Set(ids);
+  const rawPooled = Array.isArray(pooledStored)
+    ? (pooledStored as unknown[]).filter((id): id is string => typeof id === 'string' && idSet.has(id))
+    : [];
+  const pooledSet = new Set(rawPooled);
+  // Check hierarchy against the actual fitted model terms (excluding pooled terms)
+  // so pooling a lower-order term while its higher-order interaction stays is caught.
+  const activeIds = ids.filter((id) => !pooledSet.has(id));
+  const hierarchy = applyHierarchy(catalog, activeIds, hierarchyMode);
+  const restoredByAuto = hierarchyMode === 'auto' ? new Set(hierarchy.added) : new Set<string>();
+  const finalPooledIds = rawPooled.filter((id) => !restoredByAuto.has(id));
+  const fullSelectedIds = hierarchyMode === 'auto'
+    ? [...new Set([...hierarchy.selected, ...finalPooledIds])]
+    : ids;
   return {
-    terms: termsFromIds(catalog, hierarchy.selected),
-    pooled: termsFromIds(catalog, pooledIds.filter((id) => selected.has(id))),
+    terms: termsFromIds(catalog, fullSelectedIds),
+    pooled: termsFromIds(catalog, finalPooledIds),
     hierarchy,
     mode: hierarchyMode,
   };

@@ -54,6 +54,7 @@ describe('model-control practice samples (WO-3F-09)', () => {
     const { result } = runPreset('preset-doeanalyze-pooled', {
       terms: ['A', 'B', 'C', 'A|B', 'A|C', 'B|C', 'A|B|C'],
       pooled: ['B|C'],
+      hierarchy: 'unrestricted',
     });
     const comparison = table(result, '@res.modelComparison');
     const byMetric = Object.fromEntries(comparison.map((row) => [row[0], row]));
