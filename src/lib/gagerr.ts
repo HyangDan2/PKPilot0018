@@ -67,17 +67,17 @@ function component(
   studyVar: number,
   tol: number,
 ): VarianceComponent {
-  // Minitab reports a negative variance component as a negative number and a
-  // zero standard deviation; %Study Var uses the signed total so the components
-  // stay additive.
-  const v = variance;
+  // Minitab / AIAG MSA 4th Ed. convention: negative variance components are
+  // clamped to 0 consistently before summing into Reproducibility, Total GRR,
+  // and Total Variation so %Contribution sums to 100% with non-negative terms.
+  const v = Math.max(0, variance);
   return {
     name,
     variance: v,
-    stdev: Math.sqrt(Math.max(0, v)),
+    stdev: Math.sqrt(v),
     contribution: total > 0 ? (v / total) * 100 : NaN,
-    studyVar: total > 0 ? (Math.sqrt(Math.max(0, v)) / Math.sqrt(total)) * 100 : NaN,
-    tolerance: tol > 0 ? (studyVar * Math.sqrt(Math.max(0, v)) / tol) * 100 : NaN,
+    studyVar: total > 0 ? (Math.sqrt(v) / Math.sqrt(total)) * 100 : NaN,
+    tolerance: tol > 0 ? (studyVar * Math.sqrt(v) / tol) * 100 : NaN,
     clamped: variance < 0,
   };
 }
@@ -183,13 +183,18 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
       msInt = NaN;
       anova[2] = { source: 'interaction', df: 0, ss: 0, ms: NaN, f: NaN, p: NaN };
       anova[3] = { source: 'repeat', df: pooledDf, ss: pooledSs, ms: pooledMs, f: NaN, p: NaN };
-      anova[1] = { source: 'operator', df: dfOper, ss: ssOper, ms: ssOper / dfOper, f: (ssOper / dfOper) / pooledMs, p: 1 - fCdf((ssOper / dfOper) / pooledMs, dfOper, pooledDf) };
-      anova[0] = { source: 'part', df: dfPart, ss: ssPart, ms: ssPart / dfPart, f: (ssPart / dfPart) / pooledMs, p: 1 - fCdf((ssPart / dfPart) / pooledMs, dfPart, pooledDf) };
+      const fOperPooled = pooledMs > 0 ? (ssOper / dfOper) / pooledMs : NaN;
+      const fPartPooled = pooledMs > 0 ? (ssPart / dfPart) / pooledMs : NaN;
+      anova[1] = { source: 'operator', df: dfOper, ss: ssOper, ms: ssOper / dfOper, f: fOperPooled, p: isFinite(fOperPooled) ? 1 - fCdf(fOperPooled, dfOper, pooledDf) : NaN };
+      anova[0] = { source: 'part', df: dfPart, ss: ssPart, ms: ssPart / dfPart, f: fPartPooled, p: isFinite(fPartPooled) ? 1 - fCdf(fPartPooled, dfPart, pooledDf) : NaN };
       const varRepeat = pooledMs;
       const varOper = ((ssOper / dfOper) - pooledMs) / (p * n);
       const varPart = ((ssPart / dfPart) - pooledMs) / (o * n);
-      const varGrr = varRepeat + Math.max(0, varOper);
-      const varTotal = varGrr + Math.max(0, varPart);
+      const cRepeat = Math.max(0, varRepeat);
+      const cOper = Math.max(0, varOper);
+      const cPart = Math.max(0, varPart);
+      const varGrr = cRepeat + cOper;
+      const varTotal = varGrr + cPart;
       const components = [
         component('repeat', varRepeat, varTotal, studyVar, tol),
         component('reproducibility', varOper, varTotal, studyVar, tol),
@@ -209,28 +214,31 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
         grrVariance: varGrr,
         totalVariance: varTotal,
         studyVar,
-        ndc: distinctCategories(varPart, varGrr),
+        ndc: distinctCategories(cPart, varGrr),
         note: 'interactionPooled',
-        negativeComponents: negativeOf({ repeat: varRepeat, reproducibility: varOper, operator: varOper, partToPart: varPart, grr: varGrr, total: varTotal }),
+        negativeComponents: negativeOf({ repeat: varRepeat, reproducibility: varOper, operator: varOper, partToPart: varPart }),
       };
     }
     const varRepeat = msRepeat;
     const varInt = (msInt - msRepeat) / n;
     const varOper = (ssOper / dfOper - msInt) / (p * n);
     const varPart = (ssPart / dfPart - msInt) / (o * n);
-    const varGrr = varRepeat + varInt + varOper;
-    const varTotal = varGrr + varPart;
+    const cRepeat = Math.max(0, varRepeat);
+    const cInt = Math.max(0, varInt);
+    const cOper = Math.max(0, varOper);
+    const cPart = Math.max(0, varPart);
+    const cRepro = cInt + cOper;
+    const varGrr = cRepeat + cRepro;
+    const varTotal = varGrr + cPart;
     const components = [
       component('repeat', varRepeat, varTotal, studyVar, tol),
-      component('reproducibility', varInt + varOper, varTotal, studyVar, tol),
+      component('reproducibility', cRepro, varTotal, studyVar, tol),
       component('interaction', varInt, varTotal, studyVar, tol),
       component('operator', varOper, varTotal, studyVar, tol),
       component('partToPart', varPart, varTotal, studyVar, tol),
       component('grr', varGrr, varTotal, studyVar, tol),
       component('total', varTotal, varTotal, studyVar, tol),
     ];
-    const sdPart = Math.sqrt(Math.max(0, varPart));
-    const sdGrr = Math.sqrt(Math.max(0, varGrr));
     return {
       type,
       parts: p,
@@ -242,9 +250,9 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
       grrVariance: varGrr,
       totalVariance: varTotal,
       studyVar,
-      ndc: distinctCategories(varPart, varGrr) || Math.max(1, Math.floor(1.41 * (sdPart / Math.max(1e-12, sdGrr)))),
+      ndc: distinctCategories(cPart, varGrr),
       note,
-      negativeComponents: negativeOf({ repeat: varRepeat, reproducibility: varInt + varOper, operator: varOper, partToPart: varPart, grr: varGrr, total: varTotal }),
+      negativeComponents: negativeOf({ repeat: varRepeat, reproducibility: varInt + varOper, interaction: varInt, operator: varOper, partToPart: varPart }),
     };
   }
 
@@ -283,6 +291,7 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
     && !sharedParts;
   if (!balancedNested) throw new Error('grr.unbalancedNested');
   const partsPerOperator = partsCount[0];
+  if (!(partsPerOperator >= 2)) throw new Error('grr.needParts');
   const n = cellCountsList[0];
   if (!(n >= 2)) throw new Error('grr.needReplicates');
   const ssOper = partsPerOperator * n * operators.reduce((a, op) => a + ((opMeans.get(op)?.m ?? grand) - grand) ** 2, 0);
@@ -311,8 +320,11 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
   const varRepeat = msRepeat;
   const varPart = (msPartOp - msRepeat) / n;
   const varOper = (ssOper / dfOper - msPartOp) / (partsPerOperator * n);
-  const varGrr = varRepeat + varOper;
-  const varTotal = varGrr + varPart;
+  const cRepeat = Math.max(0, varRepeat);
+  const cOper = Math.max(0, varOper);
+  const cPart = Math.max(0, varPart);
+  const varGrr = cRepeat + cOper;
+  const varTotal = varGrr + cPart;
   const components = [
     component('repeat', varRepeat, varTotal, studyVar, tol),
     component('reproducibility', varOper, varTotal, studyVar, tol),
@@ -321,8 +333,6 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
     component('grr', varGrr, varTotal, studyVar, tol),
     component('total', varTotal, varTotal, studyVar, tol),
   ];
-  const sdPart = Math.sqrt(Math.max(0, varPart));
-  const sdGrr = Math.sqrt(Math.max(0, varGrr));
   return {
     type,
     parts: partsPerOperator,
@@ -334,8 +344,8 @@ export function gageRR(rows: GrrRow[], type: 'crossed' | 'nested', options: GrrO
     grrVariance: varGrr,
     totalVariance: varTotal,
     studyVar,
-    ndc: distinctCategories(varPart, varGrr) || Math.max(1, Math.floor(1.41 * (sdPart / Math.max(1e-12, sdGrr)))),
-    negativeComponents: negativeOf({ repeat: varRepeat, reproducibility: varOper, operator: varOper, partToPart: varPart, grr: varGrr, total: varTotal }),
+    ndc: distinctCategories(cPart, varGrr),
+    negativeComponents: negativeOf({ repeat: varRepeat, reproducibility: varOper, operator: varOper, partToPart: varPart }),
   };
 }
 

@@ -132,23 +132,25 @@ export function nelsonRules(values: number[], center: number, sigma: number | nu
     }
 
     // Rule 5 — two of three successive points beyond 2σ on the same side
+    // (current point i must itself be beyond 2σ on that side, per Nelson/Minitab)
     if (i >= 2) {
       const win = z.slice(i - 2, i + 1);
       const high = win.filter((v) => v > 2).length;
       const low = win.filter((v) => v < -2).length;
-      if (high >= 2 || low >= 2) push(i, 5);
+      if ((high >= 2 && z[i] > 2) || (low >= 2 && z[i] < -2)) push(i, 5);
     }
 
     // Rule 6 — four of five successive points beyond 1σ on the same side
+    // (current point i must itself be beyond 1σ on that side)
     if (i >= 4) {
       const win = z.slice(i - 4, i + 1);
       const high = win.filter((v) => v > 1).length;
       const low = win.filter((v) => v < -1).length;
-      if (high >= 4 || low >= 4) push(i, 6);
+      if ((high >= 4 && z[i] > 1) || (low >= 4 && z[i] < -1)) push(i, 6);
     }
 
-    // Rule 7 — fifteen successive points within 1σ (either side)
-    if (i >= 14) {
+    // Rule 7 — fifteen successive points within 1σ (skip degenerate zero-sigma series)
+    if (i >= 14 && (Array.isArray(sigma) ? sigma[i] > 0 : sigma > 0)) {
       const win = z.slice(i - 14, i + 1);
       if (win.every((v) => Math.abs(v) < 1)) push(i, 7);
     }
@@ -236,7 +238,9 @@ export function xbarRCharts(values: (number | null)[], subgroup: number): SpcRes
   if (!groups.length) throw new SpcValidationError([{ code: 'noGroups' }]);
   const means = groups.map((g) => g.values.reduce((a, b) => a + b, 0) / g.ni);
   const ranges = groups.map((g) => Math.max(...g.values) - Math.min(...g.values));
-  const grand = means.reduce((a, b) => a + b, 0) / means.length;
+  // Size-weighted grand mean X̄̄ = Σ n_i X̄_i / Σ n_i (Minitab / Montgomery)
+  const totalObs = groups.reduce((a, g) => a + g.ni, 0);
+  const grand = groups.reduce((a, g, i) => a + g.ni * means[i], 0) / totalObs;
   // Weighted within-subgroup sigma: (ni−1)/Σ(ni−1) on each R̃ᵢ = Rᵢ/d₂(nᵢ).
   // With equal nᵢ this is exactly R̄/d₂(n), so the classical table values hold.
   const weights = groups.reduce((a, g) => a + (g.ni - 1), 0);
@@ -258,7 +262,9 @@ export function xbarRCharts(values: (number | null)[], subgroup: number): SpcRes
     return Math.max(0, c.D3 * c.d2 * sigma);
   });
   const xFlags = nelsonRules(means, grand, xbarSigma);
-  const rFlags = nelsonRules(ranges, rBar, rSigma);
+  // Standardize each R_i against its own subgroup expected range d2(n_i) * sigma
+  const zR = ranges.map((r, i) => (rSigma[i] > 0 ? (r - XBAR_CONSTANTS[groups[i].ni].d2 * sigma) / rSigma[i] : 0));
+  const rFlags = nelsonRules(zR, 0, sigma > 0 ? 1 : 0);
   const panels: SpcPanel[] = [
     {
       key: 'xbar',
@@ -344,7 +350,8 @@ export function pChart(defects: number[], sizes: number[]): SpcResult {
       violations: violationsFrom(flags),
     },
   ];
-  return summarizePanels(panels, Math.sqrt((pBar * (1 - pBar)) / totalSize / sizes.length));
+  const nBar = totalSize / sizes.length;
+  return summarizePanels(panels, Math.sqrt((pBar * (1 - pBar)) / nBar));
 }
 
 /* ── Xbar-S chart (P2) ──────────────────────────────────────────────────
@@ -416,18 +423,20 @@ export function xbarSCharts(
     const m = g.reduce((a, b) => a + b, 0) / g.length;
     return Math.sqrt(g.reduce((a, b) => a + (b - m) ** 2, 0) / (g.length - 1));
   });
-  const grand = means.reduce((a, b) => a + b, 0) / means.length;
+  const totalObs = sizes.reduce((a, b) => a + b, 0);
+  const grand = means.reduce((a, m, i) => a + sizes[i] * m, 0) / totalObs;
   const sBar = sds.reduce((a, b) => a + b, 0) / sds.length;
   const c4Bar = sizes.reduce((a, c) => a + c4Constant(c), 0) / sizes.length;
   const sigma = sBar / c4Bar;
   const xbarSigma = sizes.map((n) => sigma / Math.sqrt(n));
+  const sCenters = sizes.map((n) => c4Constant(n) * sigma);
   const sSigma = sizes.map((n) => sigma * Math.sqrt(Math.max(0, 1 - c4Constant(n) ** 2)));
   const xbarUcl = sizes.map((_, i) => grand + 3 * xbarSigma[i]);
   const xbarLcl = sizes.map((_, i) => grand - 3 * xbarSigma[i]);
-  const sUcl = sizes.map((_, i) => sBar + 3 * sSigma[i]);
-  const sLcl = sizes.map((_, i) => Math.max(0, sBar - 3 * sSigma[i]));
+  const sUcl = sizes.map((_, i) => sCenters[i] + 3 * sSigma[i]);
+  const sLcl = sizes.map((_, i) => Math.max(0, sCenters[i] - 3 * sSigma[i]));
   const zXbar = means.map((m, i) => (xbarSigma[i] > 0 ? (m - grand) / xbarSigma[i] : 0));
-  const zS = sds.map((s, i) => (sSigma[i] > 0 ? (s - sBar) / sSigma[i] : 0));
+  const zS = sds.map((s, i) => (sSigma[i] > 0 ? (s - sCenters[i]) / sSigma[i] : 0));
   const panels: SpcPanel[] = [
     {
       key: 'xbar',

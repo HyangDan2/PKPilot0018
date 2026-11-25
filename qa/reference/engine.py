@@ -466,7 +466,8 @@ def op_xbarr(bag, ds, args, cid):
         raise RuntimeError("spc.invalid:noGroups")
     means = np.array([g[0].mean() for g in groups])
     ranges = np.array([g[0].max() - g[0].min() for g in groups])
-    grand = float(means.mean())
+    total_obs = sum(g[1] for g in groups)
+    grand = float(sum(g[1] * means[i] for i, g in enumerate(groups)) / total_obs)
     weights = sum(g[1] - 1 for g in groups)
     sigma = sum((g[1] - 1) / weights * (ranges[i] / F.D2[g[1]]) for i, g in enumerate(groups)) if weights else float("nan")
     d2_bar = sum((g[1] - 1) / weights * F.D2[g[1]] for g in groups) if weights else float("nan")
@@ -478,7 +479,16 @@ def op_xbarr(bag, ds, args, cid):
     r_ucl = [F.chart_constants(g[1])["D4"] * F.D2[g[1]] * sigma for g in groups]
     r_lcl = [max(0.0, F.chart_constants(g[1])["D3"] * F.D2[g[1]] * sigma) for g in groups]
     ooc = _nelson_panel(bag, "xbar", means, grand, xbar_sigma, xbar_ucl, xbar_lcl)
-    ooc += _nelson_panel(bag, "r", ranges, r_bar, r_sigma, r_ucl, r_lcl)
+    z_r = [(ranges[i] - F.D2[g[1]] * sigma) / r_sigma[i] if r_sigma[i] > 0 else 0.0 for i, g in enumerate(groups)]
+    r_flags = F.nelson_rules(z_r, 0.0, 1.0 if sigma > 0 else 0.0)
+    bag.put("r.center", r_bar)
+    bag.array("r.ucl", r_ucl)
+    bag.array("r.lcl", r_lcl)
+    bag.array("r.sigma", r_sigma)
+    bag.array("r.points", list(ranges))
+    for r_idx in range(1, 9):
+        bag.put(f"r.rule{r_idx}_points", sum(1 for fl in r_flags if r_idx in fl))
+    ooc += sum(1 for fl in r_flags if 1 in fl)
     bag.put("sigma_within", sigma)
     bag.put("out_of_control", ooc)
     bag.put("sg_size", n)
@@ -526,16 +536,17 @@ def op_xbars(bag, ds, args, cid):
     sizes = [g.size for g in groups]
     means = np.array([g.mean() for g in groups])
     sds = np.array([g.std(ddof=1) for g in groups])
-    grand = float(means.mean())
+    grand = float(sum(s * m for s, m in zip(sizes, means)) / sum(sizes))
     s_bar = float(sds.mean())
     c4_bar = float(np.mean([F.c4(s) for s in sizes]))
     sigma = s_bar / c4_bar
     xbar_sigma = [sigma / math.sqrt(s) for s in sizes]
+    s_centers = [F.c4(s) * sigma for s in sizes]
     s_sigma = [sigma * math.sqrt(max(0.0, 1 - F.c4(s) ** 2)) for s in sizes]
     xbar_ucl = [grand + 3 * s for s in xbar_sigma]
     xbar_lcl = [grand - 3 * s for s in xbar_sigma]
-    s_ucl = [s_bar + 3 * s for s in s_sigma]
-    s_lcl = [max(0.0, s_bar - 3 * s) for s in s_sigma]
+    s_ucl = [sc + 3 * s for sc, s in zip(s_centers, s_sigma)]
+    s_lcl = [max(0.0, sc - 3 * s) for sc, s in zip(s_centers, s_sigma)]
     ooc = _nelson_panel(bag, "xbar", means, grand, xbar_sigma, xbar_ucl, xbar_lcl)
     ooc += _nelson_panel(bag, "s", sds, s_bar, s_sigma, s_ucl, s_lcl)
     bag.put("sigma_within", sigma)
@@ -580,7 +591,8 @@ def op_pchart(bag, ds, args, cid):
     bag.array("p.points", list(props))
     for r in range(1, 9):
         bag.put(f"p.rule{r}_points", sum(1 for f in flags if r in f))
-    bag.put("sigma_within", math.sqrt(pbar * (1 - pbar) / total_n / len(sizes)))
+    n_bar = total_n / len(sizes)
+    bag.put("sigma_within", math.sqrt(pbar * (1 - pbar) / n_bar))
     bag.put("out_of_control", sum(1 for f in flags if 1 in f))
     mark(cid, "independent_formula: pooled p̄, σ_i = √(p̄(1−p̄)/n_i), Nelson (1984) rules")
 
@@ -710,7 +722,7 @@ def _xbarr_internals(values, n):
             groups.append(np.array(chunk, dtype=float))
     means = np.array([g.mean() for g in groups])
     ranges = np.array([g.max() - g.min() for g in groups])
-    grand = float(means.mean())
+    grand = float(sum(g.size * means[i] for i, g in enumerate(groups)) / sum(g.size for g in groups))
     weights = sum(g.size - 1 for g in groups)
     sigma = sum((g.size - 1) / weights * ranges[i] / F.D2[g.size] for i, g in enumerate(groups))
     d2_bar = sum((g.size - 1) / weights * F.D2[g.size] for g in groups)
@@ -1043,7 +1055,8 @@ def _grr_out(bag, kind, ms, comp, parts, operators, n, study_var, tol, cid, pool
     bag.put("total_variance", comp["total"])
     bag.put("ndc", ndc)
     name_map = {"part": "partToPart", "part_operator": "partOperator"}
-    negatives = [name_map.get(k, k) for k, v in comp.items() if v < 0]
+    raw_comp = comp.get("_raw", comp)
+    negatives = [name_map.get(k, k) for k, v in raw_comp.items() if k != "_raw" and v < 0]
     bag.put("negative_components", ",".join(negatives))
     if "note" not in bag.values:
         bag.put("note", "")
@@ -1124,18 +1137,34 @@ def op_weibull(bag, ds, args, cid):
     var_ln_mttf = cov[1, 1] + d_beta ** 2 * cov[0, 0] + 2 * d_beta * cov[0, 1]
     se_ln_mttf = math.sqrt(max(0.0, var_ln_mttf))
     ppf = lambda p: float(stats.weibull_min.ppf(p, shape, loc=0, scale=scale))
-    # Kaplan–Meier plotting positions among failures (product-limit).
-    order = np.argsort(times, kind="stable")
-    at_risk = n
-    survival = 1.0
+    # Plotting positions: Benard's median rank for complete data, tie-aware KM for right-censored.
+    has_cens = bool(np.any(cens == 1))
+    order = np.lexsort((cens, times))
     pts = []
-    for idx in order:
-        if cens[idx] == 1:
-            at_risk -= 1
-            continue
-        survival *= 1 - 1 / max(1, at_risk)
-        at_risk -= 1
-        pts.append((float(times[idx]), min(1 - 1e-9, max(1e-9, 1 - survival))))
+    if not has_cens:
+        for i, idx in enumerate(order):
+            f_pos = (i + 1 - 0.3) / (n + 0.4)
+            pts.append((float(times[idx]), f_pos))
+    else:
+        at_risk = n
+        survival = 1.0
+        k = 0
+        while k < len(order):
+            t_now = float(times[order[k]])
+            d_cnt = 0
+            c_cnt = 0
+            while k < len(order) and float(times[order[k]]) == t_now:
+                if cens[order[k]] == 1:
+                    c_cnt += 1
+                else:
+                    d_cnt += 1
+                k += 1
+            if d_cnt > 0:
+                survival *= 1 - d_cnt / max(1, at_risk)
+                f_km = min(1 - 1e-9, max(1e-9, 1 - survival))
+                for _ in range(d_cnt):
+                    pts.append((t_now, f_km))
+            at_risk -= d_cnt + c_cnt
     fail_times = np.sort(times[cens == 0])
     ad = F.ad_statistic(stats.weibull_min.cdf(fail_times, shape, loc=0, scale=scale))
     ad_basis = "failures" if failures < n else "complete"
@@ -1459,17 +1488,26 @@ def op_rsmanalyze(bag, ds, args, cid):
     frame = pd.DataFrame({n: pd.Series(raw(ds, n), dtype=float) for n in names})
     frame["__y"] = pd.Series(raw(ds, args["response"]), dtype=float)
     frame = frame.dropna()
-    rhs = " + ".join(
-        [n for n in names] + [f"I({n} ** 2)" for n in names] + [f"{a}:{b}" for i, a in enumerate(names) for b in names[i + 1:]]
-    )
+    lin_terms = [n for n in names]
+    sq_terms = [f"I({n} ** 2)" for n in names]
+    int_terms = [f"{a}:{b}" for i, a in enumerate(names) for b in names[i + 1:]]
+    all_terms = lin_terms + sq_terms + int_terms
+    rhs = " + ".join(all_terms)
     model = smf.ols(f"__y ~ {rhs}", data=frame).fit()
-    a3 = sm.stats.anova_lm(model, typ=3)
-    def block(labels):
-        labels = [l for l in labels if l in a3.index]
-        return {"df": int(sum(a3.loc[l, "df"] for l in labels)), "ss": float(sum(a3.loc[l, "sum_sq"] for l in labels))}
-    linear = block(names)
-    square = block([f"I({n} ** 2)" for n in names])
-    interaction = block([f"{a}:{b}" for i, a in enumerate(names) for b in names[i + 1:]])
+    sse_full = float(np.sum(model.resid ** 2))
+    rank_full = int(model.df_model) + 1
+    def block(drop_terms):
+        kept = [t for t in all_terms if t not in drop_terms]
+        if not kept:
+            sst = float(np.sum((frame["__y"] - frame["__y"].mean()) ** 2))
+            return {"df": max(0, rank_full - 1), "ss": max(0.0, sst - sse_full)}
+        red = smf.ols(f"__y ~ {' + '.join(kept)}", data=frame).fit()
+        sse_red = float(np.sum(red.resid ** 2))
+        rank_red = int(red.df_model) + 1
+        return {"df": max(0, rank_full - rank_red), "ss": max(0.0, sse_red - sse_full)}
+    linear = block(lin_terms)
+    square = block(sq_terms)
+    interaction = block(int_terms)
     bag.put("linear:df", linear["df"])
     bag.put("linear:ss", linear["ss"])
     bag.put("square:df", square["df"])
@@ -1558,7 +1596,8 @@ def op_power(bag, ds, args, cid):
         if method == "twoT":
             return float(TTestIndPower().power(abs(diff) / sd if alternative == "two-sided" else diff / sd, m, alpha, alternative=sm_alt))
         if method == "anova":
-            f = abs(diff) / (2 * sd)
+            # Minitab/Montgomery conservative NCP: λ = n·Δ²/(2σ²) -> Cohen's f = |Δ|/(σ√(2k))
+            f = abs(diff) / (sd * math.sqrt(2 * groups))
             return float(FTestAnovaPower().power(f, m * groups, alpha, k_groups=groups))
         if method == "oneProp":
             p0 = args.get("p1", 0.5)
@@ -3483,12 +3522,15 @@ def op_lenth(bag, ds, args, cid):
         bag.put("available", 0)
         bag.put("reason", "degenerate")
         return
-    pseudo_df = max(1, int(math.floor(len(selected) / 3)))
-    t_crit = float(stats.t.ppf(0.975, pseudo_df))
+    m = len(abs_effects)
+    pseudo_df = m / 3.0
+    t_me = float(stats.t.ppf(0.975, pseudo_df))
+    gamma = (1.0 + (1.0 - 0.05) ** (1.0 / m)) / 2.0
+    t_sme = float(stats.t.ppf(gamma, pseudo_df))
     bag.put("available", 1)
     bag.put("pse", pse)
-    bag.put("me", t_crit * pse)
-    bag.put("sme", t_crit * pse / 2)
+    bag.put("me", t_me * pse)
+    bag.put("sme", t_sme * pse)
     bag.put("pseudo_df", pseudo_df)
     bag.put("active_count", len(selected))
     for name, effect in effects:

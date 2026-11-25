@@ -14,7 +14,7 @@
      within-subgroup standard deviation when a subgroup size above 1 is given.
    ───────────────────────────────────────────────────────────────────────── */
 
-import { normalCdf, normalInv } from './dist';
+import { normalCdf, normalInv, normalSf } from './dist';
 import { clean, mean, stdev } from './stats';
 
 export type SigmaMethod = 'z_bench_shift' | 'z_bench' | 'cpk_shift';
@@ -117,34 +117,38 @@ export function capability(raw: (number | null)[], options: CapabilityOptions = 
   const twoSided = lsl !== null && usl !== null;
   const tol = twoSided ? (usl as number) - (lsl as number) : NaN;
 
-  const cp = twoSided ? ratio(tol, 6 * sdWithin) : NaN;
-  const pp = twoSided ? ratio(tol, 6 * sdOverall) : NaN;
-  const cpl = lsl !== null ? ratio(m - lsl, 3 * sdWithin) : NaN;
-  const cpu = usl !== null ? ratio((usl as number) - m, 3 * sdWithin) : NaN;
-  const ppl = lsl !== null ? ratio(m - lsl, 3 * sdOverall) : NaN;
-  const ppu = usl !== null ? ratio((usl as number) - m, 3 * sdOverall) : NaN;
+  const hasSpec = lsl !== null || usl !== null;
+  const invalidTol = twoSided && !(tol > 0);
+  const validSpec = hasSpec && !invalidTol;
+
+  const cp = twoSided && !invalidTol ? ratio(tol, 6 * sdWithin) : NaN;
+  const pp = twoSided && !invalidTol ? ratio(tol, 6 * sdOverall) : NaN;
+  const cpl = lsl !== null && !invalidTol ? ratio(m - lsl, 3 * sdWithin) : NaN;
+  const cpu = usl !== null && !invalidTol ? ratio((usl as number) - m, 3 * sdWithin) : NaN;
+  const ppl = lsl !== null && !invalidTol ? ratio(m - lsl, 3 * sdOverall) : NaN;
+  const ppu = usl !== null && !invalidTol ? ratio((usl as number) - m, 3 * sdOverall) : NaN;
 
   // One-sided specifications report the single available index, never NaN.
-  const cpk = lsl !== null && usl !== null ? Math.min(cpl, cpu) : lsl !== null ? cpl : usl !== null ? cpu : NaN;
-  const ppk = lsl !== null && usl !== null ? Math.min(ppl, ppu) : lsl !== null ? ppl : usl !== null ? ppu : NaN;
+  const cpk = !validSpec ? NaN : lsl !== null && usl !== null ? Math.min(cpl, cpu) : lsl !== null ? cpl : usl !== null ? cpu : NaN;
+  const ppk = !validSpec ? NaN : lsl !== null && usl !== null ? Math.min(ppl, ppu) : lsl !== null ? ppl : usl !== null ? ppu : NaN;
 
   // Cpm: overall sigma, and only with an explicit target and two-sided tolerance.
-  const cpm = twoSided && target !== null
+  const cpm = twoSided && !invalidTol && target !== null
     ? ratio(tol, 6 * Math.sqrt(sdOverall ** 2 + (m - target) ** 2))
     : NaN;
 
-  const withinOk = isFinite(sdWithin) && sdWithin > 0;
-  const overallOk = isFinite(sdOverall) && sdOverall > 0;
+  const withinOk = validSpec && isFinite(sdWithin) && sdWithin > 0;
+  const overallOk = validSpec && isFinite(sdOverall) && sdOverall > 0;
   const belowWithin = lsl !== null && withinOk ? normalCdf((lsl - m) / sdWithin) : 0;
-  const aboveWithin = usl !== null && withinOk ? 1 - normalCdf((usl - m) / sdWithin) : 0;
+  const aboveWithin = usl !== null && withinOk ? normalSf((usl - m) / sdWithin) : 0;
   const belowOverall = lsl !== null && overallOk ? normalCdf((lsl - m) / sdOverall) : 0;
-  const aboveOverall = usl !== null && overallOk ? 1 - normalCdf((usl - m) / sdOverall) : 0;
+  const aboveOverall = usl !== null && overallOk ? normalSf((usl - m) / sdOverall) : 0;
   const observedBelow = lsl !== null ? v.filter((x) => x < lsl).length : 0;
   const observedAbove = usl !== null ? v.filter((x) => x > usl).length : 0;
 
   const ppmWithin = withinOk ? (belowWithin + aboveWithin) * 1e6 : NaN;
   const ppmOverall = overallOk ? (belowOverall + aboveOverall) * 1e6 : NaN;
-  const ppmObserved = n > 0 ? ((observedBelow + observedAbove) / n) * 1e6 : NaN;
+  const ppmObserved = validSpec && n > 0 ? ((observedBelow + observedAbove) / n) * 1e6 : NaN;
 
   const sigmaMethod: SigmaMethod = options.sigmaMethod ?? 'z_bench_shift';
   const sigmaLevel = sigmaLevelOf(sigmaMethod, ppmOverall, cpk);

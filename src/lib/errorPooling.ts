@@ -125,13 +125,13 @@ export function fitWithPooling(
 export interface LenthPse {
   /** Pseudo standard error: 1.5 × median of the "inactive" |effects|. */
   pse: number;
-  /** Margin of error at 95% (t × PSE). */
+  /** Margin of error at (1 − α) (t_{1−α/2, d} × PSE). */
   me: number;
-  /** Simultaneous margin of error (t × PSE / 2). */
+  /** Simultaneous margin of error (t_{γ, d} × PSE, γ = [1 + (1 − α)^(1/m)] / 2; SME ≥ ME). */
   sme: number;
-  /** Pseudo degrees of freedom, m / 3. */
+  /** Pseudo degrees of freedom, d = m / 3 (Lenth 1989). */
   pseudoDf: number;
-  /** Effects used in the median (|effect| ≤ 2.5 s0). */
+  /** Effects used in the median (|effect| < 2.5 s0). */
   activeCount: number;
   effects: { term: string; effect: number; abs: number; active: boolean }[];
 }
@@ -143,33 +143,40 @@ export interface LenthAvailability {
 }
 
 /**
- * Lenth's PSE for an unreplicated 2-level factorial. Effects must all have one
- * degree of freedom; a design with genuine replicates has a residual SE and no
- * need for a pseudo error, so it is refused rather than substituted.
+ * Lenth's PSE for an unreplicated 2-level factorial (Lenth 1989). Effects must
+ * all have one degree of freedom; a design with genuine replicates has a
+ * residual SE and no need for a pseudo error, so it is refused rather than
+ * substituted.
  */
 export function lenthPse(
   effects: { term: string; effect: number }[],
-  options: { replicated?: boolean; saturated?: boolean } = {},
+  options: { replicated?: boolean; saturated?: boolean; alpha?: number } = {},
 ): LenthAvailability {
   if (options.replicated) return { available: false, reason: 'replicated' };
   if (!options.saturated) return { available: false, reason: 'not-saturated' };
   const usable = effects.filter((entry) => Number.isFinite(entry.effect));
-  if (usable.length < 3) return { available: false, reason: 'too-few-effects' };
+  const m = usable.length;
+  if (m < 3) return { available: false, reason: 'too-few-effects' };
   const abs = usable.map((entry) => Math.abs(entry.effect));
   const s0 = 1.5 * median(abs);
   if (!(s0 > 0)) return { available: false, reason: 'degenerate' };
-  const selected = abs.filter((value) => value > 0 && value < 2.5 * s0);
+  const selected = abs.filter((value) => value < 2.5 * s0);
   if (selected.length < 2) return { available: false, reason: 'degenerate' };
   const pse = 1.5 * median(selected);
   if (!(pse > 0)) return { available: false, reason: 'degenerate' };
-  const pseudoDf = Math.max(1, Math.floor(selected.length / 3));
-  const t = tInv(0.975, pseudoDf);
+  const alpha = options.alpha ?? 0.05;
+  const pseudoDf = m / 3;
+  const tMe = tInv(1 - alpha / 2, pseudoDf);
+  const gamma = (1 + Math.pow(1 - alpha, 1 / m)) / 2;
+  const tSme = tInv(gamma, pseudoDf);
+  const me = tMe * pse;
+  const sme = tSme * pse;
   return {
     available: true,
     result: {
       pse,
-      me: t * pse,
-      sme: (t * pse) / 2,
+      me,
+      sme,
       pseudoDf,
       activeCount: selected.length,
       effects: usable.map((entry) => ({

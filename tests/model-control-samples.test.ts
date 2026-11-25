@@ -81,7 +81,9 @@ describe('model-control practice samples (WO-3F-09)', () => {
     expect(lenth[0]).toEqual(['A', '12', '12', 'active']);
     expect(lenth.filter((row) => row[3] === 'active')).toHaveLength(1);
     const caption = result.blocks.find((block) => block.type === 'text' && block.lines.some((line) => line.startsWith('PSE ')));
-    expect(caption && caption.type === 'text' ? caption.lines.join(' ') : '').toContain('PSE 2.1 · ME 9.036');
+    // Lenth (1989): m = 7 -> d = 7/3, t(0.975, 7/3) = 3.764123 -> ME = 2.1 * 3.764123 = 7.905
+    // (ADD-01: previous test pinned buggy floor(7/3)=2 -> ME 9.036.)
+    expect(caption && caption.type === 'text' ? caption.lines.join(' ') : '').toContain('PSE 2.1 · ME 7.905');
     expect(result.blocks.some((block) => block.type === 'text' && block.lines.some((line) => line.includes('Error DF is 0')))).toBe(true);
   });
 

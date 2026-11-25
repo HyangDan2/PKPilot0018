@@ -99,13 +99,14 @@ def nelson_rules(values, center: float, sigma) -> list[list[int]]:
                 out[i].append(4)
         if i >= 2:
             w = z[i - 2:i + 1]
-            if sum(1 for v in w if v > 2) >= 2 or sum(1 for v in w if v < -2) >= 2:
+            if (sum(1 for v in w if v > 2) >= 2 and z[i] > 2) or (sum(1 for v in w if v < -2) >= 2 and z[i] < -2):
                 out[i].append(5)
         if i >= 4:
             w = z[i - 4:i + 1]
-            if sum(1 for v in w if v > 1) >= 4 or sum(1 for v in w if v < -1) >= 4:
+            if (sum(1 for v in w if v > 1) >= 4 and z[i] > 1) or (sum(1 for v in w if v < -1) >= 4 and z[i] < -1):
                 out[i].append(6)
-        if i >= 14 and all(abs(v) < 1 for v in z[i - 14:i + 1]):
+        s_i = sigma[i] if isinstance(sigma, (list, tuple, np.ndarray)) else sigma
+        if i >= 14 and (s_i > 0) and all(abs(v) < 1 for v in z[i - 14:i + 1]):
             out[i].append(7)
         if i >= 7 and all(abs(v) > 1 for v in z[i - 7:i + 1]):
             out[i].append(8)
@@ -135,7 +136,7 @@ def ad_normal_p(ad_star: float) -> float:
     if not math.isfinite(a):
         return float("nan")
     if a < 0.2:
-        p = 1 - math.exp(-13.436 + 101.14 * a - 7.246 * a * a)
+        p = 1 - math.exp(-13.436 + 101.14 * a - 223.73 * a * a)
     elif a < 0.34:
         p = 1 - math.exp(-8.318 + 42.796 * a - 59.938 * a * a)
     elif a < 0.6:
@@ -259,22 +260,36 @@ def sigma_level(method: str, ppm_overall: float, cpk: float) -> float:
 def crossed_components(anova: dict, parts: int, operators: int, replicates: int) -> dict:
     n = replicates
     ms = {k: v["ms"] for k, v in anova.items()}
-    repeat = ms["repeat"]
-    inter = (ms["interaction"] - repeat) / n
-    oper = (ms["operator"] - ms["interaction"]) / (parts * n)
-    part = (ms["part"] - ms["interaction"]) / (operators * n)
+    raw_repeat = ms["repeat"]
+    raw_inter = (ms["interaction"] - ms["repeat"]) / n
+    raw_oper = (ms["operator"] - ms["interaction"]) / (parts * n)
+    raw_part = (ms["part"] - ms["interaction"]) / (operators * n)
+    repeat = max(0.0, raw_repeat)
+    inter = max(0.0, raw_inter)
+    oper = max(0.0, raw_oper)
+    part = max(0.0, raw_part)
     grr = repeat + inter + oper
-    return {"repeat": repeat, "interaction": inter, "operator": oper, "part": part, "grr": grr, "total": grr + part}
+    return {
+        "repeat": repeat, "interaction": inter, "operator": oper, "part": part,
+        "grr": grr, "total": grr + part,
+        "_raw": {"repeat": raw_repeat, "reproducibility": raw_inter + raw_oper, "interaction": raw_inter, "operator": raw_oper, "part": raw_part},
+    }
 
 
 def nested_components(anova: dict, operators: int, parts_per_operator: int, replicates: int) -> dict:
     n = replicates
     ms = {k: v["ms"] for k, v in anova.items()}
-    repeat = ms["repeat"]
-    part = (ms["partOperator"] - repeat) / n
-    oper = (ms["operator"] - ms["partOperator"]) / (parts_per_operator * n)
+    raw_repeat = ms["repeat"]
+    raw_part = (ms["partOperator"] - ms["repeat"]) / n
+    raw_oper = (ms["operator"] - ms["partOperator"]) / (parts_per_operator * n)
+    repeat = max(0.0, raw_repeat)
+    part = max(0.0, raw_part)
+    oper = max(0.0, raw_oper)
     grr = repeat + oper
-    return {"repeat": repeat, "operator": oper, "part": part, "grr": grr, "total": grr + part}
+    return {
+        "repeat": repeat, "operator": oper, "part": part, "grr": grr, "total": grr + part,
+        "_raw": {"repeat": raw_repeat, "reproducibility": raw_oper, "operator": raw_oper, "part": raw_part},
+    }
 
 
 # ── 2-parameter Weibull profile likelihood ───────────────────────────────

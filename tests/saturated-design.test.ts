@@ -86,10 +86,15 @@ describe('saturated fits stay estimable but not inferable (WO-3F-06)', () => {
     const lenth = saturated.saturated!.lenth.result!;
     // Effects are [6, 4, 3, 2, −1, 1.5, 0.5]; s0 = 1.5 × median = 3;
     // the inactive set is every effect (all < 7.5), so PSE = 1.5 × 2 = 3.
+    // Lenth (1989): m = 7 effects, d = m/3 = 7/3 (fractional), PSE = 3.
+    // SciPy 1.18.1: t(0.975, 7/3) = 3.764123072 -> ME = 11.292369216;
+    // gamma = (1 + 0.95^(1/7))/2 -> t(gamma, 7/3) = 9.008307114 -> SME = 27.024921342.
+    // (ADD-01: previous test pinned buggy floor(selected/3)=2 and SME = ME/2.)
     expect(lenth.pse).toBeCloseTo(3, 9);
-    expect(lenth.pseudoDf).toBe(2);
-    expect(lenth.me).toBeCloseTo(4.302653 * 3, 4);
-    expect(lenth.sme).toBeCloseTo((4.302653 * 3) / 2, 4);
+    expect(lenth.pseudoDf).toBeCloseTo(7 / 3, 9);
+    expect(lenth.me).toBeCloseTo(11.292369216, 4);
+    expect(lenth.sme).toBeCloseTo(27.024921342, 3);
+    expect(lenth.sme).toBeGreaterThan(lenth.me);
     expect(lenth.activeCount).toBe(7);
     expect(lenth.effects.every((entry) => entry.active === false)).toBe(true);
   });
@@ -101,7 +106,8 @@ describe('saturated fits stay estimable but not inferable (WO-3F-06)', () => {
     );
     expect(lenth.available).toBe(true);
     expect(lenth.result!.pse).toBeCloseTo(0.3, 9);
-    expect(lenth.result!.pseudoDf).toBe(1);
+    // Lenth (1989): m = 5 effects -> d = m/3 = 5/3 (ADD-01: replaced buggy floor=1)
+    expect(lenth.result!.pseudoDf).toBeCloseTo(5 / 3, 9);
     expect(lenth.result!.effects.find((entry) => entry.term === 'A')!.active).toBe(true);
     expect(lenth.result!.effects.find((entry) => entry.term === 'E')!.active).toBe(true);
   });

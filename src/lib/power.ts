@@ -81,11 +81,17 @@ function powerOfT(n: number, delta: number, sd: number, alpha: number, alt: Alt,
   return Math.min(1, Math.max(0, power));
 }
 
+/**
+ * Exact power of one-way ANOVA using Minitab / Montgomery's conservative
+ * (minimum-power) configuration for maximum mean difference Δ = μ_max − μ_min:
+ * one level at −Δ/2, one at +Δ/2, and the remaining k − 2 levels at 0, giving
+ * noncentrality parameter λ = n · Δ² / (2σ²).
+ */
 function powerOfAnova(n: number, delta: number, sd: number, k: number, alpha: number): number {
   if (!(n >= 2) || !(sd > 0) || !(k >= 2) || !isFinite(delta)) return NaN;
   const df1 = k - 1;
   const df2 = k * (n - 1);
-  const ncp = (n * k * delta * delta) / (4 * sd * sd);
+  const ncp = (n * delta * delta) / (2 * sd * sd);
   const crit = fInv(1 - alpha, df1, df2);
   return Math.min(1, Math.max(0, 1 - ncfCdf(crit, df1, df2, ncp)));
 }
@@ -214,14 +220,16 @@ function unreachableReason(spec: PowerSpec, difference: number, target?: number)
     const base = spec.p1 ?? 0.5;
     const pa = base + difference;
     if (!(base > 0 && base < 1) || !(pa > 0 && pa < 1)) return 'proportionRange';
-  } else if (!(spec.sd ?? 1 > 0)) {
+  } else if (!((spec.sd ?? 1) > 0) || !isFinite(spec.sd ?? 1)) {
     return 'sd';
   }
+  if (spec.method === 'anova' && !((spec.groups ?? 2) >= 2)) return 'groups';
   return null;
 }
 
 /** A one-sided alternative can never gain power from an effect pointing the other way. */
 function againstAlternative(spec: PowerSpec, difference: number): boolean {
+  if (spec.method === 'anova') return false;
   if (spec.alternative === 'greater') return difference < 0;
   if (spec.alternative === 'less') return difference > 0;
   return false;

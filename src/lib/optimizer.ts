@@ -536,10 +536,16 @@ export function scorePoint(
 }
 
 const better = (a: Scored, b: Scored): boolean => {
-  // A compliant point beats a non-compliant one; within the same class the
-  // composite decides, then the smaller extrapolation.
+  // A compliant point beats a non-compliant one; within compliant points the
+  // composite decides; within non-compliant points prefer higher composite or
+  // smaller constraint violation so local search can walk toward feasibility.
   if (a.solution.compliantAll !== b.solution.compliantAll) return a.solution.compliantAll;
   if (a.solution.composite !== b.solution.composite) return a.solution.composite > b.solution.composite;
+  if (!a.solution.compliantAll && !b.solution.compliantAll) {
+    const aSum = a.solution.responses.reduce((acc, r) => acc + (Number.isFinite(r.desirability) ? r.desirability : 0), 0);
+    const bSum = b.solution.responses.reduce((acc, r) => acc + (Number.isFinite(r.desirability) ? r.desirability : 0), 0);
+    if (aSum !== bSum) return aSum > bSum;
+  }
   return a.solution.extrapolated === false && b.solution.extrapolated === true;
 };
 
@@ -715,7 +721,7 @@ export function localSteps(factors: (FactorSettings & { fixed: boolean })[], set
     if (factor.fixed || factor.kind === 'categorical') return;
     const span = factor.upper - factor.lower;
     if (factor.kind === 'discrete' && factor.step > 0) {
-      const target = Math.max(factor.step, span * settings.tolerance);
+      const target = Math.max(factor.step, span / 4);
       const multiple = Math.max(1, Math.round(target / factor.step));
       steps[factor.name] = multiple * factor.step;
       return;
@@ -765,6 +771,7 @@ function* refine(
     localIterations += 1;
     state.iterations += 1;
     improved = false;
+    const prev = { ...current };
     for (const factor of free) {
       const step = steps[factor.name];
       if (!(step > 0)) continue;
@@ -786,6 +793,29 @@ function* refine(
         if (state.stoppedBy !== 'complete') break;
       }
       if (state.stoppedBy !== 'complete') break;
+    }
+    // Hooke–Jeeves pattern move: when coordinate probing moved across ≥ 2 axes
+    // (e.g. along an interaction ridge), test a diagonal step in the net move direction.
+    if (improved && free.length >= 2 && state.stoppedBy === 'complete') {
+      let movedAxes = 0;
+      const pattern = { ...current };
+      for (const factor of free) {
+        const delta = Number(current[factor.name]) - Number(prev[factor.name]);
+        if (delta === 0) continue;
+        movedAxes += 1;
+        const raw = Number(current[factor.name]) + delta;
+        const clamped = Math.min(factor.upper, Math.max(factor.lower, raw));
+        pattern[factor.name] = factor.kind === 'discrete' && factor.step > 0
+          ? nearestStepValue(factor.lower, factor.upper, factor.step, clamped).value
+          : clamped;
+      }
+      if (movedAxes >= 2) {
+        const scored = yield* evaluateAt(state, problem, settings, pointFrom(base, pattern), 'local', deadline);
+        if (scored.usable && better(scored, currentScore)) {
+          current = pattern;
+          currentScore = scored;
+        }
+      }
     }
     if (!improved && state.stoppedBy === 'complete') {
       // Shrink every step; the basin has converged when all of them are at the
@@ -873,16 +903,16 @@ function* searchCore(
     yield* refine(state, problem, settings, deadline, start, 0);
     return;
   }
-  // Multi-start: a coarse lattice first (so a good basin is not missed), then
-  // seeded starts refined locally. Every basin reports its own convergence.
-  const coarse: AxisPlan = {
-    ...plan,
-    axes: plan.axes.map((axis) => {
-      if (axis.factor.kind !== 'continuous') return axis;
-      const axisValues = factorAxisValues(axis.factor, Math.max(3, Math.min(settings.gridPoints, 9)));
-      return { ...axis, values: axisValues.values, count: axisValues.count, reduced: false };
-    }),
-  };
+  // Multi-start: cap the coarse lattice to ≤45% of maxEvaluations so local
+  // refinement basins ALWAYS retain budget even with 5+ continuous factors.
+  const coarseBudget = Math.max(20, Math.floor(settings.maxEvaluations * 0.45));
+  const coarse = planAxes(problem.factors, {
+    ...settings,
+    gridPoints: Math.max(3, Math.min(settings.gridPoints, 9)),
+    maxEvaluations: coarseBudget,
+  });
+  state.combinations = coarse.combinations;
+  state.gridReduced = coarse.gridReduced;
   yield* walkLattice(state, problem, settings, coarse, 'grid', deadline);
   const random = mulberry32(settings.seed);
   const starts = Math.max(3, Math.min(12, 2 + problem.factors.length * 2));
@@ -919,9 +949,13 @@ function finish(
   const solutions = eligible;
   const best = solutions[0] ?? null;
   const allDiscrete = problem.factors.every((factor) => factor.fixed || factor.kind !== 'continuous');
-  // A search that used exactly its whole evaluation budget did not finish; say
-  // so rather than letting the last lattice point look like a completed grid.
-  if (state.stoppedBy === 'complete' && state.evaluations >= settings.maxEvaluations) state.stoppedBy = 'budget';
+  // A search that used its whole evaluation budget before finishing did not
+  // complete; an exhaustive discrete search that finishes on the exact last
+  // evaluation still completed every combination.
+  const finishedExhaustive = allDiscrete && !state.gridReduced && state.evaluatedPoints >= state.combinations;
+  if (state.stoppedBy === 'complete' && state.evaluations >= settings.maxEvaluations && !finishedExhaustive) {
+    state.stoppedBy = 'budget';
+  }
   const exhaustive = allDiscrete
     && state.stoppedBy === 'complete'
     && !state.gridReduced

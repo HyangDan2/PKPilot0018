@@ -54,13 +54,25 @@ const AD_CRITICAL: Record<NonnormalDist, [number, number, number]> = {
   gamma: [0.632, 0.759, 1.048],
 };
 
+function logSumExp(values: number[]): number {
+  let max = -Infinity;
+  for (let i = 0; i < values.length; i += 1) if (values[i] > max) max = values[i];
+  if (!isFinite(max)) return max;
+  let sum = 0;
+  for (let i = 0; i < values.length; i += 1) sum += Math.exp(values[i] - max);
+  return max + Math.log(sum);
+}
+
 function weibullLogLik(values: number[], shape: number): number {
   const n = values.length;
-  const sumPow = values.reduce((a, t) => a + Math.pow(t, shape), 0);
-  const logSum = values.reduce((a, t) => a + Math.log(t), 0);
+  const logs = values.map((t) => Math.log(t));
+  const scaled = logs.map((lt) => shape * lt);
+  const lse = logSumExp(scaled);
+  if (!isFinite(lse)) return -Infinity;
+  const logSum = logs.reduce((a, b) => a + b, 0);
   const logShape = Math.log(shape);
-  // profile log-likelihood with η̂(shape) substituted
-  return n * (logShape - Math.log(sumPow / n)) + (shape - 1) * logSum - n;
+  // profile log-likelihood with ln(η̂(shape)) = (logSumExp(β·ln t) − ln n)/β
+  return n * (logShape - (lse - Math.log(n))) + (shape - 1) * logSum - n;
 }
 
 /** 1-D bounded maximizer (golden section) — stable for the profile likelihood. */
@@ -95,8 +107,8 @@ function fitWeibull(values: number[]): FitParams {
   // Search over a wide but finite shape range in log space.
   const lnShape = maximize((x) => logLikShape(Math.exp(x)), Math.log(0.05), Math.log(60));
   const shape = Math.exp(lnShape);
-  const sumPow = values.reduce((a, t) => a + Math.pow(t, shape), 0);
-  const scale = Math.pow(sumPow / values.length, 1 / shape);
+  const scaled = values.map((t) => shape * Math.log(t));
+  const scale = Math.exp((logSumExp(scaled) - Math.log(values.length)) / shape);
   return { shape, scale, logLik: weibullLogLik(values, shape) };
 }
 
@@ -186,7 +198,15 @@ export function fitNonnormal(raw: (number | null)[], dist: NonnormalDist): Nonno
     sum += (2 * i - 1) * (Math.log(hi) + Math.log(1 - lo));
   }
   const ad = -n - sum / n;
-  const adAdjusted = ad * (1 + 0.2 / Math.sqrt(n));
+  // Distribution-specific Anderson–Darling sample-size adjustments (D'Agostino & Stephens 1986):
+  //   · Weibull   : A*(1 + 0.2/√n)
+  //   · Lognormal : A*(1 + 0.75/n + 2.25/n²)  (Normal on ln X)
+  //   · Gamma     : unadjusted A² (Table 4.18)
+  const adAdjusted = dist === 'weibull'
+    ? ad * (1 + 0.2 / Math.sqrt(n))
+    : dist === 'lognormal'
+      ? ad * (1 + 0.75 / n + 2.25 / (n * n))
+      : ad;
   const critical = AD_CRITICAL[dist];
   // Higher AD* means a worse fit: the critical values rise as alpha shrinks.
   const band: NonnormalFit['band'] = adAdjusted <= critical[0]

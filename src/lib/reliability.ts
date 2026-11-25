@@ -8,7 +8,17 @@
    interval on the log scale through the delta method.
    ───────────────────────────────────────────────────────────────────────── */
 
-import { logGamma, normalCdf, normalInv } from './dist';
+import { logGamma, normalInv, normalSf } from './dist';
+
+/** Numerically stable log(Σ exp(a_i)) for arbitrary time scales and high shapes. */
+function logSumExp(values: number[]): number {
+  let max = -Infinity;
+  for (let i = 0; i < values.length; i += 1) if (values[i] > max) max = values[i];
+  if (!isFinite(max)) return max;
+  let sum = 0;
+  for (let i = 0; i < values.length; i += 1) sum += Math.exp(values[i] - max);
+  return max + Math.log(sum);
+}
 
 export interface WeibullPoint {
   time: number;
@@ -99,10 +109,11 @@ function mulberry32(seed: number): () => number {
  * this is what keeps 300 bootstrap refits cheap.
  */
 function profileLogLikFast(times: number[], logTimeSumFailed: number, failures: number, shape: number): number {
-  let sumT = 0;
-  for (let i = 0; i < times.length; i += 1) sumT += Math.pow(times[i], shape);
-  if (!(sumT > 0) || !isFinite(sumT)) return -Infinity;
-  const lnScale = Math.log(sumT / failures) / shape;
+  const scaled = new Array<number>(times.length);
+  for (let i = 0; i < times.length; i += 1) scaled[i] = shape * Math.log(times[i]);
+  const lse = logSumExp(scaled);
+  if (!isFinite(lse)) return -Infinity;
+  const lnScale = (lse - Math.log(failures)) / shape;
   return failures * Math.log(shape) - failures * shape * lnScale + (shape - 1) * logTimeSumFailed - failures;
 }
 
@@ -132,10 +143,11 @@ function profileFit(times: number[], logTimeSumFailed: number, failures: number)
     }
   }
   const shape = Math.exp((a + b) / 2);
-  let sumT = 0;
-  for (let i = 0; i < times.length; i += 1) sumT += Math.pow(times[i], shape);
-  if (!(sumT > 0) || !isFinite(sumT)) return null;
-  return { shape, scale: Math.pow(sumT / failures, 1 / shape) };
+  const scaled = new Array<number>(times.length);
+  for (let i = 0; i < times.length; i += 1) scaled[i] = shape * Math.log(times[i]);
+  const lse = logSumExp(scaled);
+  if (!isFinite(lse)) return null;
+  return { shape, scale: Math.exp((lse - Math.log(failures)) / shape) };
 }
 
 /** A* = A²(1 + 0.2/√k) on the failure times against the fitted Weibull CDF. */
@@ -231,13 +243,14 @@ function logLikelihood(rows: WeibullInput[], shape: number, scale: number): numb
   return sum;
 }
 
-/** Profile MLE of the scale for a fixed shape. */
+/** Profile MLE of the scale for a fixed shape (log-domain to prevent overflow). */
 function profileScale(rows: WeibullInput[], shape: number): number {
   const failures = rows.filter((r) => !r.censored).length;
   if (!failures) return NaN;
-  let sum = 0;
-  rows.forEach((row) => { if (row.time > 0) sum += Math.pow(row.time, shape); });
-  return Math.pow(sum / failures, 1 / shape);
+  const terms: number[] = [];
+  rows.forEach((row) => { if (row.time > 0) terms.push(shape * Math.log(row.time)); });
+  if (!terms.length) return NaN;
+  return Math.exp((logSumExp(terms) - Math.log(failures)) / shape);
 }
 
 function maximize1D(fn: (x: number) => number, lo: number, hi: number): number {
@@ -369,21 +382,43 @@ export function fitWeibull(rows: WeibullInput[], conf = 0.95): WeibullResult {
   const mttfLo = mttf * Math.exp(-z * seLnMttf);
   const mttfHi = mttf * Math.exp(z * seLnMttf);
   const median = percentile(0.5);
-  // Plotting positions: Benard for complete data, Kaplan–Meier with censoring.
-  const sorted = [...data].sort((x, y) => x.time - y.time);
+  // Plotting positions: Benard's median rank (i − 0.3)/(n + 0.4) for complete
+  // data; tie-aware Kaplan–Meier (failures processed before censored at equal
+  // times, invariant to input row order) when right-censored data are present.
+  const hasCensoring = data.some((r) => r.censored);
+  const sorted = [...data].sort(
+    (x, y) => x.time - y.time || (x.censored === y.censored ? 0 : x.censored ? 1 : -1),
+  );
   const points: WeibullPoint[] = [];
-  let atRisk = sorted.length;
-  let survival = 1;
-  sorted.forEach((row) => {
-    if (row.censored) {
-      atRisk -= 1;
-      return;
+  if (!hasCensoring) {
+    const total = sorted.length;
+    for (let i = 0; i < total; i += 1) {
+      const f = (i + 1 - 0.3) / (total + 0.4);
+      points.push({ time: sorted[i].time, f, x: Math.log(sorted[i].time), y: Math.log(-Math.log(1 - f)) });
     }
-    survival *= 1 - 1 / Math.max(1, atRisk);
-    atRisk -= 1;
-    const f = Math.min(1 - 1e-9, Math.max(1e-9, 1 - survival));
-    points.push({ time: row.time, f, x: Math.log(row.time), y: Math.log(-Math.log(1 - f)) });
-  });
+  } else {
+    let atRisk = sorted.length;
+    let survival = 1;
+    let idx = 0;
+    while (idx < sorted.length) {
+      const tNow = sorted[idx].time;
+      let dCount = 0;
+      let cCount = 0;
+      while (idx < sorted.length && sorted[idx].time === tNow) {
+        if (sorted[idx].censored) cCount += 1;
+        else dCount += 1;
+        idx += 1;
+      }
+      if (dCount > 0) {
+        survival *= 1 - dCount / Math.max(1, atRisk);
+        const f = Math.min(1 - 1e-9, Math.max(1e-9, 1 - survival));
+        for (let k = 0; k < dCount; k += 1) {
+          points.push({ time: tNow, f, x: Math.log(tNow), y: Math.log(-Math.log(1 - f)) });
+        }
+      }
+      atRisk -= dCount + cCount;
+    }
+  }
   const nFail = points.length;
   // Anderson–Darling is evaluated against the FITTED CDF F(t) = 1 − e^{−(t/η)^β},
   // not the empirical/KM plotting position: the plotting positions are the data
@@ -394,7 +429,7 @@ export function fitWeibull(rows: WeibullInput[], conf = 0.95): WeibullResult {
   const adSample = data.filter((r) => !r.censored);
   const adCdf = adSample.map((r) => 1 - Math.exp(-Math.pow(r.time / scale, shape)));
   const ad = adStatistic(adCdf);
-  const adBasis: WeibullResult['adBasis'] = data.some((r) => r.censored) ? 'failures' : 'complete';
+  const adBasis: WeibullResult['adBasis'] = hasCensoring ? 'failures' : 'complete';
   const adN = adBasis === 'complete' ? n : nFail;
   const adAdjusted = ad * (1 + 0.2 / Math.sqrt(Math.max(1, adN)));
   // Kaplan–Meier sanity check: the parametric CDF must track the nonparametric
@@ -404,20 +439,28 @@ export function fitWeibull(rows: WeibullInput[], conf = 0.95): WeibullResult {
     ? Math.max(...points.map((p) => Math.abs(p.f - (1 - Math.exp(-Math.pow(p.time / scale, shape))))))
     : NaN;
   const kmCritical05 = nFail > 0 ? 1.36 / Math.sqrt(nFail) : NaN;
-  const band: WeibullResult['band'] = adAdjusted <= WEIBULL_AD_CRITICAL[0]
-    ? 'above10'
-    : adAdjusted <= WEIBULL_AD_CRITICAL[1]
-      ? 'between05and10'
-      : adAdjusted <= WEIBULL_AD_CRITICAL[2]
-        ? 'between01and05'
-        : 'below01';
-  // The table's critical values are for COMPLETE data. With right censoring the
-  // failures-only A* has no tabulated null distribution, so its p-value comes
-  // from a parametric bootstrap that reproduces the censoring pattern instead.
+  // The table's critical values are for COMPLETE data only. With right censoring
+  // the failures-only A* has no tabulated null distribution, so its p-value and
+  // band come from the parametric bootstrap reproducing the censoring pattern.
   const adBootstrapReps = adBasis === 'failures' ? WEIBULL_AD_BOOTSTRAP_REPS : 0;
   const adBootstrapP = adBasis === 'failures'
     ? bootstrapAdP(data, shape, scale, adAdjusted, adBootstrapReps)
     : NaN;
+  const band: WeibullResult['band'] = adBasis === 'failures'
+    ? (adBootstrapP > 0.10
+      ? 'above10'
+      : adBootstrapP > 0.05
+        ? 'between05and10'
+        : adBootstrapP > 0.01
+          ? 'between01and05'
+          : 'below01')
+    : (adAdjusted <= WEIBULL_AD_CRITICAL[0]
+      ? 'above10'
+      : adAdjusted <= WEIBULL_AD_CRITICAL[1]
+        ? 'between05and10'
+        : adAdjusted <= WEIBULL_AD_CRITICAL[2]
+          ? 'between01and05'
+          : 'below01');
   return {
     shape,
     scale,
@@ -538,7 +581,7 @@ export function fitLognormalReliability(rows: WeibullInput[], tolConf = 0.95): L
     for (let i = 0; i < n; i += 1) {
       const z = (logT[i] - mu) / sigma;
       if (data[i].censored) {
-        const tail = 1 - normalCdf(z);
+        const tail = normalSf(z);
         sum += Math.log(Math.max(1e-300, tail));
       } else {
         sum += -Math.log(sigma) - logT[i] - 0.5 * Math.log(2 * Math.PI) - 0.5 * z * z;

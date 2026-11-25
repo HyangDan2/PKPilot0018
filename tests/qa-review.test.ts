@@ -83,7 +83,9 @@ describe('QA-02 right-censored Weibull and lognormal fits', () => {
     expect(r.adBasis).toBe('failures');
     expect(r.ad).toBeCloseTo(0.8596323687414404, 6);
     expect(r.adAdjusted).toBeCloseTo(0.898076296984741, 6);
-    expect(r.band).toBe('between01and05');
+    // ADD-01 / ADD-05: right-censored band uses parametric-bootstrap p-value
+    // (above10) rather than complete-data critical values (old buggy between01and05).
+    expect(r.band).toBe('above10');
     expect(r.kmDev).toBeCloseTo(0.07926395690832211, 7);
     expect(r.kmCritical05).toBeCloseTo(1.36 / Math.sqrt(20), 10);
     expect(r.kmBand).toBe('above05');
@@ -399,16 +401,20 @@ describe('QA-13 Xbar-R with a missing value uses each subgroup’s own nᵢ', ()
     const r = xbarRCharts(values, 4);
     const xbar = r.panels[0];
     const rChart = r.panels[1];
-    expect(xbar.center).toBeCloseTo(10.161666666666667, 10);
+    // ADD-01 / WO-3G-07: Minitab/Montgomery size-weighted grand mean Σ n_i X̄_i / Σ n_i
+    // = 193.1 / 19 = 10.163157894736841 (replaced unweighted mean 10.1616666667).
+    expect(xbar.center).toBeCloseTo(10.163157894736841, 10);
     expect(r.sigmaWithin).toBeCloseTo(0.22952141428730014, 10);
     expect(rChart.center).toBeCloseTo(0.46058390092767215, 10);
     expect(Array.isArray(xbar.ucl)).toBe(true);
     const ucl = xbar.ucl as number[];
     const lcl = xbar.lcl as number[];
     const rUcl = rChart.ucl as number[];
-    expect(ucl[0]).toBeCloseTo(10.559209417637335, 8);
-    expect(ucl[1]).toBeCloseTo(10.505948788097617, 8);
-    expect(lcl[0]).toBeCloseTo(9.764123915695999, 8);
+    const grandW = 193.1 / 19;
+    const sigmaW = 0.22952141428730014;
+    expect(ucl[0]).toBeCloseTo(grandW + (3 * sigmaW) / Math.sqrt(3), 8);
+    expect(ucl[1]).toBeCloseTo(grandW + (3 * sigmaW) / Math.sqrt(4), 8);
+    expect(lcl[0]).toBeCloseTo(grandW - (3 * sigmaW) / Math.sqrt(3), 8);
     expect(rUcl[0]).toBeCloseTo(1.0002042877957393, 8);
     expect(rUcl[1]).toBeCloseTo(1.0784380389840516, 8);
     // The n = 3 subgroup has its own (wider) Xbar limit.

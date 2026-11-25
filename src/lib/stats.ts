@@ -4,7 +4,8 @@
    ANOVA with Tukey HSD, and ordinary least squares regression with VIF.
    ───────────────────────────────────────────────────────────────────────── */
 
-import { fCdf, normalCdf, normalInv, rangeCdf, rangeInv, tCdf, tInv } from './dist';
+import { fCdf, normalCdf, normalInv, normalSf, rangeCdf, rangeInv, tCdf, tInv } from './dist';
+import { lstsq } from './linalg';
 
 export type Alt = 'two-sided' | 'less' | 'greater';
 
@@ -134,14 +135,15 @@ export function adNormality(raw: (number | null)[]): ADResult {
   }
   let sum = 0;
   for (let i = 1; i <= n; i += 1) {
-    const hi = Math.min(1 - 1e-12, Math.max(1e-12, normalCdf(sorted[i - 1], m, s)));
-    const lo = Math.min(1 - 1e-12, Math.max(1e-12, normalCdf(sorted[n - i], m, s)));
-    sum += (2 * i - 1) * (Math.log(hi) + Math.log(1 - lo));
+    const cdfLo = Math.max(1e-300, normalCdf(sorted[i - 1], m, s));
+    const sfHi = Math.max(1e-300, normalSf(sorted[n - i], m, s));
+    sum += (2 * i - 1) * (Math.log(cdfLo) + Math.log(sfHi));
   }
   const a2 = -n - sum / n;
   const adj = a2 * (1 + 0.75 / n + 2.25 / (n * n));
+  // D'Agostino & Stephens (1986) / R nortest::ad.test piecewise p-value formula
   let p: number;
-  if (adj < 0.2) p = 1 - Math.exp(-13.436 + 101.14 * adj - 7.246 * adj * adj);
+  if (adj < 0.2) p = 1 - Math.exp(-13.436 + 101.14 * adj - 223.73 * adj * adj);
   else if (adj < 0.34) p = 1 - Math.exp(-8.318 + 42.796 * adj - 59.938 * adj * adj);
   else if (adj < 0.6) p = Math.exp(0.9177 - 4.279 * adj - 1.38 * adj * adj);
   else p = Math.exp(1.2937 - 5.709 * adj + 0.0186 * adj * adj);
@@ -362,9 +364,12 @@ export function anovaOneWay(groups: Group[]): AnovaTable {
   });
   const dfBetween = k - 1;
   const dfWithin = nTotal - k;
-  const msBetween = ssBetween / dfBetween;
-  const msWithin = ssWithin / dfWithin;
-  const f = msBetween / msWithin;
+  const msBetween = dfBetween > 0 ? ssBetween / dfBetween : NaN;
+  const msWithin = dfWithin > 0 ? ssWithin / dfWithin : NaN;
+  const f = dfBetween > 0 && dfWithin > 0
+    ? (msWithin > 0 ? msBetween / msWithin : msBetween > 0 ? Infinity : NaN)
+    : NaN;
+  const p = isFinite(f) ? 1 - fCdf(f, dfBetween, dfWithin) : f === Infinity ? 0 : NaN;
   return {
     dfBetween,
     dfWithin,
@@ -373,9 +378,9 @@ export function anovaOneWay(groups: Group[]): AnovaTable {
     msBetween,
     msWithin,
     f,
-    p: 1 - fCdf(f, dfBetween, dfWithin),
+    p,
     groups,
-    sPooled: Math.sqrt(msWithin),
+    sPooled: msWithin >= 0 ? Math.sqrt(msWithin) : NaN,
   };
 }
 
@@ -423,9 +428,12 @@ export function tukeyHSD(table: AnovaTable, conf = 0.95): TukeyResult {
   return { q, pairs, letters: groupingLetters(table, conf) };
 }
 
-/** Compact-letter display: means sharing a letter are not significantly different. */
+/** Compact-letter display via Piepho's insert-and-absorb algorithm:
+ *  means sharing a letter are not significantly different; significantly
+ *  different pairs share no letter. Supports overlapping multi-letter groups. */
 export function groupingLetters(table: AnovaTable, conf = 0.95): { label: string; mean: number; letter: string }[] {
   const k = table.groups.length;
+  if (k === 0) return [];
   const q = rangeInv(conf, k, table.dfWithin);
   const items = table.groups
     .map((g) => ({ label: g.label, mean: mean(g.values), n: g.values.length }))
@@ -436,22 +444,46 @@ export function groupingLetters(table: AnovaTable, conf = 0.95): { label: string
     const se = Math.sqrt(table.msWithin * (1 / a.n + 1 / b.n));
     return Math.abs(a.mean - b.mean) <= (q / Math.SQRT2) * se;
   };
-  const buckets: number[][] = [];
-  items.forEach((_, idx) => {
-    let placed = false;
-    for (const bucket of buckets) {
-      if (bucket.every((member) => same(member, idx))) {
-        bucket.push(idx);
-        placed = true;
-        break;
+  // Insert-and-absorb: start with one clique containing all items, split on
+  // every significant pair, and absorb any group that is a subset of another.
+  let cliques: number[][] = [Array.from({ length: k }, (_, i) => i)];
+  for (let i = 0; i < k; i += 1) {
+    for (let j = i + 1; j < k; j += 1) {
+      if (same(i, j)) continue;
+      const next: number[][] = [];
+      for (const c of cliques) {
+        if (c.includes(i) && c.includes(j)) {
+          next.push(c.filter((m) => m !== j));
+          next.push(c.filter((m) => m !== i));
+        } else {
+          next.push(c);
+        }
       }
+      // Absorb subsets
+      cliques = next.filter((c, ci) =>
+        !next.some((other, oi) =>
+          oi !== ci &&
+          other.length >= c.length &&
+          (other.length > c.length || oi < ci) &&
+          c.every((m) => other.includes(m)),
+        ),
+      );
     }
-    if (!placed) buckets.push([idx]);
-  });
-  const letters = new Array<string>(items.length).fill('');
-  buckets.forEach((bucket, bi) => {
-    const letter = String.fromCharCode(65 + bi);
-    bucket.forEach((idx) => {
+  }
+  cliques.sort((a, b) => (a[0] ?? 0) - (b[0] ?? 0) || (a[a.length - 1] ?? 0) - (b[b.length - 1] ?? 0));
+  const letterOf = (index: number): string => {
+    let n = index;
+    let s = '';
+    do {
+      s = String.fromCharCode(65 + (n % 26)) + s;
+      n = Math.floor(n / 26) - 1;
+    } while (n >= 0);
+    return s;
+  };
+  const letters = new Array<string>(k).fill('');
+  cliques.forEach((clique, bi) => {
+    const letter = letterOf(bi);
+    clique.forEach((idx) => {
       letters[idx] += letter;
     });
   });
@@ -486,39 +518,6 @@ export interface RegressionResult {
   covariance: number[][];
 }
 
-function solve(A: number[][], b: number[]): number[] {
-  const n = A.length;
-  const M = A.map((row, i) => [...row, b[i]]);
-  for (let col = 0; col < n; col += 1) {
-    let pivot = col;
-    for (let r = col + 1; r < n; r += 1) if (Math.abs(M[r][col]) > Math.abs(M[pivot][col])) pivot = r;
-    if (Math.abs(M[pivot][col]) < 1e-12) throw new Error('singular-matrix');
-    [M[col], M[pivot]] = [M[pivot], M[col]];
-    for (let r = col + 1; r < n; r += 1) {
-      const factor = M[r][col] / M[col][col];
-      for (let c = col; c <= n; c += 1) M[r][c] -= factor * M[col][c];
-    }
-  }
-  const x = new Array<number>(n).fill(0);
-  for (let r = n - 1; r >= 0; r -= 1) {
-    let sum = M[r][n];
-    for (let c = r + 1; c < n; c += 1) sum -= M[r][c] * x[c];
-    x[r] = sum / M[r][r];
-  }
-  return x;
-}
-
-function invert(A: number[][]): number[][] {
-  const n = A.length;
-  const cols: number[][] = [];
-  for (let j = 0; j < n; j += 1) {
-    const e = new Array<number>(n).fill(0);
-    e[j] = 1;
-    cols.push(solve(A, e));
-  }
-  return A.map((_, i) => cols.map((col) => col[i]));
-}
-
 export function regress(
   yRaw: (number | null)[],
   predictors: { name: string; values: (number | null)[] }[],
@@ -540,25 +539,23 @@ export function regress(
   const n = rows.length;
   const k = predictors.length;
   if (n <= k + 1) throw new Error('not-enough-data');
-  // A predictor that never changes makes the normal equations singular; say so
-  // instead of failing later inside the solver.
+  // A predictor that never changes makes the design singular; say so cleanly.
+  const sxx: number[] = [];
   for (let j = 0; j < k; j += 1) {
     const col = rows.map((r) => r.x[j]);
-    if (stdev(col) === 0 || !isFinite(stdev(col))) throw new Error('res.constantPredictor');
+    const sd = stdev(col);
+    if (sd === 0 || !isFinite(sd)) throw new Error('res.constantPredictor');
+    const mu = mean(col);
+    sxx.push(col.reduce((acc, v) => acc + (v - mu) * (v - mu), 0));
   }
   const X = rows.map((r) => [1, ...r.x]);
   const ys = rows.map((r) => r.y);
   const p = k + 1;
-  const xtx: number[][] = Array.from({ length: p }, () => new Array<number>(p).fill(0));
-  const xty: number[] = new Array<number>(p).fill(0);
-  for (let r = 0; r < n; r += 1) {
-    for (let i = 0; i < p; i += 1) {
-      xty[i] += X[r][i] * ys[r];
-      for (let j = 0; j < p; j += 1) xtx[i][j] += X[r][i] * X[r][j];
-    }
-  }
-  const beta = solve(xtx, xty);
-  const inv = invert(xtx);
+  // Shared column-pivoted Householder QR solver (never forms X'X).
+  const qr = lstsq(X, ys);
+  if (qr.rank < p) throw new Error('singular-matrix');
+  const beta = qr.beta;
+  const inv = qr.xtxInv;
   const fits = X.map((row) => row.reduce((a, b, i) => a + b * beta[i], 0));
   const residuals = ys.map((y, i) => y - fits[i]);
   const ybar = mean(ys);
@@ -572,38 +569,43 @@ export function regress(
   const f = msErr > 0 ? msReg / msErr : NaN;
   const r2 = ssTotal > 0 ? ssReg / ssTotal : 0;
   const r2adj = 1 - (1 - r2) * ((n - 1) / dfErr);
-  // predicted R² using PRESS
+  // predicted R² using PRESS (undefined when any observation has leverage h_ii = 1)
   let press = 0;
+  let pressOk = true;
   for (let i = 0; i < n; i += 1) {
     const h = X[i].reduce((a, xi, a1) => a + xi * X[i].reduce((b, xj, b1) => b + xj * inv[a1][b1], 0), 0);
-    const e = residuals[i] / Math.max(1e-9, 1 - h);
+    if (1 - h <= 1e-9) { pressOk = false; break; }
+    const e = residuals[i] / (1 - h);
     press += e * e;
   }
-  const r2pred = ssTotal > 0 ? 1 - press / ssTotal : 0;
+  const r2pred = !pressOk ? NaN : ssTotal > 0 ? 1 - press / ssTotal : 0;
   const s = Math.sqrt(msErr);
+  const se0 = Math.sqrt(Math.max(0, msErr * inv[0][0]));
+  const t0 = se0 > 0 ? beta[0] / se0 : NaN;
   const coefficients: RegressionCoefficient[] = [
-    { term: 'Constant', coef: beta[0], se: Math.sqrt(msErr * inv[0][0]), t: beta[0] / Math.sqrt(msErr * inv[0][0]), p: 0, vif: NaN },
+    { term: 'Constant', coef: beta[0], se: se0, t: t0, p: isFinite(t0) ? 2 * (1 - tCdf(Math.abs(t0), dfErr)) : NaN, vif: NaN },
   ];
-  // VIF per predictor
-  const vifs: number[] = [];
+  // Exact O(1) VIF per predictor from the QR-computed (X'X)⁻¹ on the exact fitted rows:
+  //   VIF_j = Sxx_j * [(X'X)⁻¹]_{j+1, j+1}
   for (let j = 0; j < k; j += 1) {
-    if (k === 1) { vifs.push(1); continue; }
-    const others = predictors.filter((_, idx) => idx !== j).map((pr) => ({ name: pr.name, values: pr.values }));
-    const sub = regress(predictors[j].values, others, predictors[j].name);
-    vifs.push(1 / Math.max(1e-9, 1 - sub.r2));
-  }
-  for (let j = 0; j < k; j += 1) {
-    const se = Math.sqrt(msErr * inv[j + 1][j + 1]);
+    const se = Math.sqrt(Math.max(0, msErr * inv[j + 1][j + 1]));
     const coef = beta[j + 1];
-    const t = coef / se;
-    coefficients.push({ term: predictors[j].name, coef, se, t, p: 2 * (1 - tCdf(Math.abs(t), dfErr)), vif: vifs[j] });
+    const t = se > 0 ? coef / se : NaN;
+    const vif = k === 1 ? 1 : sxx[j] * inv[j + 1][j + 1];
+    coefficients.push({
+      term: predictors[j].name,
+      coef,
+      se,
+      t,
+      p: isFinite(t) ? 2 * (1 - tCdf(Math.abs(t), dfErr)) : NaN,
+      vif: isFinite(vif) ? Math.max(1, vif) : NaN,
+    });
   }
-  coefficients[0].p = 2 * (1 - tCdf(Math.abs(coefficients[0].t), dfErr));
   const covariance = inv.map((row) => row.map((value) => value * msErr));
   return {
     coefficients,
     covariance,
-    anova: { dfReg, dfErr, ssReg, ssErr, ssTotal, msReg, msErr, f, p: 1 - fCdf(f, dfReg, dfErr) },
+    anova: { dfReg, dfErr, ssReg, ssErr, ssTotal, msReg, msErr, f, p: isFinite(f) ? 1 - fCdf(f, dfReg, dfErr) : NaN },
     r2,
     r2adj,
     r2pred,

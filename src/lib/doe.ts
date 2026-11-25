@@ -8,8 +8,7 @@
 
 import type { Column, Worksheet } from '../types';
 import { makeWorksheet } from './datasets';
-import type { ModelFactor, ModelTerm } from './glm';
-import type { GlmResult } from './glm';
+import { fitGlm, type GlmResult, type ModelFactor, type ModelTerm } from './glm';
 import type { ModelFactor as Factor } from './glm';
 import { fitWithPooling, saturatedReport, type PoolingResult, type SaturatedReport } from './errorPooling';
 import { mulberry32 } from './random';
@@ -313,9 +312,21 @@ export function analyzeRsm(
   const pooling = fitWithPooling(y, allFactors, terms, options.pooled ?? [], { allowZeroDf: options.allowZeroDf ?? true });
   const glm = pooling.fit;
   const active = terms.filter((term) => !(options.pooled ?? []).includes(term.name));
+  // Adjusted (Type III) block SS via joint drop-block refits:
+  //   SS_block = SSE_reduced - SSE_full,  DF_block = Rank_full - Rank_reduced
+  // Pure quadratic terms (x_i²) are not mutually orthogonal even in a rotatable
+  // CCD, so summing individual Type III SS is mathematically incorrect.
   const blockSs = (predicate: (name: string) => boolean) => {
-    const chosen = glm.terms.filter((tt) => predicate(tt.name));
-    return { df: chosen.reduce((a, t) => a + t.df, 0), ss: chosen.reduce((a, t) => a + t.ssAdj, 0) };
+    const kept = active.filter((term) => !predicate(term.name));
+    if (kept.length === active.length) return { df: 0, ss: 0 };
+    if (kept.length === 0) {
+      return { df: Math.max(0, glm.rank - 1), ss: Math.max(0, glm.ssTotal - glm.sse) };
+    }
+    const reduced = fitGlm(y, allFactors, kept, { allowZeroDf: true });
+    return {
+      df: Math.max(0, glm.rank - reduced.rank),
+      ss: Math.max(0, reduced.sse - glm.sse),
+    };
   };
   const linear = blockSs((name) => names.includes(name));
   const square = blockSs((name) => name.endsWith('²'));

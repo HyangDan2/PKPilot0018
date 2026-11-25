@@ -267,17 +267,25 @@ describe('Gage R&R crossed ANOVA (NIST/SEMATECH §6.3.3 algebra)', () => {
   });
 
   it('reproduces the variance components, %Study Var and ndc', () => {
+    // AIAG MSA 4th Ed. / Minitab convention (WO-3G-06, ADD-01):
+    // Negative interaction variance (−0.00175) is clamped to 0 before summing into
+    // Total GRR (0.012 + 0.0040833333 = 0.0160833333) and Total (0.545), so
+    // %Contribution sums to 100% with non-negative components.
     const result = gageRR(rows(), 'crossed', { tolerance: 4 });
     const comp = (name: string) => result.components.find((c) => c.name === name);
-    expect(comp('repeat')?.variance).toBeCloseTo(0.012000000000000099, 10);
-    expect(comp('interaction')?.variance).toBeCloseTo(-0.0017499999999984698, 6);
+    expect(comp('repeat')?.variance).toBeCloseTo(0.012, 10);
+    expect(comp('interaction')?.variance).toBe(0);
+    expect(comp('interaction')?.clamped).toBe(true);
+    expect(result.negativeComponents).toContain('interaction');
     expect(comp('operator')?.variance).toBeCloseTo(0.004083333333333056, 10);
     expect(comp('partToPart')?.variance).toBeCloseTo(0.5289166666666648, 10);
-    expect(comp('grr')?.studyVar).toBeCloseTo(16.243280083636623, 8);
-    expect(comp('partToPart')?.contribution).toBeCloseTo(97.36155852124534, 8);
+    const grrVar = 0.012 + 0.004083333333333056;
+    const totVar = grrVar + 0.5289166666666648;
+    expect(comp('grr')?.studyVar).toBeCloseTo(Math.sqrt(grrVar / totVar) * 100, 8);
+    expect(comp('partToPart')?.contribution).toBeCloseTo((0.5289166666666648 / totVar) * 100, 8);
+    expect((comp('grr')?.contribution ?? 0) + (comp('partToPart')?.contribution ?? 0)).toBeCloseTo(100, 8);
     expect(result.ndc).toBe(8);
-    // %Tolerance uses the 6σ study variation against the 4-unit tolerance.
-    expect(comp('grr')?.tolerance).toBeCloseTo((6 * Math.sqrt(0.012 - 0.00175 + 0.0040833333)) / 4 * 100, 4);
+    expect(comp('grr')?.tolerance).toBeCloseTo((6 * Math.sqrt(grrVar)) / 4 * 100, 4);
   });
 });
 
@@ -486,9 +494,12 @@ describe('power and sample size (scipy noncentral t / F reference)', () => {
   });
 
   it('one-way ANOVA: n=8 per level, 3 levels, δ=2, σ=1', () => {
-    // scipy: 1 − ncf.cdf(F.ppf(0.95,2,21), 2, 21, ncp = 8·3·4/4) = 0.9876763526558214
+    // Minitab / Montgomery conservative NCP: λ = n·δ²/(2σ²) = 8·4/2 = 16
+    // scipy 1.18.1: 1 − ncf.cdf(f.ppf(0.95, 2, 21), 2, 21, 16) = 0.9243714080016305
+    // (ADD-01: previous expectation 0.9876763526558214 used best-case λ = n·k·δ²/(4σ²) = 24,
+    // which is unachievable for odd k = 3 and underestimates sample size.)
     const result = solvePower({ method: 'anova', solveFor: 'power', n: 8, difference: 2, sd: 1, groups: 3, alpha: 0.05, alternative: 'two-sided' });
-    expect(result.power).toBeCloseTo(0.9876763526558214, 7);
+    expect(result.power).toBeCloseTo(0.9243714080016305, 7);
   });
 
   it('solves the smallest sample size that reaches 90 % power', () => {

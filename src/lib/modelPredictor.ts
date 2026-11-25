@@ -580,8 +580,19 @@ export function modelSurface(model: StoredModel, options: SurfaceOptions): Model
     result.nonEstimable.forEach((label) => nonEstimable.add(label));
     return result.value ?? Number.NaN;
   }));
-  const boundX = model.factorBounds?.[xPredictor.name];
-  const boundY = model.factorBounds?.[yPredictor.name];
+  const boundInMode = (
+    bound: { min: number; max: number } | undefined,
+    predictor: typeof xPredictor,
+  ): { min: number; max: number } | undefined => {
+    if (!bound || !Number.isFinite(bound.min) || !Number.isFinite(bound.max)) return undefined;
+    if (mode === 'coded' && predictor.coding && predictor.coding.halfRange > 0) {
+      const { center, halfRange } = predictor.coding;
+      return { min: (bound.min - center) / halfRange, max: (bound.max - center) / halfRange };
+    }
+    return bound;
+  };
+  const boundX = boundInMode(model.factorBounds?.[xPredictor.name], xPredictor);
+  const boundY = boundInMode(model.factorBounds?.[yPredictor.name], yPredictor);
   const outside = (bound: { min: number; max: number } | undefined, range: [number, number]): boolean => {
     if (!bound || !Number.isFinite(bound.min) || !Number.isFinite(bound.max)) return false;
     const slack = rangeSlack(bound.min, bound.max, Math.max(Math.abs(range[0]), Math.abs(range[1])));
@@ -723,6 +734,7 @@ export function compileSurfaceEvaluator(
     * (term.xPower === 0 ? 1 : x ** term.xPower)
     * (term.yPower === 0 ? 1 : y ** term.yPower);
   const nonEstimable = model.coefficients.filter((coefficient) => !coefficient.estimable).map((coefficient) => coefficient.label);
+  const tCrit = intervals.ci && typeof df === 'number' && df > 0 ? tInv(1 - alpha / 2, df) : NaN;
   const evaluate = (x: number, y: number, withVariance = true): NodeEvaluation => {
     const issues: string[] = [];
     const weights = new Array<number>(terms.length);
@@ -748,11 +760,11 @@ export function compileSurfaceEvaluator(
         issues.push(form.reason);
       } else {
         se = Math.sqrt(form.value);
-        const wideCi = tInv(1 - alpha / 2, df as number) * se;
+        const wideCi = tCrit * se;
         if (Number.isFinite(wideCi)) ciHalf = wideCi;
         else issues.push(INTERVAL_NON_FINITE);
         if (intervals.pi && typeof mse === 'number') {
-          const half = tInv(1 - alpha / 2, df as number) * Math.sqrt(form.value + mse);
+          const half = tCrit * Math.sqrt(form.value + mse);
           if (Number.isFinite(half)) piHalf = half;
           else issues.push(INTERVAL_NON_FINITE);
         }
