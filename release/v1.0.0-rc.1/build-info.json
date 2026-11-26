@@ -2,14 +2,14 @@
   "name": "HD2Lab Sigrún",
   "version": "1.0.0",
   "phase": "Phase 3",
-  "commit": "6db05f4",
-  "builtAt": "2026-11-25T23:37:11.000Z",
-  "zipTimestamp": "2026-11-25T23:37:11Z",
+  "commit": "8d51351",
+  "builtAt": "2026-11-26T01:01:54.000Z",
+  "zipTimestamp": "2026-11-26T01:01:54Z",
   "file": "sigrun-portable.html",
-  "bytes": 1722212,
-  "sha256": "dea485b8af2be55a17fc9406c517d6c5183697bcb3d67be917e877ea41505d9c",
-  "jsBytes": 1639466,
-  "cssBytes": 80837,
+  "bytes": 1722390,
+  "sha256": "ab730d832e362cefe3d2b248513a16bfe12b9c2b5f085695ec8e6dcf7d3fbb6a",
+  "jsBytes": 1639536,
+  "cssBytes": 80945,
   "format": "iife/single-file",
   "tools": {
     "node": "v22.23.4",
@@ -17,15 +17,15 @@
   },
   "zip": {
     "file": "sigrun-portable.zip",
-    "bytes": 502685,
-    "sha256": "5bafb930760dc78a35736bd4d2eadda3882b327ca5d58df4eab992a6a5bd82e4"
+    "bytes": 502700,
+    "sha256": "6be535d53b89f830eadf21beb2077306182812382a2edea5dbddb2707d9465e5"
   },
   "release": "v1.0.0-rc.1",
   "channel": "rc",
   "tag": null,
   "edition": "public",
   "web": {
-    "indexSha256": "2ffa5ea8cacc0e3a7d16e7edccc14acfd89bc99ca31f1e554e08a140212d383b",
+    "indexSha256": "eba7c74136d874f57927da518592f852ac3fa0194b56e1ae20a5e05bf4c55507",
     "files": 2
   },
   "artifacts": {
