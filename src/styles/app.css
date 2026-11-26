@@ -640,17 +640,24 @@ a { color: inherit; }
 .out-text { font-size: 12px; color: var(--text-body); line-height: 1.65; white-space: pre-wrap; }
 .out-text b { color: var(--text); }
 
-.chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-@container (max-width: 620px) {
-  .chart-grid { grid-template-columns: minmax(0, 1fr); }
-}
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 10px; }
 .chart-canvas { min-width: 0; }
 .chart-card { border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 8px 6px 4px; background: var(--surface); }
 .chart-card h5 { margin: 0 0 2px 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
-.chart-svg { display: block; width: 100%; max-width: 780px; height: auto; margin-inline: auto; overflow: hidden; }
+.chart-svg { display: block; width: 100%; max-width: 520px; height: auto; margin-inline: auto; overflow: hidden; }
 
 /* chart editing affordance (P1 #9) */
-.chart-holder { position: relative; max-width: 780px; margin-inline: auto; }
+.chart-holder { position: relative; max-width: 520px; margin-inline: auto; }
+.chart-grid .chart-holder { max-width: 100%; }
+.chart-stage { position: relative; }
+.chart-tools-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 6px;
+  margin-bottom: 4px;
+}
 .chart-edit-btn,
 .chart-copy-btn {
   position: absolute;
@@ -1558,16 +1565,14 @@ kbd {
 .chart-frame { position: relative; min-width: 0; }
 .chart-caption { margin: 4px 6px 2px; font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
 .chart-toolbar {
-  position: absolute;
-  z-index: 6;
-  top: 2px;
-  right: 4px;
-  display: flex;
+  display: inline-flex;
+  flex-wrap: wrap;
   gap: 3px;
+  margin-left: auto;
   padding: 2px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 88%, transparent);
-  opacity: 0.58;
+  opacity: 0.72;
   transition: opacity 120ms ease;
 }
 .chart-holder:hover .chart-toolbar,
@@ -2133,17 +2138,14 @@ kbd {
 .chart-crosshair-v { top: 0; bottom: 0; width: 1px; }
 .chart-crosshair-h { left: 0; right: 0; height: 1px; }
 .chart-interaction-tools {
-  position: absolute;
-  top: 2px;
-  left: 4px;
-  z-index: 3;
-  display: flex;
+  display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   padding: 2px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 86%, transparent);
-  opacity: 0.58;
+  opacity: 0.72;
   transition: opacity 120ms ease;
 }
 .chart-interaction-tools[data-zoomed='1'] { opacity: 1; }

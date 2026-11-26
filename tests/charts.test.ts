@@ -324,14 +324,15 @@ describe('wide-viewport aspect ratio preservation', () => {
     return { w: Number(match![1]), h: Number(match![2]) };
   }
 
-  it('keeps the baseline aspect ratio when width exceeds 560px via responsiveChartHeight', async () => {
+  it('computes a dynamic near-square aspect ratio across widths via responsiveChartHeight', async () => {
     const { responsiveChartHeight } = await import('../src/components/ChartFrame');
-    const base = viewBoxOf(renderChart(scatterSpec, { width: 560 }));
-    const wideH = responsiveChartHeight(scatterSpec, 780);
-    const wide = viewBoxOf(renderChart(scatterSpec, { width: 780, height: wideH }));
-    expect(base).toEqual({ w: 560, h: 260 });
-    expect(wide.w).toBe(780);
-    expect(Math.abs(wide.w / wide.h - base.w / base.h)).toBeLessThan(0.05);
+    for (const w of [340, 440, 520]) {
+      const h = responsiveChartHeight(scatterSpec, w)!;
+      const box = viewBoxOf(renderChart(scatterSpec, { width: w, height: h }));
+      expect(box.w).toBe(w);
+      expect(box.w / box.h).toBeGreaterThan(0.95);
+      expect(box.w / box.h).toBeLessThan(1.25);
+    }
   });
 
   it('respects an explicit appearance height override on wide viewports', async () => {
