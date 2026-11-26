@@ -140,6 +140,7 @@ import {
   migrateWorksheet,
   columnSequence,
   newColumnId,
+  parseClipboardGrid,
   parseCsv,
   parseNumberCell,
   parseProject,
@@ -336,6 +337,7 @@ export default function App() {
   const [cutMark, setCutMark] = useState<{ text: string; ranges: Range[] } | null>(null);
   const [ctx, setCtx] = useState<null | { x: number; y: number; target: GridContextTarget; sheetId?: string }>(null);
   const [findOpen, setFindOpen] = useState(false);
+  const [quickPaste, setQuickPaste] = useState<{ row: number; col: number; draft: string } | null>(null);
   const [findSeed, setFindSeed] = useState('');
   const [colDialog, setColDialog] = useState<null | { index: number; kind: 'name' | 'description'; draft: string }>(null);
   const [focusedOutput, setFocusedOutput] = useState<string | null>(null);
@@ -781,22 +783,44 @@ export default function App() {
    * A multi-block selection has no single landing corner, so paste refuses and
    * explains instead of writing into the first block by surprise.
    */
-  const pasteCells = (row: number, col: number, text: string) => {
+  const pasteCells = (row: number, col: number, text: string, options?: { html?: string; target?: 'cell' | 'header' }) => {
     if (!pasteRange(sel)) {
       toast(t(lang, 'toast.pasteMulti'));
       return;
     }
-    const rows = parseCsv(text);
-    if (!rows.length) return;
-    const width = Math.max(...rows.map((r) => r.length));
+    const rawRows = parseClipboardGrid(text, options?.html);
+    if (!rawRows.length) return;
+    const width = Math.max(...rawRows.map((r) => r.length));
     const cutting = cutMark && cutMark.text.replace(/\r/g, '').trim() === text.replace(/\r/g, '').trim() ? cutMark : null;
+
+    // Decide whether the first row should populate column names:
+    // 1) Explicit paste into the Name row (Minitab style).
+    // 2) Paste of 2+ rows at row 0 into empty unnamed columns where row 0 is all text and rows 1+ contain numbers.
+    const explicitHeader = options?.target === 'header';
+    let useFirstAsHeader = explicitHeader;
+    if (!explicitHeader && !cutting && row === 0 && rawRows.length >= 2) {
+      const firstRow = rawRows[0];
+      const firstNonEmpty = firstRow.map((c) => c.trim()).filter(Boolean);
+      const firstAllText = firstNonEmpty.length > 0 && firstNonEmpty.every((v) => parseNumberCell(v) === null);
+      const bodyHasNumbers = rawRows.slice(1).some((r) => r.some((v) => parseNumberCell(v.trim()) !== null));
+      const targetsEmpty = Array.from({ length: width }, (_, i) => sheet.columns[col + i])
+        .every((existing) => !existing || (!existing.name.trim() && existing.values.every((v) => v === null || v === '')));
+      if (firstAllText && bodyHasNumbers && targetsEmpty) {
+        useFirstAsHeader = true;
+      }
+    }
+
+    const headerRow = useFirstAsHeader ? rawRows[0] : null;
+    const dataRows = useFirstAsHeader ? rawRows.slice(1) : rawRows;
+    const startRow = useFirstAsHeader ? 0 : row;
+
     mutateActiveSheet((ws) => {
       const columns = ws.columns.map((c) => ({ ...c, values: [...c.values] }));
       const needed = col + width - columns.length;
       for (let i = 0; i < needed; i += 1) {
         const nextIndex = columns.length - col;
-        const probe = rows.map((r) => (r[nextIndex] ?? '').trim()).filter((v) => v !== '');
-        const numeric = probe.length > 0 && probe.every((v) => parseNumberCell(v) !== null);
+        const probe = dataRows.map((r) => (r[nextIndex] ?? '').trim()).filter((v) => v !== '');
+        const numeric = probe.length === 0 || probe.every((v) => parseNumberCell(v) !== null);
         columns.push({ id: newColumnId({ ...ws, columns }), name: '', type: numeric ? 'numeric' : 'text', values: [] });
       }
       if (cutting) {
@@ -809,26 +833,49 @@ export default function App() {
           });
         }
       }
-      const targetRows = row + rows.length;
+      if (headerRow) {
+        headerRow.forEach((nameCell, c) => {
+          const target = columns[col + c];
+          const trimmed = nameCell.trim();
+          if (target && trimmed) target.name = trimmed;
+        });
+      }
+      // If an existing empty column receives purely non-numeric text from Excel, switch its type to text.
+      for (let c = 0; c < width; c += 1) {
+        const target = columns[col + c];
+        if (!target || target.type === 'text') continue;
+        const wasEmpty = target.values.every((v) => v === null || v === '');
+        if (!wasEmpty) continue;
+        const probe = dataRows.map((r) => (r[c] ?? '').trim()).filter((v) => v !== '');
+        if (probe.length > 0 && probe.every((v) => parseNumberCell(v) === null)) {
+          target.type = 'text';
+        }
+      }
+      const targetRows = startRow + dataRows.length;
       columns.forEach((c) => { c.values = pad(c.values, targetRows); });
-      rows.forEach((cells, r) => {
+      dataRows.forEach((cells, r) => {
         cells.forEach((cell, c) => {
           const target = columns[col + c];
           if (!target) return;
           const trimmed = cell.trim();
           if (trimmed === '') {
-            target.values[row + r] = null;
+            target.values[startRow + r] = null;
             return;
           }
           const numeric = target.type === 'text' ? null : parseNumberCell(trimmed);
-          target.values[row + r] = numeric !== null ? numeric : cell;
+          target.values[startRow + r] = numeric !== null ? numeric : cell;
         });
       });
       return { ...ws, columns, columnSeq: columnSequence({ ...ws, columns }) };
     });
     setCutMark(null);
-    setSel(extendTo(createSelection({ row, col }), { row: row + rows.length - 1, col: col + width - 1 }));
-    toast(t(lang, 'toast.pasted'));
+    const endRow = dataRows.length > 0 ? startRow + dataRows.length - 1 : startRow;
+    setSel(extendTo(createSelection({ row: startRow, col }), { row: endRow, col: col + width - 1 }));
+    toast(
+      useFirstAsHeader
+        ? (lang === 'ko' ? '붙여넣었습니다 (1행을 열 이름으로 적용).' : 'Pasted (first row applied as column names).')
+        : t(lang, 'toast.pasted'),
+    );
   };
 
   const copySelection = async (cut = false) => {
@@ -870,11 +917,14 @@ export default function App() {
 
   const pasteFromClipboard = async () => {
     try {
+      if (!navigator.clipboard?.readText) throw new Error('unsupported');
       const text = await navigator.clipboard.readText();
       if (!text) { toast(t(lang, 'toast.pasteEmpty')); return; }
       pasteCells(selection.row, selection.col, text);
     } catch {
-      toast(t(lang, 'toast.pasteFailed'));
+      // Under file:// or restricted browsers, navigator.clipboard.readText() is blocked.
+      // Open an instant Ctrl+V / ⌘V capture dialog instead of failing silently.
+      setQuickPaste({ row: selection.row, col: selection.col, draft: '' });
     }
   };
 
@@ -3042,6 +3092,29 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rerun, undo, redo, lang, worksheets, activeSheetId, outputs, settings]);
 
+  // Global worksheet paste fallback: lets Ctrl+V / ⌘V from Excel land on the
+  // active worksheet cell even if focus was on the document body or toolbar.
+  const pasteRef = useRef(pasteCells);
+  pasteRef.current = pasteCells;
+  const selRef = useRef(sel);
+  selRef.current = sel;
+  useEffect(() => {
+    const onGlobalPaste = (event: ClipboardEvent) => {
+      if (event.defaultPrevented) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (document.querySelector('[role="dialog"], .overlay, .modal-backdrop')) return;
+      const text = event.clipboardData?.getData('text/plain') ?? '';
+      const html = event.clipboardData?.getData('text/html') ?? '';
+      if (!text && !html) return;
+      event.preventDefault();
+      const { row, col } = selRef.current.activeCell;
+      pasteRef.current(row, col, text, { html, target: 'cell' });
+    };
+    window.addEventListener('paste', onGlobalPaste);
+    return () => window.removeEventListener('paste', onGlobalPaste);
+  }, []);
+
   /* ── drag splitters ────────────────────────────────────────────────── */
 
   /** One pointer drag, shared by every splitter and the drawer edge. */
@@ -3161,7 +3234,7 @@ export default function App() {
       case 'redo': redo(); break;
       case 'copy': void copySelection(false); break;
       case 'cut': void copySelection(true); break;
-      case 'paste': void navigator.clipboard?.readText?.().then((text) => text && pasteCells(selection.row, selection.col, text)).catch(() => toast(t(lang, 'toast.pasteFailed'))); break;
+      case 'paste': void pasteFromClipboard(); break;
       case 'clear': clearSelection(); break;
       case 'insertRow': insertRowsHere(primarySelection().r0); break;
       case 'deleteRow': deleteSelectedRows(); break;
@@ -4170,6 +4243,64 @@ export default function App() {
               <button type="button" className="btn ghost" onClick={leaveRecovery} data-testid="tutorial-recovery-leave">{t(lang, 'tut.recoveryLeave')}</button>
               <span className="spacer" />
               {tutorialMessage && <span className="hint">{tutorialMessage}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {quickPaste && (
+        <div className="overlay" onClick={() => setQuickPaste(null)}>
+          <div className="modal narrow" role="dialog" aria-modal="true" aria-label={lang === 'ko' ? '셀 붙여넣기' : 'Paste cells'} onClick={(e) => e.stopPropagation()} data-testid="quick-paste-dialog">
+            <div className="modal-head">
+              <div>
+                <h3>{lang === 'ko' ? '셀 붙여넣기 (Excel / 표 데이터)' : 'Paste Cells (Excel / Tabular Data)'}</h3>
+                <div className="modal-sub">
+                  {lang === 'ko'
+                    ? '로컬 파일 보안 정책으로 메뉴 붙여넣기가 제한되었습니다. 아래 칸에서 Ctrl+V (⌘V)를 누르면 즉시 시트에 반영됩니다.'
+                    : 'Browser security blocked menu clipboard read. Press Ctrl+V (⌘V) below to paste immediately into the sheet.'}
+                </div>
+              </div>
+              <button type="button" className="icon-btn" onClick={() => setQuickPaste(null)} aria-label={t(lang, 'dlg.close')}>×</button>
+            </div>
+            <div className="modal-body">
+              <textarea
+                autoFocus
+                rows={6}
+                style={{ width: '100%', fontFamily: 'var(--mono)', fontSize: 12, padding: 8, borderRadius: 6, border: '1px solid var(--line)', background: 'var(--bg-0)', color: 'var(--ink-0)', resize: 'vertical' }}
+                placeholder={lang === 'ko' ? '여기에 Ctrl+V (⌘V)로 엑셀 데이터를 붙여넣으세요…' : 'Press Ctrl+V (⌘V) here to paste Excel data…'}
+                value={quickPaste.draft}
+                onChange={(e) => setQuickPaste((prev) => prev ? { ...prev, draft: e.target.value } : null)}
+                onPaste={(e) => {
+                  const text = e.clipboardData.getData('text/plain');
+                  const html = e.clipboardData.getData('text/html');
+                  if (!text && !html) return;
+                  e.preventDefault();
+                  const { row, col } = quickPaste;
+                  setQuickPaste(null);
+                  pasteCells(row, col, text, { html, target: 'cell' });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setQuickPaste(null);
+                }}
+                data-testid="quick-paste-textarea"
+              />
+            </div>
+            <div className="modal-foot">
+              <span className="spacer" />
+              <button type="button" className="btn ghost" onClick={() => setQuickPaste(null)}>{t(lang, 'dlg.cancel')}</button>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={!quickPaste.draft.trim()}
+                onClick={() => {
+                  const { row, col, draft } = quickPaste;
+                  setQuickPaste(null);
+                  pasteCells(row, col, draft, { target: 'cell' });
+                }}
+                data-testid="quick-paste-apply"
+              >
+                {lang === 'ko' ? '붙여넣기 적용' : 'Apply Paste'}
+              </button>
             </div>
           </div>
         </div>

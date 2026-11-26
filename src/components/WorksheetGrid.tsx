@@ -34,7 +34,7 @@ interface Props {
   selection: SelectionState;
   onSelectionChange: (next: SelectionState) => void;
   onEdit: (row: number, col: number, value: string) => void;
-  onPaste: (row: number, col: number, text: string) => void;
+  onPaste: (row: number, col: number, text: string, options?: { html?: string; target?: 'cell' | 'header' }) => void;
   onCopy: () => void;
   onCut: () => void;
   onClear: () => void;
@@ -80,6 +80,7 @@ export function WorksheetGrid({
   const [scrollTop, setScrollTop] = useState(0);
   const [viewport, setViewport] = useState(600);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const skipBlurCommitRef = useRef(false);
   const dragRef = useRef<null | { kind: 'cell' | 'row' | 'column'; base: SelectionState }>(null);
   const maxLen = Math.max(0, ...sheet.columns.map((c) => c.values.length));
   const rows = Math.max(30, maxLen + 6);
@@ -269,12 +270,13 @@ export function WorksheetGrid({
     const extend = event.shiftKey;
     const mod = event.ctrlKey || event.metaKey;
     const key = event.key;
+    const code = event.code;
 
-    if (mod && (key === 'a' || key === 'A')) { event.preventDefault(); onSelectionChange(selectAll(size)); return; }
-    if (mod && (key === 'c' || key === 'C')) { event.preventDefault(); onCopy(); return; }
-    if (mod && (key === 'x' || key === 'X')) { event.preventDefault(); onCut(); return; }
+    if (mod && (key === 'a' || key === 'A' || code === 'KeyA')) { event.preventDefault(); onSelectionChange(selectAll(size)); return; }
+    if (mod && (key === 'c' || key === 'C' || code === 'KeyC')) { event.preventDefault(); onCopy(); return; }
+    if (mod && (key === 'x' || key === 'X' || code === 'KeyX')) { event.preventDefault(); onCut(); return; }
     // Ctrl/Cmd+V is left to the browser so the paste event carries the data.
-    if (mod && (key === 'v' || key === 'V')) return;
+    if (mod && (key === 'v' || key === 'V' || code === 'KeyV')) return;
 
     switch (key) {
       case 'ArrowUp':
@@ -358,9 +360,11 @@ export function WorksheetGrid({
       }}
       onPaste={(event) => {
         if (editing) return;
-        event.preventDefault();
         const text = event.clipboardData.getData('text/plain');
-        if (text) onPaste(selection.activeCell.row, selection.activeCell.col, text);
+        const html = event.clipboardData.getData('text/html');
+        if (!text && !html) return;
+        event.preventDefault();
+        onPaste(selection.activeCell.row, selection.activeCell.col, text, { html, target: 'cell' });
       }}
       onContextMenu={(event) => {
         if ((event.target as HTMLElement).closest('[data-cell], th')) return;
@@ -422,7 +426,18 @@ export function WorksheetGrid({
                   value={col.name}
                   placeholder={col.id}
                   aria-label={`${col.id} name`}
+                  onMouseDown={(event) => event.stopPropagation()}
                   onChange={(event) => onRenameColumn(index, event.target.value)}
+                  onPaste={(event) => {
+                    const text = event.clipboardData.getData('text/plain');
+                    const html = event.clipboardData.getData('text/html');
+                    if (text.includes('\t') || text.includes('\n') || (!text && /<table[\s>]/i.test(html))) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      (event.target as HTMLInputElement).blur();
+                      onPaste(0, index, text, { html, target: 'header' });
+                    }
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
                   }}
@@ -472,11 +487,29 @@ export function WorksheetGrid({
                           autoFocus
                           value={draft}
                           onChange={(event) => setDraft(event.target.value)}
-                          onBlur={() => commit()}
+                          onBlur={() => {
+                            if (skipBlurCommitRef.current) {
+                              skipBlurCommitRef.current = false;
+                              return;
+                            }
+                            commit();
+                          }}
+                          onPaste={(event) => {
+                            const text = event.clipboardData.getData('text/plain');
+                            const html = event.clipboardData.getData('text/html');
+                            if (text.includes('\t') || text.includes('\n') || (!text && /<table[\s>]/i.test(html))) {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              skipBlurCommitRef.current = true;
+                              setEditing(null);
+                              onPaste(row, index, text, { html, target: 'cell' });
+                              wrapRef.current?.focus();
+                            }
+                          }}
                           onKeyDown={(event) => {
-                            if (event.key === 'Enter') { event.preventDefault(); commit({ row: row + (event.shiftKey ? -1 : 1), col: index }); }
-                            else if (event.key === 'Tab') { event.preventDefault(); commit({ row, col: index + (event.shiftKey ? -1 : 1) }); }
-                            else if (event.key === 'Escape') { event.preventDefault(); setEditing(null); wrapRef.current?.focus(); }
+                            if (event.key === 'Enter') { event.preventDefault(); skipBlurCommitRef.current = true; commit({ row: row + (event.shiftKey ? -1 : 1), col: index }); }
+                            else if (event.key === 'Tab') { event.preventDefault(); skipBlurCommitRef.current = true; commit({ row, col: index + (event.shiftKey ? -1 : 1) }); }
+                            else if (event.key === 'Escape') { event.preventDefault(); skipBlurCommitRef.current = true; setEditing(null); wrapRef.current?.focus(); }
                           }}
                           data-testid="cell-editor"
                         />

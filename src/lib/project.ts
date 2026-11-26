@@ -588,9 +588,9 @@ export function worksheetToCsv(ws: Worksheet): string {
   return rows.join('\r\n');
 }
 
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, explicitDelimiter?: string): string[][] {
   const clean = text.replace(/^\uFEFF/, '');
-  const delimiter = detectDelimiter(clean);
+  const delimiter = explicitDelimiter ?? detectDelimiter(clean);
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -652,6 +652,48 @@ export function parseNumberCell(raw: string): number | null {
   if (!text || !/^[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][-+]?\d+)?$/.test(text)) return null;
   const value = Number(text.replace(/,/g, ''));
   return isFinite(value) ? value : null;
+}
+
+/**
+ * Parse clipboard content copied from Excel, Google Sheets, Calc, or HTML tables.
+ * - Prefers TSV whenever a tab is present (never splits comma-formatted numbers like "1,200").
+ * - Keeps single-column comma-formatted numbers ("1,200\n1,500") as 1 column instead of splitting on commas.
+ * - Falls back to HTML <table> extraction when text/plain is empty (some Excel/office copy modes).
+ */
+export function parseClipboardGrid(text: string, html?: string): string[][] {
+  const raw = (text ?? '').replace(/^\uFEFF/, '');
+  if (raw.trim().length > 0) {
+    if (raw.includes('\t')) {
+      return parseCsv(raw, '\t');
+    }
+    const normalized = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = normalized.split('\n');
+    while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+    const nonEmpty = lines.filter((l) => l.trim() !== '');
+    // Single-column paste of comma-formatted numbers (e.g. "1,200\n2,350.5") must stay 1 column.
+    if (nonEmpty.length > 0 && nonEmpty.every((l) => parseNumberCell(l) !== null)) {
+      return lines.map((l) => [l]);
+    }
+    return parseCsv(normalized);
+  }
+  if (html && /<table[\s>]/i.test(html) && typeof DOMParser !== 'undefined') {
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const table = doc.querySelector('table');
+      if (table) {
+        const rows: string[][] = [];
+        table.querySelectorAll('tr').forEach((tr) => {
+          const cells = Array.from(tr.querySelectorAll('th, td')).map((cell) => (cell.textContent ?? '').replace(/\u00A0/g, ' ').trim());
+          if (cells.length) rows.push(cells);
+        });
+        while (rows.length && rows[rows.length - 1].every((c) => c === '')) rows.pop();
+        return rows;
+      }
+    } catch {
+      // ignore malformed HTML clipboard payloads
+    }
+  }
+  return [];
 }
 
 function inferType(values: string[]): ColType {
