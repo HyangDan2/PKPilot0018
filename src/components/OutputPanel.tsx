@@ -869,7 +869,7 @@ export function OutputPanel({
 
       {outputs.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0 10px' }}>
-          <span className="mono-note">SIGRÚN · {outputs.length} · {t(lang, 'panel.cards', { n: outputs.length })}</span>
+          <span className="mono-note">{PRODUCT.APP_NAME.toUpperCase()} · {outputs.length} · {t(lang, 'panel.cards', { n: outputs.length })}</span>
         </div>
       )}
 

@@ -34,8 +34,7 @@ const CHART_MAX_WIDTH = 520;
 export function responsiveChartHeight(chart: ChartSpec, width: number, config?: ChartConfig): number | undefined {
   const explicit = config?.appearance?.height ?? chart.config?.appearance?.height;
   if (explicit && explicit > 80) return Math.round(explicit);
-  const ratio = chart.kind === 'control' || chart.kind === 'timeseries' ? 0.8 : 0.92;
-  return Math.min(640, Math.max(240, Math.round(width * ratio)));
+  return Math.min(600, Math.max(240, Math.round(width * 0.88)));
 }
 
 export interface ChartEditRequest {
@@ -298,6 +297,19 @@ export function ChartFrame({
   const [cursor, setCursor] = useState<number | null>(null);
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [selectMessage, setSelectMessage] = useState('');
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const close = () => setMoreOpen(false);
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
+    window.addEventListener('click', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [moreOpen]);
 
   const interactive = chart.kind !== 'surface3d';
   const renderConfig = useMemo(() => (view ? viewportConfig(config ?? chart.config, view) : config), [config, chart.config, view]);
@@ -533,60 +545,90 @@ export function ChartFrame({
         }}
         title={t(lang, 'ct.tipHint')}
       >
-        <div className="chart-tools-bar" onClick={(event) => event.stopPropagation()}>
-          {interactive && (() => {
-            const isZoomed = Boolean(view && (!base || !viewportIsBase(view, base)));
-            return (
-              <div className="chart-interaction-tools" data-zoomed={isZoomed ? '1' : '0'}>
-                <span className="chart-mode-pill" data-testid="chart-mode-badge">{t(lang, `ct.mode.${mode}`)}</span>
-                <button type="button" className={mode === 'zoom' ? 'active' : ''} onClick={() => setMode('zoom')} title={t(lang, 'ct.boxZoom')} aria-label={t(lang, 'ct.boxZoom')} data-testid="chart-mode-zoom">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5M8.5 11h5M11 8.5v5" /></svg>
+        {(() => {
+          const isZoomed = Boolean(view && (!base || !viewportIsBase(view, base)));
+          const hasSelection = selectedRows.length > 0;
+          const barActive = isZoomed || hasSelection || moreOpen;
+          return (
+            <div className="chart-tools-bar" data-active={barActive ? '1' : '0'} onClick={(event) => event.stopPropagation()}>
+              {interactive && (
+                <div className="chart-interaction-tools" data-zoomed={isZoomed ? '1' : '0'}>
+                  <button type="button" className={mode === 'zoom' ? 'active' : ''} onClick={() => setMode('zoom')} title={t(lang, 'ct.boxZoom')} aria-label={t(lang, 'ct.boxZoom')} data-testid="chart-mode-zoom">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" strokeDasharray="4 3" /><path d="M12 9v6M9 12h6" /></svg>
+                  </button>
+                  <button type="button" className={mode === 'pan' ? 'active' : ''} onClick={() => setMode('pan')} title={t(lang, 'ct.pan')} aria-label={t(lang, 'ct.pan')} data-testid="chart-mode-pan">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" /></svg>
+                  </button>
+                  <button type="button" className={mode === 'select' ? 'active' : ''} onClick={() => setMode('select')} title={t(lang, 'ct.select')} aria-label={t(lang, 'ct.select')} data-testid="chart-mode-select">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="7" strokeDasharray="3 3" /><circle cx="12" cy="12" r="2.2" fill="currentColor" /></svg>
+                  </button>
+                  <button type="button" onClick={() => zoomBy(0.7)} title={t(lang, 'ct.zoomIn')} aria-label={t(lang, 'ct.zoomIn')} data-testid="chart-zoom-in">＋</button>
+                  <button type="button" onClick={() => zoomBy(1 / 0.7)} title={t(lang, 'ct.zoomOut')} aria-label={t(lang, 'ct.zoomOut')} data-testid="chart-zoom-out">－</button>
+                  {isZoomed && (
+                    <button
+                      type="button"
+                      className="chart-reset-active"
+                      onClick={resetView}
+                      title={t(lang, 'ct.resetView')}
+                      aria-label={t(lang, 'ct.resetView')}
+                      data-testid="chart-reset-view"
+                    >
+                      ⟲ {t(lang, 'ct.resetViewShort')}
+                    </button>
+                  )}
+                  {hasSelection && onExportSelection && (
+                    <button type="button" className="chart-sel-pill" onClick={exportSelection} title={t(lang, 'ct.exportSelection')} aria-label={t(lang, 'ct.exportSelection')} data-testid="chart-export-selection">
+                      ⇩ {rowCount}
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="chart-toolbar">
+                <button type="button" onClick={() => onEdit({ tab: 'general' })} title={t(lang, 'ct.edit')} aria-label={t(lang, 'ct.edit')} data-testid="chart-edit">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z" /></svg>
                 </button>
-                <button type="button" className={mode === 'pan' ? 'active' : ''} onClick={() => setMode('pan')} title={t(lang, 'ct.pan')} aria-label={t(lang, 'ct.pan')} data-testid="chart-mode-pan">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" /></svg>
+                <button type="button" onClick={() => onView('zoom')} title={t(lang, 'ct.zoom')} aria-label={t(lang, 'ct.zoom')} data-testid="chart-zoom">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
                 </button>
-                <button type="button" className={mode === 'select' ? 'active' : ''} onClick={() => setMode('select')} title={t(lang, 'ct.select')} aria-label={t(lang, 'ct.select')} data-testid="chart-mode-select">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" strokeDasharray="3 3" /><circle cx="12" cy="12" r="2.2" fill="currentColor" /></svg>
-                </button>
-                <button type="button" className={crosshair ? 'active' : ''} onClick={() => setCrosshair((value) => !value)} title={t(lang, 'ct.crosshair')} aria-label={t(lang, 'ct.crosshair')} data-testid="chart-crosshair-toggle">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="7" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
-                </button>
-                <button type="button" onClick={() => zoomBy(0.7)} title={t(lang, 'ct.zoomIn')} aria-label={t(lang, 'ct.zoomIn')} data-testid="chart-zoom-in">＋</button>
-                <button type="button" onClick={() => zoomBy(1 / 0.7)} title={t(lang, 'ct.zoomOut')} aria-label={t(lang, 'ct.zoomOut')} data-testid="chart-zoom-out">－</button>
-                <button
-                  type="button"
-                  className={isZoomed ? 'chart-reset-active' : ''}
-                  onClick={resetView}
-                  disabled={!isZoomed}
-                  title={t(lang, 'ct.resetView')}
-                  aria-label={t(lang, 'ct.resetView')}
-                  data-testid="chart-reset-view"
-                >
-                  ⟲{isZoomed ? ` ${t(lang, 'ct.resetViewShort')}` : ''}
-                </button>
-                <button type="button" onClick={exportSelection} disabled={!selectedRows.length || !onExportSelection} title={t(lang, 'ct.exportSelection')} aria-label={t(lang, 'ct.exportSelection')} data-testid="chart-export-selection">⇩{selectedRows.length ? ` ${selectedRows.length}` : ''}</button>
-                <span className="chart-selection-count" data-testid="chart-selection-count">{rowCount}</span>
+                <div className="chart-more-pop">
+                  <button
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={moreOpen}
+                    onClick={() => setMoreOpen((open) => !open)}
+                    title={t(lang, 'card.moreMenu')}
+                    aria-label={t(lang, 'card.moreMenu')}
+                    data-testid="chart-more-menu"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+                  </button>
+                  {moreOpen && (
+                    <div className="out-tool-menu" role="menu">
+                      <button type="button" role="menuitem" onClick={() => { setMoreOpen(false); onView('full'); }} data-testid="chart-full">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+                        <span>{t(lang, 'ct.fullscreen')}</span>
+                      </button>
+                      {interactive && (
+                        <button type="button" role="menuitem" onClick={() => { setMoreOpen(false); setCrosshair((value) => !value); }} data-testid="chart-crosshair-toggle">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="7" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+                          <span>{t(lang, 'ct.crosshair')}{crosshair ? ' ✓' : ''}</span>
+                        </button>
+                      )}
+                      <button type="button" role="menuitem" onClick={() => { setMoreOpen(false); onCopyPng(); }} data-testid="chart-copy">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>
+                        <span>{t(lang, 'ct.copyPng')}</span>
+                      </button>
+                      <button type="button" role="menuitem" onClick={() => { setMoreOpen(false); onExport(); }} data-testid="chart-export">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v10M8 11l4 4 4-4M5 19h14" /></svg>
+                        <span>{t(lang, 'ct.export')}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            );
-          })()}
-          <div className="chart-toolbar">
-            <button type="button" onClick={() => onEdit({ tab: 'general' })} title={t(lang, 'ct.edit')} aria-label={t(lang, 'ct.edit')} data-testid="chart-edit">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z" /></svg>
-            </button>
-            <button type="button" onClick={() => onView('zoom')} title={t(lang, 'ct.zoom')} aria-label={t(lang, 'ct.zoom')} data-testid="chart-zoom">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5M8.5 11h5M11 8.5v5" /></svg>
-            </button>
-            <button type="button" onClick={() => onView('full')} title={t(lang, 'ct.fullscreen')} aria-label={t(lang, 'ct.fullscreen')} data-testid="chart-full">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
-            </button>
-            <button type="button" onClick={onCopyPng} title={t(lang, 'ct.copyPng')} aria-label={t(lang, 'ct.copyPng')} data-testid="chart-copy">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>
-            </button>
-            <button type="button" onClick={onExport} title={t(lang, 'ct.export')} aria-label={t(lang, 'ct.export')} data-testid="chart-export">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v10M8 11l4 4 4-4M5 19h14" /></svg>
-            </button>
-          </div>
-        </div>
+            </div>
+          );
+        })()}
         <div className="chart-stage">
           <ChartCanvas chart={chart} config={renderConfig} onChartChange={onChartChange} lang={lang} />
           {interactive && (

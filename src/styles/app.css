@@ -652,12 +652,19 @@ a { color: inherit; }
 .chart-stage { position: relative; }
 .chart-tools-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 4px 6px;
-  margin-bottom: 4px;
+  gap: 4px;
+  min-height: 24px;
+  margin-bottom: 2px;
+  opacity: 0.35;
+  transition: opacity 140ms ease;
 }
+.chart-holder:hover .chart-tools-bar,
+.chart-tools-bar:focus-within,
+.chart-tools-bar[data-active='1'] { opacity: 1; }
+.chart-more-pop { position: relative; display: inline-flex; }
 .chart-edit-btn,
 .chart-copy-btn {
   position: absolute;
@@ -1566,32 +1573,30 @@ kbd {
 .chart-caption { margin: 4px 6px 2px; font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
 .chart-toolbar {
   display: inline-flex;
-  flex-wrap: wrap;
-  gap: 3px;
+  align-items: center;
+  gap: 2px;
   margin-left: auto;
-  padding: 2px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  opacity: 0.72;
-  transition: opacity 120ms ease;
+  padding: 0;
+  background: transparent;
 }
-.chart-holder:hover .chart-toolbar,
-.chart-toolbar:focus-within { opacity: 1; }
-.chart-toolbar button {
+.chart-toolbar > button,
+.chart-more-pop > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--surface);
   color: var(--text-secondary);
   cursor: pointer;
 }
-.chart-toolbar button:hover,
-.chart-toolbar button:focus-visible { color: var(--accent-text); border-color: var(--accent); }
+.chart-toolbar > button:hover,
+.chart-toolbar > button:focus-visible,
+.chart-more-pop > button:hover,
+.chart-more-pop > button:focus-visible { color: var(--accent-text); border-color: var(--accent); }
 .chart-tip {
   position: absolute;
   z-index: 4;
@@ -2139,16 +2144,19 @@ kbd {
 .chart-crosshair-h { left: 0; right: 0; height: 1px; }
 .chart-interaction-tools {
   display: inline-flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
-  padding: 2px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  opacity: 0.72;
-  transition: opacity 120ms ease;
+  padding: 0;
+  background: transparent;
 }
-.chart-interaction-tools[data-zoomed='1'] { opacity: 1; }
+.chart-sel-pill {
+  padding: 0 6px !important;
+  font-size: 10.5px !important;
+  font-weight: 600;
+  color: var(--accent-text) !important;
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+}
 .chart-mode-pill {
   padding: 0 6px;
   height: 22px;
