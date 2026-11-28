@@ -235,7 +235,7 @@
 | 허브 단위 | `npm test` | 8/8 PASS |
 | 허브 빌드 | `npm run build` | 12 published apps |
 | 허브 브라우저 E2E | `npx playwright test` | 19/19 PASS |
-| 화면 | Chromium 1440×900 / 390×844 | 캡처 10종 (`docs/branding/`) |
+| 화면 | Chromium 1440×900 / 390×844 | 캡처 13종 (`docs/branding/`) |
 
 브랜드 변경으로 갱신한 테스트: 공개 edition record 기대값, 타이틀/매니페스트 문자열,
 상태바 문구, 프로젝트/차트/피겨 파일명 prefix, About 버전 라인 위치(HelpModal → AboutPanel),
@@ -247,7 +247,7 @@
 
 1. **원격 Push 권한**: 위 1절 참고 — 코드 쓰기 권한이 없어 브랜치가 원격에 올라가지 않았다.
    WO 종료 조건(Feature Branch Push)은 이 권한이 열린 뒤 한 줄로 완료된다.
-2. **`main` 병합·운영 배포**: WO 종료 조건대로 feature 브랜치까지만 올렸다. PO 승인 후
+2. **`main` 병합·운영 배포**: feature 브랜치에만 커밋했고 병합·배포는 하지 않았다. PO 승인 후
    PKPilot0018 배포 + ApplicationHub 배포를 함께 해야 카드의 Launch URL이 Statelia 빌드를 연다.
    (현재 라이브 Pages는 아직 Sigrún 브랜드 빌드다.)
 3. **정식 Release 게시**: `Statelia-v1.0.0*` 3종은 로컬에서 빌드·검증 완료했으나 GitHub Release로
