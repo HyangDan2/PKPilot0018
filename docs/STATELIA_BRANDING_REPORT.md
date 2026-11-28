@@ -393,9 +393,13 @@ Node: `/workspace/.tools/node-v22.11.0-linux-x64/bin` (v22.11.0). 브라우저: 
 ## 11. Push 결과
 
 ```
-PKPilot0018     db43bc5..9b5ddb9  feat/statelia-branding -> feat/statelia-branding
+PKPilot0018     db43bc5..9b5ddb9  feat/statelia-branding -> feat/statelia-branding   # 코드·산출물·CI 되돌림
+PKPilot0018     9b5ddb9..6f965f2  feat/statelia-branding -> feat/statelia-branding   # 본 보고서
 ApplicationHub  fc14fc2..bb03f0e  feat/statelia-branding -> feat/statelia-branding
 ```
+
+이 문서의 문장을 고치는 마지막 Push가 한 번 더 있고(문서 전용, 빌드 입력 불변 → `verify` 통과),
+그 커밋이 브랜치 tip 이 된다. 위 범위만 봐도 코드·산출물·문서가 모두 원격에 있음을 확인할 수 있다.
 
 원격 확인:
 
