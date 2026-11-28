@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — declarative tutorial authoring
+   Statelia — declarative tutorial authoring
 
    Course modules state their prose once as paired strings; this helper derives
    the localization keys (`tutorial.<id>.title`, `…steps.<step>.instruction`

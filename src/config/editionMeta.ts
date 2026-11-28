@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — edition metadata (WO-FINAL-001 · WO-04)
+   Statelia — edition metadata (WO-FINAL-001 · WO-04, WO-BRAND-001)
 
    The page title, the PWA manifest and the HTML head are derived from the
    edition record here, once. The Vite plugin and the tests both read these
@@ -9,8 +9,8 @@
 import type { ProductEdition } from './product';
 
 /**
- * Short product name (the part after the owner): "Sigrún" out of
- * "HD2Lab Sigrún". Falls back to the full name when the owner is unset.
+ * Short product name (the part after the owner): "Statelia" out of
+ * "HD2Lab Statelia". Falls back to the full name when the owner is unset.
  * Lives here, not in product.ts, so the build plugin can use it in Node.
  */
 export function shortName(edition: ProductEdition): string {
@@ -19,22 +19,26 @@ export function shortName(edition: ProductEdition): string {
     : edition.APP_NAME;
 }
 
-/** "Sigrún — HD2Lab Statistical Workspace" (public), brand-aware otherwise. */
+/** "Statelia — HD2Lab Statistical Engineering Suite" (public), brand-aware otherwise. */
 export function editionTitle(edition: ProductEdition): string {
   return edition.BRAND_NAME
-    ? `${shortName(edition)} — ${edition.BRAND_NAME} Statistical Workspace`
-    : `${edition.APP_NAME} — Statistical Workspace`;
+    ? `${shortName(edition)} — ${edition.BRAND_NAME} ${edition.PRODUCT_CATEGORY}`
+    : `${edition.APP_NAME} — ${edition.PRODUCT_CATEGORY}`;
 }
 
-/** "HD2LAB · SIGRÚN" style lock-up used above the About panel. */
+/** "HD2LAB · STATELIA" style lock-up used above the About panel. */
 export function editionLockup(edition: ProductEdition): string {
   const parts = [edition.BRAND_NAME, shortName(edition)].filter(Boolean);
   return parts.map((part) => part.toUpperCase()).join(' · ');
 }
 
+/* WO-B02: the icons are the owner's symbol, cropped from the official artwork;
+   the SVG file carries that same raster symbol rather than a redrawn mark. */
 const MANIFEST_ICONS = [
   { src: './favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-  { src: './favicon-32x32.png', sizes: '32x32', type: 'image/png', purpose: 'any' },
+  { src: './favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+  { src: './favicon-256.png', sizes: '256x256', type: 'image/png', purpose: 'any' },
+  { src: './favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
   { src: './apple-touch-icon.png', sizes: '180x180', type: 'image/png', purpose: 'any' },
 ];
 
@@ -50,7 +54,7 @@ export function manifestFor(edition: ProductEdition) {
     theme_color: '#8B6CE8',
     lang: 'en',
     dir: 'ltr',
-    categories: ['productivity', 'utilities', 'education'],
+    categories: ['productivity', 'utilities', 'engineering'],
     icons: MANIFEST_ICONS,
   };
 }

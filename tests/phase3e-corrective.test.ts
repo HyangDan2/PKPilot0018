@@ -609,15 +609,19 @@ describe('[F-15] the About panel states the real version', () => {
     const info = await import('../src/lib/appInfo');
     expect(info.APP_VERSION).toBe(pkg.version);
     expect(info.APP_PHASE).toBe('Phase 3');
-    expect(info.aboutVersionLine('ko')).toContain(info.APP_VERSION);
-    expect(info.aboutVersionLine('en')).toContain(info.APP_VERSION);
-    expect(info.aboutVersionLine('ko')).toContain('Phase 3');
+    expect(info.aboutVersionLine('ko')).toBe(`스타텔리아 v${info.APP_VERSION}`);
+    expect(info.aboutVersionLine('en')).toBe(`Statelia v${info.APP_VERSION}`);
+    // WO-B04: the stage is stated in the build-information table, not the
+    // product line; it still comes from the build record.
+    expect(info.APP_PHASE).toBe('Phase 3');
   });
 
   it('no longer claims Phase 1 in the About panel', () => {
-    const source = readFileSync(path.join(process.cwd(), 'src', 'components', 'HelpModal.tsx'), 'utf8');
-    expect(source).not.toContain("PHASE 1 ·");
+    const source = readFileSync(path.join(process.cwd(), 'src', 'components', 'AboutPanel.tsx'), 'utf8');
+    expect(source).not.toContain('PHASE 1');
     expect(source).toContain('aboutVersionLine');
+    expect(source).toContain('BUILD_COMMIT');
+    expect(source).toContain('about.aiNote');
   });
 });
 

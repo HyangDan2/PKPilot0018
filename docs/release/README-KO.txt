@@ -1,4 +1,4 @@
-시그룬 %RELEASE_ID% — 읽어 주세요
+스타텔리아 %RELEASE_ID% — 읽어 주세요
 =================================
 
 버전      %VERSION%
@@ -7,9 +7,9 @@
 
 이 폴더의 파일
 --------------
-  Sigrun-%RELEASE_ID%.html          응용 프로그램 전체가 한 파일에 들어 있습니다
-  Sigrun-%RELEASE_ID%-Portable.zip  위 파일과 짧은 안내문을 묶은 압축 파일
-  Sigrun-%RELEASE_ID%-Web.zip       정적 웹 빌드 (폴더를 서버로 열어 사용)
+  %PRODUCT%-%RELEASE_ID%.html          응용 프로그램 전체가 한 파일에 들어 있습니다
+  %PRODUCT%-%RELEASE_ID%-Portable.zip  위 파일과 짧은 안내문을 묶은 압축 파일
+  %PRODUCT%-%RELEASE_ID%-Web.zip       정적 웹 빌드 (폴더를 서버로 열어 사용)
   SHA256SUMS.txt                    이 폴더의 다른 모든 파일의 sha256
   build-info.json                   버전·커밋·크기·해시
   LICENSES.txt                      서드파티 패키지와 라이선스
@@ -17,7 +17,7 @@
 
 포터블 빌드 실행
 ----------------
-1. Sigrun-%RELEASE_ID%.html 파일을 원하는 곳에 복사합니다.
+1. %PRODUCT%-%RELEASE_ID%.html 파일을 원하는 곳에 복사합니다.
 2. 더블클릭하거나 Microsoft Edge·Google Chrome 창에 끌어다 놓습니다.
 
 설치할 것이 없습니다. Node.js도, Python도, 서버도, 네트워크 연결도 필요하지
@@ -26,7 +26,7 @@
 
 웹 빌드 실행
 ------------
-1. Sigrun-%RELEASE_ID%-Web.zip의 압축을 풉니다.
+1. %PRODUCT%-%RELEASE_ID%-Web.zip의 압축을 풉니다.
 2. 그 폴더를 정적 웹 서버로 열고 주소를 엽니다.
 
 웹 빌드의 index.html을 파일로 직접 열면 동작하지 않습니다(모듈 스크립트에는

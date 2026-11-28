@@ -9,8 +9,7 @@ import { WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../lib/workspace';
 
 /** The owner's wordmark: the official dual-skew `.mark` (CSS), never an SVG logo.
  *  The top bar keeps the mark alone — the name and the badge live in the
- *  Help ▸ About banner — so the menu row gets the room back. */
-export function Brand({ lang }: { lang: Lang }) {
+ *  Help ▸ About banner — so the menu row gets the room back. */export function Brand({ lang }: { lang: Lang }) {
   const label = `${PRODUCT.APP_NAME} — ${t(lang, 'brand.tag')}`;
   return (
     <div className="brand" data-testid="brand" aria-label={label} title={label}>
@@ -19,7 +18,7 @@ export function Brand({ lang }: { lang: Lang }) {
   );
 }
 
-/** The full lock-up — mark · owner · divider · product · `STATISTICAL WORKSPACE`.
+/** The full lock-up — mark · owner · divider · product · category badge.
  *  It sits at the top of Help ▸ About, waiting for the visitor who asks what the
  *  workspace is, instead of eating the header on every screen. */
 export function BrandBanner({ lang }: { lang: Lang }) {
@@ -29,7 +28,7 @@ export function BrandBanner({ lang }: { lang: Lang }) {
       {PRODUCT.BRAND_NAME && <span className="brand-name">{PRODUCT.BRAND_NAME}</span>}
       {PRODUCT.BRAND_NAME && <span className="brand-div" aria-hidden />}
       <span className="brand-app">{PRODUCT_SHORT_NAME}</span>
-      <span className="brand-badge">STATISTICAL WORKSPACE</span>
+      <span className="brand-badge">{PRODUCT.PRODUCT_CATEGORY.toUpperCase()}</span>
     </div>
   );
 }

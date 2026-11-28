@@ -22,6 +22,7 @@ import { PredictionProfiler } from './components/PredictionProfiler';
 import type { FactorSettings, OptimizerResult, ResponseSettings } from './lib/optimizationTypes';
 import { ImportDialog, type PreviewSheet } from './components/ImportDialog';
 import { GraphLayoutEditor } from './components/GraphLayoutEditor';
+import { StartupSplash, SPLASH_FADE_MS, SPLASH_MIN_MS, SPLASH_TIMEOUT_MS, type SplashPhase } from './components/StartupSplash';
 import { selectedRowsCsv } from './lib/chartInteraction';
 import { ANALYSES, defaultValues as defaultDialogValues, findAnalysis, type AnalysisDef, type RunResult } from './lib/analyses';
 import { ChartConfigMemory } from './lib/chartMemory';
@@ -345,6 +346,11 @@ export default function App() {
   const [storageConflict, setStorageConflict] = useState(false);
   const autosaveSeq = useRef(0);
   const [hydrated, setHydrated] = useState(false);
+  /** WO-B03: the startup splash is a lid over the restore, never its owner. */
+  const [splash, setSplash] = useState<SplashPhase>('showing');
+  const [hydrateFailed, setHydrateFailed] = useState(false);
+  const [hydrateNonce, setHydrateNonce] = useState(0);
+  const splashStart = useRef(Date.now());
   const [, forceHistory] = useState(0);
   const [viewportW, setViewportW] = useState<number>(() => (typeof window === 'undefined' ? 1440 : window.innerWidth));
   const [storedModels, setStoredModels] = useState<StoredModel[]>([]);
@@ -424,6 +430,8 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+    let failed = false;
+    setHydrateFailed(false);
     loadAutosaveRecord<StoredState>()
       .then(async (record) => {
         if (cancelled) return;
@@ -464,10 +472,49 @@ export default function App() {
           writeCustomStyles(loaded.customChartStyles as Parameters<typeof writeCustomStyles>[0]);
         }
       })
+      .catch(() => {
+        // WO-B03: a restore that fails is reported over the splash with a
+        // retry; the workspace is not marked ready on top of a failed restore.
+        failed = true;
+        if (!cancelled) setHydrateFailed(true);
+      })
       .finally(() => {
-        if (!cancelled) setHydrated(true);
+        if (!cancelled && !failed) setHydrated(true);
       });
     return () => { cancelled = true; };
+  }, [hydrateNonce]);
+
+  /* Startup splash (WO-B03): shown for about 1.2 s, a 250–350 ms fade, and a
+     watchdog so a restore that never settles is reported instead of waited on.
+     It never repeats on menu moves or analysis runs: it belongs to the mount. */
+  useEffect(() => {
+    if (!hydrated) return;
+    const remaining = Math.max(0, SPLASH_MIN_MS - (Date.now() - splashStart.current));
+    const timer = setTimeout(() => setSplash('leaving'), remaining);
+    return () => clearTimeout(timer);
+  }, [hydrated]);
+
+  useEffect(() => {
+    if (splash !== 'leaving') return;
+    const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const timer = setTimeout(() => setSplash('hidden'), reduced ? 0 : SPLASH_FADE_MS);
+    return () => clearTimeout(timer);
+  }, [splash]);
+
+  useEffect(() => {
+    if (hydrated) return;
+    const timer = setTimeout(() => {
+      setHydrateFailed(true);
+    }, SPLASH_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [hydrated, hydrateNonce]);
+
+  /** Retry from the splash: run the restore again without reloading the page. */
+  const retryHydration = useCallback(() => {
+    splashStart.current = Date.now();
+    setSplash('showing');
+    setHydrateFailed(false);
+    setHydrateNonce((value) => value + 1);
   }, []);
 
   useEffect(() => {
@@ -3150,6 +3197,9 @@ export default function App() {
 
   return (
     <div className={`app${tutorialPanel === 'open' ? ' tutorial-open' : tutorialPanel === 'collapsed' ? ' tutorial-collapsed' : ''}`}>
+      {splash !== 'hidden' && (
+        <StartupSplash lang={lang} phase={splash} error={hydrateFailed} onRetry={retryHydration} />
+      )}
       <MenuBar
         lang={lang}
         canUndo={past.current.length > 0}

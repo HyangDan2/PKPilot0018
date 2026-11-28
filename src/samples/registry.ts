@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Sample Library registry (WO-3E-09)
+   Statelia — Sample Library registry (WO-3E-09)
 
-   Every practice dataset Sigrún ships, with its variables, units and the
+   Every practice dataset Statelia ships, with its variables, units and the
    tutorials and Help documents that use it. Bundled at build time: nothing here
    is fetched at run time, so the library also works from a file:// URL.
    ───────────────────────────────────────────────────────────────────────── */

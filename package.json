@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "HD2Lab Sigrún — pure-browser statistical & quality workspace",
+  "description": "Statelia — HD2Lab statistical engineering suite for the browser, powered by Sigrdrifa Engine",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

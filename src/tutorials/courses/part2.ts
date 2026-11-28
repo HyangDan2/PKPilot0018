@@ -1,4 +1,4 @@
-/* Sigrún — tutorials T05–T08: regression, ANOVA/GLM, SPC, capability. */
+/* Statelia — tutorials T05–T08: regression, ANOVA/GLM, SPC, capability. */
 
 import { defineTutorial, type RawTutorial } from '../define';
 

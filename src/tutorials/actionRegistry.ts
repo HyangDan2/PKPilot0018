@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Tutorial action registry (WO-T02)
+   Statelia — Tutorial action registry (WO-T02)
 
    The only way a tutorial may touch the application. Every action is declared
    here with the parameters it requires; the dispatcher validates the request

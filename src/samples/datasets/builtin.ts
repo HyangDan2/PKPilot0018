@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — the seven built-in sample datasets
+   Statelia — the seven built-in sample datasets
 
    Deterministic so every analysis and every tutorial always reproduces the
    same numbers. Moved here from `lib/datasets.ts` when the Sample Library

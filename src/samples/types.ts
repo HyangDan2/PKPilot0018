@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Sample Library metadata (WO-3E-09)
+   Statelia — Sample Library metadata (WO-3E-09)
 
    A sample is a dataset plus what a reader needs to know before analysing it:
    which columns are factors, which are responses, what units they carry, and

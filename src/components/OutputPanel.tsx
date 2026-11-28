@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Block, ChartSource, ChartSpec, Lang, OutputDoc } from '../types';
 import { fmtTime } from '../lib/format';
-import { PRODUCT } from '../config/product';
+import { PRODUCT, PRODUCT_SHORT_NAME } from '../config/product';
 import { resolveLabel, t } from '../lib/i18n';
 import { downloadBlob, downloadFile } from '../lib/project';
 import { inlineTheme, renderChart } from '../lib/charts';
@@ -754,7 +754,7 @@ export function OutputPanel({
 
       {outputs.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0 10px' }}>
-          <span className="mono-note">SIGRÚN · {outputs.length} · {t(lang, 'panel.cards', { n: outputs.length })}</span>
+          <span className="mono-note">{PRODUCT_SHORT_NAME.toUpperCase()} · {outputs.length} · {t(lang, 'panel.cards', { n: outputs.length })}</span>
         </div>
       )}
 

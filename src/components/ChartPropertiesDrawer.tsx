@@ -1246,7 +1246,7 @@ export function ChartPropertiesDrawer({
                   <SelectField
                     label={tLabel('cd.colormap')}
                     value={contour.colormap}
-                    options={COLORMAPS.map((map) => ({ value: map, label: map === 'sigrun-classic' ? 'Sigrún Classic' : map.charAt(0).toUpperCase() + map.slice(1) }))}
+                    options={COLORMAPS.map((map) => ({ value: map, label: map === 'sigrun-classic' ? t(lang, 'cd.preset.sigrun-classic') : map.charAt(0).toUpperCase() + map.slice(1) }))}
                     onChange={(value) => patch((config) => { config.contour = { ...(config.contour ?? {}), colormap: value }; })}
                   />
                   <SelectField

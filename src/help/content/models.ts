@@ -1,4 +1,4 @@
-/* Sigrún Help Center — stored models, optimisation, profiler and figure layout. */
+/* Statelia Help Center — stored models, optimisation, profiler and figure layout. */
 
 import type { HelpEntry } from '../types';
 

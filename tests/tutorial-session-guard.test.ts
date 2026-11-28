@@ -275,7 +275,7 @@ function tutorialIdOf(): string {
 
 describe('the status bar states the build’s own stage', () => {
   it('reads the stage from the build instead of naming one', () => {
-    expect(statusBarLabel()).toBe(`HD2LAB · SIGRÚN · ${APP_PHASE.toUpperCase()}`);
+    expect(statusBarLabel()).toBe(`HD2LAB · STATELIA · ${APP_PHASE.toUpperCase()}`);
     expect(statusBarLabel()).not.toContain('PHASE 1');
   });
 });

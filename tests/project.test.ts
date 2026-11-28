@@ -38,7 +38,7 @@ describe('project files', () => {
     expect(restored.settings).toEqual(settings);
   });
 
-  it('rejects files that are not Sigrún projects', () => {
+  it('rejects files that are not Statelia projects', () => {
     expect(() => parseProject('not json')).toThrow('file.error');
     expect(() => parseProject(JSON.stringify({ format: 'other' }))).toThrow('file.error');
     expect(() => parseProject(JSON.stringify({ format: 'sigrun-project', worksheets: [] }))).toThrow('file.error');
@@ -51,13 +51,13 @@ describe('project files', () => {
     // Stage 3E corrective (F-04): the envelope states the schema it is written
     // with; parseProject migrates anything older and refuses anything newer.
     expect(project.version).toBe(2);
-    expect(project.app).toContain('Sigrún');
+    expect(project.app).toContain('Statelia');
     expect(Number.isNaN(Date.parse(project.savedAt))).toBe(false);
   });
 
   it('names saved projects with the dedicated .sigrun.json extension', () => {
-    expect(projectFileName(new Date(2026, 10, 22, 8, 0))).toBe('sigrun-2026-11-22.sigrun.json');
-    expect(projectFileName(new Date(2026, 0, 2, 23, 30))).toBe('sigrun-2026-01-02.sigrun.json');
+    expect(projectFileName(new Date(2026, 10, 22, 8, 0))).toBe('statelia-2026-11-22.sigrun.json');
+    expect(projectFileName(new Date(2026, 0, 2, 23, 30))).toBe('statelia-2026-01-02.sigrun.json');
     expect(projectFileName().endsWith('.sigrun.json')).toBe(true);
   });
 

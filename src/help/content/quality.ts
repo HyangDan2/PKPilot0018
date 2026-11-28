@@ -1,4 +1,4 @@
-/* Sigrún Help Center — SPC, capability, Pareto, measurement systems, reliability. */
+/* Statelia Help Center — SPC, capability, Pareto, measurement systems, reliability. */
 
 import type { HelpEntry } from '../types';
 

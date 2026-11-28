@@ -1,4 +1,4 @@
-/* Sigrún — tutorials T01–T04: getting started, data management, descriptive &
+/* Statelia — tutorials T01–T04: getting started, data management, descriptive &
    normality, hypothesis tests. Content only: the seven-part structure and the
    steps; all actions are allow-listed ids from `actionRegistry`. */
 
@@ -8,7 +8,7 @@ const L = (en: string, ko: string) => ({ en, ko });
 
 export const START_TUTORIAL: RawTutorial = {
   id: 'tutorial-start-001',
-  title: L('Getting Started with Sigrún', '시그룬 시작하기'),
+  title: L('Getting Started with Statelia', '스타텔리아 시작하기'),
   description: L(
     'Load a sample dataset, run descriptive statistics and read the output: the whole loop of the workspace in four steps.',
     '샘플 데이터를 불러와 기술통계를 실행하고 결과를 읽는, 워크스페이스의 전체 흐름을 네 단계로 익힙니다.',
@@ -26,8 +26,8 @@ export const START_TUTORIAL: RawTutorial = {
   analysisIds: ['desc'],
   structure: {
     learn: L(
-      'A Sigrún project is a worksheet plus the output cards analyses produce. This tutorial walks that loop once: data in, one analysis, one reading.',
-      '시그룬 프로젝트는 워크시트와 분석이 만든 결과 카드로 이루어집니다. 이 튜토리얼은 데이터 입력, 분석 한 번, 해석 한 번의 순환을 한 번 따라갑니다.',
+      'A Statelia project is a worksheet plus the output cards analyses produce. This tutorial walks that loop once: data in, one analysis, one reading.',
+      '스타텔리아 프로젝트는 워크시트와 분석이 만든 결과 카드로 이루어집니다. 이 튜토리얼은 데이터 입력, 분석 한 번, 해석 한 번의 순환을 한 번 따라갑니다.',
     ),
     data: L(
       'The Coating Process sample: 60 parts with a thickness measurement, the line that made them, the shift and a defect category. It is synthetic, generated from a fixed seed.',
@@ -141,8 +141,8 @@ export const DATA_TUTORIAL: RawTutorial = {
   analysisIds: ['standardize', 'histogram'],
   structure: {
     learn: L(
-      'Data preparation is worksheet work: new columns are added, the originals stay. Sigrún records each change so undo and the project file both carry it.',
-      '데이터 준비는 워크시트 작업입니다. 새 열이 추가되고 원본은 그대로 남습니다. 시그룬은 각 변경을 기록해 실행취소와 프로젝트 파일에 모두 남깁니다.',
+      'Data preparation is worksheet work: new columns are added, the originals stay. Statelia records each change so undo and the project file both carry it.',
+      '데이터 준비는 워크시트 작업입니다. 새 열이 추가되고 원본은 그대로 남습니다. 스타텔리아은 각 변경을 기록해 실행취소와 프로젝트 파일에 모두 남깁니다.',
     ),
     data: L(
       'The Cure Study sample: hardness for a standard and a new cure, an operator column and a before/after pair.',

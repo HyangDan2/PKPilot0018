@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — synthetic display-optics DOE (WO-3E-11 flagship)
+   Statelia — synthetic display-optics DOE (WO-3E-11 flagship)
 
    Twenty runs: a face-centred central composite design (2³ factorial + six
    axial + six centre points) in three design factors, with four responses.
@@ -9,7 +9,7 @@
    real display line, and nothing here may be read as a product specification.
 
    Factor columns are stored in DESIGN (coded) units −1 / 0 / +1 because that is
-   the unit Sigrún's response-surface engine fits and that Minitab reports as
+   the unit Statelia's response-surface engine fits and that Minitab reports as
    coded levels. The actual-unit columns repeat the same runs in mA, mm and %
    so the physical setting is visible next to the design coordinate.
    ───────────────────────────────────────────────────────────────────────── */

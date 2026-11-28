@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — analysis presets used by tutorials
+   Statelia — analysis presets used by tutorials
 
    A preset fills an analysis dialog from column *names* in a named sample, so
    a tutorial never hard-codes a column id and the same preset works whichever

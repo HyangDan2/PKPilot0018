@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — tutorial progress storage (WO-T05)
+   Statelia — tutorial progress storage (WO-T05)
 
    Progress is small JSON kept in localStorage. What is stored is what the
    reader can lose: if storage is blocked (a file:// build in a restricted

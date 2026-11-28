@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Help Center model (WO-3E-10)
+   Statelia — Help Center model (WO-3E-10)
 
    One entry per topic: what the analysis is, the formula the engine actually
    evaluates, what each parameter means, how to read the output, and which

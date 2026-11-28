@@ -118,7 +118,7 @@ describe('standalone chart SVG (WO-10)', () => {
 
   it('names the file from the chart, the DPI and the format', () => {
     const svgName = exportFileName(scatter, { ...defaultExportConfig(), format: 'svg' });
-    expect(svgName).toMatch(/^sigrun-hardness-vs-speed-.*\.svg$/);
+    expect(svgName).toMatch(/^statelia-hardness-vs-speed-.*\.svg$/);
     const pngName = exportFileName(scatter, { ...defaultExportConfig(), format: 'png', dpi: 600 });
     expect(pngName).toContain('600dpi');
     expect(pngName.endsWith('.png')).toBe(true);

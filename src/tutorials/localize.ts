@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — tutorial text registry
+   Statelia — tutorial text registry
 
    Lesson prose is stored as paired English/Korean strings and addressed by a
    stable key derived from the tutorial and step ids. The interface chrome still

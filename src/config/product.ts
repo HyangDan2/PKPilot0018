@@ -3,7 +3,8 @@
 
    One record states what this build is: its identity, brand, version, base
    path, storage namespace and whether it may reach external services. The
-   default build is the public HD2Lab Sigrún and behaves exactly as before. A
+   default build is the public HD2Lab Statelia (formerly Sigrún) and keeps the
+   behaviour, storage keys and project schema of the previous builds. A
    derivative build (PKPilot0018E0001) selects the enterprise edition and
    supplies its own brand without touching the statistical engine.
 
@@ -28,10 +29,22 @@ export interface ProductEdition {
   APP_NAME_LOCAL: string;
   APP_VERSION: string;
   APP_PHASE: string;
+  /** What kind of product this is, e.g. "Statistical Engineering Suite". */
+  PRODUCT_CATEGORY: string;
+  /** Display name of the analytical engine that runs the analyses. */
+  ENGINE_NAME: string;
+  /** Display version of that engine, e.g. "v1.0". */
+  ENGINE_VERSION: string;
   /** Company / studio name that owns the product. Never invented for a derived build. */
   BRAND_NAME: string;
+  /** Owner's slogan, empty when the owner has not supplied one. */
+  SLOGAN: string;
   /** Copyright line, empty when the owner has not supplied one. */
   COPYRIGHT: string;
+  /** Public repository, empty when the owner has not supplied one. */
+  REPOSITORY_URL: string;
+  /** Owner's home page, empty when the owner has not supplied one. */
+  HOMEPAGE_URL: string;
   /** Deployment path the build defaults to; the asset base itself comes from Vite. */
   BASE_PATH: string;
   /** Public address of the canonical deployment, empty when it has none. */

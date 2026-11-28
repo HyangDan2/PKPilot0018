@@ -1,4 +1,4 @@
-/* Sigrún Help Center — starting out, data, basic statistics, regression, graphs. */
+/* Statelia Help Center — starting out, data, basic statistics, regression, graphs. */
 
 import type { HelpEntry } from '../types';
 
@@ -15,8 +15,8 @@ export const BASICS_HELP: HelpEntry[] = [
       '워크시트의 구성, 샘플 데이터를 프로젝트로 불러오는 방법, 가져오기 대화상자가 행을 쓰기 전에 확인하는 내용입니다.',
     ),
     theory: L(
-      'A Sigrún project holds one or more worksheets. Each worksheet is a table of columns, and every column carries an id (C1, C2, …), a name, a type (numeric, text, date) and its values. Analyses refer to columns by id, so renaming a column never breaks an output card. Loading a sample dataset appends a new worksheet with fixed column names and values, so every reader who loads the same sample analyses the same numbers.',
-      '시그룬 프로젝트는 하나 이상의 워크시트로 이루어집니다. 워크시트는 열의 표이고, 각 열은 ID(C1, C2, …), 이름, 유형(숫자·문자·날짜), 값으로 구성됩니다. 분석은 열을 ID로 참조하므로 열 이름을 바꿔도 결과 카드가 깨지지 않습니다. 샘플 데이터셋을 불러오면 열 이름과 값이 고정된 새 워크시트가 추가되므로, 같은 샘플을 불러온 사람은 누구나 같은 수치를 분석합니다.',
+      'A Statelia project holds one or more worksheets. Each worksheet is a table of columns, and every column carries an id (C1, C2, …), a name, a type (numeric, text, date) and its values. Analyses refer to columns by id, so renaming a column never breaks an output card. Loading a sample dataset appends a new worksheet with fixed column names and values, so every reader who loads the same sample analyses the same numbers.',
+      '스타텔리아 프로젝트는 하나 이상의 워크시트로 이루어집니다. 워크시트는 열의 표이고, 각 열은 ID(C1, C2, …), 이름, 유형(숫자·문자·날짜), 값으로 구성됩니다. 분석은 열을 ID로 참조하므로 열 이름을 바꿔도 결과 카드가 깨지지 않습니다. 샘플 데이터셋을 불러오면 열 이름과 값이 고정된 새 워크시트가 추가되므로, 같은 샘플을 불러온 사람은 누구나 같은 수치를 분석합니다.',
     ),
     formulas: [
       { expression: 'column: { id, name, type, values[] }', note: L('One column of a worksheet.', '워크시트의 열 하나를 정의합니다.') },

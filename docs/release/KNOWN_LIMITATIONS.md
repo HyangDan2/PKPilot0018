@@ -1,4 +1,4 @@
-# Known limitations — Sigrún %RELEASE_ID%
+# Known limitations — Statelia %RELEASE_ID%
 
 These are stated so a reader is not surprised by them. None of them is a
 silent approximation: each is either visible in the UI or documented here.

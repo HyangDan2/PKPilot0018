@@ -1,10 +1,10 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Tutorial validation registry (WO-T05, WO-T08)
+   Statelia — Tutorial validation registry (WO-T05, WO-T08)
 
    Each rule inspects the real workspace: worksheets, output cards, stored
    models, layout documents and the events the actions recorded. A validated
    step passes only when the state the reader produced matches the rule, and the
-   numbers a rule compares are recomputed from Sigrún's own engine — never from
+   numbers a rule compares are recomputed from Statelia's own engine — never from
    a hard-coded answer key. Floating-point values are compared with an absolute
    and a relative tolerance; no formatted string is ever compared.
    ───────────────────────────────────────────────────────────────────────── */

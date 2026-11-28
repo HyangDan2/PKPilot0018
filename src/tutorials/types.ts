@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Guided Tutorial System types (WO-3E-11 / WO-T01)
+   Statelia — Guided Tutorial System types (WO-3E-11 / WO-T01)
 
    A tutorial is declarative: metadata, seven-part teaching text, and a list of
    steps. A step names one allow-listed action, the sample/help/analysis it

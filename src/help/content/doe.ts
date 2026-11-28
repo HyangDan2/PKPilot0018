@@ -1,4 +1,4 @@
-/* Sigrún Help Center — designed experiments, response surfaces, contours. */
+/* Statelia Help Center — designed experiments, response surfaces, contours. */
 
 import type { HelpEntry } from '../types';
 

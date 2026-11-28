@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — tutorial registry
+   Statelia — tutorial registry
    Twelve courses, bundled at build time. Order is teaching order: the reader
    can start anywhere, but the "next tutorial" chain follows it.
    ───────────────────────────────────────────────────────────────────────── */

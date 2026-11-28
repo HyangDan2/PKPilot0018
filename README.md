@@ -1,7 +1,12 @@
-# HD2Lab Sigrún — Statistical Workspace
+# Statelia — Statistical Engineering Suite
 
-A precision statistical and quality workspace that runs entirely in the browser.
-No backend, no upload, no account: every table and chart is computed in the tab.
+A statistical engineering suite that runs entirely in the browser on **Sigrdrifa
+Engine v1.0**. No backend, no upload, no account: every table and chart is
+computed in the tab.
+
+Statelia is the current product name of the formerly **Sigrún** project: the
+repository, the Pages URL, the `.sigrun.json` project format and every storage
+key stay as they are, so projects written by any earlier build open unchanged.
 
 **Live:** https://hyangdan2.github.io/PKPilot0018/
 
@@ -23,7 +28,7 @@ No backend, no upload, no account: every table and chart is computed in the tab.
 
 ## Independence, trademarks and limitations
 
-Sigrún is an independently developed statistical and quality engineering application based on publicly available statistical and mathematical methods. Third-party product names, including Minitab, are used solely to identify products in factual comparisons; their trademarks belong to their respective owners. Sigrún is not affiliated with, endorsed by, or sponsored by those vendors.
+Statelia is an independently developed statistical and quality engineering application based on publicly available statistical and mathematical methods. Third-party product names, including Minitab, are used solely to identify products in factual comparisons; their trademarks belong to their respective owners. Statelia is not affiliated with, endorsed by, or sponsored by those vendors.
 
 Public documentation is referenced for feature identification, not as a license to reproduce proprietary material. Access to a reference URL does not establish permission to reuse its contents. Numerical equivalence, compatibility, or certification by any third-party product is not claimed. Third-party components remain subject to their respective licenses and notices.
 
@@ -133,4 +138,4 @@ which runs `npm ci`, the type check, the unit tests and the production build bef
 
 ---
 
-HD2Lab · Sigrún · Phase 3
+HD2Lab · Statelia · Phase 3

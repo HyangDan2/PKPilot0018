@@ -126,6 +126,134 @@ a { color: inherit; }
 .about-brand .brand-app { font-size: 15.5px; }
 .about-brand .brand-badge { font-size: 8.5px; padding: 2px 7px; }
 
+/* ── Help ▸ About Statelia (WO-B04) ───────────────────────────────────── */
+.about-panel { display: flex; flex-direction: column; gap: 12px; }
+.about-panel > p { margin: 0; }
+.about-identity { display: flex; align-items: center; gap: 14px; }
+.about-symbol { width: 54px; height: 54px; object-fit: contain; flex: 0 0 auto; }
+.about-product { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--text-primary); }
+.about-category { margin: 0; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-secondary); }
+.about-engine { margin: 2px 0 0; display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--accent-text); }
+.about-engine-logo { height: 15px; width: auto; object-fit: contain; }
+.about-formerly { margin: 0; color: var(--text-secondary); }
+.about-section { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 10px; }
+.about-section h4 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); }
+.about-features { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.about-features li {
+  font-size: 11.5px; padding: 3px 9px; border: 1px solid var(--border);
+  border-radius: var(--radius-xs); background: var(--surface-2); color: var(--text-primary);
+}
+.about-build { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.about-build th {
+  width: 34%; text-align: left; vertical-align: top; padding: 4px 8px 4px 0;
+  font-weight: 600; color: var(--text-secondary); white-space: nowrap;
+}
+.about-build td { padding: 4px 0; vertical-align: top; color: var(--text-primary); line-height: 1.5; }
+.about-link { color: var(--accent-text); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; }
+.about-link:hover { text-decoration: underline; }
+.about-owner { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-secondary); }
+.about-owner-logo { height: 18px; width: auto; object-fit: contain; }
+.about-slogan { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-text); }
+.about-ai-note {
+  margin: 0; font-size: 10.5px; line-height: 1.55; color: var(--text-secondary);
+  border-left: 2px solid var(--border-strong, var(--border)); padding-left: 9px;
+}
+
+/* ── Startup splash (WO-B03) ──────────────────────────────────────────── */
+.startup-splash {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 22px; padding: 24px;
+  background: radial-gradient(120% 90% at 50% 0%, #fbfcff 0%, #f1f2fa 46%, #e4e6f2 100%);
+  color: #24263a;
+  opacity: 1; transition: opacity 320ms ease;
+  overflow: hidden;
+}
+.startup-splash.leaving { opacity: 0; pointer-events: none; }
+.startup-splash-art {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; pointer-events: none;
+}
+.startup-splash-panel {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 32px 44px; text-align: center;
+  border: 1px solid rgba(120, 126, 168, 0.22); border-radius: 18px;
+  background: rgba(255, 255, 255, 0.74);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  box-shadow: 0 18px 50px rgba(40, 44, 80, 0.12);
+  max-width: min(560px, 92vw);
+}
+.startup-splash-symbol { width: 58px; height: 58px; object-fit: contain; margin-bottom: 4px; }
+.startup-splash-name {
+  margin: 0; font-size: 34px; font-weight: 800; letter-spacing: 0.3em; text-indent: 0.3em;
+  line-height: 1.1; text-transform: uppercase; color: #232638;
+}
+.startup-splash-category {
+  margin: 0; font-family: var(--mono, ui-monospace); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.24em; text-transform: uppercase; color: #6a6f8c;
+}
+.startup-splash-engine { margin: 0; font-size: 11.5px; color: #8b90ad; }
+.startup-splash-status {
+  position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  font-size: 12px; color: #5b6079; text-align: center; max-width: min(520px, 90vw);
+}
+.startup-splash-dots { display: inline-flex; gap: 5px; }
+.startup-splash-dots i { width: 5px; height: 5px; border-radius: 50%; background: #8b6ce8; opacity: 0.3; animation: splash-pulse 1.2s ease-in-out infinite; }
+.startup-splash-dots i:nth-child(2) { animation-delay: 0.15s; }
+.startup-splash-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes splash-pulse { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+.startup-splash-error-title { margin: 0; font-weight: 700; color: #7d2536; font-size: 13px; }
+.startup-splash-error-body { margin: 0; font-size: 11.5px; line-height: 1.55; color: #5b6079; }
+.startup-splash-owner {
+  position: absolute; bottom: 22px; left: 0; right: 0; margin: 0; z-index: 1;
+  text-align: center; font-family: var(--mono, ui-monospace); font-size: 9px;
+  letter-spacing: 0.2em; text-transform: uppercase; color: #7d8299;
+}
+[data-theme='dark'] .startup-splash {
+  background: radial-gradient(120% 90% at 50% 0%, #1c1e2c 0%, #161824 52%, #11121b 100%);
+  color: #e9eaf5;
+}
+[data-theme='dark'] .startup-splash-panel {
+  border-color: rgba(160, 166, 220, 0.16); background: rgba(26, 28, 42, 0.74);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+[data-theme='dark'] .startup-splash-name { color: #f1f2fc; }
+[data-theme='dark'] .startup-splash-category { color: #9aa0c0; }
+[data-theme='dark'] .startup-splash-engine,
+[data-theme='dark'] .startup-splash-status { color: #a4a9c6; }
+[data-theme='dark'] .startup-splash-owner { color: #8b90ad; }
+@media (max-width: 520px) {
+  .startup-splash-name { font-size: 25px; letter-spacing: 0.24em; text-indent: 0.24em; }
+  .startup-splash-panel { padding: 24px 22px; border-radius: 14px; }
+  .startup-splash-symbol { width: 46px; height: 46px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .startup-splash { transition: none; }
+  .startup-splash-dots i { animation: none; opacity: 0.6; }
+}
+
+/* Official splash artwork: the image is shown whole, never cropped, and the
+   status sits in its own pill so it cannot cover the artwork's own wordmark. */
+.startup-splash.has-art { background: #06081a; padding: 0; }
+.startup-splash.has-art .startup-splash-art { object-fit: contain; }
+.startup-splash.has-art .startup-splash-status {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+  flex-direction: row; align-items: center; gap: 9px;
+  padding: 7px 15px; border-radius: 999px;
+  background: rgba(8, 10, 26, 0.62); color: #ccd1ee;
+  border: 1px solid rgba(150, 156, 210, 0.22);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  font-size: 11px; white-space: nowrap; max-width: 92vw;
+}
+.startup-splash.has-art .startup-splash-owner { display: none; }
+.startup-splash.has-art.failed .startup-splash-status {
+  flex-direction: column; bottom: 24px; border-radius: 14px; white-space: normal;
+  padding: 14px 18px; background: rgba(10, 12, 30, 0.86);
+}
+.startup-splash.has-art .startup-splash-error-title { color: #ffb4c6; }
+.startup-splash.has-art .startup-splash-error-body { color: #c2c7e4; }
+
 .header-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 
 .seg {

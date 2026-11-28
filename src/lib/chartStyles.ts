@@ -85,7 +85,7 @@ export const CHART_STYLE_PRESETS: Record<ChartStylePresetId, ResolvedChartStyle>
   'sigrun-classic': {
     ...BASE,
     id: 'sigrun-classic',
-    label: 'Sigrún Classic',
+    label: 'Statelia Classic',
     fontFamily: SANS,
     chartBg: 'transparent',
     plotBg: 'transparent',

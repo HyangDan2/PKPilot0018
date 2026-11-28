@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Help Center registry (WO-3E-10)
+   Statelia — Help Center registry (WO-3E-10)
    Every document is bundled at build time. Tutorials resolve `helpId` here;
    the Help Center lists the same entries by category.
    ───────────────────────────────────────────────────────────────────────── */

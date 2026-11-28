@@ -39,6 +39,7 @@ const portableHtml = readFileSync(path.join(process.cwd(), 'portable.html'), 'ut
 const CONFIG_REQUIRED = [
   'PRODUCT_ID', 'EDITION_ID', 'APP_NAME', 'APP_VERSION', 'APP_PHASE', 'BRAND_NAME', 'COPYRIGHT',
   'BASE_PATH', 'CANONICAL_URL', 'STORAGE_NAMESPACE', 'EXPORT_FILE_PREFIX', 'EXTERNAL_LINKS_ENABLED',
+  'PRODUCT_CATEGORY', 'ENGINE_NAME', 'ENGINE_VERSION', 'SLOGAN', 'REPOSITORY_URL', 'HOMEPAGE_URL',
 ] as const;
 
 /* ── 26. the two editions ─────────────────────────────────────────────── */
@@ -52,21 +53,28 @@ describe('WO-04 · the edition records', () => {
     }
   });
 
-  it('keeps the public edition exactly as the live site is', () => {
+  it('states the Statelia identity WO-BRAND-001 defines', () => {
     expect(PUBLIC_EDITION).toMatchObject({
       EDITION_ID: 'public',
-      APP_NAME: 'HD2Lab Sigrún',
+      APP_NAME: 'Statelia',
+      APP_NAME_LOCAL: '스타텔리아',
+      PRODUCT_CATEGORY: 'Statistical Engineering Suite',
+      ENGINE_NAME: 'Sigrdrifa Engine',
+      ENGINE_VERSION: 'v1.0',
       BRAND_NAME: 'HD2Lab',
+      SLOGAN: 'Beyond Dimensions',
       APP_PHASE: 'Phase 3',
       BASE_PATH: '/PKPilot0018/',
       CANONICAL_URL: 'https://hyangdan2.github.io/PKPilot0018/',
+      // The branding change must not hide what earlier builds stored.
       STORAGE_NAMESPACE: '',
-      EXPORT_FILE_PREFIX: 'sigrun',
+      EXPORT_FILE_PREFIX: 'statelia',
       EXTERNAL_LINKS_ENABLED: true,
     });
     expect(EDITION).toBe('public');
     expect(PRODUCT.EDITION_ID).toBe('public');
-    expect(PRODUCT_SHORT_NAME).toBe('Sigrún');
+    expect(PRODUCT_SHORT_NAME).toBe('Statelia');
+    expect(statusBarLabel()).toBe('HD2LAB · STATELIA · PHASE 3');
   });
 
   it('does not invent an enterprise brand or copyright', () => {
@@ -80,7 +88,7 @@ describe('WO-04 · the edition records', () => {
 
   it('names the product from its own record in the status bar', () => {
     expect(APP_PHASE).toBe('Phase 3');
-    expect(statusBarLabel()).toBe('HD2LAB · SIGRÚN · PHASE 3');
+
     expect(editionLockup(ENTERPRISE_EDITION)).toBe('SIGRÚN ENTERPRISE');
   });
 });
@@ -91,8 +99,8 @@ describe('WO-04 · version, year and base path', () => {
   it('takes the version from package.json', () => {
     expect(APP_VERSION).toBe(pkg.version);
     expect(PRODUCT.APP_VERSION).toBe(pkg.version);
-    expect(aboutVersionLine('en')).toContain(pkg.version);
-    expect(aboutVersionLine('ko')).toContain('Phase 3');
+    expect(aboutVersionLine('en')).toBe(`Statelia v${pkg.version}`);
+    expect(aboutVersionLine('ko')).toBe(`스타텔리아 v${pkg.version}`);
   });
 
   it('reads the build year from a fixed clock when one is given', () => {
@@ -140,8 +148,8 @@ describe('WO-04 · storage namespaces', () => {
   });
 
   it('keeps the export prefix in the file names', () => {
-    expect(projectFileName(new Date(2026, 10, 22))).toBe('sigrun-2026-11-22.sigrun.json');
-    expect(PUBLIC_EDITION.EXPORT_FILE_PREFIX).toBe('sigrun');
+    expect(projectFileName(new Date(2026, 10, 22))).toBe('statelia-2026-11-22.sigrun.json');
+    expect(PUBLIC_EDITION.EXPORT_FILE_PREFIX).toBe('statelia');
     expect(ENTERPRISE_EDITION.EXPORT_FILE_PREFIX).not.toBe(PUBLIC_EDITION.EXPORT_FILE_PREFIX);
   });
 });
@@ -163,7 +171,7 @@ describe('WO-04 · the pages are branded once', () => {
 
   it('renders the public page exactly as the live site states it', () => {
     const html = applyHtmlTokens(indexHtml, PUBLIC_EDITION);
-    expect(html).toContain('<title>Sigrún — HD2Lab Statistical Workspace</title>');
+    expect(html).toContain('<title>Statelia — HD2Lab Statistical Engineering Suite</title>');
     expect(html).toContain('href="https://hyangdan2.github.io/PKPilot0018/"');
     expect(html).toContain("localStorage.getItem('sigrun.settings.v1')");
     expect(html).not.toContain('%PRODUCT_');
@@ -181,8 +189,8 @@ describe('WO-04 · the pages are branded once', () => {
 
   it('states the manifest from the same record', () => {
     const manifest = manifestFor(PUBLIC_EDITION);
-    expect(manifest.name).toBe('Sigrún — HD2Lab Statistical Workspace');
-    expect(manifest.short_name).toBe('Sigrún');
+    expect(manifest.name).toBe('Statelia — HD2Lab Statistical Engineering Suite');
+    expect(manifest.short_name).toBe('Statelia');
     expect(manifest.description).toBe(PUBLIC_EDITION.SUMMARY);
     expect(manifest.start_url).toBe('./');
     expect(manifest.icons.length).toBeGreaterThan(0);

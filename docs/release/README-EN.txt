@@ -1,4 +1,4 @@
-Sigrún %RELEASE_ID% — read me
+Statelia %RELEASE_ID% — read me
 =============================
 
 version   %VERSION%
@@ -7,9 +7,9 @@ build     %COMMIT%
 
 What is in this folder
 ----------------------
-  Sigrun-%RELEASE_ID%.html          the entire application in one file
-  Sigrun-%RELEASE_ID%-Portable.zip  the same file plus a short read-me
-  Sigrun-%RELEASE_ID%-Web.zip       the static web build (serve the folder)
+  %PRODUCT%-%RELEASE_ID%.html          the entire application in one file
+  %PRODUCT%-%RELEASE_ID%-Portable.zip  the same file plus a short read-me
+  %PRODUCT%-%RELEASE_ID%-Web.zip       the static web build (serve the folder)
   SHA256SUMS.txt                    sha256 of every other file in this folder
   build-info.json                   version, commit, sizes, hashes
   LICENSES.txt                      third-party packages and licenses
@@ -17,7 +17,7 @@ What is in this folder
 
 Run the portable build
 ----------------------
-1. Copy Sigrun-%RELEASE_ID%.html anywhere on your machine.
+1. Copy %PRODUCT%-%RELEASE_ID%.html anywhere on your machine.
 2. Double-click it, or drag it into Microsoft Edge or Google Chrome.
 
 There is nothing to install: no Node.js, no Python, no server, no network
@@ -26,7 +26,7 @@ Use File ▸ Save Project for anything that must outlive the browser profile.
 
 Run the web build
 -----------------
-1. Unzip Sigrun-%RELEASE_ID%-Web.zip into a folder.
+1. Unzip %PRODUCT%-%RELEASE_ID%-Web.zip into a folder.
 2. Serve that folder with any static web server; open the folder's address.
 
 Opening index.html directly from disk does not work for the web build (module

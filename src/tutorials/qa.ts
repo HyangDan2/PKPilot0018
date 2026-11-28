@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — registry audit (WO-T12, Registry QA)
+   Statelia — registry audit (WO-T12, Registry QA)
 
    One function that checks the whole content graph: duplicate ids, dangling
    sample/help/analysis references, actions and presets that do not exist,

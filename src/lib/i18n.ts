@@ -1,8 +1,8 @@
-/* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — interface strings (English default, Korean toggle)
+/* ────────────────────────────────────────────────────────────────────────
+   Statelia — interface strings (English default, Korean toggle)
    Menu and terminology follow Minitab's English wording; the Korean column
    keeps the same meaning with the familiar Korean statistical terms.
-   ───────────────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────────────── */
 
 import type { Lang } from '../types';
 
@@ -12,7 +12,7 @@ const en: Dict = {
   'theme.toDark': 'Navy & Lavender (dark)',
   'theme.toLight': 'Soft Iris (light)',
   'theme.label': 'Theme',
-  'brand.tag': 'Statistical Workspace',
+  'brand.tag': 'Statistical Engineering Suite',
   'panel.navigator': 'Navigator',
   'panel.detach': 'Detach panel into a floating window',
   'panel.dock': 'Dock back',
@@ -398,7 +398,7 @@ const en: Dict = {
   'view.korean': '한국어',
 
   'help.help': 'Help & shortcuts',
-  'help.about': 'About Sigrún',
+  'help.about': 'About Statelia',
 
   'nav.menu': 'More — workspace utilities',
   'nav.workspace': 'WORKSPACE',
@@ -736,8 +736,8 @@ const en: Dict = {
   'file.saved': 'Project saved as a .sigrun.json file.',
   'file.loaded': 'Project restored from file.',
   'file.imported': 'Imported {n} rows into a new worksheet.',
-  'file.error': 'That file could not be read as a Sigrún project (.sigrun.json).',
-  'file.versionNewer': 'That project was written by a newer build of Sigrún. Open it with that build, or save it again from there.',
+  'file.error': 'That file could not be read as a Statelia project (.sigrun.json).',
+  'file.versionNewer': 'That project was written by a newer build of Statelia. Open it with that build, or save it again from there.',
   'file.versionInvalid': 'The project file states no usable schema version, so it was not opened.',
   'file.worksheetCorrupt': 'A worksheet in that project is damaged. Nothing was opened, so the work in this window is unchanged.',
   'file.modelCorrupt': 'A stored model in that project is damaged. Nothing was opened, so the work in this window is unchanged.',
@@ -795,9 +795,9 @@ const en: Dict = {
   'status.ooc': 'Out of control',
 
   'help.title': 'Help & shortcuts',
-  'help.overview': 'What Sigrún is',
+  'help.overview': 'What Statelia is',
   'help.overviewText':
-    'Sigrún is a statistical and quality workspace that runs entirely in your browser. Data, analyses and charts never leave this tab; the workspace auto-saves to local storage in this browser.',
+    'Statelia is a statistical engineering suite that runs entirely in your browser on Sigrdrifa Engine. Data, analyses and charts never leave this tab; the workspace auto-saves to local storage in this browser.',
   'help.analyses': 'What you can run',
   'help.analysesList':
     'Excel (.xlsx) import and export for multi-sheet workbooks · descriptive statistics (with By groups) · Anderson–Darling normality test with probability plot · 1-sample, 2-sample (Welch/pooled) and paired t-tests · one-way ANOVA with Tukey HSD grouping · general linear model (multi-factor ANOVA, Type I and Type III SS, main-effect and interaction plots) · multiple linear regression with VIF and four-in-one residual plots · I-MR, Xbar-R, Xbar-S, P, NP, C and U control charts with the eight Nelson rules · process capability, Capability Sixpack and nonnormal capability (Weibull, lognormal, gamma) · Gage R&R (crossed and nested) · factorial DOE and response surface (contour) analysis · Weibull reliability with right censoring · power and sample size for t tests, one-way ANOVA and proportions · Pareto, histogram, boxplot, scatterplot and time series plots.',
@@ -821,9 +821,34 @@ const en: Dict = {
   'help.privacy': 'Privacy',
   'help.privacyText':
     'Everything is computed locally. No account, no upload, no tracking. Projects can be saved as .sigrun.json files you keep yourself.',
-  'about.title': 'About Sigrún',
+  'about.title': 'About Statelia',
   'about.text':
-    'HD2Lab Sigrún — a precision statistical workspace for the browser. Statistics, control charts, capability, reliability, Gage R&R, DOE/RSM, stored models with contour and 3D surfaces, a multi-response optimizer and prediction profiler, a graph layout editor, and a single-file portable build that runs from file:// offline. Built by HD2Lab.',
+    'Statelia — a statistical engineering suite for the browser, powered by Sigrdrifa Engine v1.0. Statistics, control charts, capability, reliability, Gage R&R, DOE/RSM, stored models with contour and 3D surfaces, a multi-response optimizer and prediction profiler, a graph layout editor, and a single-file portable build that runs from file:// offline. Built by HD2Lab.',
+  'about.formerly': 'Formerly Sigrún',
+  'about.engine': 'Powered by {engine} {version}',
+  'about.developed': 'Developed by {brand}',
+  'about.features': 'What it does',
+  'about.feature.stat': 'Statistical Analysis',
+  'about.feature.spc': 'Quality & SPC',
+  'about.feature.doe': 'DOE & RSM',
+  'about.feature.model': 'Modeling & Optimization',
+  'about.feature.viz': 'Scientific Visualization',
+  'about.build': 'Build information',
+  'about.buildVersion': 'Build version',
+  'about.commit': 'Commit SHA',
+  'about.releaseDate': 'Release date',
+  'about.licenses': 'Open source licenses',
+  'about.licensesValue': 'Third-party components ship under their own licenses; the full list and texts are in LICENSES.txt beside the release.',
+  'about.limitations': 'Known limitations',
+  'about.limitationsValue': 'Independently developed from published statistical methods; no third-party product certifies these results. The full list is in KNOWN_LIMITATIONS.md beside the release.',
+  'about.repository': 'Official repository',
+  'about.homepage': 'HD2Lab homepage',
+  'about.homepageLabel': 'HD2Lab',
+  'about.aiNote': 'Note: This program was created using generative AI and may contain errors.',
+  'splash.loading': 'Loading the workspace',
+  'splash.errorTitle': 'The workspace could not be restored',
+  'splash.errorBody': 'Your saved workspace is still in this browser. Retry the restore, or reload the page.',
+  'splash.retry': 'Retry',
 
   'sample.process': 'Coating process (quality data)',
   'sample.comparison': 'Cure study (2-sample & paired)',
@@ -1395,7 +1420,7 @@ const en: Dict = {
   'cd.opt.secondary': 'Secondary Y axis series',
   'cd.opt.secondaryHint': 'Series numbers separated by commas (1-based).',
   'cd.stylePreset': 'Preset',
-  'cd.preset.sigrun-classic': 'Sigrún Classic',
+  'cd.preset.sigrun-classic': 'Statelia Classic',
   'cd.preset.engineering': 'Engineering',
   'cd.preset.scientific': 'Scientific',
   'cd.preset.corporate': 'Corporate',
@@ -1671,7 +1696,7 @@ const en: Dict = {
   'gl.copyFallback': 'Clipboard blocked: the PNG was downloaded instead.',
   'gl.saved': 'Layout saved (sigrun-layout.sigrun.json).',
   'gl.loaded': 'Layout restored ({n} panels).',
-  'gl.loadFailed': 'That file is not a Sigrún layout.',
+  'gl.loadFailed': 'That file is not a Statelia layout.',
   'gl.rasterNote': 'A 3D surface is composited as a raster image; the vector charts stay vector.',
   'gl.vectorNote': 'Every panel in this figure is vector.',
   'gl.panelRaster': 'This panel is a 3D surface: it exports as a raster image at the page DPI.',
@@ -1784,7 +1809,7 @@ const en: Dict = {
   'cd.refColor': 'Colour',
 
   /* ── tutorial system, sample library and help center (WO-3E-11) ── */
-  'tut.learn': 'Learn Sigrún',
+  'tut.learn': 'Learn Statelia',
   'tut.library': 'Tutorials',
   'tut.openLibrary': 'Open the tutorial library',
   'tut.panel': 'Tutorial',
@@ -1906,7 +1931,7 @@ const en: Dict = {
   'tut.restarted': 'Tutorial restarted; the practice project is unchanged.',
   'tut.backupTitle': 'Back up your project first',
   'tut.backupSub': 'The browser could not keep a copy of your project, so the practice has not started.',
-  'tut.backupBody': 'A practice replaces what is on screen. Browser storage is blocked or full, so Sigrún cannot hold your project for you. Download the project file, then the practice starts with that backup in your hands.',
+  'tut.backupBody': 'A practice replaces what is on screen. Browser storage is blocked or full, so Statelia cannot hold your project for you. Download the project file, then the practice starts with that backup in your hands.',
   'tut.backupDownload': 'Project backup',
   'tut.backupDownloadNote': 'The file is your own project exactly as it is now (.sigrun.json). Open it later with File ▸ Open project.',
   'tut.backupDownloadAction': 'Download the backup and start the practice',
@@ -1943,7 +1968,7 @@ const en: Dict = {
   'tut.useCurrentConfirm': 'This practice will modify your current project. Continue?',
   'tut.exitTitle': 'End the practice',
   'tut.exitSub': 'Choose what happens to the practice project.',
-  'tut.savePracticeNote': 'Download the practice project as a .sigrun.json file; Sigrún reads it back to verify it.',
+  'tut.savePracticeNote': 'Download the practice project as a .sigrun.json file; Statelia reads it back to verify it.',
   'tut.exportPracticeNote': 'Download the project file and the active worksheet as CSV.',
   'tut.exportPractice': 'Export project + CSV',
   'tut.keepPractice': 'Keep the practice for later',
@@ -2391,7 +2416,7 @@ const ko: Dict = {
   'view.korean': '한국어',
 
   'help.help': '도움말 · 단축키',
-  'help.about': 'Sigrún 정보',
+  'help.about': 'Statelia 정보',
 
   'nav.menu': '더 보기 — 워크스페이스 도구',
   'nav.workspace': '워크스페이스',
@@ -2729,8 +2754,8 @@ const ko: Dict = {
   'file.saved': '.sigrun.json 파일로 저장했습니다.',
   'file.loaded': '파일에서 프로젝트를 복원했습니다.',
   'file.imported': '새 워크시트에 {n}행을 가져왔습니다.',
-  'file.error': '이 파일을 Sigrún 프로젝트(.sigrun.json)로 읽을 수 없습니다.',
-  'file.versionNewer': '이 프로젝트는 더 새로운 Sigrún에서 저장되었습니다. 그 빌드에서 열거나, 그곳에서 다시 저장하세요.',
+  'file.error': '이 파일을 Statelia 프로젝트(.sigrun.json)로 읽을 수 없습니다.',
+  'file.versionNewer': '이 프로젝트는 더 새로운 Statelia에서 저장되었습니다. 그 빌드에서 열거나, 그곳에서 다시 저장하세요.',
   'file.versionInvalid': '프로젝트 파일에 쓸 수 있는 스키마 버전이 없어 열지 않았습니다.',
   'file.worksheetCorrupt': '프로젝트의 워크시트가 손상되었습니다. 아무것도 열지 않았으므로 이 창의 작업은 그대로입니다.',
   'file.modelCorrupt': '프로젝트의 저장 모형이 손상되었습니다. 아무것도 열지 않았으므로 이 창의 작업은 그대로입니다.',
@@ -2787,9 +2812,9 @@ const ko: Dict = {
   'status.ooc': '관리이탈',
 
   'help.title': '도움말 · 단축키',
-  'help.overview': 'Sigrún 소개',
+  'help.overview': 'Statelia 소개',
   'help.overviewText':
-    'Sigrún은 브라우저 안에서 완전히 실행되는 통계·품질 워크스페이스입니다. 데이터와 분석 결과, 차트는 이 탭을 벗어나지 않으며 워크스페이스는 이 브라우저의 로컬 저장소에 자동 저장됩니다.',
+    'Statelia는 브라우저 안에서 완전히 실행되는 통계 엔지니어링 스위트이며 Sigrdrifa Engine이 분석을 수행합니다. 데이터와 분석 결과, 차트는 이 탭을 벗어나지 않으며 워크스페이스는 이 브라우저의 로컬 저장소에 자동 저장됩니다.',
   'help.analyses': '실행할 수 있는 분석',
   'help.analysesList':
     'Excel(.xlsx) 다중 시트 가져오기·내보내기 · 기술통계량(그룹별) · Anderson–Darling 정규성 검정과 정규확률도 · 1표본·2표본(Welch/pooled)·대응 t검정 · 일원배치 분산분석과 Tukey HSD 그룹 문자 · 일반선형모형(다요인 분산분석, Type I·III 제곱합, 주효과·교호작용 그림) · 다중 선형회귀(VIF, 4-in-1 잔차 그림) · I-MR·Xbar-R·Xbar-S·P·NP·C·U 관리도와 8가지 Nelson 규칙 · 공정능력과 Sixpack, 비정규 공정능력(Weibull·로그정규·감마) · Gage R&R(교차·중첩) · 요인설계와 반응표면(등고선) 분석 · 우측 중도절단을 포함한 Weibull 신뢰성 분석 · t검정·일원배치 ANOVA·비율의 검정력과 표본 크기 · 파레토·히스토그램·상자그림·산점도·시계열 그림.',
@@ -2808,9 +2833,34 @@ const ko: Dict = {
   'help.privacy': '개인정보',
   'help.privacyText':
     '모든 계산은 로컬에서 이루어집니다. 계정도, 업로드도, 추적도 없습니다. 프로젝트는 직접 보관하는 .sigrun.json 파일로 저장할 수 있습니다.',
-  'about.title': 'Sigrún 정보',
+  'about.title': 'Statelia 정보',
   'about.text':
-    'HD2Lab Sigrún — 브라우저를 위한 정밀 통계 워크스페이스. 기술통계·가설검정·Tukey 포함 분산분석·회귀분석·관리도·공정능력·신뢰성·Gage R&R·DOE/RSM, 저장 모형의 등고선과 3D 곡면, 다중 반응 최적화기와 예측 프로파일러, 그래프 레이아웃 편집기, 그리고 네트워크 없이 file://로 여는 단일 파일 포터블 빌드까지 포함합니다. HD2Lab 제작.',
+    'Statelia — Sigrdrifa Engine v1.0 기반의 브라우저용 통계 엔지니어링 스위트입니다. 기술통계·가설검정·Tukey 포함 분산분석·회귀분석·관리도·공정능력·신뢰성·Gage R&R·DOE/RSM, 저장 모형의 등고선과 3D 곡면, 다중 반응 최적화기와 예측 프로파일러, 그래프 레이아웃 편집기, 그리고 네트워크 없이 file://로 여는 단일 파일 포터블 빌드까지 포함합니다. HD2Lab 제작.',
+  'about.formerly': '이전 이름: 시그룬(Sigrún)',
+  'about.engine': '{engine} {version} 기반',
+  'about.developed': '{brand} 제작',
+  'about.features': '기능 소개',
+  'about.feature.stat': '통계 분석',
+  'about.feature.spc': '품질 관리·SPC',
+  'about.feature.doe': '실험계획법·반응표면',
+  'about.feature.model': '모델링·최적화',
+  'about.feature.viz': '과학적 시각화',
+  'about.build': '빌드 정보',
+  'about.buildVersion': '빌드 버전',
+  'about.commit': '커밋 SHA',
+  'about.releaseDate': '릴리스 일자',
+  'about.licenses': '오픈소스 라이선스',
+  'about.licensesValue': '서드파티 구성 요소는 각자의 라이선스를 따릅니다. 전체 목록과 전문은 릴리스에 포함된 LICENSES.txt에 있습니다.',
+  'about.limitations': '알려진 제한',
+  'about.limitationsValue': '공개된 통계 방법에 기반해 독립적으로 개발했으며, 어떤 서드파티 제품도 이 결과를 인증하지 않습니다. 전체 목록은 릴리스에 포함된 KNOWN_LIMITATIONS.md에 있습니다.',
+  'about.repository': '공식 저장소',
+  'about.homepage': 'HD2Lab 홈페이지',
+  'about.homepageLabel': 'HD2Lab',
+  'about.aiNote': '참고: 이 프로그램은 생성형 AI를 사용해 작성되었으며 오류가 포함될 수 있습니다.',
+  'splash.loading': '워크스페이스를 여는 중입니다',
+  'splash.errorTitle': '워크스페이스를 복원하지 못했습니다',
+  'splash.errorBody': '저장된 워크스페이스는 이 브라우저에 그대로 있습니다. 복원을 다시 시도하거나 페이지를 새로고칩니다.',
+  'splash.retry': '다시 시도',
 
   'sample.process': '코팅 공정(품질 데이터)',
   'sample.comparison': '경화 연구(2표본·대응 비교)',
@@ -3387,7 +3437,7 @@ const ko: Dict = {
   'cd.opt.secondary': '보조 Y축 계열',
   'cd.opt.secondaryHint': '계열 번호를 쉼표로 구분합니다(1부터).',
   'cd.stylePreset': '프리셋',
-  'cd.preset.sigrun-classic': '시그룬 클래식',
+  'cd.preset.sigrun-classic': '스타텔리아 클래식',
   'cd.preset.engineering': '엔지니어링',
   'cd.preset.scientific': '과학 출판',
   'cd.preset.corporate': '기업 발표',
@@ -3662,7 +3712,7 @@ const ko: Dict = {
   'gl.copyFallback': '클립보드가 막혀 PNG로 내려받았습니다.',
   'gl.saved': '레이아웃을 저장했습니다 (sigrun-layout.sigrun.json).',
   'gl.loaded': '레이아웃을 불러왔습니다 (패널 {n}개).',
-  'gl.loadFailed': '이 파일은 시그룬 레이아웃이 아닙니다.',
+  'gl.loadFailed': '이 파일은 스타텔리아 레이아웃이 아닙니다.',
   'gl.rasterNote': '3D 표면은 래스터 이미지로 합성되고, 벡터 차트는 벡터로 남습니다.',
   'gl.vectorNote': '이 그림의 모든 패널이 벡터입니다.',
   'gl.panelRaster': '이 패널은 3D 표면이라 페이지 DPI의 래스터 이미지로 내보냅니다.',
@@ -3775,7 +3825,7 @@ const ko: Dict = {
   'cd.refColor': '색',
 
   /* ── 튜토리얼 시스템 · 샘플 라이브러리 · 도움말 센터 (WO-3E-11) ── */
-  'tut.learn': '시그룬 배우기',
+  'tut.learn': '스타텔리아 배우기',
   'tut.library': '튜토리얼',
   'tut.openLibrary': '튜토리얼 라이브러리 열기',
   'tut.panel': '튜토리얼',
@@ -3897,7 +3947,7 @@ const ko: Dict = {
   'tut.restarted': '튜토리얼을 다시 시작했습니다. 실습 프로젝트는 그대로입니다.',
   'tut.backupTitle': '먼저 프로젝트를 백업하십시오',
   'tut.backupSub': '브라우저가 프로젝트 사본을 보관하지 못해 실습을 시작하지 않았습니다.',
-  'tut.backupBody': '실습은 지금 화면의 내용을 바꿉니다. 브라우저 저장소가 차단되었거나 가득 차서 시그룬이 프로젝트를 대신 보관할 수 없습니다. 프로젝트 파일을 내려받은 뒤 그 백업을 손에 들고 실습을 시작하십시오.',
+  'tut.backupBody': '실습은 지금 화면의 내용을 바꿉니다. 브라우저 저장소가 차단되었거나 가득 차서 스타텔리아가 프로젝트를 대신 보관할 수 없습니다. 프로젝트 파일을 내려받은 뒤 그 백업을 손에 들고 실습을 시작하십시오.',
   'tut.backupDownload': '프로젝트 백업',
   'tut.backupDownloadNote': '지금 상태 그대로의 내 프로젝트 파일(.sigrun.json)입니다. 나중에 파일 ▸ 프로젝트 열기로 여십시오.',
   'tut.backupDownloadAction': '백업을 내려받고 실습 시작',
@@ -3934,7 +3984,7 @@ const ko: Dict = {
   'tut.useCurrentConfirm': '이 실습은 현재 프로젝트를 수정합니다. 계속할까요?',
   'tut.exitTitle': '실습 종료',
   'tut.exitSub': '실습 프로젝트를 어떻게 할지 고르십시오.',
-  'tut.savePracticeNote': '실습 프로젝트를 .sigrun.json으로 내려받습니다. 시그룬이 다시 읽어 검증합니다.',
+  'tut.savePracticeNote': '실습 프로젝트를 .sigrun.json으로 내려받습니다. 스타텔리아가 다시 읽어 검증합니다.',
   'tut.exportPracticeNote': '프로젝트 파일과 현재 워크시트를 CSV로 내려받습니다.',
   'tut.exportPractice': '프로젝트 + CSV 내보내기',
   'tut.keepPractice': '실습을 나중을 위해 보관',

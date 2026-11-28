@@ -4,8 +4,7 @@ import { t } from '../lib/i18n';
 import { PRODUCT } from '../config/product';
 import { editionLockup } from '../config/editionMeta';
 import { IconX } from './Icons';
-import { BrandBanner } from './Header';
-import { aboutVersionLine } from '../lib/appInfo';
+import { AboutPanel } from './AboutPanel';
 
 interface Props {
   lang: Lang;
@@ -101,11 +100,7 @@ export function HelpModal({ lang, initial, onClose, onOpenCenter, onOpenTutorial
               </section>
             </div>
           ) : (
-            <div className="help-body">
-              <BrandBanner lang={lang} />
-              <p>{t(lang, 'about.text')}</p>
-              <p className="mono-note">{aboutVersionLine(lang)}</p>
-            </div>
+            <AboutPanel lang={lang} />
           )}
         </div>
         <div className="modal-foot">

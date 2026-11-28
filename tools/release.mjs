@@ -151,10 +151,29 @@ function run(command, args, env = {}) {
   execFileSync(command, args, { cwd: ROOT, stdio: 'inherit', env: { ...process.env, ...env } });
 }
 
+/* WO-BRAND-001: release artefacts carry the product's own name —
+   Statelia-v1.0.0.html, Statelia-v1.0.0-Portable.zip, Statelia-v1.0.0-Web.zip —
+   read from the built product record instead of being typed here. */
+let artifactBaseCache = null;
+function artifactBase() {
+  if (artifactBaseCache) return artifactBaseCache;
+  for (const file of [path.join(ROOT, 'dist', 'product.json'), path.join(RELEASE_DIR, 'build-info.json')]) {
+    if (!fs.existsSync(file)) continue;
+    const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const full = record.APP_NAME ?? record.name;
+    if (!full) continue;
+    const brand = record.BRAND_NAME ?? '';
+    artifactBaseCache = brand && full.startsWith(brand) ? full.slice(brand.length).trim() : full;
+    return artifactBaseCache;
+  }
+  throw new Error('no product record to name the release artefacts (build the web bundle first)');
+}
+
 function nameFor(kind) {
-  if (kind === 'html') return `Sigrun-${RELEASE_ID}.html`;
-  if (kind === 'portableZip') return `Sigrun-${RELEASE_ID}-Portable.zip`;
-  if (kind === 'webZip') return `Sigrun-${RELEASE_ID}-Web.zip`;
+  const base = artifactBase();
+  if (kind === 'html') return `${base}-${RELEASE_ID}.html`;
+  if (kind === 'portableZip') return `${base}-${RELEASE_ID}-Portable.zip`;
+  if (kind === 'webZip') return `${base}-${RELEASE_ID}-Web.zip`;
   return kind;
 }
 
@@ -216,6 +235,7 @@ async function commandBuild() {
   for (const [template, target] of [['RELEASE_NOTES.md', 'RELEASE_NOTES.md'], ['KNOWN_LIMITATIONS.md', 'KNOWN_LIMITATIONS.md'], ['README-EN.txt', 'README-EN.txt'], ['README-KO.txt', 'README-KO.txt']]) {
     const text = fs.readFileSync(path.join(ROOT, 'docs', 'release', template), 'utf8')
       .replaceAll('%RELEASE_ID%', RELEASE_ID)
+      .replaceAll('%PRODUCT%', product.APP_NAME)
       .replaceAll('%VERSION%', PACKAGE.version)
       .replaceAll('%COMMIT%', readCommit(ROOT));
     fs.writeFileSync(path.join(RELEASE_DIR, target), text);
@@ -227,6 +247,7 @@ async function commandBuild() {
     `release     ${RELEASE_ID}`,
     `edition     ${product.EDITION_ID}`,
     `phase       ${product.APP_PHASE}`,
+    `engine      ${product.ENGINE_NAME ?? ''} ${product.ENGINE_VERSION ?? ''}`.trimEnd(),
     `commit      ${readCommit(ROOT)}`,
     `built       ${stampText()}`,
     '',

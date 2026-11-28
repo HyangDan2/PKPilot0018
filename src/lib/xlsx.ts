@@ -159,8 +159,8 @@ export async function writeXlsx(sheets: Worksheet[]): Promise<Blob> {
 
 /** File name for the exported workbook. */
 export function xlsxFileName(sheets: Worksheet[]): string {
-  const base = sheets.length === 1 ? sheets[0].name : 'Sigrun-workbook';
-  return `${base.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'Sigrun'}.xlsx`;
+  const base = sheets.length === 1 ? sheets[0].name : 'Statelia-workbook';
+  return `${base.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'Statelia'}.xlsx`;
 }
 
 export const XLSX_ACCEPT = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';

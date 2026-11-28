@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — tutorial engine (WO-T05)
+   Statelia — tutorial engine (WO-T05)
 
    The engine is pure: it takes the tutorial definition, the stored progress and
    the current workspace facts, and returns the progress after re-evaluating

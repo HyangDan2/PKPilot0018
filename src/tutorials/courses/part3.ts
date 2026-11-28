@@ -1,4 +1,4 @@
-/* Sigrún — tutorials T09–T12: Gage R&R, reliability, DOE, and the flagship
+/* Statelia — tutorials T09–T12: Gage R&R, reliability, DOE, and the flagship
    multi-response optimisation on the synthetic display-optics design. */
 
 import { defineTutorial, type RawTutorial } from '../define';
@@ -554,8 +554,8 @@ export const FLAGSHIP_TUTORIAL: RawTutorial = {
       id: 'save-project',
       title: L('Step 11 · Save the practice project', '11단계 · 실습 프로젝트 저장'),
       instruction: L(
-        'Save the practice project with the action button. Sigrún writes the project file and reads it back to confirm worksheets, outputs and models survive the round trip.',
-        '실행 버튼으로 실습 프로젝트를 저장하십시오. 시그룬이 파일을 쓰고 다시 읽어 워크시트·결과·모형이 남는지 확인합니다.',
+        'Save the practice project with the action button. Statelia writes the project file and reads it back to confirm worksheets, outputs and models survive the round trip.',
+        '실행 버튼으로 실습 프로젝트를 저장하십시오. 스타텔리아이 파일을 쓰고 다시 읽어 워크시트·결과·모형이 남는지 확인합니다.',
       ),
       expected: L('A downloaded .sigrun.json and a round-trip check that passed.', '내려받은 .sigrun.json과 통과한 왕복 검증입니다.'),
       action: { action: 'export-project' },
