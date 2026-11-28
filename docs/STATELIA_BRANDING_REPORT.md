@@ -19,7 +19,7 @@
 | WO-B05 Application Hub | 완료 — `statelia` 카드 등록(심볼·버전·엔진·Preview 표기), 허위 Stable/Download 표시 없음 |
 | WO-B06 Portable | 완료 — `Statelia-v1.0.0.html` / `-Portable.zip` / `-Web.zip` + SHA256 |
 | WO-B07 Lean QA | 통과 — TypeScript PASS, Vitest 1240/1240, Release verify PASS, Network 13/13, Portable offline **63/63**, Hub validate/test/build PASS |
-| 브랜치 Push | `feat/statelia-branding` (PKPilot0018 · ApplicationHub), `main` 병합·배포 **없음** |
+| 브랜치 Push | **미완(권한 차단)** — 두 저장소 모두 `feat/statelia-branding` 커밋 완료, 원격 Push는 403(코드 쓰기 권한 거부). `main` 병합·배포 없음 |
 
 ---
 
@@ -28,9 +28,17 @@
 | 저장소 | Worktree | 브랜치 | 기준 | 커밋 |
 | --- | --- | --- | --- | --- |
 | `HyangDan2/PKPilot0018` | `worktrees/statelia-PKPilot0018` | `feat/statelia-branding` | `origin/main` `42d5df1` | `e7187d7` (브랜드 전환 전체) → `56f3297` (심볼 타일·스플래시 백드롭) → 문서 커밋 |
-| `HyangDan2/ApplicationHub` | `worktrees/statelia-ApplicationHub` | `feat/statelia-branding` | `origin/main` `3dad424` | `catalog: register Statelia (PKPilot0018)` |
+| `HyangDan2/ApplicationHub` | `worktrees/statelia-ApplicationHub` | `feat/statelia-branding` | `origin/main` `3dad424` | `fc14fc2` (카탈로그 등록·카드·문서) |
 
 커밋 작성자: `HD2 <chunxiang2022@gmail.com>`
+
+**Push 상태**: 두 저장소 모두 `git push -u origin feat/statelia-branding`이
+`remote: Permission to HyangDan2/<repo>.git denied to HyangDan2. (403)`로 거부되었다.
+읽기(fetch/clone/API 조회)는 정상이며, Pickle의 GitHub 연결에서 **코드 쓰기 권한이 꺼져 있는 상태**로 보인다.
+커밋은 로컬 worktree에 그대로 남아 있으므로, 연결에서 Code 쓰기를 켜거나 사용자가 직접 아래를 실행하면 올라간다.
+
+    cd worktrees/statelia-PKPilot0018 && git push -u origin feat/statelia-branding
+    cd worktrees/statelia-ApplicationHub && git push -u origin feat/statelia-branding
 기존 `repos/` 체크아웃은 건드리지 않았고, `main` 병합·운영 배포는 하지 않았다.
 
 ---
@@ -222,6 +230,7 @@
 | 허브 스키마 | `npm run validate` | 12 apps 검증 PASS |
 | 허브 단위 | `npm test` | 8/8 PASS |
 | 허브 빌드 | `npm run build` | 12 published apps |
+| 허브 브라우저 E2E | `npx playwright test` | 19/19 PASS |
 | 화면 | Chromium 1440×900 / 390×844 | 캡처 10종 (`docs/branding/`) |
 
 브랜드 변경으로 갱신한 테스트: 공개 edition record 기대값, 타이틀/매니페스트 문자열,
@@ -232,28 +241,30 @@
 
 ## 11. 미해결 사항 / PO 결정 필요
 
-1. **`main` 병합·운영 배포**: WO 종료 조건대로 feature 브랜치까지만 올렸다. PO 승인 후
+1. **원격 Push 권한**: 위 1절 참고 — 코드 쓰기 권한이 없어 브랜치가 원격에 올라가지 않았다.
+   WO 종료 조건(Feature Branch Push)은 이 권한이 열린 뒤 한 줄로 완료된다.
+2. **`main` 병합·운영 배포**: WO 종료 조건대로 feature 브랜치까지만 올렸다. PO 승인 후
    PKPilot0018 배포 + ApplicationHub 배포를 함께 해야 카드의 Launch URL이 Statelia 빌드를 연다.
    (현재 라이브 Pages는 아직 Sigrún 브랜드 빌드다.)
-2. **정식 Release 게시**: `Statelia-v1.0.0*` 3종은 로컬에서 빌드·검증 완료했으나 GitHub Release로
+3. **정식 Release 게시**: `Statelia-v1.0.0*` 3종은 로컬에서 빌드·검증 완료했으나 GitHub Release로
    게시하지 않았다. 게시되면 허브 카드에 Portable 다운로드 링크를 연결할 수 있다
    (현재는 `Preview build` 표기).
-3. **허브 카드의 Portable/Release Notes 링크**: 기존 허브는 카드 전체가 `<a>`이고 내부에
+4. **허브 카드의 Portable/Release Notes 링크**: 기존 허브는 카드 전체가 `<a>`이고 내부에
    링크·버튼을 두지 않는 규칙(E2E가 검증)이라 중첩 링크를 넣지 않았다. 정식 릴리스가 생기면
    카드 하단에 별도 액션 행을 추가하는 소규모 확장이 필요하다(현재는 안내 문구로 대체).
-4. **OG 카드**: 공식 스플래시 기반 `statelia-og.webp`(1200×630)로 교체 완료. 호스티드 반영은
+5. **OG 카드**: 공식 스플래시 기반 `statelia-og.webp`(1200×630)로 교체 완료. 호스티드 반영은
    배포 후 확인 가능.
-5. **`statelia-logo.png` 사용처**: 공식 워드마크는 밝은 아트워크라 라이트 테마에서 대비가 낮아
+6. **`statelia-logo.png` 사용처**: 공식 워드마크는 밝은 아트워크라 라이트 테마에서 대비가 낮아
    앱 UI에는 넣지 않고 자산으로만 등록했다(About은 텍스트 락업 + 심볼 타일).
    라이트 테마용 반전/단색 워드마크는 공식 자산이 없어 만들지 않았다.
-6. **파비콘 대비**: 투명 심볼 특성상 밝은 탭 배경에서 대비가 낮다. WO 지침대로 배경 플레이트를
+7. **파비콘 대비**: 투명 심볼 특성상 밝은 탭 배경에서 대비가 낮다. WO 지침대로 배경 플레이트를
    넣지 않았으며, 필요하면 PO가 라이트용 심볼을 제공해야 한다.
 
 ---
 
 ## 12. 배포 준비 상태
 
-- 코드·자산·문서·릴리스 산출물 모두 `feat/statelia-branding`에 커밋되어 원격에 Push됨.
+- 코드·자산·문서·릴리스 산출물 모두 `feat/statelia-branding`에 커밋되어 있다(로컬). 원격 Push는 코드 쓰기 권한이 열리면 즉시 가능하다.
 - `main` 병합 시 필요한 후속 작업은 (a) Pages 배포, (b) ApplicationHub 배포,
   (c) GitHub Release 게시 + 카드 다운로드 링크 활성화 3가지다.
 - 통계 엔진·데이터 마이그레이션·기존 프로젝트 삭제는 없었으며, 되돌릴 경우 브랜치 삭제만으로
