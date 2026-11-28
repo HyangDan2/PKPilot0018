@@ -1,6 +1,6 @@
 # Statelia v1.0.0 — Release Notes
 
-Build: 1.0.0 · v1.0.0 · commit e7187d7
+Build: 1.0.0 · v1.0.0 · commit 56f3297
 
 Statelia (formerly Sigrún) is a pure-browser statistical engineering suite
 powered by Sigrdrifa Engine v1.0. This release is the Phase 3 final

@@ -4,5 +4,5 @@ release     v1.0.0
 edition     public
 phase       Phase 3
 engine      Sigrdrifa Engine v1.0
-commit      e7187d7
-built       2026-11-28T09:31:41Z
+commit      56f3297
+built       2026-11-28T09:38:51Z

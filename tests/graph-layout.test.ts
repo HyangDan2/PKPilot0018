@@ -324,8 +324,8 @@ describe('figure export (WO-07)', () => {
     expect(config.physicalHeight).toBe(297);
     expect(config.physicalUnit).toBe('mm');
     expect(config.dpi).toBe(600);
-    expect(figureFileName(doc, 'png', 600)).toBe('sigrun-figure-a4-portrait-600dpi.png');
-    expect(figureFileName(doc, 'svg')).toBe('sigrun-figure-a4-portrait.svg');
+    expect(figureFileName(doc, 'png', 600)).toBe('statelia-figure-a4-portrait-600dpi.png');
+    expect(figureFileName(doc, 'svg')).toBe('statelia-figure-a4-portrait.svg');
   });
 
   it('says a chart is missing rather than dropping the panel silently', () => {

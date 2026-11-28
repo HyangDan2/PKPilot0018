@@ -226,8 +226,11 @@ async function section(title, body) {
       await gotoPortable(page);
       const bootMs = Date.now() - started;
       const title = await page.title();
+      /* The product name is read from the build record, so a rename cannot make
+         this check pass against a stale title (WO-BRAND-001). */
+      const product = JSON.parse(fs.readFileSync(path.join(ROOT, 'dist', 'product.json'), 'utf8'));
       check('the page boots from a file:// URL', await page.locator('[data-testid=menubar]').isVisible(), FILE_URL);
-      check('the document title names the product', /Sigrún/.test(title), title);
+      check('the document title names the product', title.includes(product.APP_NAME) && title.includes(product.BRAND_NAME), title);
       check('the renderer is done before the menu bar shows', (await page.locator('[data-testid=menubar] [data-testid=menu-file]').count()) === 1);
       const nav = await page.evaluate(() => {
         const entry = performance.getEntriesByType('navigation')[0];
