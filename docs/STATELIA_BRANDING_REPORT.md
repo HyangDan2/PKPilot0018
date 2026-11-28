@@ -235,7 +235,7 @@
 | 허브 단위 | `npm test` | 8/8 PASS |
 | 허브 빌드 | `npm run build` | 12 published apps |
 | 허브 브라우저 E2E | `npx playwright test` | 19/19 PASS |
-| 화면 | Chromium 1440×900 / 390×844 | 캡처 13종 (`docs/branding/`) |
+| 화면 | Chromium 1440×900 / 390×844 | 캡처 11종 + 자산 투명도 시트 4종 (`docs/branding/`) |
 
 브랜드 변경으로 갱신한 테스트: 공개 edition record 기대값, 타이틀/매니페스트 문자열,
 상태바 문구, 프로젝트/차트/피겨 파일명 prefix, About 버전 라인 위치(HelpModal → AboutPanel),
