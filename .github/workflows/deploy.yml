@@ -1,4 +1,4 @@
-name: Deploy Statelia to GitHub Pages
+name: Deploy Sigrún to GitHub Pages
 
 # Every push to main is the candidate release: the same checks a release tag
 # runs, then the Pages upload. A pull request runs the identical quality gate
