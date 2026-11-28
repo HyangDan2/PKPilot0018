@@ -2,30 +2,30 @@
   "name": "Statelia",
   "version": "1.0.0",
   "phase": "Phase 3",
-  "commit": "56f3297",
-  "builtAt": "2026-11-28T09:38:51.000Z",
-  "zipTimestamp": "2026-11-28T09:38:51Z",
-  "file": "sigrun-portable.html",
-  "bytes": 2648860,
-  "sha256": "91977057df496ca9bf6e8ed8970ccd43f9a12a0b351b70fe11917659d564ffb5",
-  "jsBytes": 2521521,
-  "cssBytes": 84559,
+  "commit": "a784d76",
+  "builtAt": "2026-11-28T11:50:00.000Z",
+  "zipTimestamp": "2026-11-28T11:50:00Z",
+  "file": "statelia-portable.html",
+  "bytes": 2649020,
+  "sha256": "5e4f2d7f0056406e533916ee475c1dff259380516e31f30e78d32ec95ca5aa3d",
+  "jsBytes": 2521734,
+  "cssBytes": 84506,
   "format": "iife/single-file",
   "tools": {
-    "node": "v22.20.0",
+    "node": "v22.11.0",
     "vite": "6.4.6"
   },
   "zip": {
-    "file": "sigrun-portable.zip",
-    "bytes": 1252156,
-    "sha256": "bc0caad0695c0ea6339acbcc8b050ba65885bbfbb79e6052bbe821eae47031f5"
+    "file": "statelia-portable.zip",
+    "bytes": 1252259,
+    "sha256": "9b7ebafded1fee8d453d69fa2050994b9e1b973e31504cd5b05f9def6e3b8258"
   },
   "release": "v1.0.0",
   "channel": "final",
   "tag": null,
   "edition": "public",
   "web": {
-    "indexSha256": "870dbdce3dacb669fe1f5b366ea44d773a5145e0cb9676b133d71f516b45b986",
+    "indexSha256": "dd13f9e4873b6925f1f4a3a339a0dc1fc295c62f22d8679a233a847468889a3b",
     "files": 7
   },
   "artifacts": {

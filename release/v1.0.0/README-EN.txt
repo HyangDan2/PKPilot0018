@@ -3,7 +3,7 @@ Statelia v1.0.0 — read me
 
 version   1.0.0
 release   v1.0.0
-build     56f3297
+build     a784d76
 
 What is in this folder
 ----------------------
@@ -45,3 +45,8 @@ The hosted page and the portable file make no network request: the build is
 audited in a real browser with every request recorded. The only outbound links
 are the menu shortcuts to the project's home pages, and they are opened only
 when a person clicks them.
+
+Contact
+-------
+  HD2Lab      https://hyangdan2.github.io/
+  enquiries   hyperdimensionaldesignlab@gmail.com
