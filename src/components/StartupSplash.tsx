@@ -47,14 +47,19 @@ export function StartupSplash({ lang, phase, error, onRetry }: Props) {
       data-art={artwork ? 'official' : 'fallback'}
     >
       {artwork && (
-        <img
-          className="startup-splash-art"
-          src={artwork}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          onError={() => setImageFailed(true)}
-        />
+        <>
+          {/* A blurred copy fills the letterbox on tall screens, so a portrait
+              phone shows the brand rather than two black bands. */}
+          <img className="startup-splash-art-backdrop" src={artwork} alt="" aria-hidden="true" draggable={false} />
+          <img
+            className="startup-splash-art"
+            src={artwork}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            onError={() => setImageFailed(true)}
+          />
+        </>
       )}
 
       {!artwork && (

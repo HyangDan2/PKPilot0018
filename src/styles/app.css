@@ -130,7 +130,13 @@ a { color: inherit; }
 .about-panel { display: flex; flex-direction: column; gap: 12px; }
 .about-panel > p { margin: 0; }
 .about-identity { display: flex; align-items: center; gap: 14px; }
-.about-symbol { width: 54px; height: 54px; object-fit: contain; flex: 0 0 auto; }
+.about-symbol {
+  width: 54px; height: 54px; object-fit: contain; flex: 0 0 auto;
+  /* The official symbol is light artwork: a brand-dark tile keeps it visible
+     on the light theme without altering the image itself. */
+  background: #0b1024; border-radius: 13px; padding: 7px; box-sizing: border-box;
+}
+[data-theme='dark'] .about-symbol { background: #0b1024; }
 .about-product { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--text-primary); }
 .about-category { margin: 0; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-secondary); }
 .about-engine { margin: 2px 0 0; display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--accent-text); }
@@ -236,7 +242,12 @@ a { color: inherit; }
 /* Official splash artwork: the image is shown whole, never cropped, and the
    status sits in its own pill so it cannot cover the artwork's own wordmark. */
 .startup-splash.has-art { background: #06081a; padding: 0; }
-.startup-splash.has-art .startup-splash-art { object-fit: contain; }
+.startup-splash.has-art .startup-splash-art { object-fit: contain; position: relative; z-index: 1; }
+.startup-splash-art-backdrop {
+  position: absolute; inset: -6%; width: 112%; height: 112%;
+  object-fit: cover; filter: blur(30px) brightness(0.55) saturate(1.15);
+  pointer-events: none; opacity: .9;
+}
 .startup-splash.has-art .startup-splash-status {
   position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
   flex-direction: row; align-items: center; gap: 9px;
