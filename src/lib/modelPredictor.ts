@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — prediction from a stored model (WO-02)
+   Statelia — prediction from a stored model (WO-02)
 
    A stored model is used in three ways: evaluate ŷ at a point a reader typed,
    evaluate a whole table, and draw a contour of two factors with the rest held.

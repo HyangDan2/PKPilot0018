@@ -1,12 +1,12 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — product configuration (WO-FINAL-001 · WO-04)
+   Statelia — product configuration (WO-FINAL-001 · WO-04)
 
    One record states what this build is: its identity, brand, version, base
    path, storage namespace and whether it may reach external services. The
-   default build is the public HD2Lab Statelia (formerly Sigrún) and keeps the
-   behaviour, storage keys and project schema of the previous builds. A
-   derivative build (PKPilot0018E0001) selects the enterprise edition and
-   supplies its own brand without touching the statistical engine.
+   default build is the public HD2Lab Statelia and keeps the behaviour,
+   storage keys and project schema of the previous builds. A derivative build
+   (PKPilot0018E0001) selects the enterprise edition and supplies its own
+   brand without touching the statistical engine.
 
    The edition is chosen at build time with VITE_EDITION=enterprise; anything
    else builds the public edition, so the existing GitHub Pages site keeps its
@@ -45,6 +45,10 @@ export interface ProductEdition {
   REPOSITORY_URL: string;
   /** Owner's home page, empty when the owner has not supplied one. */
   HOMEPAGE_URL: string;
+  /** Official enquiry address the About panel publishes (FIX-02). Empty when
+   *  this edition must not publish one — an internal edition never carries the
+   *  public address. */
+  CONTACT_EMAIL: string;
   /** Deployment path the build defaults to; the asset base itself comes from Vite. */
   BASE_PATH: string;
   /** Public address of the canonical deployment, empty when it has none. */

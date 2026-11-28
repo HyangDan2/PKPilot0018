@@ -1,4 +1,4 @@
-/* Sigrún — Phase 3B Corrective QA E2E: convergence, pointwise note, blocked basis.
+/* Statelia — Phase 3B Corrective QA E2E: convergence, pointwise note, blocked basis.
 
    Local:  BASE=http://127.0.0.1:4190/PKPilot0018/ node tools/e2e_phase3_3b.cjs
    Live:   BASE=https://hyangdan2.github.io/PKPilot0018/ node tools/e2e_phase3_3b.cjs

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Sigrún — Minitab gap audit consistency checker (WO-08).
+/* Statelia — Minitab gap audit consistency checker (WO-08).
  *
  * Recomputes every published number from docs/audit/*.json and checks the CSV,
  * the HTML dashboard and docs/MINITAB_MASTER_FEATURE_GAP.md against it. Also

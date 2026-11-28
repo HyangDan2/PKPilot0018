@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — chart configuration operations (WO-02 / WO-09)
+   Statelia — chart configuration operations (WO-02 / WO-09)
 
    The properties drawer edits a full `ChartConfig`. These helpers are pure so
    the drawer, the context menu and the tests all change a chart the same way:

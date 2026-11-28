@@ -45,3 +45,8 @@ The hosted page and the portable file make no network request: the build is
 audited in a real browser with every request recorded. The only outbound links
 are the menu shortcuts to the project's home pages, and they are opened only
 when a person clicks them.
+
+Contact
+-------
+  HD2Lab      https://hyangdan2.github.io/
+  enquiries   hyperdimensionaldesignlab@gmail.com

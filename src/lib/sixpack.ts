@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Capability Sixpack
+   Statelia — Capability Sixpack
    Six linked views of one process: the location chart, its dispersion chart,
    the last 25 subgroups, the capability histogram, the normal probability plot
    and the capability summary. Subgroup size 1 uses I-MR; 2–10 uses Xbar-R (the

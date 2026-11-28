@@ -1,4 +1,4 @@
-/* Sigrún follow-up QA — live browser E2E for the chart rules and sheet
+/* Statelia follow-up QA — live browser E2E for the chart rules and sheet
    transforms (QA-U-01…09) against the built app served by `vite preview`. */
 const path = require('path');
 const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.cjs');

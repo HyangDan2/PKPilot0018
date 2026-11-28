@@ -16,7 +16,7 @@ const buildDate = process.env.SOURCE_DATE_EPOCH
   ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000).toISOString().slice(0, 10)
   : new Date().toISOString().slice(0, 10);
 
-// Sigrún is published under a GitHub Pages project sub-path by default; a
+// Statelia is published under a GitHub Pages project sub-path by default; a
 // customer build can state its own base with VITE_BASE_PATH (root, sub-path).
 export default defineConfig({
   base: basePathFor(edition, process.env.VITE_BASE_PATH || process.env.BASE_PATH),

@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — deployment base path (WO-FINAL-001 · WO-04)
+   Statelia — deployment base path (WO-FINAL-001 · WO-04)
 
    The same source tree is published at a GitHub Pages sub-path, at a server
    root, under a customer-chosen sub-path, and as one portable file opened from

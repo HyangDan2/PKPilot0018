@@ -1,4 +1,4 @@
-# Sigrún Enterprise Edition — 구조
+# Enterprise Edition — 구조
 
 > **작업지시**: WO-FINAL-001 · WO-04(엔터프라이즈 구성) · WO-05(오프라인/보안 검증)  
 > **기준 커밋**: `f83b03b` (2026-11-25, 브랜치 `fix/phase3-final-stabilization`)  
@@ -68,7 +68,7 @@ VITE_EDITION=enterprise VITE_BASE_PATH=/ npm run build   # 엔터프라이즈판
 
 - **웹(공개판)** — 페이지가 만드는 요청 5건 모두 자기 origin. 외부 링크는 사용자가 눌러야 이동하는 anchor뿐이며, 페이지가 스스로 fetch하지 않는다(성능 타임라인과 교차 확인).
 - **Portable** — `file://`로 열고 HTTP(S) 요청 **0건**. 실패한 하위 리소스의 네트워크 재시도도 없다. 쓰는 저장 키는 자기 것뿐.
-- **엔터프라이즈** — 외부 메뉴 링크 부재, 자기 서버 밖 요청 0건, 설정이 `sigrun.enterprise.*`에만 저장, manifest 이름이 "Sigrún Enterprise — Statistical Workspace".
+- **엔터프라이즈** — 외부 메뉴 링크 부재, 자기 서버 밖 요청 0건, 설정이 `sigrun.enterprise.*`에만 저장, manifest 이름이 "Sigrún Enterprise — Statistical Workspace" (사내 전용 브랜드, 공개 제품과 별개).
 
 검증 도구는 [tools/qa_network_audit.cjs](../../tools/qa_network_audit.cjs)이며, 엔터프라이즈 빌드는 `VITE_EDITION=enterprise VITE_BASE_PATH=/`로 그 자리에서 빌드해 연다.
 
@@ -84,7 +84,7 @@ VITE_EDITION=enterprise VITE_BASE_PATH=/ npm run build   # 엔터프라이즈판
 
 ## 7. 알려진 제약
 
-- 릴리스 산출물 파일명은 `Sigrun-<release>-*`로 고정돼 있다(`tools/release.mjs`의 `nameFor`). 엔터프라이즈 파생 저장소에서 이름 규칙을 바꾸려면 이 함수만 고치면 된다.
+- 릴리스 산출물 파일명은 제품 레코드의 이름을 따라 `<제품>-<release>-*`로 만들어진다(`tools/release.mjs`의 `nameFor`): 공개 에디션은 `Statelia-v1.0.0*`, 사내 에디션은 자기 `APP_NAME`을 쓴다. 엔터프라이즈 파생 저장소에서 이름 규칙을 바꾸려면 이 함수만 고치면 된다.
 - 정적 서버·TLS·접근 제어는 고객 인프라의 몫이다. 제품은 백엔드·API 키·외부 인증을 요구하지 않는다.
 - 통계 엔진과 화면은 공개판과 **동일한 코드**다. 엔터프라이즈판의 통계 검증은 공개판의 QA(단위 1,215, 독립 통계 225/225)로 갈음한다.
 - 이 문서는 구조를 설명하며, 후속 저장소 `PKPilot0018E0001`은 만들지 않았다.

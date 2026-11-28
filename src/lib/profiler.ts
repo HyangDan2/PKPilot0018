@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — the prediction profiler's curves (WO-06), Stage 3C corrected
+   Statelia — the prediction profiler's curves (WO-06), Stage 3C corrected
 
    A profiler answers "what happens to every response if I move this one
    factor?" — one small conditional curve per (response, factor) pair. The

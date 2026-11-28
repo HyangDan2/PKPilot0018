@@ -1,4 +1,4 @@
-/* Sigrún — offline & enterprise security qualification (WO-FINAL-001 · WO-05)
+/* Statelia — offline & enterprise security qualification (WO-FINAL-001 · WO-05)
 
    A string search for "http" cannot prove a page stays offline: the URL can be
    built at runtime. This audit opens the real builds in a real browser, records
@@ -113,7 +113,7 @@ async function auditWeb(browser) {
 }
 
 async function auditPortable(browser) {
-  const html = path.join(ROOT, 'dist-portable', 'sigrun-portable.html');
+  const html = path.join(ROOT, 'dist-portable', 'statelia-portable.html');
   if (!fs.existsSync(html)) { check('portable: single-file build exists', false, html); return; }
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();

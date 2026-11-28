@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — process capability
+   Statelia — process capability
    Cp / Cpk / Pp / Ppk with within (short-term) and overall (long-term)
    sigma, expected and observed PPM, Cpm and sigma level.
 

@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Tutorial session guard and project comparison (WO-TQA-01/02/07/09/10/13)
+   Statelia — Tutorial session guard and project comparison (WO-TQA-01/02/07/09/10/13)
 
    These tests exercise the pieces the corrective pass added: the record-by-record
    project comparison, the guarded copy of the reader's own project, the practice

@@ -1,6 +1,6 @@
-/* Sigrún — portable (single-file) build.
+/* Statelia — portable (single-file) build.
 
-   `npm run build:portable` produces dist-portable/sigrun-portable.html: one
+   `npm run build:portable` produces dist-portable/statelia-portable.html: one
    HTML file that carries the whole application — the IIFE bundle, the CSS and
    the icon — and opens from a file:// URL with no Node, no Python and no
    network. A ZIP with the same file (plus a short read-me) is written next to
@@ -8,7 +8,7 @@
 
    Steps
      1. vite build with vite.portable.config.ts   (iife, one chunk, ./ base)
-     2. inline sigrun.js + sigrun.css into the built HTML
+     2. inline the bundle and the stylesheet into the built HTML
      3. drop the icon into the head as a data: URL
      4. write the ZIP (python3 zipfile — the sandbox has no `zip` binary)
 
@@ -24,8 +24,8 @@ import { buildManifest, readCommit, releaseDirectory, resolveBuildDate } from '.
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'dist-portable');
 const RAW = path.join(OUT, '_raw');
-const HTML_NAME = 'sigrun-portable.html';
-const ZIP_NAME = 'sigrun-portable.zip';
+const HTML_NAME = 'statelia-portable.html';
+const ZIP_NAME = 'statelia-portable.zip';
 const INFO_NAME = 'build-info.json';
 /* An optional copy for a release folder: asked for by name, never assumed. */
 const RELEASE_DIR = releaseDirectory(process.env, ROOT);
@@ -58,12 +58,12 @@ execFileSync(process.execPath, [vite, 'build', '--config', 'vite.portable.config
 });
 
 const rawHtml = path.join(RAW, 'portable.html');
-const rawJs = path.join(RAW, 'sigrun.js');
-const rawCss = path.join(RAW, 'sigrun.css');
+const rawJs = path.join(RAW, 'statelia.js');
+const rawCss = path.join(RAW, 'statelia.css');
 const rawProduct = path.join(RAW, 'product.json');
 assert(fs.existsSync(rawHtml), 'portable.html was not produced');
-assert(fs.existsSync(rawJs), 'sigrun.js was not produced');
-assert(fs.existsSync(rawCss), 'sigrun.css was not produced');
+assert(fs.existsSync(rawJs), 'statelia.js was not produced');
+assert(fs.existsSync(rawCss), 'statelia.css was not produced');
 assert(fs.existsSync(rawProduct), 'product.json was not produced');
 /* The edition record the build used: the README and the manifest read the
    product's own name and owner instead of repeating them here. */
@@ -85,8 +85,8 @@ const css = fs.readFileSync(rawCss, 'utf8');
 assert(!/<\/script/i.test(js), 'the bundle contains a literal </script> and cannot be inlined as-is');
 assert(!/<\/style/i.test(css), 'the stylesheet contains a literal </style> and cannot be inlined as-is');
 
-const moduleTag = /<script type="module"[^>]*src="\.\/sigrun\.js"[^>]*><\/script>/;
-const linkTag = /<link rel="stylesheet"[^>]*href="\.\/sigrun\.css"[^>]*>/;
+const moduleTag = /<script type="module"[^>]*src="\.\/statelia\.js"[^>]*><\/script>/;
+const linkTag = /<link rel="stylesheet"[^>]*href="\.\/statelia\.css"[^>]*>/;
 assert(moduleTag.test(html), 'the module <script> tag was not found in portable.html');
 assert(linkTag.test(html), 'the stylesheet <link> was not found in portable.html');
 
@@ -136,11 +136,11 @@ const readme = `${SHORT} — Portable Build${PRODUCT.BRAND_NAME ? ` (${PRODUCT.B
 This folder carries the portable build of ${PRODUCT.APP_NAME} (${PRODUCT.PRODUCT_ID}), the
 pure-browser statistical and quality workspace.
 
-  sigrun-portable.html    the entire application in one file
+  statelia-portable.html  the entire application in one file
 
 How to run it
 -------------
-1. Copy sigrun-portable.html anywhere on your machine.
+1. Copy statelia-portable.html anywhere on your machine.
 2. Double-click it, or drag it into Microsoft Edge or Google Chrome.
 
 That is all. There is nothing to install: no Node.js, no Python, no server,
@@ -175,6 +175,10 @@ edition     ${PRODUCT.EDITION_ID}
 generated   ${BUILT_AT.toISOString()}
 size        ${bytes} bytes
 sha256      ${sha}
+
+Contact
+-------
+${[PRODUCT.HOMEPAGE_URL && `home        ${PRODUCT.HOMEPAGE_URL}`, PRODUCT.CONTACT_EMAIL && `enquiries   ${PRODUCT.CONTACT_EMAIL}`].filter(Boolean).join('\n') || 'none published for this edition'}
 
 ${OWNER_LINE}
 `;
@@ -216,7 +220,7 @@ year, month, day = (int(part) for part in stamp[:10].split('-'))
 hour, minute, second = (int(part) for part in stamp[11:19].split(':'))
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
     for name in ('${HTML_NAME}', 'README.txt', '${INFO_NAME}'):
-        entry = zipfile.ZipInfo('sigrun-portable/' + name, (year, month, day, hour, minute, second))
+        entry = zipfile.ZipInfo('statelia-portable/' + name, (year, month, day, hour, minute, second))
         entry.compress_type = zipfile.ZIP_DEFLATED
         # A fixed attribute byte keeps the archive identical between runs.
         entry.external_attr = 0o644 << 16

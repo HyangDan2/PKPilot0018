@@ -1,4 +1,4 @@
-/* Sigrún — Tutorial original-project guard probe (WO-TQA-01 / WO-TQA-02)
+/* Statelia — Tutorial original-project guard probe (WO-TQA-01 / WO-TQA-02)
 
    Measures what the running app does to the reader's own project when a practice
    starts and ends. Every check states the corrected behaviour, so this script is

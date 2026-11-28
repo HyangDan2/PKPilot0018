@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — built-in sample datasets
+   Statelia — built-in sample datasets
 
    The datasets themselves live in `src/samples/` with their metadata, so the
    File menu, the Sample Library and the tutorial system all read one registry.

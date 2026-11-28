@@ -1,6 +1,6 @@
-# Sigrún — Stored Model 관리자 설계 (Stage 3A / WO-02 · Stage 3B–3C 연결 · Stage 3E 확인)
+# Statelia — Stored Model 관리자 설계 (Stage 3A / WO-02 · Stage 3B–3C 연결 · Stage 3E 확인)
 
-> **대상**: `HD2Lab Sigrún` (`HyangDan2/PKPilot0018`), Stage 3A부터 Phase 3 끝까지
+> **대상**: `HD2Lab Statelia` (`HyangDan2/PKPilot0018`), Stage 3A부터 Phase 3 끝까지
 > **모듈**: `src/lib/modelStore.ts` · `src/lib/modelPredictor.ts` · `src/lib/predictionAdapter.ts` · `src/components/ModelManager.tsx`
 > **목적**: 분석에서 적합된 모형을 독립적으로 보관하고, 후속 실행(등고선·표면·최적화)에서 **재적합 없이** 재사용한다.
 

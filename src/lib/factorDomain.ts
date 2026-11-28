@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — the factor domain (Stage 3C correction)
+   Statelia — the factor domain (Stage 3C correction)
 
    One module answers "which values may this factor take?" for the optimiser,
    the profiler and every other search, so a step means one thing everywhere.

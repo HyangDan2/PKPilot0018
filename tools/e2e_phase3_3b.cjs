@@ -1,4 +1,4 @@
-/* Sigrún — Stage 3B E2E: 3D surface (WebGL + fallback) and overlaid contour.
+/* Statelia — Stage 3B E2E: 3D surface (WebGL + fallback) and overlaid contour.
 
    Local:  BASE=http://127.0.0.1:4190/PKPilot0018/ node tools/e2e_phase3_3b.cjs
    Live:   BASE=https://hyangdan2.github.io/PKPilot0018/ node tools/e2e_phase3_3b.cjs

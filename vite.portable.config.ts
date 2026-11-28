@@ -16,7 +16,7 @@ const buildDate = process.env.SOURCE_DATE_EPOCH
   ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000).toISOString().slice(0, 10)
   : new Date().toISOString().slice(0, 10);
 
-/* Sigrún — portable (single-file) build.
+/* Statelia — portable (single-file) build.
  *
  * The GitHub Pages build in vite.config.ts publishes ES modules under a site
  * path. A browser opening a page from file:// refuses those: module scripts are
@@ -55,8 +55,8 @@ export default defineConfig({
       output: {
         format: 'iife',
         inlineDynamicImports: true,
-        entryFileNames: 'sigrun.js',
-        assetFileNames: 'sigrun.[ext]',
+        entryFileNames: 'statelia.js',
+        assetFileNames: 'statelia.[ext]',
       },
     },
   },

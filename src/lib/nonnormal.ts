@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — nonnormal distribution fitting and capability
+   Statelia — nonnormal distribution fitting and capability
    Maximum-likelihood fits for the 2-parameter Weibull, lognormal and gamma
    distributions, the Anderson–Darling goodness-of-fit statistic with the
    published critical values for estimated parameters, and the percentile

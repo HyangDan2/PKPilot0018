@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — worksheet selection model
+   Statelia — worksheet selection model
 
    The grid used to keep a single anchor cell plus one rectangle. That cannot
    express Shift-click extension, Ctrl-click multi-selection or whole rows and

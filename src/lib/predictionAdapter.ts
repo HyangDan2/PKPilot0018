@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — the prediction adapter (Stage 3C, F-3C-03)
+   Statelia — the prediction adapter (Stage 3C, F-3C-03)
 
    Every prediction the optimiser and the profiler make passes through this
    module. It is the single engine on the Stage-3C side:

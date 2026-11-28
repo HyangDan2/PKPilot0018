@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Stage 3B renderers (WO-03 / WO-04)
+   Statelia — Stage 3B renderers (WO-03 / WO-04)
 
    `drawSurface` paints a 3-D surface as a static projection: this is the
    picture every export and print path produces, and the automatic fallback

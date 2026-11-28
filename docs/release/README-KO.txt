@@ -44,3 +44,8 @@ SHA256SUMS.txt 자신을 제외한 모든 파일의 해시가 들어 있습니�
 호스팅 페이지와 포터블 파일은 네트워크 요청을 하지 않습니다. 실제 브라우저에서
 모든 요청을 기록해 감사했습니다. 외부로 나가는 것은 메뉴의 프로젝트 홈페이지
 바로가기뿐이며, 사용자가 클릭할 때만 열립니다.
+
+문의
+----
+  HD2Lab      https://hyangdan2.github.io/
+  문의 메일   hyperdimensionaldesignlab@gmail.com

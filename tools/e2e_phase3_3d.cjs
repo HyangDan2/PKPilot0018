@@ -1,4 +1,4 @@
-/* Sigrún — Stage 3D E2E: graph layout editor, advanced scale/contour/series
+/* Statelia — Stage 3D E2E: graph layout editor, advanced scale/contour/series
    options, and chart interaction (zoom, pan, crosshair, cursor, selection).
 
    Local:  BASE=http://127.0.0.1:4190/PKPilot0018/ node tools/e2e_phase3_3d.cjs

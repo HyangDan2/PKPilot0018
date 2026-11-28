@@ -1,4 +1,4 @@
-/* Sigrún — Stage 3E performance QA.
+/* Statelia — Stage 3E performance QA.
 
    Measures the numbers the Stage 3E report has to state, on the same bundle
    GitHub Pages serves, in the same headless Chromium the other suites use:

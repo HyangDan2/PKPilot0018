@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — advanced axis scales and broken axes (Stage 3D, WO-08)
+   Statelia — advanced axis scales and broken axes (Stage 3D, WO-08)
 
    The chart renderer keeps one mapping per axis: data value → pixel. This
    module owns the two pieces that make that mapping more than a straight line:

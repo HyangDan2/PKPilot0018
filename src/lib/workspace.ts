@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — workspace layouts (Stage 3)
+   Statelia — workspace layouts (Stage 3)
 
    Three desktop arrangements, plus the phone/tablet tab layout that the
    stylesheet already owns. Classic is the Phase 1 shell and therefore the

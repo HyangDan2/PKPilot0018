@@ -1,4 +1,4 @@
-/* Sigrún — Stage 3E integrated E2E runner.
+/* Statelia — Stage 3E integrated E2E runner.
 
    Starts one static server for dist/ and runs the suites in this repository
    against it, one after another, so a single command answers "does the whole

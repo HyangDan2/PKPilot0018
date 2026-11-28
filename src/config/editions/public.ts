@@ -1,10 +1,10 @@
 /* Public edition — Statelia, the HD2Lab statistical engineering suite.
 
-   WO-BRAND-001 renames the public product from Sigrún (legacy name) to
-   Statelia and names its engine Sigrdrifa Engine. Everything the statistical
-   engine, the project schema and the storage keys depend on is unchanged: the
-   storage namespace stays empty, so every key a previous build wrote is read
-   here as before, and the project format keeps its `sigrun-project` name. */
+   The public product is Statelia and its engine is Sigrdrifa Engine.
+   Everything the statistical engine, the project schema and the storage keys
+   depend on is unchanged: the storage namespace stays empty, so every key a
+   previous build wrote is read here as before, and the project format keeps its
+   `sigrun-project` name for files written by those builds. */
 
 import type { ProductEdition } from '../product';
 
@@ -25,6 +25,8 @@ export const PUBLIC_EDITION: ProductEdition = {
   CANONICAL_URL: 'https://hyangdan2.github.io/PKPilot0018/',
   REPOSITORY_URL: 'https://github.com/HyangDan2/PKPilot0018',
   HOMEPAGE_URL: 'https://hyangdan2.github.io/',
+  // FIX-02: the one public enquiry address. The personal mailbox is never used.
+  CONTACT_EMAIL: 'hyperdimensionaldesignlab@gmail.com',
   // Empty: the public keys stay exactly as previous builds wrote them.
   STORAGE_NAMESPACE: '',
   EXPORT_FILE_PREFIX: 'statelia',

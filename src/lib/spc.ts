@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — statistical process control
+   Statelia — statistical process control
    I-MR, Xbar-R, Xbar-S, P, NP, C and U charts with the eight Nelson rules.
    ───────────────────────────────────────────────────────────────────────── */
 

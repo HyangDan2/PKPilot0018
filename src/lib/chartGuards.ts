@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — configuration guards (WO-01/7)
+   Statelia — configuration guards (WO-01/7)
 
    A chart configuration can arrive from three places that do not share a
    type checker: the properties drawer (a text field the reader typed into), a

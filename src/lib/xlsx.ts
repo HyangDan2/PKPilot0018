@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Excel (.xlsx) interchange
+   Statelia — Excel (.xlsx) interchange
    Pure-browser OOXML through `read-excel-file` / `write-excel-file` (both ship
    a fflate-based writer/reader with no Node polyfills). A workbook's sheets
    become worksheets: the first row is the header, numbers / text / dates are

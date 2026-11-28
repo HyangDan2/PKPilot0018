@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — statistical engine
+   Statelia — statistical engine
    Descriptive statistics, Anderson–Darling normality, t-tests, one-way
    ANOVA with Tukey HSD, and ordinary least squares regression with VIF.
    ───────────────────────────────────────────────────────────────────────── */

@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — build plugin (WO-FINAL-001 · WO-04)
+   Statelia — build plugin (WO-FINAL-001 · WO-04)
 
    Chooses the edition at build time, substitutes the product tokens in the
    HTML shell, and emits the PWA manifest from the same edition record. The

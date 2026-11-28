@@ -1,4 +1,4 @@
-# Phase 4 백로그 — Sigrún (Minitab 기능 격차 감사의 후속 개발 계획)
+# Phase 4 백로그 — Statelia (Minitab 기능 격차 감사의 후속 개발 계획)
 
 - 기준: `43b0b071cf010352d8add7600dfa29d158a2b3e3` · 감사일 2026-11-24 · Minitab 22.6.x
 - 대상 기능: `docs/audit/minitab-gap-matrix.json` 에서 `Target Phase = Phase 4` 인 Minitab 기능

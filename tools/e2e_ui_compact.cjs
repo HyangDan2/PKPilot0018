@@ -1,4 +1,4 @@
-/* Sigrún compact top bar · sample-dropdown layer · chart clipboard ·
+/* Statelia compact top bar · sample-dropdown layer · chart clipboard ·
    floating panels · layout presets — live browser E2E against the built app.
 
    The sandbox runs Chromium in single-process mode, so the run is split:

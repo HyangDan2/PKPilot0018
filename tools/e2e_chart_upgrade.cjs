@@ -1,4 +1,4 @@
-/* Sigrún — Phase 2 chart upgrade E2E + visual verification.
+/* Statelia — Phase 2 chart upgrade E2E + visual verification.
 
    Runs the built app in a real browser at desktop (1440×900) and mobile
    (390×844) sizes, exercises the chart drawer, style presets, contour modes,

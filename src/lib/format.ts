@@ -1,4 +1,4 @@
-/* Sigrún — number formatting */
+/* Statelia — number formatting */
 
 export function fmt(x: number | null | undefined, digits = 4): string {
   if (x === null || x === undefined) return '*';

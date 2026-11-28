@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Gage R&R (measurement systems analysis)
+   Statelia — Gage R&R (measurement systems analysis)
    Crossed study: every operator measures every part. Nested study: each
    operator measures its own set of parts and parts never meet another
    operator. ANOVA-based variance components, Minitab's %Study Var layout and

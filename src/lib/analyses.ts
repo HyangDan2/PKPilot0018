@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — analysis registry
+   Statelia — analysis registry
    Each entry declares its dialog slots (Minitab style) and a pure run
    function that turns worksheet columns into output blocks.
    ───────────────────────────────────────────────────────────────────────── */

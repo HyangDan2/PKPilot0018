@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — worksheet structural edits
+   Statelia — worksheet structural edits
 
    Row/column/cell inserts, deletes, duplicate, type changes, sorting and
    find & replace. Every function returns a NEW worksheet and leaves the input

@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — professional chart export (WO-10)
+   Statelia — professional chart export (WO-10)
 
    One chart becomes a standalone document: no `var(--…)`, no page theme, an
    explicit pixel box and the physical size the author asked for. The PNG

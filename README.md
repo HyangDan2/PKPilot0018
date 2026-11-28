@@ -4,11 +4,13 @@ A statistical engineering suite that runs entirely in the browser on **Sigrdrifa
 Engine v1.0**. No backend, no upload, no account: every table and chart is
 computed in the tab.
 
-Statelia is the current product name of the formerly **Sigrún** project: the
-repository, the Pages URL, the `.sigrun.json` project format and every storage
-key stay as they are, so projects written by any earlier build open unchanged.
+Statelia keeps the repository, the Pages URL, the `.sigrun.json` project format
+and the storage keys of earlier builds, so a project written by an earlier build
+opens unchanged.
 
 **Live:** https://hyangdan2.github.io/PKPilot0018/
+
+**HD2Lab:** https://hyangdan2.github.io/ · **Contact:** hyperdimensionaldesignlab@gmail.com
 
 **Correctness review:** [docs/CODE_REVIEW_REMEDIATION_REPORT.md](docs/CODE_REVIEW_REMEDIATION_REPORT.md) — P0/P1/GLM-DOE-RSM fixes with their SciPy/statsmodels references and the QA-01…QA-15 matrix.
 

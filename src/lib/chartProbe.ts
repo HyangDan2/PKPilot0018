@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — chart probing for the hover / tap readout (WO-09)
+   Statelia — chart probing for the hover / tap readout (WO-09)
 
    A plotted point carries its own `data-x` / `data-y` / `data-z`. Between the
    points, a contour plot interpolates the same grid it was drawn from, so the

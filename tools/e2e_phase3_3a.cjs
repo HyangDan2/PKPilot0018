@@ -1,4 +1,4 @@
-/* Sigrún — Stage 3A E2E: stored model manager, PNG resolution metadata,
+/* Statelia — Stage 3A E2E: stored model manager, PNG resolution metadata,
    chart isolation and the hostile-configuration guard.
 
    Local:  BASE=http://127.0.0.1:4190/PKPilot0018/ node tools/e2e_phase3_3a.cjs

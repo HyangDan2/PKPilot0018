@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — overlaid contour and the joint feasible region (WO-04)
+   Statelia — overlaid contour and the joint feasible region (WO-04)
 
    Several fitted responses are evaluated on ONE factor grid, each with its own
    specification, and the points where every specification holds at once form

@@ -1,6 +1,6 @@
-/* Sigrún — Portable tutorial E2E (WO-3E-11 / WO-T11)
+/* Statelia — Portable tutorial E2E (WO-3E-11 / WO-T11)
 
-   Opens dist-portable/sigrun-portable.html from a real file:// URL, runs a
+   Opens dist-portable/statelia-portable.html from a real file:// URL, runs a
    lesson end to end and fails on any request that leaves the file: scheme.
    This is the check that the Sample, Help and Tutorial registries were bundled
    at build time rather than fetched.
@@ -12,7 +12,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const { launchBrowser } = require('./e2e_browser.cjs');
 
-const FILE = path.resolve(__dirname, '..', 'dist-portable', 'sigrun-portable.html');
+const FILE = path.resolve(__dirname, '..', 'dist-portable', 'statelia-portable.html');
 const SHOTS = process.env.SHOTS || path.resolve(__dirname, '..', 'artifacts', 'tutorial-shots');
 const results = [];
 const record = (name, ok, detail) => { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} · ${name}${detail ? ` · ${detail}` : ''}`); };

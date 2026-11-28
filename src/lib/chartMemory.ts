@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — chart configuration memory across re-runs (WO-01/3, WO-01/4)
+   Statelia — chart configuration memory across re-runs (WO-01/3, WO-01/4)
 
    A reader styles a chart (axis range, RSM factor pair, colours) and then
    re-runs the analysis with new data. The numbers must refresh, the styling

@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   HD2Lab Sigrún — design tokens
+   HD2Lab Statelia — design tokens
    The single place a skin is defined. Values mirror HD2's Diary
-   (hyangdan2.github.io/diary) so Sigrún inherits the same design language:
+   (hyangdan2.github.io/diary) so Statelia inherits the same design language:
    Soft Iris (light, default) and Navy & Lavender (dark).
    Every colour, radius, shadow, type and chart series used by the app is a
    variable here — swap this file to re-skin the whole workspace.

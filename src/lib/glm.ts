@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — general linear model engine
+   Statelia — general linear model engine
    One least-squares core shared by multi-way ANOVA, factorial DOE and
    response-surface analysis. Categorical factors use SUM-TO-ZERO (deviation)
    coding — level i = 1, last level = −1 — because the adjusted (Type III) SS

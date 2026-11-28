@@ -1,4 +1,4 @@
-/* Sigrún — release artefact rules (build manifest, ZIP timestamps).
+/* Statelia — release artefact rules (build manifest, ZIP timestamps).
 
    Pure functions, so the rules can be tested without running a build:
    `tests/phase3e-corrective.test.ts` asserts the clamp, the reproducibility and
@@ -69,7 +69,7 @@ export function fileSha256(file) {
 export function buildManifest(fields) {
   const builtAt = fields.builtAt instanceof Date ? fields.builtAt : new Date(fields.builtAt);
   return {
-    name: fields.name ?? 'HD2Lab Sigrún',
+    name: fields.name ?? 'HD2Lab Statelia',
     version: fields.version ?? '0.0.0',
     phase: fields.phase ?? 'Phase 3',
     commit: fields.commit ?? 'unknown',

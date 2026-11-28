@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — the multi-response optimiser (WO-05), Stage 3C corrected
+   Statelia — the multi-response optimiser (WO-05), Stage 3C corrected
 
    Given several stored models that share their factors, a goal per response and
    a search space per factor, find the factor settings whose predictions are as

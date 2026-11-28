@@ -1,4 +1,4 @@
-/* Sigrún — one browser for the E2E suites.
+/* Statelia — one browser for the E2E suites.
 
    Resolution order, all overridable and all discoverable:
      1. CHROME_PATH with the libraries in CHROME_LIBS (if any)

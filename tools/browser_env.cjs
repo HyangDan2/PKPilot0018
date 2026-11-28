@@ -1,4 +1,4 @@
-/* Sigrún — the one place the browser environment is resolved.
+/* Statelia — the one place the browser environment is resolved.
 
    The E2E suites need two things that a repository cannot carry: a browser
    binary and, on a bare Linux image, the shared libraries that binary links

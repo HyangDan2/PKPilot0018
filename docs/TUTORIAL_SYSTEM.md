@@ -1,4 +1,4 @@
-# Sigrún Guided Tutorial System — WO-3E-11
+# Statelia Guided Tutorial System — WO-3E-11
 
 > 저장소: `HyangDan2/PKPilot0018` · 브랜치: `feat/phase3e-guided-tutorial`
 > 선행: WO-3E-09 Sample Data Library, WO-3E-10 Help Center (이 브랜치에 함께 구현)
@@ -55,10 +55,10 @@ src/
 
 | 위치 | 동작 |
 | --- | --- |
-| 도움말 ▸ 튜토리얼 / 툴바 **시그룬 배우기** / `Ctrl+L` | 튜토리얼 라이브러리 |
+| 도움말 ▸ 튜토리얼 / 툴바 **스타텔리아 배우기** / `Ctrl+L` | 튜토리얼 라이브러리 |
 | 도움말 ▸ 도움말 센터, 도움말 모달의 버튼 | Help Center (문서별 **실습** 버튼) |
 | 샘플 데이터 메뉴 / 툴바 드롭다운 ▸ **샘플 라이브러리** | 샘플 라이브러리 (관련 튜토리얼 포함) |
-| 빈 워크시트 상태 | 툴바의 **시그룬 배우기**가 강조 표시 |
+| 빈 워크시트 상태 | 툴바의 **스타텔리아 배우기**가 강조 표시 |
 
 ---
 
@@ -66,7 +66,7 @@ src/
 
 | ID | 제목 | 난이도 | 시간 | 단계 | 자동 검증 |
 | --- | --- | --- | --- | --- | --- |
-| `tutorial-start-001` | Getting Started with Sigrún | 입문 | 5분 | 4 | 3 + 수동 1 |
+| `tutorial-start-001` | Getting Started with Statelia | 입문 | 5분 | 4 | 3 + 수동 1 |
 | `tutorial-data-001` | Worksheet & Data Management | 입문 | 5분 | 6 | 5 + 수동 1 |
 | `tutorial-normality-001` | Descriptive Statistics & Normality | 초급 | 5분 | 5 | 4 + 수동 1 |
 | `tutorial-hypothesis-001` | Hypothesis Testing | 초급 | 10분 | 5 | 4 + 수동 1 |
@@ -201,7 +201,7 @@ Tutorial ──sampleIds──▶ Sample(id, variables[], synthetic, build())
 
 | 파일 | 화면 |
 | --- | --- |
-| `00-start-empty.png` | 빈 시작 화면(툴바 '시그룬 배우기') |
+| `00-start-empty.png` | 빈 시작 화면(툴바 '스타텔리아 배우기') |
 | `01-tutorial-library.png` | 튜토리얼 라이브러리(12개) |
 | `01b-tutorial-search.png` | 키워드 검색('optimization') |
 | `01c-tutorial-library-ko.png` | 한국어 라이브러리 |
@@ -265,7 +265,7 @@ E2E가 확인한 것: 라이브러리 12개·검색, 샘플 8종, 도움말 23�
 - **병합 커밋 (main): `b3a792f8b6deff4b0347b1a1b2767a125910389e`** — `feat(phase3e): WO-3E-11 guided tutorial system with sample library and help center (#32)`
 - 병합 시각: 2026-11-24T14:04:29Z
 - GitHub Actions (main, 병합 커밋):
-  - `Deploy Sigrún to GitHub Pages` — **success** (run 45410062875)
+  - `Deploy Statelia to GitHub Pages` — **success** (run 45410062875)
   - `Statistics QA (independent reference)` — **success** (run 45410062728)
   - PR 검사 `qa-stats` — **success** (run 45409791603)
 - 배포 확인: <https://hyangdan2.github.io/PKPilot0018/> 에서 라이브러리 12개·실습 시작·샘플 로드 검증 통과 (`10-live.png`)

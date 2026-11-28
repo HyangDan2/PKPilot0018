@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Calc column formula engine
+   Statelia — Calc column formula engine
    A small, dependency-free expression parser:
      C1 * 2 + 1, (C2 - MEAN(C2)) / STDEV(C2), SQRT(C1), ROUND(C3, 2), …
    Aggregate functions collapse the expression to a single stored value.

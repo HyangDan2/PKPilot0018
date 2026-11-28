@@ -22,7 +22,7 @@ Round 2(R-06)에서 이 문서를 최신 `main` 기준으로 다시 점검했고
 현재 파일과 같고, 바뀌는 곳은 `npm install --no-audit --no-fund` → **`npm ci`** 와 `cache: npm` 추가 두 곳뿐이다.
 
 ```yaml
-name: Deploy Sigrún to GitHub Pages
+name: Deploy Statelia to GitHub Pages
 
 on:
   push:

@@ -2,31 +2,35 @@
 
 Build: %VERSION% · %RELEASE_ID% · commit %COMMIT%
 
-Statelia (formerly Sigrún) is a pure-browser statistical engineering suite
+Statelia is a pure-browser statistical engineering suite
 powered by Sigrdrifa Engine v1.0. This release is the Phase 3 final
 stabilization, enterprise-readiness and branding build (WO-FINAL-001, corrected
-under WO-FINAL-002; product identity under WO-BRAND-001). It adds no Phase 4
-features; the existing UI, analyses and chart behaviour are kept, and the fixes
-below close defects found by the corrective QA.
+under WO-FINAL-002; product identity under WO-BRAND-001 and its corrective
+order FIX-01…FIX-05). It adds no Phase 4 features; the existing UI, analyses and
+chart behaviour are kept, and the fixes below close defects found by the
+corrective QA.
 
 ## Branding and product identity (WO-BRAND-001)
 
 - The public product is **Statelia** (`스타텔리아`), the HD2Lab Statistical
   Engineering Suite; the analytical engine is shown as **Sigrdrifa Engine v1.0**.
-  Sigrún remains the legacy product name.
+  The product carries one identity across the app, the help and tutorial
+  content, the samples, the export names, the error messages and the release
+  files.
 - A startup splash shows the product for about 1.2 s and fades out over
   250–350 ms while the workspace restores underneath it; a failed restore is
   reported with a retry, and reduced-motion, mobile, desktop and image-failure
   cases each fall back to text.
 - Help ▸ About now states the product, category, engine, the five capability
   areas, and the build's version, commit, build date, licenses, known
-  limitations and repository links, with the generative-AI note.
+  limitations, repository, HD2Lab home page and the official contact address
+  (`hyperdimensionaldesignlab@gmail.com`), with the generative-AI note.
 - Release artefacts are named `Statelia-<release>.html`,
   `Statelia-<release>-Portable.zip` and `Statelia-<release>-Web.zip`.
 - **Compatibility is unchanged**: project files keep the `sigrun-project`
   format and `.sigrun.json` extension, storage keys keep their historical
-  names, and the engine's exported function names are untouched, so projects
-  written by any Sigrún build open here as before.
+  names, and the engine's exported function names are untouched, so a project
+  written by an earlier build opens here as before.
 
 ## Reliability
 
@@ -97,9 +101,13 @@ verification pass. Exact counts and outcomes are recorded in
 
 | file | what it is |
 | --- | --- |
-| `Sigrun-%RELEASE_ID%.html` | the whole application in one HTML file (file://, offline) |
-| `Sigrun-%RELEASE_ID%-Portable.zip` | that file with a read-me, zipped |
-| `Sigrun-%RELEASE_ID%-Web.zip` | the static web build (serve the folder) |
+| `%PRODUCT%-%RELEASE_ID%.html` | the whole application in one HTML file (file://, offline) |
+| `%PRODUCT%-%RELEASE_ID%-Portable.zip` | that file with a read-me, zipped |
+| `%PRODUCT%-%RELEASE_ID%-Web.zip` | the static web build (serve the folder) |
 | `SHA256SUMS.txt` | sha256 of every other file here |
 | `build-info.json` | build manifest: version, commit, bytes, hashes |
 | `LICENSES.txt` | every third-party package with its full license text and NOTICE files, plus the first-party content notice |
+
+## Contact
+
+HD2Lab — https://hyangdan2.github.io/ · hyperdimensionaldesignlab@gmail.com

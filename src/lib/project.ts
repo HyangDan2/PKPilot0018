@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — project files (.sigrun.json) and CSV interchange
+   Statelia — project files (.sigrun.json) and CSV interchange
    Legacy .mpx.json projects still load; Minitab's native binary .mpx is
    explicitly rejected with an explanation.
    ───────────────────────────────────────────────────────────────────────── */

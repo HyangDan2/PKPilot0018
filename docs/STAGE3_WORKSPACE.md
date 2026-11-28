@@ -1,6 +1,6 @@
 # Stage 3 — workspace arrangements, focus drawer, output menu
 
-Sigrún's Stage 3 turns the single stacked shell into three desktop arrangements while keeping the
+Statelia's Stage 3 turns the single stacked shell into three desktop arrangements while keeping the
 Phase 1 shell — **Classic** — as the default, so the two new ones are extras a visitor can pick.
 This note records what was built, where it lives, and how it is verified.
 

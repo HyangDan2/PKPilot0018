@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — stored fitted models (WO-02)
+   Statelia — stored fitted models (WO-02)
 
    An analysis produces a fitted model; a reader wants to keep it and use it
    again from Contour, Surface, the Optimizer or any later prediction. This

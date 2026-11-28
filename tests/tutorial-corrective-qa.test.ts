@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — Guided Tutorial Corrective QA (T-01 ~ T-13), Red → Green evidence
+   Statelia — Guided Tutorial Corrective QA (T-01 ~ T-13), Red → Green evidence
 
    This file states what a tutorial must verify. Every assertion here fails on
    the pre-correction tree (66efb29) and passes after the corrections, using only

@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — chart interaction model (Stage 3D, WO-09)
+   Statelia — chart interaction model (Stage 3D, WO-09)
 
    Everything the pointer does to a chart is arithmetic that can be tested
    without a browser: box zoom turns two pixels into a new domain, pan shifts

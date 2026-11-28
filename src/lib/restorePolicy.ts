@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — restore policy (WO-FINAL-002 · Q-01/Q-02)
+   Statelia — restore policy (WO-FINAL-002 · Q-01/Q-02)
 
    Putting a project back into memory is not the same as keeping it. Every
    path that restores the reader's project — the guarded copy after a reload,

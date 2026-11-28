@@ -1,7 +1,7 @@
 @import './tokens.css';
 
 /* ─────────────────────────────────────────────────────────────────────────
-   HD2Lab Sigrún — workspace shell
+   HD2Lab Statelia — workspace shell
    A precision analysis studio in the HD2's Diary visual language.
    ───────────────────────────────────────────────────────────────────────── */
 
@@ -71,7 +71,7 @@ a { color: inherit; }
 .menubar .header-spacer { flex: 1 1 auto; }
 
 /* The top bar keeps the official mark alone — the wordmark and the badge moved
-   to the Help ▸ About Sigrún banner, which gives the menu row its room back. */
+   to the Help ▸ About Statelia banner, which gives the menu row its room back. */
 .brand { display: inline-flex; align-items: center; gap: 0; min-width: 0; flex: 0 0 auto; padding: 0 6px 0 2px; }
 
 .brand-mark { display: inline-flex; align-items: center; justify-content: center; width: 21px; flex: 0 0 auto; }
@@ -108,7 +108,7 @@ a { color: inherit; }
   transform: translateY(-1px);
 }
 
-/* Help ▸ About Sigrún: the full lock-up, on its own banner above the description. */
+/* Help ▸ About Statelia: the full lock-up, on its own banner above the description. */
 .about-brand {
   display: flex;
   align-items: center;
@@ -141,7 +141,6 @@ a { color: inherit; }
 .about-category { margin: 0; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-secondary); }
 .about-engine { margin: 2px 0 0; display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--accent-text); }
 .about-engine-logo { height: 15px; width: auto; object-fit: contain; }
-.about-formerly { margin: 0; color: var(--text-secondary); }
 .about-section { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 10px; }
 .about-section h4 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); }
 .about-features { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }

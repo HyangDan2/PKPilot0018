@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — multi-response optimisation: the vocabulary (WO-05 / WO-06)
+   Statelia — multi-response optimisation: the vocabulary (WO-05 / WO-06)
 
    A response optimiser is a small contract between three things: what the
    reader wants from each response (its goal and limits), what each factor is

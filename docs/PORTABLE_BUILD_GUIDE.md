@@ -1,7 +1,7 @@
-# Sigrún Portable Build 안내 (WO-10)
+# Statelia Portable Build 안내 (WO-10)
 
-> **대상**: `HyangDan2/PKPilot0018` (HD2Lab Sigrún) — 브라우저에서만 도는 통계·품질 워크스페이스
-> **산출물**: `dist-portable/sigrun-portable.html` (단일 파일) · `dist-portable/sigrun-portable.zip` (같은 파일 + 안내문)
+> **대상**: `HyangDan2/PKPilot0018` (HD2Lab Statelia) — 브라우저에서만 도는 통계·품질 워크스페이스
+> **산출물**: `dist-portable/statelia-portable.html` (단일 파일) · `dist-portable/statelia-portable.zip` (같은 파일 + 안내문)
 > **명령**: `npm run build:portable`
 > **검증**: `tools/e2e_portable_offline.cjs` — 실제 `file://` URL, 네트워크 차단 상태에서 **63 / 63 PASS**
 > **재현성**: 같은 커밋 + 같은 `SOURCE_DATE_EPOCH` → 같은 ZIP (SHA-256 동일). 빌드 정보는 `dist-portable/build-info.json`
@@ -32,8 +32,8 @@ npm run build:portable        # → dist-portable/
 
 ```
 dist-portable/
-  sigrun-portable.html        1 241.8 kB — 애플리케이션 전체 (JS·CSS·아이콘 인라인)
-  sigrun-portable.zip         361.7 kB  — HTML + README.txt + build-info.json
+  statelia-portable.html        1 241.8 kB — 애플리케이션 전체 (JS·CSS·아이콘 인라인)
+  statelia-portable.zip         361.7 kB  — HTML + README.txt + build-info.json
   README.txt                  배포용 안내문 (빌드 시각·버전·해시 포함)
   build-info.json             name·version·phase·commit·builtAt·zipTimestamp·bytes·sha256·zip·tools
   _raw/                       중간 산출물 (인라인 전, 커밋하지 않음)
@@ -91,7 +91,7 @@ dist-portable/
 
 ## 4. file://에서 무엇이 동작하는가 (실측)
 
-`tools/e2e_portable_offline.cjs`가 Chromium을 `file:///…/sigrun-portable.html`로 열고, 컨텍스트를 **오프라인**으로 두고 `http(s)` 요청을 전부 abort한 상태에서 아래를 확인했다. **63 / 63 PASS**, 부팅 도중 네트워크 시도 **0건**.
+`tools/e2e_portable_offline.cjs`가 Chromium을 `file:///…/statelia-portable.html`로 열고, 컨텍스트를 **오프라인**으로 두고 `http(s)` 요청을 전부 abort한 상태에서 아래를 확인했다. **63 / 63 PASS**, 부팅 도중 네트워크 시도 **0건**.
 
 | 영역 | 확인한 것 |
 | --- | --- |
@@ -118,14 +118,14 @@ node tools/e2e_portable_offline.cjs
 
 ## 5. 배포와 사용
 
-1. `dist-portable/sigrun-portable.zip`을 전달한다.
-2. 받는 사람은 압축을 풀고 `sigrun-portable.html`을 더블클릭하거나 Edge/Chrome 창에 끌어다 놓는다.
+1. `dist-portable/statelia-portable.zip`을 전달한다.
+2. 받는 사람은 압축을 풀고 `statelia-portable.html`을 더블클릭하거나 Edge/Chrome 창에 끌어다 놓는다.
    (검증은 Chromium 엔진에서 했다. Edge는 같은 엔진이라 동작할 것으로 보지만 **이 저장소에서 직접 확인하지는 않았다** — §6.7)
 3. 파일을 옮겨도 그대로 동작한다(절대 경로·설치·레지스트리 없음).
 
 사내 배포 시 권장:
 
-- 파일 이름에 빌드 날짜를 붙여 여러 버전이 섞이지 않게 한다(예: `sigrun-portable-20261124.html`).
+- 파일 이름에 빌드 날짜를 붙여 여러 버전이 섞이지 않게 한다(예: `statelia-portable-20261124.html`).
 - 공유 드라이브에 두고 링크로 배포하면 사용자는 항상 최신 파일을 연다.
 - 각 파일에 `build-info.json`의 SHA-256을 함께 적어 두면, 현장에서 "어떤 빌드인지"를 확인할 수 있다.
 

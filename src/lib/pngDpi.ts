@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — PNG resolution metadata (WO-01/2)
+   Statelia — PNG resolution metadata (WO-01/2)
 
    A PNG has no header field for dots per inch: the physical resolution lives
    in a `pHYs` chunk that stores pixels per unit (metre) and a unit byte. The

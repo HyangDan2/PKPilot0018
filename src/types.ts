@@ -1,4 +1,4 @@
-/* Sigrún — shared types */
+/* Statelia — shared types */
 
 import type { SpcPanel } from './lib/spc';
 import type { CapabilityResult } from './lib/capability';

@@ -1,4 +1,4 @@
-/* Sigrún Stage 1 E2E — worksheet selection, context menus, + column header.
+/* Statelia Stage 1 E2E — worksheet selection, context menus, + column header.
    Runs its own static server for dist/, so no preview daemon is needed.
 
    PART=selection | menus | column | shots | all   (default all)

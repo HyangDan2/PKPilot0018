@@ -1,4 +1,4 @@
-/* Sigrún — Tutorial System E2E (WO-3E-11 / WO-T12)
+/* Statelia — Tutorial System E2E (WO-3E-11 / WO-T12)
 
    Runs the twelve lessons through their main execution path in a real browser,
    the flagship from data load to the completion summary, and the practice

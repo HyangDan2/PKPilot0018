@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — interactive SVG charts
+   Statelia — interactive SVG charts
 
    Phase 1 engine:
    · every render call owns its context (no module-level width / clip counter)

@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — contour geometry engine (WO-03 / WO-04 / WO-05)
+   Statelia — contour geometry engine (WO-03 / WO-04 / WO-05)
 
    Pure functions, no DOM and no dependency: Marching Squares over all sixteen
    cell cases with the asymptotic decider for the two saddle cases, segment

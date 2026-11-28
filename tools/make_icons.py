@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render Sigrún's HD2Lab brand icon set from the official dual-skew mark.
+"""Render Statelia's HD2Lab brand icon set from the official dual-skew mark.
 
 The mark is the HD2Lab brand lockup used in every hub and app header: two
 sheared frames (vertical sides, a 26.57° rise on the top/bottom edges) that

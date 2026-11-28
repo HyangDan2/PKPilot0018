@@ -58,7 +58,7 @@ describe('professional style presets (WO-07)', () => {
     ]));
   });
 
-  it('keeps Sigrún Classic on CSS variables and Engineering on literal colours', () => {
+  it('keeps the sigrun-classic preset id on CSS variables and Engineering on literal colours', () => {
     expect(CHART_STYLE_PRESETS['sigrun-classic'].series[0]).toBe('var(--chart-1)');
     expect(CHART_STYLE_PRESETS.engineering.series[0]).toBe('#1f4e79');
     expect(CHART_STYLE_PRESETS.engineering.axisColor).toBe('#1f2937');

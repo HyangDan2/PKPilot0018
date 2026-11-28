@@ -43,7 +43,6 @@ export function AboutPanel({ lang }: Props) {
         </div>
       </div>
 
-      <p className="mono-note about-formerly">{t(lang, 'about.formerly')}</p>
       <p>{t(lang, 'about.text')}</p>
 
       <section className="about-section">
@@ -78,6 +77,16 @@ export function AboutPanel({ lang }: Props) {
                 <td>
                   <a className="about-link" href={PRODUCT.HOMEPAGE_URL} target="_blank" rel="noopener noreferrer">
                     {PRODUCT.HOMEPAGE_URL.replace(/^https?:\/\//, '')} <IconExternal size={11} />
+                  </a>
+                </td>
+              </tr>
+            )}
+            {PRODUCT.EXTERNAL_LINKS_ENABLED && PRODUCT.CONTACT_EMAIL && (
+              <tr>
+                <th>{t(lang, 'about.contact')}</th>
+                <td>
+                  <a className="about-link" href={`mailto:${PRODUCT.CONTACT_EMAIL}`} data-testid="about-contact">
+                    {PRODUCT.CONTACT_EMAIL}
                   </a>
                 </td>
               </tr>

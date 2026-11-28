@@ -1,4 +1,4 @@
-/* Sigrún Stage 3 E2E — three-panel workspace, focus drawer, classic mode,
+/* Statelia Stage 3 E2E — three-panel workspace, focus drawer, classic mode,
    output-card context menu, and the Stage 1–2 regression list (1–15).
 
    Runs its own static server for dist/:
@@ -204,9 +204,9 @@ async function runViewport(browser, viewport) {
     check(`${tag} · 1: no horizontal page overflow`, overflow <= 1, `${overflow}px`);
   }
 
-  /* ── 1b. Help ▸ About Sigrún wears the full lock-up ──────────────── */
+  /* ── 1b. Help ▸ About Statelia wears the full lock-up ────────────── */
   if (!PART || PART.has('1b')) {
-    console.log(`\n── 1b. About Sigrún banner (${tag}) ──`);
+    console.log(`\n── 1b. About Statelia banner (${tag}) ──`);
     await page.click('[data-testid=menu-help]');
     await page.waitForTimeout(160);
     await page.click('[data-testid=menu-item-about]');
@@ -215,8 +215,8 @@ async function runViewport(browser, viewport) {
     await page.waitForTimeout(250);
     check(`${tag} · 1b: the about banner is drawn`, (await banner.count()) === 1);
     const bannerText = (await banner.innerText()).replace(/\s+/g, ' ').trim();
-    check(`${tag} · 1b: the banner carries mark · HD2Lab · Sigrún · badge`,
-      (await banner.locator('.mark').count()) === 1 && /HD2Lab/.test(bannerText) && /Sigrún/.test(bannerText) && /STATISTICAL WORKSPACE/.test(bannerText),
+    check(`${tag} · 1b: the banner carries mark · HD2Lab · Statelia · badge`,
+      (await banner.locator('.mark').count()) === 1 && /HD2Lab/.test(bannerText) && /Statelia/.test(bannerText) && /STATISTICAL ENGINEERING SUITE/.test(bannerText),
       bannerText);
     const bannerBox = await banner.boundingBox();
     const descBox = await box(page, '.help-body > p');

@@ -1,4 +1,4 @@
-/* Sigrún — Cure Study 2-sample t boxplot axis regression, in a live browser.
+/* Statelia — Cure Study 2-sample t boxplot axis regression, in a live browser.
 
    Runs 2-sample t (Hardness vs Before) on the Cure Study sample and checks
    that the box/whiskers are drawn on the same scale as the Y tick labels:

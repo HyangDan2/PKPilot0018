@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — storage namespaces (WO-FINAL-001 · WO-04)
+   Statelia — storage namespaces (WO-FINAL-001 · WO-04)
 
    Every durable key the application writes is listed here once. Public edition
    keeps the historical names (empty namespace). A derived edition prefixes

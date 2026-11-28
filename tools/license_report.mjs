@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — third-party license report (WO-FINAL-002 · Q-05)
+   Statelia — third-party license report (WO-FINAL-002 · Q-05)
 
    The release must carry the license qualification, not just license names:
    every installed package's declared license, the full license text the

@@ -1,4 +1,4 @@
-/* Sigrún Stage 2 E2E — scatterplot with several Y and X variables.
+/* Statelia Stage 2 E2E — scatterplot with several Y and X variables.
    Runs its own static server for dist/, so no preview daemon is needed.
 
    PART=10 | 11 | 12 | 13 | 14 | shots | all   (default all)

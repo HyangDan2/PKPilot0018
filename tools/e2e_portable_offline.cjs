@@ -1,6 +1,6 @@
-/* Sigrún — Stage 3E: portable build offline smoke test (file://).
+/* Statelia — Stage 3E: portable build offline smoke test (file://).
 
-   Opens dist-portable/sigrun-portable.html directly from the filesystem in
+   Opens dist-portable/statelia-portable.html directly from the filesystem in
    Chromium with the network taken away, and drives the same flows the hosted
    build is tested with:
 
@@ -13,7 +13,7 @@
    blocked request rather than as a mystery failure.
 
    Usage:  node tools/e2e_portable_offline.cjs
-           OUT=<release folder> PORTABLE=dist-portable/sigrun-portable.html
+           OUT=<release folder> PORTABLE=dist-portable/statelia-portable.html
 */
 const fs = require('fs');
 const path = require('path');
@@ -22,7 +22,7 @@ const { chromium, executablePath: CHROME, browserEnv } = require('./browser_env.
 
 const OUT = process.env.OUT || path.resolve(__dirname, '..', '..', 'pkpilot0018');
 const ROOT = path.resolve(__dirname, '..');
-const HTML = path.resolve(ROOT, process.env.PORTABLE || 'dist-portable/sigrun-portable.html');
+const HTML = path.resolve(ROOT, process.env.PORTABLE || 'dist-portable/statelia-portable.html');
 const FIXTURE_CSV = path.join(OUT, 'portable-fixture.csv');
 const PROJECT_PATH = path.join(OUT, 'phase3-3e-portable.sigrun.json');
 

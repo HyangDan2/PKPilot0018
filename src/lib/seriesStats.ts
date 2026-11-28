@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — error-bar statistics (Stage 3D, WO-08)
+   Statelia — error-bar statistics (Stage 3D, WO-08)
 
    An error bar is a statistic, so it is defined once, here, and drawn from
    this module by every renderer. Nothing is estimated from the picture.

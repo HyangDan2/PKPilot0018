@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — the WebGL half of the 3D surface (WO-03)
+   Statelia — the WebGL half of the 3D surface (WO-03)
 
    A small, dependency-free renderer: one program, two vertex buffers, a depth
    buffer. No scene graph, no loader, no CDN — the shader source is a string in

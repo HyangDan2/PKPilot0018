@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — graph layout editor model (Stage 3D, WO-07)
+   Statelia — graph layout editor model (Stage 3D, WO-07)
 
    A layout is a page with panels on it: charts taken from the output, text
    boxes, arrows, lines, rectangles, circles, highlight regions, figure labels

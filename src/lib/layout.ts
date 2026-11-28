@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — workspace layout presets and floating-panel geometry
+   Statelia — workspace layout presets and floating-panel geometry
    Kept free of React so the numbers can be unit-tested.
    ───────────────────────────────────────────────────────────────────────── */
 

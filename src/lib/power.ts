@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — power and sample size
+   Statelia — power and sample size
    Minitab's convention: give any two of sample size, power and effect and the
    third is solved for. t tests use the exact noncentral t, one-way ANOVA the
    noncentral F, and proportions the standard normal approximation (documented

@@ -824,7 +824,6 @@ const en: Dict = {
   'about.title': 'About Statelia',
   'about.text':
     'Statelia — a statistical engineering suite for the browser, powered by Sigrdrifa Engine v1.0. Statistics, control charts, capability, reliability, Gage R&R, DOE/RSM, stored models with contour and 3D surfaces, a multi-response optimizer and prediction profiler, a graph layout editor, and a single-file portable build that runs from file:// offline. Built by HD2Lab.',
-  'about.formerly': 'Formerly Sigrún',
   'about.engine': 'Powered by {engine} {version}',
   'about.developed': 'Developed by {brand}',
   'about.features': 'What it does',
@@ -844,6 +843,7 @@ const en: Dict = {
   'about.repository': 'Official repository',
   'about.homepage': 'HD2Lab homepage',
   'about.homepageLabel': 'HD2Lab',
+  'about.contact': 'Official contact',
   'about.aiNote': 'Note: This program was created using generative AI and may contain errors.',
   'splash.loading': 'Loading the workspace',
   'splash.errorTitle': 'The workspace could not be restored',
@@ -2836,7 +2836,6 @@ const ko: Dict = {
   'about.title': 'Statelia 정보',
   'about.text':
     'Statelia — Sigrdrifa Engine v1.0 기반의 브라우저용 통계 엔지니어링 스위트입니다. 기술통계·가설검정·Tukey 포함 분산분석·회귀분석·관리도·공정능력·신뢰성·Gage R&R·DOE/RSM, 저장 모형의 등고선과 3D 곡면, 다중 반응 최적화기와 예측 프로파일러, 그래프 레이아웃 편집기, 그리고 네트워크 없이 file://로 여는 단일 파일 포터블 빌드까지 포함합니다. HD2Lab 제작.',
-  'about.formerly': '이전 이름: 시그룬(Sigrún)',
   'about.engine': '{engine} {version} 기반',
   'about.developed': '{brand} 제작',
   'about.features': '기능 소개',
@@ -2856,6 +2855,7 @@ const ko: Dict = {
   'about.repository': '공식 저장소',
   'about.homepage': 'HD2Lab 홈페이지',
   'about.homepageLabel': 'HD2Lab',
+  'about.contact': '공식 문의',
   'about.aiNote': '참고: 이 프로그램은 생성형 AI를 사용해 작성되었으며 오류가 포함될 수 있습니다.',
   'splash.loading': '워크스페이스를 여는 중입니다',
   'splash.errorTitle': '워크스페이스를 복원하지 못했습니다',

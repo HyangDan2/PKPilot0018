@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — paired English / Korean text
+   Statelia — paired English / Korean text
 
    Tutorials, the Sample Library and the Help Center carry their prose as
    paired strings instead of interface keys: a lesson is content, and a new

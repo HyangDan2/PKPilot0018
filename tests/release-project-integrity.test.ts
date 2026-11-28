@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — project integrity (WO-FINAL-001 · WO-03, F-REL-05~08/12)
+   Statelia — project integrity (WO-FINAL-001 · WO-03, F-REL-05~08/12)
 
    The round-trip comparison must see the whole project, not its shape: every
    row of every table, every chart data array, the entire 3-D grid, figure

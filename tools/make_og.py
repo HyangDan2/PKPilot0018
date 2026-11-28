@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render Sigrún's 1200x630 Open Graph card in the HD2Lab standard layout.
+"""Render Statelia's 1200x630 Open Graph card in the HD2Lab standard layout.
 
 Reference cards: downloads/check_p14_og.png, check_p15_og.png, check_apphub_og.png
 — Soft Iris background (#FAFAFD) with a faint 40px lavender grid, the dual-skew
@@ -180,7 +180,7 @@ def render() -> Image.Image:
 
     text(draw, (105, 76), "HD2Lab", f(SANS_B, 36), INK, anchor="lm")
     draw.line([px(240, 62), px(240, 89)], fill="#D4CCE8", width=int(1.1 * S))
-    text(draw, (253, 77), "Sigrún", f(SANS, 15), BODY, anchor="lm")
+    text(draw, (253, 77), "Statelia", f(SANS, 15), BODY, anchor="lm")
 
     # ── eyebrow ───────────────────────────────────────────────────────────
     r = 4.6

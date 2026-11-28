@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — enterprise configuration (WO-FINAL-001 · WO-04, tests 26–32)
+   Statelia — enterprise configuration (WO-FINAL-001 · WO-04, tests 26–32)
 
    What a derived edition must be able to change without touching the engine:
    identity and brand, version, base path, storage namespace, export prefix and
@@ -40,6 +40,7 @@ const CONFIG_REQUIRED = [
   'PRODUCT_ID', 'EDITION_ID', 'APP_NAME', 'APP_VERSION', 'APP_PHASE', 'BRAND_NAME', 'COPYRIGHT',
   'BASE_PATH', 'CANONICAL_URL', 'STORAGE_NAMESPACE', 'EXPORT_FILE_PREFIX', 'EXTERNAL_LINKS_ENABLED',
   'PRODUCT_CATEGORY', 'ENGINE_NAME', 'ENGINE_VERSION', 'SLOGAN', 'REPOSITORY_URL', 'HOMEPAGE_URL',
+  'CONTACT_EMAIL',
 ] as const;
 
 /* ── 26. the two editions ─────────────────────────────────────────────── */
@@ -75,6 +76,26 @@ describe('WO-04 · the edition records', () => {
     expect(PRODUCT.EDITION_ID).toBe('public');
     expect(PRODUCT_SHORT_NAME).toBe('Statelia');
     expect(statusBarLabel()).toBe('HD2LAB · STATELIA · PHASE 3');
+  });
+
+  /* FIX-02: one public enquiry address and home page; the internal edition
+     never publishes the public mailbox. */
+  it('names the official HD2Lab contact and home page for the public edition only', () => {
+    expect(PUBLIC_EDITION.CONTACT_EMAIL).toBe('hyperdimensionaldesignlab@gmail.com');
+    expect(PUBLIC_EDITION.HOMEPAGE_URL).toBe('https://hyangdan2.github.io/');
+    expect(ENTERPRISE_EDITION.CONTACT_EMAIL).toBe('');
+    for (const edition of [PUBLIC_EDITION, ENTERPRISE_EDITION]) {
+      expect(JSON.stringify(edition)).not.toContain('jhshim1988');
+    }
+    expect(JSON.stringify(ENTERPRISE_EDITION)).not.toContain('hyperdimensionaldesignlab');
+  });
+
+  /* FIX-01: the public record cannot carry the legacy product name anywhere a
+     reader would see it. Storage keys and the project format are not in the
+     record, so the rule is stated on the record itself. */
+  it('carries no legacy product name in the public record', () => {
+    const text = JSON.stringify(PUBLIC_EDITION);
+    expect(/sigrún|sigrun|시그룬/i.test(text)).toBe(false);
   });
 
   it('does not invent an enterprise brand or copyright', () => {

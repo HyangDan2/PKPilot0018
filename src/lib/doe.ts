@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — design of experiments and response surface methodology
+   Statelia — design of experiments and response surface methodology
    Standard-order 2^k designs (with centre points and replicates), central
    composite and Box–Behnken designs, factorial effect analysis and a full
    quadratic response-surface fit with the stationary point and a contour grid.
@@ -470,7 +470,7 @@ export interface RsmFactorTransform {
 }
 
 export interface RsmDesignPoint {
-  /** Factor levels exactly as fitted (coded for a standard Sigrún design). */
+  /** Factor levels exactly as fitted (coded for a standard Statelia design). */
   levels: number[];
   /** Observed response, or null for a row that did not enter the fit. */
   y: number | null;

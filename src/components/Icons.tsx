@@ -1,4 +1,4 @@
-/* Sigrún — line icons (currentColor, 1.6px stroke) */
+/* Statelia — line icons (currentColor, 1.6px stroke) */
 
 interface IconProps { size?: number; className?: string }
 

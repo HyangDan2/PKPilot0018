@@ -1,4 +1,4 @@
-/* Sigrún — release packaging and verification (WO-FINAL-001 · WO-06)
+/* Statelia — release packaging and verification (WO-FINAL-001 · WO-06)
 
    Three subcommands, one source of truth:
 
@@ -114,11 +114,19 @@ async function commandCheck() {
   for (const message of IDENTITY.problems) problem(message);
   const built = await editions();
   const pub = built.public;
-  for (const field of ['PRODUCT_ID', 'EDITION_ID', 'APP_NAME', 'APP_NAME_LOCAL', 'APP_VERSION', 'APP_PHASE', 'BRAND_NAME', 'BASE_PATH', 'STORAGE_NAMESPACE', 'EXPORT_FILE_PREFIX']) {
+  const PRODUCT_FIELDS = ['PRODUCT_ID', 'EDITION_ID', 'APP_NAME', 'APP_NAME_LOCAL', 'APP_VERSION', 'APP_PHASE', 'BRAND_NAME', 'BASE_PATH', 'STORAGE_NAMESPACE', 'EXPORT_FILE_PREFIX', 'CONTACT_EMAIL'];
+  for (const field of PRODUCT_FIELDS) {
     if (!(field in pub)) problem(`public edition is missing ${field}`);
   }
   if (pub.APP_VERSION !== PACKAGE.version) problem(`public edition version ${pub.APP_VERSION} ≠ package.json ${PACKAGE.version}`);
   if (pub.STORAGE_NAMESPACE !== '') problem('the public edition must not be namespaced (it would hide existing reader data)');
+  /* FIX-02: one public enquiry address, and the internal edition never carries it. */
+  if (pub.CONTACT_EMAIL !== 'hyperdimensionaldesignlab@gmail.com') problem(`public edition CONTACT_EMAIL must be hyperdimensionaldesignlab@gmail.com (got "${pub.CONTACT_EMAIL}")`);
+  if (String(built.enterprise.CONTACT_EMAIL ?? '') !== '') problem(`enterprise edition must not publish a contact address (got "${built.enterprise.CONTACT_EMAIL}")`);
+  /* FIX-01: the public product record cannot carry the legacy name. */
+  for (const field of PRODUCT_FIELDS) {
+    if (typeof pub[field] === 'string' && /sigrún|sigrun|시그룬/i.test(pub[field])) problem(`public edition ${field} still carries the legacy brand`);
+  }
   if (process.env.VITE_EDITION === 'enterprise') {
     if (!built.enterprise.BRAND_NAME) problem('enterprise: BRAND_NAME is not approved yet');
     if (!built.enterprise.COPYRIGHT) problem('enterprise: COPYRIGHT is not approved yet');
@@ -224,13 +232,13 @@ async function commandBuild() {
 
   step('assemble release folder');
   const product = JSON.parse(fs.readFileSync(path.join(ROOT, 'dist', 'product.json'), 'utf8'));
-  const htmlSource = path.join(ROOT, 'dist-portable', 'sigrun-portable.html');
+  const htmlSource = path.join(ROOT, 'dist-portable', 'statelia-portable.html');
   const htmlTarget = path.join(RELEASE_DIR, nameFor('html'));
   fs.copyFileSync(htmlSource, htmlTarget);
-  fs.copyFileSync(path.join(ROOT, 'dist-portable', 'sigrun-portable.zip'), path.join(RELEASE_DIR, nameFor('portableZip')));
+  fs.copyFileSync(path.join(ROOT, 'dist-portable', 'statelia-portable.zip'), path.join(RELEASE_DIR, nameFor('portableZip')));
   zipWeb(path.join(RELEASE_DIR, nameFor('webZip')));
   // The packager copied build-info.json and its own zip name; keep only the named copies.
-  fs.rmSync(path.join(RELEASE_DIR, 'sigrun-portable.zip'), { force: true });
+  fs.rmSync(path.join(RELEASE_DIR, 'statelia-portable.zip'), { force: true });
 
   for (const [template, target] of [['RELEASE_NOTES.md', 'RELEASE_NOTES.md'], ['KNOWN_LIMITATIONS.md', 'KNOWN_LIMITATIONS.md'], ['README-EN.txt', 'README-EN.txt'], ['README-KO.txt', 'README-KO.txt']]) {
     const text = fs.readFileSync(path.join(ROOT, 'docs', 'release', template), 'utf8')
@@ -374,7 +382,7 @@ async function commandVerify(repro) {
   const portable = zipListing(path.join(RELEASE_DIR, nameFor('portableZip')));
   // The packager keeps the file name its README tells the reader to open;
   // the release copy is compared by bytes, not by the name on the wrapper.
-  const innerHtml = portable.find((entry) => entry.name === nameFor('html') || entry.name.endsWith('/sigrun-portable.html'));
+  const innerHtml = portable.find((entry) => entry.name === nameFor('html') || entry.name.endsWith('/statelia-portable.html'));
   const releaseHtml = sha256(path.join(RELEASE_DIR, nameFor('html')));
   if (!innerHtml) problem('Portable.zip does not carry the release HTML');
   else if (innerHtml.sha256 !== releaseHtml) problem('Portable.zip HTML differs from the release HTML');
@@ -404,6 +412,19 @@ async function commandVerify(repro) {
     if (info.edition === 'public' && !fs.readFileSync(packageManifest, 'utf8').includes('HD2Lab')) problem('public manifest lost its brand');
   }
 
+  step('brand sweep');
+  /* FIX-01/FIX-03: the shipped text and the shipped page name one product.
+     Project compatibility keeps `sigrun-project`, `.sigrun.json` and the
+     historical storage keys, so those spellings are not counted. */
+  const LEGACY = /(sigrún|시그룬|(?<![.\w-])sigrun(?![.\w-]))/i;
+  for (const name of ['README-EN.txt', 'README-KO.txt', 'RELEASE_NOTES.md', 'KNOWN_LIMITATIONS.md', 'VERSION.txt', 'build-info.json']) {
+    const text = fs.readFileSync(path.join(RELEASE_DIR, name), 'utf8');
+    const hit = LEGACY.exec(text);
+    if (hit) problem(`${name} still carries the legacy brand ("${hit[0]}")`);
+  }
+  const pageHit = LEGACY.exec(fs.readFileSync(path.join(RELEASE_DIR, nameFor('html')), 'utf8'));
+  if (pageHit) problem(`the portable page still carries the legacy brand ("${pageHit[0]}")`);
+
   if (repro) {
     step('reproducible rebuild');
     const epoch = String(Math.floor(Date.parse(info.builtAt) / 1000));
@@ -412,7 +433,7 @@ async function commandVerify(repro) {
       encoding: 'utf8',
       env: { ...process.env, SOURCE_DATE_EPOCH: epoch, VITE_BUILD_YEAR: String(new Date(epoch * 1000).getUTCFullYear()) },
     });
-    const rebuilt = sha256(path.join(ROOT, 'dist-portable', 'sigrun-portable.html'));
+    const rebuilt = sha256(path.join(ROOT, 'dist-portable', 'statelia-portable.html'));
     if (rebuilt !== releaseHtml) problem(`reproducible rebuild differs: ${rebuilt} ≠ ${releaseHtml}`);
     else console.log('portable HTML is byte-identical on rebuild');
     if (!/portable build complete/.test(output)) problem('reproducible rebuild did not finish');

@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — the Derringer–Suich desirability function (WO-05)
+   Statelia — the Derringer–Suich desirability function (WO-05)
 
    Every response is turned into a number between 0 and 1 that means the same
    thing for all of them: 0 = unacceptable, 1 = as good as the stated limits

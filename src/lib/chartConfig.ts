@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — common chart configuration model (WO-01)
+   Statelia — common chart configuration model (WO-01)
 
    The configuration is deliberately independent of the statistical results:
    an analysis produces the numbers, a chart config decides how those numbers

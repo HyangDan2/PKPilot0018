@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — 3D surface geometry and painting (WO-03)
+   Statelia — 3D surface geometry and painting (WO-03)
 
    Two renderers share one description of the picture:
 

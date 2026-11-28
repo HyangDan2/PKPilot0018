@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Golden-reference benchmark suite
    Every expected value below is an independent reference, not a re-recording
-   of Sigrún's own output:
+   of this application's own output:
 
    · scipy.stats — t / F / Tukey / Weibull / lognormal / gamma fits, noncentral
      t and F (power), computed with SciPy 1.18.1 / NumPy 2.5.4 (Python 3.12).
@@ -13,7 +13,7 @@
      §5.5.2 Weibull MLE, §3.4.1 ANOVA) — the SS / variance-component algebra.
    · The Type III sums of squares for the unbalanced two-way design were
      produced by explicit full-versus-reduced model fits in NumPy (the
-     definition of an adjusted SS), independently of Sigrún's coding.
+     definition of an adjusted SS), independently of this codebase.
 
    Reproduce the reference values with the Python recipe kept beside each block.
    ───────────────────────────────────────────────────────────────────────── */

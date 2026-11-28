@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — worksheet construction helpers
+   Statelia — worksheet construction helpers
 
    Kept apart from the sample registry so that sample data, the DOE engine and
    the project importer can build a sheet without importing each other.

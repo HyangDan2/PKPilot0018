@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — probability distributions
+   Statelia — probability distributions
    Normal, Student-t, F, and the studentized range (Tukey q).
    Implemented from series / continued-fraction / numeric quadrature so the
    statistical engine has no runtime dependencies.

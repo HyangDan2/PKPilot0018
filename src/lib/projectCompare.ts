@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — project round-trip comparison (WO-TQA-09, WO-FINAL-001 F-REL-05~08)
+   Statelia — project round-trip comparison (WO-TQA-09, WO-FINAL-001 F-REL-05~08)
 
    A saved project is only "verified" when what comes back out of the file is
    the same data, not when the counts happen to agree. The comparison walks

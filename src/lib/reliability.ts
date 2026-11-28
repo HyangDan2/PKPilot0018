@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — reliability / survival analysis
+   Statelia — reliability / survival analysis
    2-parameter Weibull MLE with right censoring. The scale is profiled out of
    the likelihood (η̂(β) = (Σ t^β / r)^{1/β} for r failures), which turns the
    fit into a one-dimensional maximisation that cannot diverge the way a raw

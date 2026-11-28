@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — professional chart style system (WO-07)
+   Statelia — professional chart style system (WO-07)
 
    The app UI theme (light / dark) and a chart's own style are independent:
    a chart keeps its white engineering look on a dark app skin, exactly like a

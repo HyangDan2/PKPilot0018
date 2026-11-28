@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Sigrún — local autosave
+   Statelia — local autosave
 
    IndexedDB is the primary store and localStorage the second copy; BOTH are
    written, and both are read, so a failure in either one cannot silently

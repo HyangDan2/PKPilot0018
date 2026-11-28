@@ -26,6 +26,9 @@ export const ENTERPRISE_EDITION: ProductEdition = {
   COPYRIGHT: '',
   REPOSITORY_URL: '',
   HOMEPAGE_URL: '',
+  // FIX-02: an internal edition publishes no public address, so the public
+  // enquiry mailbox never reaches a closed-network build.
+  CONTACT_EMAIL: '',
   BASE_PATH: '/',
   CANONICAL_URL: '',
   STORAGE_NAMESPACE: 'sigrun.enterprise.',

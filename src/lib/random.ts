@@ -1,4 +1,4 @@
-/* Sigrún — deterministic pseudo-random data generation */
+/* Statelia — deterministic pseudo-random data generation */
 
 export type RandomKind = 'normal' | 'uniform' | 'integer';
 

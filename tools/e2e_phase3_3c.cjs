@@ -1,4 +1,4 @@
-/* Sigrún — Stage 3C E2E: multi-response optimizer, prediction profiler and the
+/* Statelia — Stage 3C E2E: multi-response optimizer, prediction profiler and the
    repaired WebGL surface.
 
    Local:  BASE=http://127.0.0.1:4190/PKPilot0018/ node tools/e2e_phase3_3c.cjs
