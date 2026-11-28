@@ -214,6 +214,10 @@
 - 통계 엔진·분석 정의·차트 렌더러: 로직 변경 없음(브랜드 문자열·주석만 변경).
 - 엔터프라이즈 에디션: record에 신규 필드만 추가, 브랜드·네임스페이스·링크 정책 불변
   (`qa:network` enterprise 3개 체크 PASS).
+- **실기기 경로 확인**: 포터블 HTML에서 `app: "HD2Lab Sigrún"`, `format: "sigrun-project"`,
+  `version: 2` 프로젝트 파일을 File ▸ Open project로 열어 워크시트 48행·출력 카드 2개가
+  그대로 복원되고 페이지 오류가 0건임을 확인했다(`docs/branding/legacy-project-opened.png`).
+  손상된 파일은 반대로 "output card damaged"로 거부하고 열린 프로젝트를 건드리지 않았다.
 
 ---
 
