@@ -55,7 +55,36 @@
 
 ### 1.2 이번 라운드 커밋
 
-<!-- COMMITS -->
+**PKPilot0018** (`db43bc5` 위):
+
+| 커밋 | 내용 |
+| --- | --- |
+| `a784d76` | FIX-01~05 코드·템플릿·문서 — 이전 이름 제거, `CONTACT_EMAIL`, 포터블 파일명·릴리스 메타 정합, brand sweep, 배포 순서 문서 |
+| `69ab3d3` | `release/v1.0.0/` 재생성 (빌드 SHA = `a784d76`, `SOURCE_DATE_EPOCH=1795866600` = 2026-11-28T11:50:00Z) |
+| `9b5ddb9` | `.github/workflows/deploy.yml` 을 `main` 과 동일하게 되돌림 (아래 1.3) |
+| `docs` | 본 보고서의 최종 SHA·QA·Push 기록 — 문서 전용 커밋(빌드 입력 불변, `verify` 통과) |
+
+**ApplicationHub** (`fc14fc2` 위): `bb03f0e` — Statelia 카드의 공식 문의·홈페이지, 스키마 필드, 카탈로그 순서 정정, 테스트 가드.
+
+### 1.3 이번에 할 수 없었던 한 줄 (워크플로 이름)
+
+`.github/workflows/deploy.yml` 의 `name: Deploy Sigrún to GitHub Pages` 을
+`Deploy Statelia to GitHub Pages` 로 바꾸는 한 줄은 **Push되지 않았다**. 이 체크아웃이 쓰는
+GitHub App 에 `workflows` 권한이 없어, 워크플로 파일을 건드리는 Push가 거부됐다:
+
+    ! [remote rejected] feat/statelia-branding -> feat/statelia-branding
+      (refusing to allow a GitHub App to create or update workflow
+       `.github/workflows/deploy.yml` without `workflows` permission)
+
+그래서 1차 시도에서 바꿨던 그 한 줄을 `9b5ddb9` 에서 `main` 과 **바이트 동일**하게 되돌려
+(브랜치 Push 성공) 지금 남은 이전 이름은 **CI 워크플로 이름 한 곳뿐**이다.
+사용자 노출 화면(앱·Help·About·튜토리얼·샘플·내보내기·오류 메시지·README·Release Notes·허브)에는 0건이다.
+해결 방법은 둘 중 하나다.
+
+1. Pickle의 GitHub 연결에서 **Actions/워크플로 쓰기**를 허용한 뒤 이 한 줄을 커밋·Push
+2. 사용자가 GitHub 웹에서 파일 이름을 직접 수정
+
+`docs/CI_PORTABLE_PATCH.md` 의 예시 블록은 이미 새 이름을 쓰므로, 실제 파일만 바꾸면 문서와 맞는다.
 
 ---
 
@@ -284,15 +313,44 @@ Node: `/workspace/.tools/node-v22.11.0-linux-x64/bin` (v22.11.0). 브라우저: 
 | 허브 빌드 | `npm run build` | **PASS** — 12 published apps |
 | 허브 링크 | `npm run check:links` | 아래 §8.1 |
 
-<!-- QA-DETAIL -->
+### 8.1 허브 검증 상세 (ApplicationHub)
 
-### 8.1 허브 링크 검증 메모
+| 검증 | 결과 |
+| --- | --- |
+| 스키마·자산·evidence 경로 | **PASS** — 12 apps (12 published) |
+| 단위 | **9/9 PASS** (공식 문의·홈페이지 가드 + 기존 8) |
+| 빌드 | **PASS** — 12 published apps |
+| 링크 | **PASS** — 27 external destinations, `https://hyangdan2.github.io/` 포함 |
+| 브라우저 E2E | **21/21 PASS** |
+| 카드 화면 검증 | **7/7 PASS** — 공식 문의·홈페이지 텍스트, 중첩 링크 0, `Preview build` 유지 |
+
+**이번에 발견해 고친 허브 결함**: `data/apps.json` 의 `statelia` 항목이 파일 끝에 추가돼 있어
+`sortOrder` 순서(파일 순서 = 카드·드롭다운·드로어 순서)와 어긋났고, 그 때문에 Apps 드롭다운과
+모바일 드로어 E2E 2건이 실패했다. 항목을 `sortOrder` 자리에 옮겨(`bb03f0e`) 21/21로 되돌렸다.
+
+증적: `docs/evidence/hub-card-statelia.png` (카드), `docs/evidence/apphub-desktop.png` (1440×900).
 
 `check-links` 는 라이브 주소를 확인한다. `launchUrl`(`https://hyangdan2.github.io/PKPilot0018/`)은
 아직 **이전 빌드**를 서빙하므로(1단계 병합 전), 이 단계에서 확인하는 것은 "주소가 살아 있는가"이지
 "Statelia가 떠 있는가"가 아니다. 후자는 FIX-05 4단계 Live Smoke Test의 몫이다.
 
-### 8.2 바꾸지 않은 것
+### 8.2 릴리스 산출물 (FIX-03)
+
+`release/v1.0.0/` — 11 files, `verify` PASS, `verify --repro` **포터블 HTML 바이트 동일**:
+
+| 파일 | 바이트 | SHA256 |
+| --- | ---: | --- |
+| `Statelia-v1.0.0.html` | 2,649,020 | `5e4f2d7f0056406e533916ee475c1dff259380516e31f30e78d32ec95ca5aa3d` |
+| `Statelia-v1.0.0-Portable.zip` | 1,252,258 | `9b7ebafded1fee8d453d69fa2050994b9e1b973e31504cd5b05f9def6e3b8258` |
+| `Statelia-v1.0.0-Web.zip` | 2,623,370 | `84e452516468b631b3563e8b427c6cf98d5387fbb34bd8bb5b0867a49eb65152` |
+| `build-info.json` | 954 | `0d4acdbd8c09b7e96066b83623fa04224e5e50089eb7f7d93e2da58d20c27733` |
+| `VERSION.txt` | 184 | `075f05bf87924c957f520da8127913072894df2c1b62807665fb62c1d0bc8299` |
+
+`build-info.json`: `commit a784d76`, `file statelia-portable.html`, `zip.file statelia-portable.zip`,
+`zip` 내부 `statelia-portable/statelia-portable.html` + `README.txt` + `build-info.json`,
+`artifacts` = `Statelia-v1.0.0.html` / `-Portable.zip` / `-Web.zip` — **이름·해시·커밋이 모두 실제 파일과 일치**한다.
+
+### 8.3 바꾸지 않은 것
 
 - 통계 엔진·분석 정의·수치 기대값: 무변경 (문자열·주석만).
 - 전체 통계 QA(`qa:stats`) 재실행: **하지 않았다**(지시: 통계 QA 반복 금지).
@@ -334,7 +392,21 @@ Node: `/workspace/.tools/node-v22.11.0-linux-x64/bin` (v22.11.0). 브라우저: 
 
 ## 11. Push 결과
 
-<!-- PUSH -->
+```
+PKPilot0018     db43bc5..9b5ddb9  feat/statelia-branding -> feat/statelia-branding
+ApplicationHub  fc14fc2..bb03f0e  feat/statelia-branding -> feat/statelia-branding
+```
+
+원격 확인:
+
+    $ git ls-remote origin refs/heads/feat/statelia-branding     # PKPilot0018
+    9b5ddb90b910ed5aa898fce229f4ec288ce98285   refs/heads/feat/statelia-branding
+    $ git ls-remote origin refs/heads/feat/statelia-branding     # ApplicationHub
+    bb03f0e0496738efa647759cba0d0da492cc570a   refs/heads/feat/statelia-branding
+
+Push 후 HEAD에서 `RELEASE_ID=v1.0.0 node tools/release.mjs verify` → **PASS · 11 files**
+(빌드 커밋 `a784d76` 이후 빌드 입력이 바뀌지 않았다는 판정 포함).
+`main` 병합·태그·Release 게시·Pages 배포는 **하지 않았다**.
 
 ---
 
@@ -342,6 +414,7 @@ Node: `/workspace/.tools/node-v22.11.0-linux-x64/bin` (v22.11.0). 브라우저: 
 
 1. **`main` 병합·운영 배포·Release 게시** — FIX-05 1~7단계. PO 승인 필요.
 2. **허브 Stable 전환** — 3~4단계 이후에만 (그전에는 `Preview build` 표기가 정직한 상태).
-3. **OG 카드 호스팅 확인** — 배포 후 `statelia-og.webp` 반영 확인.
-4. **`docs/audit` CSV 컬럼명(`Sigrún Feature`)** — 감사 데이터를 다시 만들 때 함께 바꾸는 편이 좋다.
-5. **`release/v1.0.0-rc.1/`** — 과거 RC 증적으로 보존. 저장소에서 지우려면 별도 판단이 필요하다.
+3. **워크플로 이름 한 줄** — §1.3. GitHub App `workflows` 권한이 필요하다.
+4. **OG 카드 호스팅 확인** — 배포 후 `statelia-og.webp` 반영 확인.
+5. **`docs/audit` CSV 컬럼명(`Sigrún Feature`)** — 감사 데이터를 다시 만들 때 함께 바꾸는 편이 좋다.
+6. **`release/v1.0.0-rc.1/`** — 과거 RC 증적으로 보존. 저장소에서 지우려면 별도 판단이 필요하다.
